@@ -3,6 +3,9 @@
     <!-- Header -->
     <HeaderView />
 
+    <!-- Hero -->
+    <HeroView />
+
     <!-- Footer -->
     <FooterView />
 
@@ -14,6 +17,7 @@
 // import { useMainStore } from '@/stores/main'
 // const store = useMainStore()
 import HeaderView from '@/components/HomeViewComponents/HeaderView.vue';
+import HeroView from '@/components/HomeViewComponents/HeroView.vue';
 import FooterView from '@/components/HomeViewComponents/FooterView.vue';
 </script>
 
