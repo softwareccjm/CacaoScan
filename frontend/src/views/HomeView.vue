@@ -6,6 +6,9 @@
     <!-- Hero -->
     <HeroView />
 
+    <!-- Features -->
+    <FeaturesView />
+
     <!-- Footer -->
     <FooterView />
 
@@ -19,6 +22,7 @@
 import HeaderView from '@/components/HomeViewComponents/HeaderView.vue';
 import HeroView from '@/components/HomeViewComponents/HeroView.vue';
 import FooterView from '@/components/HomeViewComponents/FooterView.vue';
+import FeaturesView from '@/components/HomeViewComponents/FeaturesView.vue';
 </script>
 
 <style scoped>
