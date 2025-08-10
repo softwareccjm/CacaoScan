@@ -2,6 +2,10 @@
   <div class="min-h-screen flex flex-col bg-gray-50">
     <!-- Header -->
     <HeaderView />
+
+    <!-- Footer -->
+    <FooterView />
+
   </div>
 </template>
 
@@ -10,6 +14,7 @@
 // import { useMainStore } from '@/stores/main'
 // const store = useMainStore()
 import HeaderView from '@/components/HomeViewComponents/HeaderView.vue';
+import FooterView from '@/components/HomeViewComponents/FooterView.vue';
 </script>
 
 <style scoped>
