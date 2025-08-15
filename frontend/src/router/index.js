@@ -4,6 +4,7 @@ import NuevoAnalisis from '../views/NuevoAnalisis.vue'
 import AnalisisDetalle from '../views/AnalisisDetalle.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import AdminDashboard from '../views/AdminDashboard.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -45,30 +46,51 @@ const router = createRouter({
       name: 'analisis-detalle',
       component: AnalisisDetalle,
       meta: {
-        title: 'Detalle de Análisis | CacaoScan'
+        title: 'Detalle de Análisis | CacaoScan',
+        requiresAuth: true
       },
       props: true
+    },
+    {
+      path: '/admin',
+      name: 'admin-dashboard',
+      component: AdminDashboard,
+      meta: {
+        title: 'Panel de Administración | CacaoScan',
+        requiresAdmin: true
+      }
     }
   ],
 })
 
-// Navigation guard for authentication and page titles
-router.beforeEach((to, from, next) => {
-  // Update page title
-  document.title = to.meta?.title || 'CacaoScan';
+// // Guardián de navegación para autenticación y títulos de página
+// router.beforeEach((to, from, next) => {
+//   // Actualizar el título de la página
+//   document.title = to.meta?.title || 'CacaoScan';
 
-  // Check if the route requires authentication
-  const isAuthenticated = localStorage.getItem('auth_token'); // Update this based on your auth implementation
+//   // Verificar si el usuario está autenticado
+//   const isAuthenticated = localStorage.getItem('auth_token');
+//   const userRole = localStorage.getItem('user_role'); // Asume que guardas el rol del usuario
 
-  if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-    // Redirect to login if trying to access protected route
-    next({ name: 'login' });
-  } else if (to.matched.some(record => record.meta.hideForAuth) && isAuthenticated) {
-    // Prevent accessing login page when already authenticated
-    next({ path: '/' });
-  } else {
-    next();
-  }
-});
+//   // Si la ruta requiere autenticación y el usuario no está autenticado
+//   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
+//     // Redirigir al inicio de sesión si intenta acceder a una ruta protegida
+//     next({ name: 'login' });
+//   } 
+//   // Si la ruta es solo para administradores y el usuario no es administrador
+//   else if (to.matched.some(record => record.meta.requiresAdmin) && (!isAuthenticated || userRole !== 'admin')) {
+//     // Redirigir al inicio si no tiene permisos de administrador
+//     next({ path: '/' });
+//   }
+//   // Si el usuario está autenticado y trata de acceder a login/registro
+//   else if (to.matched.some(record => record.meta.hideForAuth) && isAuthenticated) {
+//     // Redirigir al dashboard de administrador si es admin, de lo contrario al inicio
+//     next(userRole === 'admin' ? { name: 'admin-dashboard' } : { path: '/' });
+//   } 
+//   // En cualquier otro caso, permitir la navegación
+//   else {
+//     next();
+//   }
+// });
 
 export default router
