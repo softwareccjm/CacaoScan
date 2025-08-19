@@ -25,22 +25,54 @@
       
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label for="firstName" class="block text-sm font-medium text-gray-700">Nombre</label>
+          <label for="firstName" class="block text-sm font-medium text-gray-700">Primer Nombre</label>
           <input type="text" id="firstName" 
                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border"
                  placeholder="Ingresa tu nombre">
         </div>
         
         <div>
-          <label for="lastName" class="block text-sm font-medium text-gray-700">Apellido</label>
+          <label for="lastName" class="block text-sm font-medium text-gray-700">Segundo nombre</label>
+          <input type="text" id="lastName" 
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border"
+                 placeholder="Ingresa tu apellido">
+        </div>
+        <div>
+          <label for="firstName" class="block text-sm font-medium text-gray-700">Primer Apellido</label>
+          <input type="text" id="firstName" 
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border"
+                 placeholder="Ingresa tu nombre">
+        </div>
+        
+        <div>
+          <label for="lastName" class="block text-sm font-medium text-gray-700">Segundo Apellido</label>
           <input type="text" id="lastName" 
                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border"
                  placeholder="Ingresa tu apellido">
         </div>
       </div>
+
+      <div>
+        <label for="documentType" class="block text-sm font-medium text-gray-700">Tipo de documento</label>
+        <select id="documentType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border">
+          <option value="" disabled selected>Selecciona el tipo de documento</option>
+          <option value="cc">Cédula de ciudadanía</option>
+          <option value="ce">Cédula de extranjería</option>
+          <option value="ti">Tarjeta de identidad</option>
+          <option value="pasaporte">Pasaporte</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
       
       <div>
-        <label for="phone" class="block text-sm font-medium text-gray-700">Teléfono</label>
+        <label for="phone" class="block text-sm font-medium text-gray-700">Número de documento</label>
+        <input type="tel" id="phone" 
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border"
+               placeholder="Ingresa tu número de documento">
+      </div>
+
+      <div>
+        <label for="phone" class="block text-sm font-medium text-gray-700">Teléfono de contacto</label>
         <input type="tel" id="phone" 
                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm p-2 border"
                placeholder="Ingresa tu teléfono">
