@@ -106,34 +106,8 @@
         </div>
   
         <!-- Tarjetas de resumen -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <!-- Tarjeta 1 -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-5">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-green-50 rounded-lg p-3">
-                  <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <div class="ml-5">
-                  <dl>
-                    <dt class="text-sm font-medium text-gray-500 truncate">Ingresos Totales</dt>
-                    <dd class="mt-1">
-                      <div class="text-2xl font-semibold text-gray-900">$45,289</div>
-                      <div class="text-sm text-green-600 flex items-center mt-1">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                        </svg>
-                        <span>12% desde el mes pasado</span>
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Tarjeta 2 -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
             <div class="p-5">
               <div class="flex items-center">
@@ -159,7 +133,7 @@
               </div>
             </div>
           </div>
-          <!-- Tarjeta 3 -->
+          <!-- Tarjeta 2 -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
             <div class="p-5">
               <div class="flex items-center">
@@ -185,7 +159,7 @@
               </div>
             </div>
           </div>
-          <!-- Tarjeta 4 -->
+          <!-- Tarjeta 3 -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
             <div class="p-5">
               <div class="flex items-center">
@@ -215,147 +189,7 @@
   
         <!-- Gráficos principales -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <!-- Gráfico 1: Producción por mes -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-5 border-b border-gray-100">
-              <div class="flex justify-between items-center">
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-800">Producción Mensual</h3>
-                  <p class="text-sm text-gray-500">Kilogramos de cacao por mes</p>
-                </div>
-                <div class="flex space-x-2">
-                  <button class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
-                    </svg>
-                  </button>
-                  <button class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                  </button>
-                  <button class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="p-5">
-              <!-- Aquí iría el componente de gráfico -->
-              <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                <!-- Simulación de gráfico de barras -->
-                <div class="w-full h-48 flex items-end justify-around px-4">
-                  <div class="relative group">
-                    <div class="w-8 bg-green-500 rounded-t-md" style="height: 30%"></div>
-                    <div class="absolute bottom-0 left-0 right-0 text-center text-xs text-gray-500 mt-1">Ene</div>
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">1,250 kg</div>
-                  </div>
-                  <div class="relative group">
-                    <div class="w-8 bg-green-500 rounded-t-md" style="height: 45%"></div>
-                    <div class="absolute bottom-0 left-0 right-0 text-center text-xs text-gray-500 mt-1">Feb</div>
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">1,850 kg</div>
-                  </div>
-                  <div class="relative group">
-                    <div class="w-8 bg-green-500 rounded-t-md" style="height: 60%"></div>
-                    <div class="absolute bottom-0 left-0 right-0 text-center text-xs text-gray-500 mt-1">Mar</div>
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">2,450 kg</div>
-                  </div>
-                  <div class="relative group">
-                    <div class="w-8 bg-green-500 rounded-t-md" style="height: 75%"></div>
-                    <div class="absolute bottom-0 left-0 right-0 text-center text-xs text-gray-500 mt-1">Abr</div>
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">3,050 kg</div>
-                  </div>
-                  <div class="relative group">
-                    <div class="w-8 bg-green-500 rounded-t-md" style="height: 90%"></div>
-                    <div class="absolute bottom-0 left-0 right-0 text-center text-xs text-gray-500 mt-1">May</div>
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">3,650 kg</div>
-                  </div>
-                  <div class="relative group">
-                    <div class="w-8 bg-green-500 rounded-t-md" style="height: 80%"></div>
-                    <div class="absolute bottom-0 left-0 right-0 text-center text-xs text-gray-500 mt-1">Jun</div>
-                    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">3,250 kg</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-  
-          <!-- Gráfico 2: Calidad por región -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-5 border-b border-gray-100">
-              <div class="flex justify-between items-center">
-                <div>
-                  <h3 class="text-lg font-semibold text-gray-800">Calidad por Región</h3>
-                  <p class="text-sm text-gray-500">Porcentaje de calidad promedio por región</p>
-                </div>
-                <div class="flex space-x-2">
-                  <button class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
-                    </svg>
-                  </button>
-                  <button class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                  </button>
-                  <button class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="p-5">
-              <!-- Aquí iría el componente de gráfico de dona -->
-              <div class="h-64 flex items-center justify-center">
-                <!-- Simulación de gráfico de dona -->
-                <div class="relative w-48 h-48">
-                  <!-- Círculo base gris -->
-                  <div class="absolute inset-0 rounded-full bg-gray-200"></div>
-                  
-                  <!-- Segmentos del gráfico -->
-                  <div class="absolute inset-0 rounded-full bg-green-500" style="clip-path: polygon(50% 50%, 100% 50%, 100% 0%, 50% 0%)"></div>
-                  <div class="absolute inset-0 rounded-full bg-blue-500" style="clip-path: polygon(50% 50%, 50% 0%, 0% 0%, 0% 50%)"></div>
-                  <div class="absolute inset-0 rounded-full bg-yellow-500" style="clip-path: polygon(50% 50%, 0% 50%, 0% 100%)"></div>
-                  <div class="absolute inset-0 rounded-full bg-purple-500" style="clip-path: polygon(50% 50%, 0% 100%, 50% 100%)"></div>
-                  <div class="absolute inset-0 rounded-full bg-red-500" style="clip-path: polygon(50% 50%, 50% 100%, 100% 100%, 100% 50%)"></div>
-                  
-                  <!-- Círculo central blanco para efecto dona -->
-                  <div class="absolute inset-0 m-auto w-24 h-24 rounded-full bg-white flex items-center justify-center">
-                    <span class="text-xl font-bold text-gray-800">78%</span>
-                  </div>
-                </div>
-                
-                <!-- Leyenda -->
-                <div class="ml-8">
-                  <div class="flex items-center mb-2">
-                    <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                    <span class="text-sm text-gray-600">Norte (85%)</span>
-                  </div>
-                  <div class="flex items-center mb-2">
-                    <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                    <span class="text-sm text-gray-600">Sur (78%)</span>
-                  </div>
-                  <div class="flex items-center mb-2">
-                    <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                    <span class="text-sm text-gray-600">Este (72%)</span>
-                  </div>
-                  <div class="flex items-center mb-2">
-                    <div class="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                    <span class="text-sm text-gray-600">Oeste (68%)</span>
-                  </div>
-                  <div class="flex items-center">
-                    <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                    <span class="text-sm text-gray-600">Central (82%)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Las gráficas han sido removidas -->
         </div>
   
         <!-- Reportes disponibles -->
@@ -478,51 +312,6 @@
                     </a>
                   </td>
                 </tr>
-                <!-- Fila 3 -->
-                <tr class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="flex-shrink-0 h-8 w-8 bg-yellow-100 rounded-md flex items-center justify-center">
-                        <svg class="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                      </div>
-                      <div class="ml-4">
-                        <div class="text-sm font-medium text-gray-900">Ingresos por Agricultor</div>
-                        <div class="text-sm text-gray-500">Análisis financiero por agricultor</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                      Financiero
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">10/06/2023</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">Admin</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href="#" class="text-green-600 hover:text-green-900 mr-3">
-                      <svg class="h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                      </svg>
-                    </a>
-                    <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">
-                      <svg class="h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                      </svg>
-                    </a>
-                    <a href="#" class="text-red-600 hover:text-red-900">
-                      <svg class="h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                      </svg>
-                    </a>
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
@@ -539,7 +328,7 @@
             <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p class="text-sm text-gray-700">
-                  Mostrando <span class="font-medium">1</span> a <span class="font-medium">3</span> de <span class="font-medium">12</span> resultados
+                  Mostrando <span class="font-medium">1</span> a <span class="font-medium">2</span> de <span class="font-medium">12</span> resultados
                 </p>
               </div>
               <div>
