@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import NuevoAnalisis from '../views/NuevoAnalisis.vue'
-import AnalisisDetalle from '../views/AnalisisDetalle.vue'
+import DetalleAnalisisView from '../views/DetalleAnalisisView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
@@ -46,14 +46,13 @@ const router = createRouter({
       }
     },
     {
-      path: '/analisis/:id',
-      name: 'analisis-detalle',
-      component: AnalisisDetalle,
+      path: '/detalle-analisis',
+      name: 'detalle-analisis',
+      component: DetalleAnalisisView,
       meta: {
-        title: 'Detalle de Análisis | CacaoScan',
+        title: 'Detalle del Análisis de Cacao | CacaoScan',
         requiresAuth: true
-      },
-      props: true
+      }
     },
     {
       path: '/admin',
