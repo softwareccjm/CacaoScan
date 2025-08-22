@@ -2,33 +2,24 @@
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto">
       <!-- Page Header -->
-      <PageHeader
-        title="Nuevo Análisis de Lote"
-        description="Sube imágenes de granos de cacao y completa la información del lote para iniciar un análisis de calidad detallado y preciso."
-      />
+      <PageHeader title="Nuevo Análisis de Lote"
+        description="Sube imágenes de granos de cacao y completa la información del lote para iniciar un análisis de calidad detallado y preciso." />
 
       <!-- Main Content -->
       <div class="bg-white shadow rounded-lg overflow-hidden">
         <div class="p-6 space-y-8">
           <!-- Progress Indicator -->
-          <ProgressIndicator
-            v-if="isUploading"
-            :progress="uploadProgress"
-            label="Procesando imágenes..."
-          />
-
-          <!-- Error Alert -->
-          <ErrorAlert
-            v-if="error"
-            :message="error"
-          />
+          <ProgressIndicator v-if="isUploading" :progress="uploadProgress" label="Procesando imágenes..." />
 
           <!-- Success Alert -->
           <div v-if="analysisResult" class="bg-green-50 border-l-4 border-green-400 p-4">
             <div class="flex">
               <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                  fill="currentColor">
+                  <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd" />
                 </svg>
               </div>
               <div class="ml-3">
@@ -40,10 +31,8 @@
                     ID de análisis: {{ analysisResult.analysisId }}
                   </p>
                   <div class="mt-2">
-                    <router-link
-                      :to="{ name: 'analisis-detalle', params: { id: analysisResult.analysisId } }"
-                      class="inline-flex items-center text-sm font-medium text-green-700 hover:text-green-600"
-                    >
+                    <router-link :to="{ name: 'analisis-detalle', params: { id: analysisResult.analysisId } }"
+                      class="inline-flex items-center text-sm font-medium text-green-700 hover:text-green-600">
                       Ver resultados detallados
                       <svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -56,11 +45,7 @@
           </div>
 
           <!-- Batch Info Form -->
-          <BatchInfoForm
-            v-model="batchData"
-            :errors="formErrors"
-            @update:modelValue="updateBatchData"
-          />
+          <BatchInfoForm v-model="batchData" :errors="formErrors" @update:modelValue="updateBatchData" />
 
           <!-- Image Capture Section -->
           <div class="space-y-6">
@@ -168,6 +153,9 @@
               </div>
             </div>
           </div>
+
+          <!-- Error Alert -->
+          <ErrorAlert v-if="error" :message="error" />
         </div>
       </div>
     </div>

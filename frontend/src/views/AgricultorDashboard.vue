@@ -135,6 +135,12 @@
               <p>Procesa múltiples imágenes a la vez</p>
               <button class="btn btn-secondary">Crear Lote</button>
             </div>
+            <div class="tool-card">
+              <i class="fas fa-chart-pie"></i>
+              <h4>Ver Detalle de Análisis</h4>
+              <p>Visualiza resultados detallados con gráficos</p>
+              <router-link to="/detalle-analisis" class="btn btn-primary">Ver Detalle</router-link>
+            </div>
           </div>
         </div>
       </div>
