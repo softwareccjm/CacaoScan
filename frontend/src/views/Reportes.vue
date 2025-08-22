@@ -6,10 +6,12 @@
         :user-initials="userInitials"
         :user-name="userName"
         :user-role="userRole"
+        :sidebar-collapsed="sidebarCollapsed"
+        @toggle-sidebar="toggleSidebar"
       />
       
       <!-- Contenido principal -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden" :class="{ 'main-expanded': sidebarCollapsed }">
         <!-- Header de la página -->
         <PageHeader 
           title="Reportes"
@@ -100,7 +102,7 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
-import AdminSidebar from '@/components/reportes/AdminSidebar.vue';
+import AdminSidebar from '@/components/common/AdminSidebar.vue';
 import PageHeader from '@/components/reportes/PageHeader.vue';
 import PeriodSelector from '@/components/reportes/PeriodSelector.vue';
 import ActionButton from '@/components/reportes/ActionButton.vue';
@@ -121,6 +123,7 @@ export default {
     // Estado reactivo
     const selectedPeriod = ref('month');
     const loading = ref(false);
+    const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
     
     // Datos de usuario
     const userInitials = ref('JD');
@@ -193,6 +196,11 @@ export default {
     ]);
     
     // Métodos
+    const toggleSidebar = () => {
+      sidebarCollapsed.value = !sidebarCollapsed.value;
+      localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value);
+    };
+    
     const handlePeriodChange = (period) => {
       selectedPeriod.value = period;
       // Aquí se podría hacer una llamada a la API para obtener reportes del período seleccionado
@@ -238,12 +246,22 @@ export default {
     onMounted(() => {
       // Cargar datos iniciales
       console.log('Vista Reportes montada');
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
     });
+    
+    const checkScreenSize = () => {
+      if (window.innerWidth <= 768) {
+        sidebarCollapsed.value = true;
+        localStorage.setItem('sidebarCollapsed', 'true');
+      }
+    };
     
     return {
       // Estado
       selectedPeriod,
       loading,
+      sidebarCollapsed,
       userInitials,
       userName,
       userRole,
@@ -254,6 +272,7 @@ export default {
       reports,
       
       // Métodos
+      toggleSidebar,
       handlePeriodChange,
       handleNewReport,
       handleGenerateReport,
@@ -327,6 +346,17 @@ main {
   max-height: 100vh;
 }
 
+/* Estilos para cuando el sidebar está colapsado */
+.main-expanded {
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
+}
+
+/* Transición suave para el contenido principal */
+.flex-1.flex.flex-col {
+  transition: margin-left 0.3s ease;
+}
+
 /* Mejoras de responsividad */
 @media (max-width: 768px) {
   .p-4 {
@@ -369,6 +399,16 @@ main {
   
   .overflow-y-auto::-webkit-scrollbar {
     display: none;
+  }
+  
+  /* Asegurar que el sidebar esté colapsado en móviles */
+  .sidebar-collapsed {
+    width: 70px;
+  }
+  
+  /* Ajustar el contenido principal en móviles */
+  .main-expanded {
+    margin-left: 0;
   }
 }
 
@@ -450,6 +490,16 @@ main {
   /* Reducir espaciado en pantallas muy pequeñas */
   .mb-4 {
     margin-bottom: 0.5rem;
+  }
+  
+  /* Asegurar que el sidebar esté completamente colapsado en pantallas muy pequeñas */
+  .sidebar-collapsed {
+    width: 60px;
+  }
+  
+  /* Ajustar el contenido principal en pantallas muy pequeñas */
+  .main-expanded {
+    margin-left: 0;
   }
 }
 

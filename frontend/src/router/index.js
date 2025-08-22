@@ -91,6 +91,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/admin/configuracion',
+      name: 'configuracion',
+      component: () => import('../views/Configuracion.vue'),
+      meta: {
+        title: 'Configuración | CacaoScan',
+        requiresAdmin: true
+      }
+    },
+    {
       path: '/agricultor',
       name: 'agricultor-dashboard',
       component: AgricultorDashboard,
