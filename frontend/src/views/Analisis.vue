@@ -1,563 +1,682 @@
 <template>
-    <div class="min-h-screen bg-gray-50 flex pb-8">
+  <div class="bg-gray-50 min-h-screen">
+    <div class="flex h-screen">
       <!-- Sidebar -->
-      <aside class="w-16 md:w-64 bg-gradient-to-b from-green-800 to-green-600 text-white fixed inset-y-0 left-0 z-10 flex flex-col shadow-lg">
-        <!-- Logo/Brand -->
-        <div class="p-4 flex items-center justify-center md:justify-start">
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-          </svg>
-          <h1 class="text-xl font-bold text-white tracking-tight ml-3 hidden md:block">Panel Admin</h1>
-        </div>
-        
-        <!-- Navigation -->
-        <nav class="mt-8 flex-1">
-          <div class="px-2 space-y-1">
-            <router-link :to="{name: 'admin-dashboard'}" class="group flex items-center px-2 py-3 text-sm font-medium rounded-md hover:bg-green-700 transition-colors" :class="{'bg-green-700': $route.name === 'admin-dashboard'}">
-              <svg class="w-6 h-6 mr-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-              </svg>
-              <span class="hidden md:block">Inicio</span>
-            </router-link>
-            
-            <router-link :to="{name: 'agricultores'}" class="group flex items-center px-2 py-3 text-sm font-medium rounded-md hover:bg-green-700 transition-colors" :class="{'bg-green-700': $route.name === 'agricultores'}">
-              <svg class="w-6 h-6 mr-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-              <span class="hidden md:block">Agricultores</span>
-            </router-link>
-            
-            <router-link :to="{name: 'analisis'}" class="group flex items-center px-2 py-3 text-sm font-medium rounded-md hover:bg-green-700 transition-colors" :class="{'bg-green-700': $route.name === 'analisis'}">
-              <svg class="w-6 h-6 mr-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-              </svg>
-              <span class="hidden md:block">Análisis</span>
-            </router-link>
-            
-            <router-link :to="{name: 'reportes'}" class="group flex items-center px-2 py-3 text-sm font-medium rounded-md hover:bg-green-700 transition-colors" :class="{'bg-green-700': $route.name === 'reportes'}">
-              <svg class="w-6 h-6 mr-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-              </svg>
-              <span class="hidden md:block">Reportes</span>
-            </router-link>
-          </div>
-        </nav>
-        
-        <!-- User Profile -->
-        <div class="p-4 border-t border-green-700">
-          <div class="flex items-center">
-            <div class="h-8 w-8 rounded-full bg-white flex items-center justify-center text-green-800 font-bold">
-              AD
-            </div>
-            <div class="ml-3 hidden md:block">
-              <p class="text-sm font-medium text-white">Admin</p>
-              <p class="text-xs text-green-200">Ver perfil</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-  
-      <!-- Main Content -->
-      <main class="flex-1 ml-16 md:ml-64">
-        <!-- Header -->
-        <header class="bg-white shadow-sm mb-4 md:mb-6">
-          <div class="px-3 sm:px-4 lg:px-8 py-4 md:py-6">
-            <div class="flex items-center">
-              <svg class="h-6 w-6 md:h-8 md:w-8 mr-2 md:mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-              </svg>
-              <div>
-                <h1 class="text-lg md:text-2xl font-bold text-gray-800">Análisis</h1>
-                <p class="text-xs md:text-sm text-gray-600">Gestión de análisis de calidad de cacao</p>
-              </div>
-            </div>
-          </div>
-        </header>
-  
+      <AdminSidebar 
+        :user-initials="userInitials"
+        :user-name="userName"
+        :user-role="userRole"
+        :sidebar-collapsed="sidebarCollapsed"
+        @toggle-sidebar="toggleSidebar"
+      />
+      
       <!-- Contenido principal -->
-      <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 md:py-8">
-        <!-- Barra de acciones -->
-        <div class="mb-4 md:mb-6">
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
-            <div>
-              <h2 class="text-lg md:text-xl font-semibold text-gray-800">Análisis de Calidad</h2>
-              <p class="text-xs md:text-sm text-gray-500">Gestiona los análisis de calidad de granos de cacao</p>
-            </div>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-              <div class="relative">
-                <input type="text" placeholder="Buscar análisis..." class="w-full sm:w-64 pl-9 pr-4 py-2 border border-gray-300 rounded-md text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500" />
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                  </svg>
-                </div>
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden" :class="{ 'main-expanded': sidebarCollapsed }">
+        <!-- Header de la página -->
+        <PageHeader 
+          title="Análisis"
+          subtitle="Gestión de análisis de calidad de cacao"
+        />
+        
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 md:p-6 lg:p-8 pb-0 overflow-y-auto">
+          <!-- Filtros y controles -->
+          <div class="mb-4 md:mb-6">
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div class="flex flex-col sm:flex-row gap-4 flex-1">
+                <FilterSelect 
+                  id="agricultor"
+                  label="Agricultor"
+                  v-model="filters.agricultor"
+                  :options="farmerOptions"
+                />
+                <FilterSelect 
+                  id="resultado"
+                  label="Resultado"
+                  v-model="filters.resultado"
+                  :options="resultOptions"
+                />
+                <DateInput 
+                  id="fecha"
+                  label="Fecha"
+                  v-model="filters.fecha"
+                />
               </div>
-              <button class="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-md text-xs md:text-sm font-medium flex items-center justify-center transition-colors duration-150">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                <span class="hidden sm:inline">Nuevo Análisis</span>
-                <span class="sm:hidden">+ Nuevo</span>
-              </button>
-            </div>
-          </div>
-        </div>
-  
-        <!-- Filtros -->
-        <div class="mb-4 md:mb-6 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-200">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <div>
-              <label for="agricultor" class="block text-xs md:text-sm font-medium text-gray-700 mb-1">Agricultor</label>
-              <select id="agricultor" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-xs md:text-sm">
-                <option value="">Todos los agricultores</option>
-                <option>Camilo Hernandez</option>
-                <option>Jeferson Alvarez</option>
-                <option>Cristian Camacho</option>
-                <option>Juan Pablo Pérez</option>
-              </select>
-            </div>
-            <div>
-              <label for="resultado" class="block text-xs md:text-sm font-medium text-gray-700 mb-1">Resultado</label>
-              <select id="resultado" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-xs md:text-sm">
-                <option value="">Todos los resultados</option>
-                <option>Aceptado</option>
-                <option>Condicional</option>
-                <option>Rechazado</option>
-              </select>
-            </div>
-            <div>
-              <label for="fecha" class="block text-xs md:text-sm font-medium text-gray-700 mb-1">Fecha</label>
-              <input type="date" id="fecha" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-xs md:text-sm" />
-            </div>
-            <div class="sm:col-span-2 lg:col-span-1 flex items-end">
-              <button class="w-full bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-xs md:text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                Aplicar Filtros
-              </button>
-            </div>
-          </div>
-        </div>
-  
-        <!-- Tarjetas de resumen -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4 md:mb-6">
-          <!-- Tarjeta 1 -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-4 md:p-5">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-green-50 rounded-lg p-2 md:p-3">
-                  <svg class="h-5 w-5 md:h-6 md:w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <div class="ml-3 md:ml-5">
-                  <dl>
-                    <dt class="text-xs md:text-sm font-medium text-gray-500 truncate">Análisis Aceptados</dt>
-                    <dd class="mt-1">
-                      <div class="text-lg md:text-2xl font-semibold text-gray-900">124</div>
-                      <div class="text-xs md:text-sm text-green-600 flex items-center mt-1">
-                        <svg class="w-3 h-3 md:w-4 md:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                        </svg>
-                        <span>8% desde el mes pasado</span>
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
+              
+              <div class="flex gap-2">
+                <ActionButton 
+                  label="Aplicar Filtros"
+                  short-label="Filtrar"
+                  variant="secondary"
+                  icon="FunnelIcon"
+                  @click="applyFilters"
+                />
+                <ActionButton 
+                  label="Nuevo Análisis"
+                  short-label="+ Nuevo"
+                  variant="primary"
+                  icon="PlusIcon"
+                  @click="handleNewAnalysis"
+                />
               </div>
             </div>
           </div>
-          <!-- Tarjeta 2 -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-4 md:p-5">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-yellow-50 rounded-lg p-2 md:p-3">
-                  <svg class="h-5 w-5 md:h-6 md:w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                  </svg>
-                </div>
-                <div class="ml-3 md:ml-5">
-                  <dl>
-                    <dt class="text-xs md:text-sm font-medium text-gray-500 truncate">Análisis Condicionales</dt>
-                    <dd class="mt-1">
-                      <div class="text-lg md:text-2xl font-semibold text-gray-900">45</div>
-                      <div class="text-xs md:text-sm text-yellow-600 flex items-center mt-1">
-                        <svg class="w-3 h-3 md:w-4 md:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                        </svg>
-                        <span>3% desde el mes pasado</span>
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
+          
+          <!-- Tarjetas de estadísticas -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4 md:mb-6">
+            <StatsCard 
+              title="Análisis Aceptados"
+              :value="stats.aceptados"
+              :change="stats.aceptadosChange"
+              icon="CheckIcon"
+              variant="success"
+            />
+            <StatsCard 
+              title="Análisis Condicionales"
+              :value="stats.condicionales"
+              :change="stats.condicionalesChange"
+              icon="ExclamationIcon"
+              variant="warning"
+            />
+            <StatsCard 
+              title="Análisis Rechazados"
+              :value="stats.rechazados"
+              :change="stats.rechazadosChange"
+              icon="XIcon"
+              variant="danger"
+            />
+            <StatsCard 
+              title="Total Análisis"
+              :value="stats.total"
+              :change="stats.totalChange"
+              icon="ChartBarIcon"
+              variant="info"
+            />
           </div>
-          <!-- Tarjeta 3 -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-4 md:p-5">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-red-50 rounded-lg p-2 md:p-3">
-                  <svg class="h-5 w-5 md:h-6 md:w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <div class="ml-3 md:ml-5">
-                  <dl>
-                    <dt class="text-xs md:text-sm font-medium text-gray-500 truncate">Análisis Rechazados</dt>
-                    <dd class="mt-1">
-                      <div class="text-lg md:text-2xl font-semibold text-gray-900">12</div>
-                      <div class="text-xs md:text-sm text-red-600 flex items-center mt-1">
-                        <svg class="w-3 h-3 md:w-4 md:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                        </svg>
-                        <span>2% desde el mes pasado</span>
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
+          
+          <!-- Tabla de análisis -->
+          <div class="flex-1 min-h-0">
+            <AnalysisTable 
+              :analyses="filteredAnalyses"
+              :total-items="totalItems"
+            />
           </div>
-          <!-- Tarjeta 4 -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <div class="p-4 md:p-5">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 bg-blue-50 rounded-lg p-2 md:p-3">
-                  <svg class="h-5 w-5 md:h-6 md:w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                  </svg>
-                </div>
-                <div class="ml-3 md:ml-5">
-                  <dl>
-                    <dt class="text-xs md:text-sm font-medium text-gray-500 truncate">Total Análisis</dt>
-                    <dd class="mt-1">
-                      <div class="text-lg md:text-2xl font-semibold text-gray-900">181</div>
-                      <div class="text-xs md:text-sm text-blue-600 flex items-center mt-1">
-                        <svg class="w-3 h-3 md:w-4 md:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                        </svg>
-                        <span>5% desde el mes pasado</span>
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-  
-        <!-- Tabla de análisis -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agricultor</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resultado</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calidad</th>
-                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <!-- Fila 1 -->
-                <tr class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">#AN-001</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">CH</div>
-                      <div class="ml-3">
-                        <div class="text-sm font-medium text-gray-900">Camilo Hernandez</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">Lote #101</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">15/06/2023</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      Aceptado
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="w-16 bg-gray-200 rounded-full h-2.5">
-                        <div class="bg-green-600 h-2.5 rounded-full" style="width: 87%"></div>
-                      </div>
-                      <span class="ml-2 text-sm text-gray-900">87%</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href="#" class="text-green-600 hover:text-green-900 mr-3">Ver</a>
-                    <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">Editar</a>
-                    <a href="#" class="text-red-600 hover:text-red-900">Eliminar</a>
-                  </td>
-                </tr>
-                <!-- Fila 2 -->
-                <tr class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">#AN-002</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">JA</div>
-                      <div class="ml-3">
-                        <div class="text-sm font-medium text-gray-900">Jeferson Alvarez</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">Lote #102</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">18/06/2023</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                      Condicional
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="w-16 bg-gray-200 rounded-full h-2.5">
-                        <div class="bg-yellow-500 h-2.5 rounded-full" style="width: 65%"></div>
-                      </div>
-                      <span class="ml-2 text-sm text-gray-900">65%</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href="#" class="text-green-600 hover:text-green-900 mr-3">Ver</a>
-                    <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">Editar</a>
-                    <a href="#" class="text-red-600 hover:text-red-900">Eliminar</a>
-                  </td>
-                </tr>
-                <!-- Fila 3 -->
-                <tr class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">#AN-003</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">CC</div>
-                      <div class="ml-3">
-                        <div class="text-sm font-medium text-gray-900">Cristian Camacho</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">Lote #103</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">20/06/2023</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                      Rechazado
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="w-16 bg-gray-200 rounded-full h-2.5">
-                        <div class="bg-red-600 h-2.5 rounded-full" style="width: 35%"></div>
-                      </div>
-                      <span class="ml-2 text-sm text-gray-900">35%</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href="#" class="text-green-600 hover:text-green-900 mr-3">Ver</a>
-                    <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">Editar</a>
-                    <a href="#" class="text-red-600 hover:text-red-900">Eliminar</a>
-                  </td>
-                </tr>
-                <!-- Fila 4 -->
-                <tr class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">#AN-004</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">JP</div>
-                      <div class="ml-3">
-                        <div class="text-sm font-medium text-gray-900">Juan Pablo Pérez</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">Lote #104</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">22/06/2023</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      Aceptado
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="w-16 bg-gray-200 rounded-full h-2.5">
-                        <div class="bg-green-600 h-2.5 rounded-full" style="width: 92%"></div>
-                      </div>
-                      <span class="ml-2 text-sm text-gray-900">92%</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href="#" class="text-green-600 hover:text-green-900 mr-3">Ver</a>
-                    <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">Editar</a>
-                    <a href="#" class="text-red-600 hover:text-red-900">Eliminar</a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <!-- Paginación -->
-          <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-            <div class="flex-1 flex justify-between sm:hidden">
-              <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Anterior
-              </button>
-              <button class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Siguiente
-              </button>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p class="text-sm text-gray-700">
-                  Mostrando <span class="font-medium">1</span> a <span class="font-medium">4</span> de <span class="font-medium">28</span> resultados
-                </p>
-              </div>
-              <div>
-                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                    <span class="sr-only">Anterior</span>
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                  <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    1
-                  </button>
-                  <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    2
-                  </button>
-                  <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    3
-                  </button>
-                  <button class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                    <span class="sr-only">Siguiente</span>
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        </div>
+        </main>
       </div>
-      </main>
     </div>
-  </template>
-  
-  <script>
-  export default {
+  </div>
+</template>
+
+<script>
+import { ref, computed, onMounted } from 'vue';
+import AdminSidebar from '@/components/common/AdminSidebar.vue';
+import PageHeader from '@/components/analisis/PageHeader.vue';
+import SearchBar from '@/components/analisis/SearchBar.vue';
+import ActionButton from '@/components/analisis/ActionButton.vue';
+import FilterSelect from '@/components/analisis/FilterSelect.vue';
+import DateInput from '@/components/analisis/DateInput.vue';
+import StatsCard from '@/components/analisis/StatsCard.vue';
+import AnalysisTable from '@/components/analisis/AnalysisTable.vue';
+
+export default {
   name: 'AnalisisView',
+  components: {
+    AdminSidebar,
+    PageHeader,
+    SearchBar,
+    ActionButton,
+    FilterSelect,
+    DateInput,
+    StatsCard,
+    AnalysisTable
+  },
   setup() {
-      // Aquí iría la lógica del componente
-      const chartData = {
-        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
-        datasets: [
-          {
-            label: 'Hongos',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            borderColor: '#28a745',
-            data: [12, 19, 3, 5, 2],
-            fill: false,
-          },
-          {
-            label: 'Pizarroso',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            borderColor: '#dc3545',
-            data: [7, 11, 5, 8, 13],
-            fill: false,
-          },
-          {
-            label: 'Planos',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            borderColor: '#007bff',
-            data: [9, 7, 10, 15, 8],
-            fill: false,
-          },
-          {
-            label: 'Insectos',
-            backgroundColor: 'rgba(255, 206, 86, 0.2)',
-            borderColor: '#ffc107',
-            data: [5, 6, 7, 9, 10],
-            fill: false,
-          },
-          {
-            label: 'Violeta',
-            backgroundColor: 'rgba(153, 102, 255, 0.2)',
-            borderColor: '#6f42c1',
-            data: [3, 4, 3, 6, 5],
-            fill: false,
-          },
-          {
-            label: 'Dañado',
-            backgroundColor: 'rgba(255, 159, 64, 0.2)',
-            borderColor: '#e83e8c',
-            data: [2, 3, 2, 4, 3],
-            fill: false,
-          },
-          {
-            label: 'Mohoso',
-            backgroundColor: 'rgba(100, 100, 100, 0.2)',
-            borderColor: '#343a40',
-            data: [1, 2, 1, 2, 3],
-            fill: false,
-          }
-        ]
-      };
+    // Estado reactivo
+    const searchQuery = ref('');
+    const loading = ref(false);
+    const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
+    
+    // Datos de usuario
+    const userInitials = ref('AD');
+    const userName = ref('Admin');
+    const userRole = ref('Administrador');
+    
+    const filters = ref({
+      agricultor: '',
+      resultado: '',
+      fecha: ''
+    });
+
+    // Datos de análisis
+    const analyses = ref([
+      {
+        id: '#AN-001',
+        farmerInitials: 'CH',
+        farmerName: 'Camilo Hernandez',
+        batch: 'Lote #101',
+        date: '15/06/2023',
+        status: 'Aceptado',
+        quality: 87
+      },
+      {
+        id: '#AN-002',
+        farmerInitials: 'JA',
+        farmerName: 'Jeferson Alvarez',
+        batch: 'Lote #102',
+        date: '18/06/2023',
+        status: 'Condicional',
+        quality: 65
+      },
+      {
+        id: '#AN-003',
+        farmerInitials: 'CC',
+        farmerName: 'Cristian Camacho',
+        batch: 'Lote #103',
+        date: '20/06/2023',
+        status: 'Rechazado',
+        quality: 35
+      },
+      {
+        id: '#AN-004',
+        farmerInitials: 'JP',
+        farmerName: 'Juan Pablo Pérez',
+        batch: 'Lote #104',
+        date: '22/06/2023',
+        status: 'Aceptado',
+        quality: 92
+      }
+    ]);
+
+    // Opciones para filtros
+    const farmerOptions = ref([
+      { value: '', label: 'Todos los agricultores' },
+      { value: 'camilo', label: 'Camilo Hernandez' },
+      { value: 'jeferson', label: 'Jeferson Alvarez' },
+      { value: 'cristian', label: 'Cristian Camacho' },
+      { value: 'juan', label: 'Juan Pablo Pérez' }
+    ]);
+
+    const resultOptions = ref([
+      { value: '', label: 'Todos los resultados' },
+      { value: 'aceptado', label: 'Aceptado' },
+      { value: 'condicional', label: 'Condicional' },
+      { value: 'rechazado', label: 'Rechazado' }
+    ]);
+
+    // Estadísticas
+    const stats = ref({
+      aceptados: 124,
+      aceptadosChange: 8,
+      condicionales: 45,
+      condicionalesChange: 3,
+      rechazados: 12,
+      rechazadosChange: 2,
+      total: 181,
+      totalChange: 5
+    });
+
+    // Computed properties
+    const filteredAnalyses = computed(() => {
+      let filtered = analyses.value;
+
+      // Filtro por búsqueda
+      if (searchQuery.value) {
+        filtered = filtered.filter(analysis => 
+          analysis.farmerName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+          analysis.id.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+          analysis.batch.toLowerCase().includes(searchQuery.value.toLowerCase())
+        );
+      }
+
+      // Filtro por agricultor
+      if (filters.value.agricultor) {
+        filtered = filtered.filter(analysis => 
+          analysis.farmerName.toLowerCase().includes(filters.value.agricultor.toLowerCase())
+        );
+      }
+
+      // Filtro por resultado
+      if (filters.value.resultado) {
+        filtered = filtered.filter(analysis => 
+          analysis.status.toLowerCase() === filters.value.resultado.toLowerCase()
+        );
+      }
+
+      // Filtro por fecha
+      if (filters.value.fecha) {
+        filtered = filtered.filter(analysis => 
+          analysis.date === filters.value.fecha
+        );
+      }
+
+      return filtered;
+    });
+
+    const totalItems = computed(() => filteredAnalyses.value.length);
+
+    // Métodos
+    const toggleSidebar = () => {
+      sidebarCollapsed.value = !sidebarCollapsed.value;
+      localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value);
+    };
+
+    const handleNewAnalysis = () => {
+      console.log('Nuevo análisis');
+      // Aquí iría la lógica para crear un nuevo análisis
+    };
+
+    const applyFilters = () => {
+      console.log('Aplicando filtros:', filters.value);
+      // Aquí iría la lógica para aplicar filtros
+    };
+
+    // Lifecycle
+    onMounted(() => {
+      console.log('Vista de análisis montada');
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
+    });
+
+    const checkScreenSize = () => {
+      if (window.innerWidth <= 768) {
+        sidebarCollapsed.value = true;
+        localStorage.setItem('sidebarCollapsed', 'true');
+      }
+    };
+
+    return {
+      // Estado
+      searchQuery,
+      loading,
+      sidebarCollapsed,
+      userInitials,
+      userName,
+      userRole,
       
-      const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              usePointStyle: true,
-              boxWidth: 10,
-              padding: 20,
-            },
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-          },
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-          },
-          y: {
-            beginAtZero: true,
-            ticks: {
-              stepSize: 2,
-            },
-          },
-        },
-      };
+      // Filtros
+      filters,
       
-      return { chartData, chartOptions };
-    }
-  };
-  </script>
+      // Datos
+      analyses,
+      farmerOptions,
+      resultOptions,
+      stats,
+      filteredAnalyses,
+      totalItems,
+      
+      // Métodos
+      toggleSidebar,
+      handleNewAnalysis,
+      applyFilters
+    };
+  }
+};
+</script>
+
+<style scoped>
+/* Estilos específicos para la vista de análisis */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.h-screen {
+  height: 100vh;
+}
+
+/* Asegurar que el contenido principal no se desborde */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* Eliminar espacio blanco excesivo */
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+/* Asegurar que el contenido principal ocupe toda la altura disponible */
+main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Controlar el overflow */
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Asegurar que el contenido se ajuste correctamente */
+.flex.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Asegurar que el contenido se ajuste al viewport */
+.min-h-0 {
+  min-height: 0;
+}
+
+/* Layout específico para la vista de análisis */
+.bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+/* Asegurar que el sidebar y contenido principal se alineen correctamente */
+.flex.h-screen {
+  height: 100vh;
+  max-height: 100vh;
+}
+
+/* Estilos para cuando el sidebar está colapsado */
+.main-expanded {
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
+}
+
+/* Transición suave para el contenido principal */
+.flex-1.flex.flex-col {
+  transition: margin-left 0.3s ease;
+}
+
+/* Mejoras de responsividad */
+@media (max-width: 768px) {
+  .p-4 {
+    padding: 1rem;
+  }
+  
+  .md\:p-6 {
+    padding: 1.5rem;
+  }
+  
+  .mb-6 {
+    margin-bottom: 1rem;
+  }
+  
+  .mb-8 {
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Ajustar el grid en tablets */
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  /* Reducir padding inferior en móviles */
+  .pb-0 {
+    padding-bottom: 0;
+  }
+  
+  /* Asegurar que el layout se ajuste en móviles */
+  .h-screen {
+    height: 100vh;
+    min-height: 100vh;
+  }
+  
+  /* Ajustar el overflow en móviles */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .overflow-y-auto::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Asegurar que el sidebar esté colapsado en móviles */
+  .sidebar-collapsed {
+    width: 70px;
+  }
+  
+  /* Ajustar el contenido principal en móviles */
+  .main-expanded {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .p-4 {
+    padding: 0.75rem;
+  }
+  
+  .mb-6 {
+    margin-bottom: 0.75rem;
+  }
+  
+  .mb-8 {
+    margin-bottom: 1rem;
+  }
+  
+  .gap-4 {
+    gap: 0.75rem;
+  }
+  
+  /* Forzar una columna en móviles */
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  /* Eliminar padding inferior en pantallas pequeñas */
+  .pb-0 {
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .p-4 {
+    padding: 0.5rem;
+  }
+  
+  .mb-6 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .mb-8 {
+    margin-bottom: 0.75rem;
+  }
+  
+  .gap-4 {
+    gap: 0.5rem;
+  }
+  
+  /* Una sola columna en pantallas muy pequeñas */
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  /* Ajustar espaciado de botones en móviles */
+  .flex.gap-2 {
+    gap: 0.5rem;
+  }
+  
+  /* Eliminar padding inferior en pantallas muy pequeñas */
+  .pb-0 {
+    padding-bottom: 0;
+  }
+  
+  /* Asegurar que el layout se ajuste en pantallas muy pequeñas */
+  .h-screen {
+    height: 100vh;
+    min-height: 100vh;
+  }
+  
+  /* Ajustar el contenido para pantallas muy pequeñas */
+  main {
+    padding: 0.5rem;
+  }
+  
+  /* Reducir espaciado en pantallas muy pequeñas */
+  .mb-4 {
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Asegurar que el sidebar esté completamente colapsado en pantallas muy pequeñas */
+  .sidebar-collapsed {
+    width: 60px;
+  }
+  
+  /* Ajustar el contenido principal en pantallas muy pequeñas */
+  .main-expanded {
+    margin-left: 0;
+  }
+}
+
+/* Transiciones suaves */
+* {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Mejoras para dispositivos táctiles */
+@media (hover: none) and (pointer: coarse) {
+  .min-h-screen {
+    min-height: 100vh;
+  }
+  
+  /* Asegurar que los botones tengan el tamaño mínimo táctil */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Responsive para pantallas muy grandes */
+@media (min-width: 1280px) {
+  .lg\:p-8 {
+    padding: 2rem;
+  }
+  
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Mejoras para orientación landscape en móviles */
+@media (max-width: 768px) and (orientation: landscape) {
+  .p-4 {
+    padding: 0.75rem;
+  }
+  
+  .mb-6 {
+    margin-bottom: 1rem;
+  }
+  
+  .mb-8 {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Animaciones de entrada */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Mejoras para accesibilidad */
+*:focus {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+/* Estados de carga */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Mejoras para tablas responsivas */
+@media (max-width: 640px) {
+  .grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  /* Ajustar el layout de filtros en móviles */
+  .flex-col.sm\:flex-row {
+    flex-direction: column;
+  }
+  
+  .items-start.sm\:items-center {
+    align-items: flex-start;
+  }
+  
+  .justify-between {
+    justify-content: flex-start;
+  }
+  
+  .flex.gap-2 {
+    margin-top: 1rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  /* Ajustar espaciado en pantallas muy pequeñas */
+  .space-y-1 > * + * {
+    margin-top: 0.25rem;
+  }
+  
+  .space-y-1 > * + * {
+    margin-top: 0.25rem;
+  }
+}
+
+/* Mejoras para el scroll en móviles */
+@media (max-width: 640px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+/* Optimizaciones para pantallas de alta densidad */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .bg-white {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Mejoras para dispositivos con pantallas pequeñas y alta densidad */
+@media (max-width: 640px) and (-webkit-min-device-pixel-ratio: 2) {
+  .text-sm {
+    font-size: 0.8125rem;
+  }
+  
+  .text-xs {
+    font-size: 0.6875rem;
+  }
+}
+</style>
