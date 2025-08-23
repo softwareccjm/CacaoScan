@@ -164,8 +164,9 @@
                       type="text" 
                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Nombre de la finca"
+                      @input="clearFieldError('finca')"
                     />
-                    <p v-if="formErrors.finca" class="mt-1 text-sm text-red-600">{{ formErrors.finca }}</p>
+                    <p v-if="formErrors.finca && formErrors.finca !== ''" class="mt-1 text-sm text-red-600">{{ formErrors.finca }}</p>
                   </div>
                   
                   <div>
@@ -175,8 +176,9 @@
                       type="text" 
                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Nombre del agricultor"
+                      @input="clearFieldError('agricultor')"
                     />
-                    <p v-if="formErrors.agricultor" class="mt-1 text-sm text-red-600">{{ formErrors.agricultor }}</p>
+                    <p v-if="formErrors.agricultor && formErrors.agricultor !== ''" class="mt-1 text-sm text-red-600">{{ formErrors.agricultor }}</p>
                   </div>
                   
                   <div>
@@ -186,8 +188,9 @@
                       type="text" 
                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Código o nombre del lote"
+                      @input="clearFieldError('nombreLote')"
                     />
-                    <p v-if="formErrors.nombreLote" class="mt-1 text-sm text-red-600">{{ formErrors.nombreLote }}</p>
+                    <p v-if="formErrors.nombreLote && formErrors.nombreLote !== ''" class="mt-1 text-sm text-red-600">{{ formErrors.nombreLote }}</p>
                   </div>
                   
                   <div>
@@ -198,12 +201,13 @@
                         type="text" 
                         class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="dd/mm/aaaa"
+                        @input="clearFieldError('fechaRecoleccion')"
                       />
                       <svg class="absolute right-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                       </svg>
                     </div>
-                    <p v-if="formErrors.fechaRecoleccion" class="mt-1 text-sm text-red-600">{{ formErrors.fechaRecoleccion }}</p>
+                    <p v-if="formErrors.fechaRecoleccion && formErrors.fechaRecoleccion !== ''" class="mt-1 text-sm text-red-600">{{ formErrors.fechaRecoleccion }}</p>
                   </div>
                   
                   <div>
@@ -226,8 +230,9 @@
                       type="text" 
                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Lugar de origen del lote"
+                      @input="clearFieldError('lugarOrigen')"
                     />
-                    <p v-if="formErrors.lugarOrigen" class="mt-1 text-sm text-red-600">{{ formErrors.lugarOrigen }}</p>
+                    <p v-if="formErrors.lugarOrigen && formErrors.lugarOrigen !== ''" class="mt-1 text-sm text-red-600">{{ formErrors.lugarOrigen }}</p>
                   </div>
                   
                   <div>
@@ -235,6 +240,7 @@
                     <select 
                       v-model="batchData.genetica"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      @change="clearFieldError('genetica')"
                     >
                       <option value="">Selecciona la genética</option>
                       <option value="criollo">Criollo</option>
@@ -242,7 +248,7 @@
                       <option value="trinitario">Trinitario</option>
                       <option value="nacional">Nacional</option>
                     </select>
-                    <p v-if="formErrors.genetica" class="mt-1 text-sm text-red-600">{{ formErrors.genetica }}</p>
+                    <p v-if="formErrors.genetica && formErrors.genetica !== ''" class="mt-1 text-sm text-red-600">{{ formErrors.genetica }}</p>
                   </div>
                   
                   <div>
@@ -370,24 +376,36 @@
               <h2 class="text-2xl font-bold text-gray-900 mb-2">¿Listo para analizar?</h2>
               <p class="text-gray-600 mb-6">Revisa que toda la información esté completa antes de continuar</p>
               
-              <button 
-                @click="submitAnalysis"
-                :disabled="!isFormValid || isSubmitting"
-                :class="[
-                  'px-8 py-4 rounded-lg font-medium text-white transition-all duration-200 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5',
-                  (!isFormValid || isSubmitting) && 'opacity-50 cursor-not-allowed transform-none'
-                ]"
-              >
-                <svg v-if="isSubmitting" class="w-5 h-5 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
+              <div class="flex justify-center gap-4">
+                <button 
+                  @click="resetForm"
+                  class="px-6 py-3 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all duration-200 border border-gray-300"
+                >
+                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  Limpiar Formulario
+                </button>
                 
-                <svg v-else class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                
-                {{ isSubmitting ? 'Procesando análisis...' : 'Iniciar Análisis de Calidad' }}
-              </button>
+                <button 
+                  @click="submitAnalysis"
+                  :disabled="!isFormValid || isSubmitting"
+                  :class="[
+                    'px-8 py-3 rounded-lg font-medium text-white transition-all duration-200 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5',
+                    (!isFormValid || isSubmitting) && 'opacity-50 cursor-not-allowed transform-none'
+                  ]"
+                >
+                  <svg v-if="isSubmitting" class="w-5 h-5 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  
+                  <svg v-else class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  
+                  {{ isSubmitting ? 'Procesando análisis...' : 'Iniciar Análisis de Calidad' }}
+                </button>
+              </div>
               
               <div v-if="!isFormValid" class="mt-4 text-center">
                 <p class="text-sm text-amber-600 flex items-center justify-center">
@@ -750,7 +768,18 @@ export default {
       genetica: '',
       origen: ''
     });
-    const formErrors = ref({});
+    const formErrors = ref({
+      hasAttemptedSubmit: false,
+      finca: '',
+      agricultor: '',
+      nombreLote: '',
+      fechaRecoleccion: '',
+      observaciones: '',
+      lugarOrigen: '',
+      genetica: '',
+      origen: '',
+      images: ''
+    });
     const images = ref([]);
     const capturedImages = ref([]);
     const currentTab = ref('upload'); // 'upload' or 'camera'
@@ -777,41 +806,67 @@ export default {
     });
 
     const isFormValid = computed(() => {
-      formErrors.value = {};
+      // Solo validar si se ha intentado enviar el formulario
+      if (!formErrors.value.hasAttemptedSubmit) {
+        return false;
+      }
+      
       let isValid = true;
       
       if (!batchData.value.finca) {
         formErrors.value.finca = 'La finca es requerida';
         isValid = false;
+      } else {
+        formErrors.value.finca = '';
       }
+      
       if (!batchData.value.agricultor) {
         formErrors.value.agricultor = 'El agricultor es requerido';
         isValid = false;
+      } else {
+        formErrors.value.agricultor = '';
       }
+      
       if (!batchData.value.nombreLote) {
         formErrors.value.nombreLote = 'El nombre del lote es requerido';
         isValid = false;
+      } else {
+        formErrors.value.nombreLote = '';
       }
+      
       if (!batchData.value.fechaRecoleccion) {
         formErrors.value.fechaRecoleccion = 'La fecha de recolección es requerida';
         isValid = false;
+      } else {
+        formErrors.value.fechaRecoleccion = '';
       }
+      
       if (!batchData.value.lugarOrigen) {
         formErrors.value.lugarOrigen = 'El lugar de origen es requerido';
         isValid = false;
+      } else {
+        formErrors.value.lugarOrigen = '';
       }
+      
       if (!batchData.value.genetica) {
         formErrors.value.genetica = 'La genética es requerida';
         isValid = false;
+      } else {
+        formErrors.value.genetica = '';
       }
       
       if (currentTab.value === 'upload' && images.value.length === 0) {
         formErrors.value.images = 'Debes subir al menos una imagen';
         isValid = false;
+      } else {
+        formErrors.value.images = '';
       }
+      
       if (currentTab.value === 'camera' && capturedImages.value.length === 0) {
         formErrors.value.images = 'Debes capturar al menos una imagen';
         isValid = false;
+      } else {
+        formErrors.value.images = '';
       }
       
       return isValid;
@@ -862,6 +917,12 @@ export default {
       }
     };
 
+    const clearFieldError = (fieldName) => {
+      if (formErrors.value[fieldName]) {
+        formErrors.value[fieldName] = '';
+      }
+    };
+
     const handleCapturedImage = (imageData) => {
       capturedImages.value.push(imageData);
     };
@@ -875,6 +936,9 @@ export default {
     };
 
     const submitAnalysis = async () => {
+      // Activar la validación
+      formErrors.value.hasAttemptedSubmit = true;
+      
       if (!isFormValid.value) {
         alert('Por favor, completa todos los campos requeridos.');
         return;
@@ -993,6 +1057,34 @@ export default {
       activeSection.value = 'overview';
     };
 
+    const resetForm = () => {
+      batchData.value = {
+        finca: '',
+        agricultor: '',
+        nombreLote: '',
+        fechaRecoleccion: '',
+        observaciones: '',
+        lugarOrigen: '',
+        genetica: '',
+        origen: ''
+      };
+      formErrors.value = {
+        hasAttemptedSubmit: false,
+        finca: '',
+        agricultor: '',
+        nombreLote: '',
+        fechaRecoleccion: '',
+        observaciones: '',
+        lugarOrigen: '',
+        genetica: '',
+        origen: '',
+        images: ''
+      };
+      images.value = [];
+      capturedImages.value = [];
+      currentTab.value = 'upload';
+    };
+
     return {
       sidebarCollapsed,
       activeSection,
@@ -1021,6 +1113,7 @@ export default {
       openUploadModal,
       getImageUrl,
       handleFileUpload,
+      clearFieldError,
       handleCapturedImage,
       removeImage,
       removeCapturedImage,
@@ -1033,7 +1126,8 @@ export default {
       verDetalleFinca,
       editarFinca,
       logout,
-      goBack
+      goBack,
+      resetForm
     };
   },
   mounted() {
