@@ -13,7 +13,7 @@
     />
 
     <!-- Main Content -->
-    <main class="dashboard-main" :class="{ 'main-expanded': sidebarCollapsed }">
+    <main class="dashboard-main" :class="{ 'main-expanded': !sidebarCollapsed, 'main-collapsed': sidebarCollapsed }">
       <!-- Overview Section -->
       <div v-if="activeSection === 'overview'" class="dashboard-section">
         <div class="section-header">
@@ -1429,7 +1429,6 @@ export default {
   background-color: #f8f9fa;
 }
 
-<<<<<<< HEAD
 /* Sidebar Styles */
 .dashboard-sidebar {
   width: 280px; 
@@ -1776,15 +1775,12 @@ export default {
 .sidebar-collapsed .logout-btn-collapsed:hover::after {
   opacity: 1;
 }
-=======
-/* Sidebar Styles - Ahora manejados por el componente AgricultorSidebar */
->>>>>>> 60ecfdec0b64016651322f72bed0fbf40693c5e0
 
 /* Main Content Styles */
 .dashboard-main {
   flex: 1;
-  padding: 2rem;
-  transition: margin-left 0.3s ease;
+  padding: 1rem 1.5rem;
+  transition: padding-left 0.3s ease;
   width: 100%;
   max-width: 1400px; /* Ancho máximo para el contenido */
   margin: 0 auto;      /* Centra el contenedor en el espacio disponible */
@@ -1794,12 +1790,47 @@ export default {
 
 /* Contenido principal cuando está expandido */
 .main-expanded {
-  margin-left: 250px;
+  padding-left: 280px;
+  /* Centra el contenido en toda la pantalla disponible */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Ajusta el ancho del contenido cuando está expandido */
+.main-expanded .dashboard-section {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 /* Contenido principal cuando está colapsado */
 .main-collapsed {
-  margin-left: 70px;
+  padding-left: 70px;
+  /* Centra el contenido en toda la pantalla disponible */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Ajusta el ancho del contenido cuando está colapsado */
+.main-collapsed .dashboard-section {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Centra el contenido de texto cuando el sidebar está colapsado */
+.main-collapsed .section-header {
+  max-width: 800px;
+  margin: 0 auto 1.5rem auto;
+}
+
+/* Centra el contenido de texto cuando el sidebar está expandido */
+.main-expanded .section-header {
+  max-width: 1000px;
+  margin: 0 auto 1.5rem auto;
 }
 
 /* Ajustes responsivos */
@@ -1809,19 +1840,19 @@ export default {
   }
   
   .main-expanded {
-    margin-left: 200px;
+    padding-left: 200px;
   }
 }
 
 @media (max-width: 768px) {
   .dashboard-main {
-    margin-left: 70px !important;
+    padding-left: 70px !important;
     padding: 1rem;
   }
   
   .main-expanded,
   .main-collapsed {
-    margin-left: 70px !important;
+    padding-left: 70px !important;
   }
   
   .section-header h1 {
@@ -1831,13 +1862,13 @@ export default {
 
 @media (max-width: 480px) {
   .dashboard-main {
-    margin-left: 60px !important;
+    padding-left: 60px !important;
     padding: 0.75rem;
   }
   
   .main-expanded,
   .main-collapsed {
-    margin-left: 60px !important;
+    padding-left: 60px !important;
   }
   
   .section-header h1 {
@@ -1846,24 +1877,35 @@ export default {
 }
 
 .dashboard-section {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
+  width: 100%;
+}
+
+/* Ajusta el ancho máximo según el estado del sidebar */
+.main-expanded .dashboard-section {
+  max-width: 1000px;
+}
+
+.main-collapsed .dashboard-section {
+  max-width: 800px;
 }
 
 .section-header {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
 .section-header h1 {
   color: #2c3e50;
   margin-bottom: 0.5rem;
-  font-size: 2.5rem;
+  font-size: 2.25rem;
 }
 
 .section-header p {
   color: #7f8c8d;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  margin-bottom: 0;
 }
 
 /* Overview Grid */
@@ -1871,23 +1913,80 @@ export default {
   display: grid;
   grid-template-columns: 0fr 5fr; /* Proporción 3:2 */
   gap: 1.5rem;
-  margin: 1rem 0;
+  margin: 0.5rem 0;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Ajusta el grid para diferentes estados del sidebar */
+.main-expanded .overview-grid {
+  grid-template-columns: 0fr 5fr; /* Mantiene la proporción original */
+  max-width: 1000px;
+}
+
+.main-collapsed .overview-grid {
+  grid-template-columns: 1fr 1fr; /* Cambia a 2 columnas iguales */
+  gap: 1rem;
+  max-width: 800px;
+}
+
+
+
+/* Centra las tarjetas de estadísticas cuando el sidebar está colapsado */
+.main-collapsed .fincas-stats {
+  max-width: 800px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.main-collapsed .fincas-actions {
+  max-width: 800px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.main-collapsed .fincas-grid {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Centra las tarjetas de estadísticas cuando el sidebar está expandido */
+.main-expanded .fincas-stats {
+  max-width: 1000px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.main-expanded .fincas-actions {
+  max-width: 1000px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.main-expanded .fincas-grid {
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 /* Estilo base para ambas tarjetas */
 .overview-card {
   background: white;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s, box-shadow 0.2s;
   height: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+}
+
+/* Centra las tarjetas de estadísticas principales */
+.main-expanded .overview-grid:first-child {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.main-collapsed .overview-grid:first-child {
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .overview-card:hover {
@@ -1897,43 +1996,43 @@ export default {
 
 .overview-card h3 {
   color: #2c3e50;
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 1rem 0;
   font-size: 1.25rem;
   font-weight: 600;
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid #eee;
 }
 
 /* Ajustes responsivos */
 @media (max-width: 1200px) {
   .overview-grid {
-    gap: 1.25rem;
+    gap: 1rem;
   }
   
   .overview-card {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 }
 
 @media (max-width: 992px) {
   .overview-grid {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.75rem;
   }
   
   .overview-card {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 }
 
 @media (max-width: 768px) {
   .overview-card {
-    padding: 1rem;
+    padding: 0.75rem;
   }
   
   .overview-card h3 {
     font-size: 1.1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
   }
 }
 
@@ -2158,7 +2257,7 @@ export default {
 /* Responsive Design */
 @media (max-width: 1600px) {
   .dashboard-main {
-    padding: 1.25rem;
+    padding: 1rem 1.25rem;
     max-width: 1200px;
   }
 }
@@ -2172,7 +2271,7 @@ export default {
 @media (max-width: 1200px) {
   .dashboard-main {
     max-width: 100%;
-    padding: 1.25rem 2rem;
+    padding: 1rem 1.5rem;
   }
 }
 
@@ -2202,12 +2301,13 @@ export default {
   }
 
   .dashboard-main {
-    margin-left: 70px; /* Crea espacio para el menú */
-    padding: 1rem;
+    margin-left: 70px !important; /* Fuerza el espacio mínimo para el menú colapsado */
+    padding: 0.75rem;
   }
 
-  .main-expanded {
-    margin-left: 70px !important; /* Mantiene el espacio sin importar el estado */
+  .main-expanded,
+  .main-collapsed {
+    margin-left: 70px !important; /* Mantiene el espacio mínimo en móvil */
   }
 
   /* Oculta botones innecesarios en esta vista */
@@ -2246,20 +2346,20 @@ export default {
 
 /* Estilos para el módulo de Fincas */
 .fincas-overview {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .fincas-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .stat-card {
   background: white;
   border-radius: 10px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
@@ -2292,25 +2392,25 @@ export default {
 }
 
 .fincas-actions {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .fincas-actions h3 {
   color: #2c3e50;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   font-size: 1.5rem;
 }
 
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .action-card {
   background: white;
   border-radius: 10px;
-  padding: 2rem;
+  padding: 1.5rem;
   text-align: center;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
@@ -2328,36 +2428,36 @@ export default {
 
 .action-card h4 {
   color: #2c3e50;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   font-size: 1.3rem;
 }
 
 .action-card p {
   color: #7f8c8d;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   line-height: 1.5;
 }
 
 .fincas-list {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .fincas-list h3 {
   color: #2c3e50;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   font-size: 1.5rem;
 }
 
 .fincas-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .finca-card {
   background: white;
   border-radius: 10px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
 }
@@ -2370,8 +2470,8 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #ecf0f1;
 }
 
@@ -2400,7 +2500,7 @@ export default {
 }
 
 .finca-details {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .finca-details p {
