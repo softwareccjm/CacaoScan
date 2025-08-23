@@ -761,8 +761,8 @@ export default {
   padding: 2rem;
   transition: margin-left 0.3s ease;
   width: 100%;
-  max-width: 1400px; /* Ancho máximo reducido */
-  margin: 0 auto; /* Centrar el contenido */
+  max-width: 1400px; /* Ancho máximo para el contenido */
+  margin: 0 auto;      /* Centra el contenedor en el espacio disponible */
   box-sizing: border-box;
   overflow-x: hidden;
 }
