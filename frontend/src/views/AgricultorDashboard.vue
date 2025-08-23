@@ -1,89 +1,16 @@
 <template>
   <div class="farmer-dashboard-container">
     <!-- Sidebar -->
-    <aside class="dashboard-sidebar" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-      <div class="sidebar-header">
-        <div class="farmer-info" @click="toggleSidebar" style="cursor: pointer;" :title="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'">
-          <div class="farmer-avatar">
-            <i class="fas fa-user-circle"></i>
-          </div>
-          <div class="farmer-details" v-if="!sidebarCollapsed">
-            <h3>{{ farmerName }}</h3>
-            <span class="farmer-role">Agricultor</span>
-          </div>
-        </div>
-      </div>
-
-      <nav class="sidebar-nav">
-        <ul class="nav-menu">
-          <li class="nav-item" :class="{ 'active': activeSection === 'overview' }">
-            <a href="#" @click.prevent="setActiveSection('overview')" class="nav-link" :title="sidebarCollapsed ? 'Resumen' : ''">
-              <i class="fas fa-chart-pie"></i>
-              <span v-if="!sidebarCollapsed">Resumen</span>
-            </a>
-          </li>
-          <li class="nav-item" :class="{ 'active': activeSection === 'analysis' }">
-            <a href="#" @click.prevent="setActiveSection('analysis')" class="nav-link" :title="sidebarCollapsed ? 'Análisis' : ''">
-              <i class="fas fa-microscope"></i>
-              <span v-if="!sidebarCollapsed">Análisis</span>
-            </a>
-          </li>
-          <li class="nav-item" :class="{ 'active': activeSection === 'fincas' }">
-            <a href="#" @click.prevent="setActiveSection('fincas')" class="nav-link" :title="sidebarCollapsed ? 'Gestión de Fincas' : ''">
-              <i class="fas fa-tree"></i>
-              <span v-if="!sidebarCollapsed">Gestión de Fincas</span>
-            </a>
-          </li>
-
-          <li class="nav-item" :class="{ 'active': activeSection === 'reports' }">
-            <a href="#" @click.prevent="setActiveSection('reports')" class="nav-link" :title="sidebarCollapsed ? 'Reportes' : ''">
-              <i class="fas fa-file-alt"></i>
-              <span v-if="!sidebarCollapsed">Reportes</span>
-            </a>
-          </li>
-          <li class="nav-item" :class="{ 'active': activeSection === 'history' }">
-            <a href="#" @click.prevent="setActiveSection('history')" class="nav-link" :title="sidebarCollapsed ? 'Historial' : ''">
-              <i class="fas fa-history"></i>
-              <span v-if="!sidebarCollapsed">Historial</span>
-            </a>
-          </li>
-          <li class="nav-item" :class="{ 'active': activeSection === 'settings' }">
-            <a href="#" @click.prevent="setActiveSection('settings')" class="nav-link" :title="sidebarCollapsed ? 'Configuración' : ''">
-              <i class="fas fa-cog"></i>
-              <span v-if="!sidebarCollapsed">Configuración</span>
-            </a>
-          </li>
-        </ul>
-      </nav>
-
-      <div class="sidebar-footer" v-if="!sidebarCollapsed">
-        <div class="quick-stats">
-          <div class="stat-item">
-            <span class="stat-label">Lotes totales</span>
-            <span class="stat-value">{{ stats.totalBatches }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Calidad prom.</span>
-            <span class="stat-value">{{ stats.avgQuality }}%</span>
-          </div>
-        </div>
-        
-        <!-- Logout Section -->
-        <div class="logout-section">
-          <button class="logout-btn" @click="logout">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
-      </div>
-      
-      <!-- Logout button for collapsed sidebar -->
-      <div class="sidebar-footer-collapsed" v-if="sidebarCollapsed">
-        <button class="logout-btn-collapsed" @click="logout" title="Cerrar Sesión">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
-      </div>
-    </aside>
+    <AgricultorSidebar
+      :farmer-name="farmerName"
+      :farmer-role="'Agricultor'"
+      :sidebar-collapsed="sidebarCollapsed"
+      :active-section="activeSection"
+      :stats="stats"
+      @toggle-sidebar="toggleSidebar"
+      @set-active-section="setActiveSection"
+      @logout="logout"
+    />
 
     <!-- Main Content -->
     <main class="dashboard-main" :class="{ 'main-expanded': sidebarCollapsed }">
@@ -849,6 +776,7 @@ import ErrorAlert from '@/components/common/ErrorAlert.vue';
 import BatchInfoForm from '@/components/analysis/BatchInfoForm.vue';
 import ImageUploader from '@/components/analysis/ImageUploader.vue';
 import CameraCapture from '@/components/analysis/CameraCapture.vue';
+import AgricultorSidebar from '@/components/common/AgricultorSidebar.vue';
 
 export default {
   name: 'AgricultorDashboard',
@@ -863,7 +791,8 @@ export default {
     ErrorAlert,
     BatchInfoForm,
     ImageUploader,
-    CameraCapture
+    CameraCapture,
+    AgricultorSidebar
   },
   setup() {
     const analysisStore = useAnalysisStore();
@@ -1110,6 +1039,11 @@ export default {
 
     const setActiveSection = (section) => {
       activeSection.value = section;
+    };
+
+    const toggleSidebar = () => {
+      sidebarCollapsed.value = !sidebarCollapsed.value;
+      localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value);
     };
 
     const openUploadModal = () => {
@@ -1450,6 +1384,7 @@ export default {
       isFormValid,
       checkScreenSize,
       setActiveSection,
+      toggleSidebar,
       openUploadModal,
       getImageUrl,
       handleFileUpload,
@@ -1494,353 +1429,7 @@ export default {
   background-color: #f8f9fa;
 }
 
-/* Sidebar Styles */
-.dashboard-sidebar {
-  width: 280px;
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-  color: white;
-  transition: all 0.3s ease;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-collapsed {
-  width: 70px;
-}
-
-.sidebar-collapsed .sidebar-header {
-  padding: 1rem 0.5rem;
-  justify-content: center;
-}
-
-.sidebar-collapsed .farmer-info {
-  justify-content: center;
-  padding: 0.5rem;
-}
-
-.sidebar-collapsed .farmer-info:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.1);
-}
-
-.sidebar-collapsed .farmer-avatar {
-  animation: subtle-pulse 2s infinite;
-}
-
-@keyframes subtle-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.1);
-  }
-}
-
-.sidebar-collapsed .farmer-avatar {
-  width: 40px;
-  height: 40px;
-  font-size: 1.2rem;
-}
-
-.sidebar-collapsed .nav-link {
-  padding: 1rem;
-  justify-content: center;
-  margin-right: 0;
-}
-
-.sidebar-collapsed .nav-link i {
-  margin: 0;
-}
-
-.sidebar-collapsed .nav-link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: none;
-}
-
-.sidebar-collapsed .nav-item.active .nav-link {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  margin: 0.5rem;
-}
-
-.sidebar-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.farmer-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-  padding: 0.5rem;
-}
-
-.farmer-info:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.05);
-}
-
-.farmer-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.farmer-avatar::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  color: #27ae60;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.farmer-info:hover .farmer-avatar::after {
-  opacity: 1;
-}
-
-.farmer-info:active {
-  transform: scale(0.95);
-}
-
-/* Indicador de estado del sidebar */
-.sidebar-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 4px;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px 0 0 2px;
-  transition: all 0.3s ease;
-}
-
-.sidebar-collapsed .sidebar-header::before {
-  background: rgba(255, 255, 255, 0.6);
-  width: 6px;
-}
-
-.farmer-details h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.farmer-role {
-  font-size: 0.9rem;
-  opacity: 0.8;
-}
-
-.sidebar-toggle {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 1rem 0;
-}
-
-.nav-menu {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.nav-item {
-  margin: 0.5rem 0;
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  color: white;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  border-radius: 0 25px 25px 0;
-  margin-right: 1rem;
-}
-
-.nav-link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateX(5px);
-}
-
-.nav-item.active .nav-link {
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.nav-link i {
-  font-size: 1.2rem;
-  width: 20px;
-  text-align: center;
-}
-
-.sidebar-footer {
-  padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.quick-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  opacity: 0.8;
-}
-
-.stat-value {
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-/* Logout Section Styles */
-.logout-section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  animation: fadeInUp 0.3s ease;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.logout-btn {
-  width: 100%;
-  background: rgba(231, 76, 60, 0.8);
-  color: white;
-  border: none;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-}
-
-.logout-btn:hover {
-  background: rgba(231, 76, 60, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
-}
-
-.logout-btn:active {
-  transform: translateY(0);
-}
-
-.logout-btn i {
-  font-size: 1rem;
-}
-
-/* Collapsed sidebar logout button */
-.sidebar-footer-collapsed {
-  padding: 1rem 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: center;
-}
-
-.logout-btn-collapsed {
-  width: 40px;
-  height: 40px;
-  background: rgba(231, 76, 60, 0.8);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.logout-btn-collapsed:hover {
-  background: rgba(231, 76, 60, 1);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
-}
-
-.logout-btn-collapsed:active {
-  transform: scale(0.95);
-}
-
-/* Indicador de logout en sidebar colapsado */
-.sidebar-collapsed .logout-btn-collapsed {
-  position: relative;
-}
-
-.sidebar-collapsed .logout-btn-collapsed::after {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.sidebar-collapsed .logout-btn-collapsed:hover::after {
-  opacity: 1;
-}
+/* Sidebar Styles - Ahora manejados por el componente AgricultorSidebar */
 
 /* Main Content Styles */
 .dashboard-main {
