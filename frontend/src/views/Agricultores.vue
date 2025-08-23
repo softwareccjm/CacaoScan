@@ -87,45 +87,6 @@
             </div>
           </div>
 
-          <!-- Filtros y controles -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div class="flex gap-4 items-center justify-between">
-              <!-- Filtros -->
-              <div class="flex gap-4">
-                <FilterSelect 
-                  id="region"
-                  label="Región"
-                  v-model="filters.region"
-                  :options="regionOptions"
-                />
-                
-                <FilterSelect 
-                  id="status"
-                  label="Estado"
-                  v-model="filters.status"
-                  :options="statusOptions"
-                />
-              </div>
-              
-              <!-- Botones de acción -->
-              <div class="flex gap-3">
-                <ActionButton 
-                  label="Aplicar Filtros"
-                  short-label="Filtrar"
-                  variant="secondary"
-                  icon="FunnelIcon"
-                  @click="applyFilters"
-                />
-                <ActionButton 
-                  label="Nuevo Agricultor"
-                  short-label="+ Nuevo"
-                  variant="primary"
-                  @click="handleNewFarmer"
-                />
-              </div>
-            </div>
-          </div>
-
           <!-- Barra de búsqueda -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <SearchBar 
