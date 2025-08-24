@@ -1,6 +1,6 @@
 <template>
   <div class="bg-gray-50 min-h-screen">
-    <div class="flex h-screen">
+    <div class="dashboard-layout">
       <!-- Sidebar -->
       <AdminSidebar 
         :user-initials="userInitials"
@@ -11,7 +11,7 @@
       />
       
       <!-- Contenido principal -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden" :class="{ 'main-expanded': sidebarCollapsed }">
+      <div class="dashboard-content">
         <!-- Header de la página -->
         <PageHeader 
           title="Análisis"
@@ -380,15 +380,26 @@ main {
   max-height: 100vh;
 }
 
-/* Estilos para cuando el sidebar está colapsado */
-.main-expanded {
-  margin-left: 0;
-  transition: margin-left 0.3s ease;
+/* Layout principal del dashboard */
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%;
 }
 
-/* Transición suave para el contenido principal */
-.flex-1.flex.flex-col {
-  transition: margin-left 0.3s ease;
+/* Contenido principal del dashboard */
+.dashboard-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Asegurar que el contenido se ajuste correctamente */
+.dashboard-content > * {
+  width: 100%;
 }
 
 /* Mejoras de responsividad */
@@ -441,8 +452,11 @@ main {
   }
   
   /* Ajustar el contenido principal en móviles */
-  .main-expanded {
+  .main-expanded,
+  .main-collapsed {
     margin-left: 0;
+    flex: 1;
+    min-width: 0;
   }
 }
 

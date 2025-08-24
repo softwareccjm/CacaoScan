@@ -1,6 +1,6 @@
 <template>
   <div class="bg-gray-50 min-h-screen">
-    <div class="flex h-screen">
+    <div class="dashboard-layout">
       <!-- Sidebar -->
       <AdminSidebar 
         :user-initials="userInitials"
@@ -11,7 +11,7 @@
       />
       
       <!-- Contenido principal -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden" :class="{ 'main-expanded': sidebarCollapsed }">
+      <div class="dashboard-content">
         <!-- Header de la página -->
         <PageHeader 
           title="Agricultores"
@@ -472,15 +472,26 @@ main {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Asegurar que el contenido se ajuste correctamente */
-.flex.flex-col {
+/* Layout principal del dashboard */
+.dashboard-layout {
   display: flex;
-  flex-direction: column;
+  height: 100vh;
+  width: 100%;
 }
 
-/* Asegurar que el contenido se ajuste al viewport */
-.min-h-0 {
-  min-height: 0;
+/* Contenido principal del dashboard */
+.dashboard-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Asegurar que el contenido se ajuste correctamente */
+.dashboard-content > * {
+  width: 100%;
 }
 
 /* Layout específico para la vista de agricultores */
@@ -497,12 +508,29 @@ main {
 /* Estilos para cuando el sidebar está colapsado */
 .main-expanded {
   margin-left: 0;
-  transition: margin-left 0.3s ease;
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Estilos para cuando el sidebar está expandido */
+.main-collapsed {
+  margin-left: 0;
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Transición suave para el contenido principal */
 .flex-1.flex.flex-col {
-  transition: margin-left 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+/* Asegurar que el contenido se ajuste correctamente */
+.flex-1 {
+  min-width: 0;
+  flex: 1;
+  width: 100%;
 }
 
 /* Mejoras de responsividad */
@@ -555,8 +583,11 @@ main {
   }
   
   /* Ajustar el contenido principal en móviles */
-  .main-expanded {
+  .main-expanded,
+  .main-collapsed {
     margin-left: 0;
+    flex: 1;
+    min-width: 0;
   }
 }
 
@@ -566,11 +597,11 @@ main {
   }
   
   .mb-6 {
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
   }
   
   .mb-8 {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
   }
   
   .gap-4 {
@@ -589,6 +620,14 @@ main {
   /* Eliminar padding inferior en pantallas pequeñas */
   .pb-0 {
     padding-bottom: 0;
+  }
+  
+  /* Ajustar el contenido principal en pantallas pequeñas */
+  .main-expanded,
+  .main-collapsed {
+    margin-left: 0;
+    flex: 1;
+    min-width: 0;
   }
 }
 
@@ -646,8 +685,11 @@ main {
   }
   
   /* Ajustar el contenido principal en pantallas muy pequeñas */
-  .main-expanded {
+  .main-expanded,
+  .main-collapsed {
     margin-left: 0;
+    flex: 1;
+    min-width: 0;
   }
 }
 
