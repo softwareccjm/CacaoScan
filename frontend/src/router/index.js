@@ -14,173 +14,230 @@ import UserPrediction from '../views/UserPrediction.vue'
 import AdminDataset from '../views/AdminDataset.vue'
 import AdminTraining from '../views/AdminTraining.vue'
 
+// Importar guards
+import { ROUTE_GUARDS } from './guards'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
+      name: 'Home',
       component: HomeView,
-      meta: { requiresAuth: true }
+      meta: {
+        title: 'CacaoScan - Sistema de Análisis de Cacao',
+        requiresAuth: false
+      }
     },
     {
       path: '/login',
-      name: 'login',
+      name: 'Login',
       component: LoginView,
+      beforeEnter: ROUTE_GUARDS.guest,
       meta: {
-        title: 'Iniciar sesión | CacaoScan',
-        hideForAuth: true
+        title: 'Iniciar sesión | CacaoScan'
       }
     },
     {
       path: '/registro',
-      name: 'register',
+      name: 'Register',
       component: RegisterView,
+      beforeEnter: ROUTE_GUARDS.guest,
       meta: {
-        title: 'Registro | CacaoScan',
-        hideForAuth: true
+        title: 'Registro | CacaoScan'
       }
     },
     {
       path: '/nuevo-analisis',
-      name: 'nuevo-analisis',
+      name: 'NuevoAnalisis',
       component: NuevoAnalisis,
+      beforeEnter: ROUTE_GUARDS.farmerVerified,
       meta: {
-        title: 'Nuevo Análisis de Lote | CacaoScan'
+        title: 'Nuevo Análisis de Lote | CacaoScan',
+        requiresVerification: true
       }
     },
     {
-      path: '/detalle-analisis',
-      name: 'detalle-analisis',
+      path: '/detalle-analisis/:id?',
+      name: 'DetalleAnalisis',
       component: DetalleAnalisisView,
+      beforeEnter: ROUTE_GUARDS.auth,
       meta: {
-        title: 'Detalle del Análisis de Cacao | CacaoScan',
-        requiresAuth: true
+        title: 'Detalle del Análisis de Cacao | CacaoScan'
       }
     },
     {
-      path: '/admin',
-      name: 'admin-dashboard',
+      path: '/admin/dashboard',
+      name: 'AdminDashboard',
       component: AdminDashboard,
+      beforeEnter: ROUTE_GUARDS.admin,
       meta: {
-        title: 'Panel de Administración | CacaoScan',
-        requiresAdmin: true
+        title: 'Panel de Administración | CacaoScan'
       }
     },
     {
       path: '/admin/agricultores',
-      name: 'agricultores',
+      name: 'Agricultores',
       component: Agricultores,
+      beforeEnter: ROUTE_GUARDS.admin,
       meta: {
-        title: 'Gestión de Agricultores | CacaoScan',
-        requiresAdmin: true
+        title: 'Gestión de Agricultores | CacaoScan'
       }
     },
     {
-      path: '/admin/analisis',
-      name: 'analisis',
+      path: '/analisis',
+      name: 'Analisis',
       component: Analisis,
+      beforeEnter: ROUTE_GUARDS.analyst,
       meta: {
-        title: 'Gestión de Análisis | CacaoScan',
-        requiresAdmin: true
+        title: 'Análisis de Datos | CacaoScan'
       }
     },
     {
-      path: '/admin/reportes',
-      name: 'reportes',
+      path: '/reportes',
+      name: 'Reportes',
       component: Reportes,
+      beforeEnter: ROUTE_GUARDS.analyst,
       meta: {
-        title: 'Reportes | CacaoScan',
-        requiresAdmin: true
+        title: 'Reportes | CacaoScan'
       }
     },
     {
       path: '/admin/configuracion',
-      name: 'configuracion',
+      name: 'Configuracion',
       component: () => import('../views/Configuracion.vue'),
+      beforeEnter: ROUTE_GUARDS.admin,
       meta: {
-        title: 'Configuración | CacaoScan',
-        requiresAdmin: true
+        title: 'Configuración | CacaoScan'
       }
     },
     {
-      path: '/agricultor',
-      name: 'agricultor-dashboard',
+      path: '/agricultor-dashboard',
+      name: 'AgricultorDashboard',
       component: AgricultorDashboard,
+      beforeEnter: ROUTE_GUARDS.farmer,
       meta: {
-        title: 'Dashboard de Agricultor | CacaoScan',
-        requiresAuth: true
+        title: 'Dashboard de Agricultor | CacaoScan'
       }
     },
     {
       path: '/prediccion',
-      name: 'prediction',
+      name: 'Prediction',
       component: PredictionView,
+      beforeEnter: ROUTE_GUARDS.canUpload,
       meta: {
         title: 'Análisis de Granos de Cacao | CacaoScan',
-        requiresAuth: false // Acceso público para demostración
+        requiresVerification: true
       }
     },
     {
       path: '/user/prediction',
-      name: 'user-prediction',
+      name: 'UserPrediction',
       component: UserPrediction,
+      beforeEnter: ROUTE_GUARDS.canUpload,
       meta: {
         title: 'Predicción de Usuario | CacaoScan',
-        requiresAuth: false // Configurar según requerimientos de autenticación
+        requiresVerification: true
       }
     },
     {
       path: '/admin/dataset',
-      name: 'admin-dataset',
+      name: 'AdminDataset',
       component: AdminDataset,
+      beforeEnter: ROUTE_GUARDS.admin,
       meta: {
-        title: 'Gestión de Dataset | CacaoScan',
-        requiresAuth: true,
-        requiresAdmin: true
+        title: 'Gestión de Dataset | CacaoScan'
       }
     },
     {
       path: '/admin/training',
-      name: 'admin-training',
+      name: 'AdminTraining',
       component: AdminTraining,
+      beforeEnter: ROUTE_GUARDS.admin,
       meta: {
-        title: 'Panel de Reentrenamiento | CacaoScan',
-        requiresAuth: true,
-        requiresAdmin: true
+        title: 'Panel de Reentrenamiento | CacaoScan'
+      }
+    },
+    // Rutas adicionales para autenticación
+    {
+      path: '/verificar-email',
+      name: 'EmailVerification',
+      component: () => import('../views/EmailVerification.vue'),
+      beforeEnter: ROUTE_GUARDS.auth,
+      meta: {
+        title: 'Verificar Email | CacaoScan'
+      }
+    },
+    {
+      path: '/reset-password',
+      name: 'PasswordReset',
+      component: () => import('../views/PasswordReset.vue'),
+      beforeEnter: ROUTE_GUARDS.guest,
+      meta: {
+        title: 'Restablecer Contraseña | CacaoScan'
+      }
+    },
+    {
+      path: '/reset-password/confirm',
+      name: 'PasswordResetConfirm',
+      component: () => import('../views/PasswordResetConfirm.vue'),
+      beforeEnter: ROUTE_GUARDS.guest,
+      meta: {
+        title: 'Confirmar Nueva Contraseña | CacaoScan'
+      }
+    },
+    {
+      path: '/perfil',
+      name: 'Profile',
+      component: () => import('../views/Profile.vue'),
+      beforeEnter: ROUTE_GUARDS.auth,
+      meta: {
+        title: 'Mi Perfil | CacaoScan'
+      }
+    },
+    {
+      path: '/acceso-denegado',
+      name: 'AccessDenied',
+      component: () => import('../views/AccessDenied.vue'),
+      meta: {
+        title: 'Acceso Denegado | CacaoScan'
+      }
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => import('../views/NotFound.vue'),
+      meta: {
+        title: 'Página no encontrada | CacaoScan'
       }
     }
   ],
 })
 
-// // Guardián de navegación para autenticación y títulos de página
-// router.beforeEach((to, from, next) => {
-//   // Actualizar el título de la página
-//   document.title = to.meta?.title || 'CacaoScan';
+// Guardián global para títulos y configuraciones generales
+router.beforeEach((to, from, next) => {
+  // Actualizar el título de la página
+  document.title = to.meta?.title || 'CacaoScan'
+  
+  // Log de navegación en desarrollo
+  if (import.meta.env.DEV) {
+    console.log(`🧭 Navigating: ${from.name || from.path} → ${to.name || to.path}`)
+  }
+  
+  next()
+})
 
-//   // Verificar si el usuario está autenticado
-//   const isAuthenticated = localStorage.getItem('auth_token');
-//   const userRole = localStorage.getItem('user_role'); // Asume que guardas el rol del usuario
-
-//   // Si la ruta requiere autenticación y el usuario no está autenticado
-//   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-//     // Redirigir al inicio de sesión si intenta acceder a una ruta protegida
-//     next({ name: 'login' });
-//   } 
-//   // Si la ruta es solo para administradores y el usuario no es administrador
-//   else if (to.matched.some(record => record.meta.requiresAdmin) && (!isAuthenticated || userRole !== 'admin')) {
-//     // Redirigir al inicio si no tiene permisos de administrador
-//     next({ path: '/' });
-//   }
-//   // Si el usuario está autenticado y trata de acceder a login/registro
-//   else if (to.matched.some(record => record.meta.hideForAuth) && isAuthenticated) {
-//     // Redirigir al dashboard de administrador si es admin, de lo contrario al inicio
-//     next(userRole === 'admin' ? { name: 'admin-dashboard' } : { path: '/' });
-//   } 
-//   // En cualquier otro caso, permitir la navegación
-//   else {
-//     next();
-//   }
-// });
+// Guardián posterior para limpiar estados
+router.afterEach((to, from) => {
+  // Scroll al top en cambios de ruta
+  if (to.path !== from.path) {
+    window.scrollTo(0, 0)
+  }
+  
+  // Log de navegación completada en desarrollo
+  if (import.meta.env.DEV) {
+    console.log(`✅ Navigation completed: ${to.name || to.path}`)
+  }
+})
 
 export default router
