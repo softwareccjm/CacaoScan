@@ -5,13 +5,24 @@ Proporciona endpoints para login, logout, refresh de tokens
 y gestión básica de usuarios con JWT.
 """
 
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
     TokenBlacklistView,
 )
+
+from .views import (
+    CustomTokenObtainPairView,
+    UserRegistrationView,
+    UserLoginView,
+    UserViewSet,
+)
+
+# Configurar router para ViewSet
+router = DefaultRouter()
+router.register(r'users', UserViewSet, basename='user')
 
 # Namespace para la app
 app_name = 'auth'
@@ -21,8 +32,14 @@ urlpatterns = [
     # ENDPOINTS DE AUTENTICACIÓN JWT
     # ==========================================
     
-    # Obtener par de tokens (access + refresh)
-    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # Autenticación personalizada (con información del usuario)
+    path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    
+    # Login alternativo con email/username
+    path('login-alt/', UserLoginView.as_view(), name='user_login'),
+    
+    # Registro de usuarios
+    path('register/', UserRegistrationView.as_view(), name='user_register'),
     
     # Refrescar access token usando refresh token
     path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
@@ -32,6 +49,13 @@ urlpatterns = [
     
     # Logout - blacklist del refresh token
     path('logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
+    
+    # ==========================================
+    # ENDPOINTS DE GESTIÓN DE USUARIOS
+    # ==========================================
+    
+    # CRUD de usuarios y perfil
+    path('', include(router.urls)),
 ]
 
 """

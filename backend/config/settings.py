@@ -267,6 +267,9 @@ SWAGGER_SETTINGS = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Custom User Model
+AUTH_USER_MODEL = 'users.User'
+
 # ===========================
 # MACHINE LEARNING SETTINGS
 # ===========================
