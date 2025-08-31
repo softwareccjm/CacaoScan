@@ -9,6 +9,8 @@ import Agricultores from '../views/Agricultores.vue'
 import Analisis from '../views/Analisis.vue'
 import Reportes from '../views/Reportes.vue'
 import AgricultorDashboard from '../views/AgricultorDashboard.vue'
+import PredictionView from '../views/PredictionView.vue'
+import UserPrediction from '../views/UserPrediction.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -106,6 +108,24 @@ const router = createRouter({
       meta: {
         title: 'Dashboard de Agricultor | CacaoScan',
         requiresAuth: true
+      }
+    },
+    {
+      path: '/prediccion',
+      name: 'prediction',
+      component: PredictionView,
+      meta: {
+        title: 'Análisis de Granos de Cacao | CacaoScan',
+        requiresAuth: false // Acceso público para demostración
+      }
+    },
+    {
+      path: '/user/prediction',
+      name: 'user-prediction',
+      component: UserPrediction,
+      meta: {
+        title: 'Predicción de Usuario | CacaoScan',
+        requiresAuth: false // Configurar según requerimientos de autenticación
       }
     }
   ],
