@@ -59,6 +59,9 @@ urlpatterns = [
     # Panel de administración Django
     path('admin/', admin.site.urls),
     
+    # APIs de autenticación JWT
+    path('api/auth/', include('apps.users.urls', namespace='auth')),
+    
     # APIs de la aplicación
     path('api/images/', include('apps.images.urls', namespace='images')),
     
