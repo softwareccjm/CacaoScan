@@ -123,6 +123,20 @@ export async function getImages(params = {}) {
 }
 
 /**
+ * Alias para getImages para compatibilidad con componentes existentes
+ * @param {Object} params - Parámetros de consulta
+ * @returns {Promise<Object>} - Historial de imágenes
+ */
+export const getImageHistory = getImages
+
+/**
+ * Alias para getStats para compatibilidad con componentes existentes
+ * @param {Object} params - Parámetros de consulta
+ * @returns {Promise<Object>} - Estadísticas de predicciones
+ */
+export const getPredictionStats = getStats
+
+/**
  * Obtiene detalles de una imagen específica
  * @param {string} imageId - ID de la imagen
  * @returns {Promise<Object>} - Detalles de la imagen y predicción
@@ -143,7 +157,7 @@ export async function getImageDetails(imageId) {
       success: true,
       data: response.data
     }
-
+    
   } catch (error) {
     console.error('❌ Error obteniendo detalles de imagen:', error)
     
@@ -419,17 +433,68 @@ export function validateImageFile(file) {
   return errors
 }
 
+/**
+ * Crea FormData para envío de imagen con metadatos
+ * @param {File} file - Archivo de imagen
+ * @param {Object} metadata - Metadatos adicionales
+ * @returns {FormData} - FormData preparado para envío
+ */
+export function createImageFormData(file, metadata = {}) {
+  const formData = new FormData()
+  
+  // Agregar archivo de imagen
+  formData.append('image', file)
+  
+  // Agregar metadatos
+  if (metadata.lote_id) {
+    formData.append('lote_id', metadata.lote_id)
+  }
+  
+  if (metadata.finca) {
+    formData.append('finca', metadata.finca)
+  }
+  
+  if (metadata.region) {
+    formData.append('region', metadata.region)
+  }
+  
+  if (metadata.variedad) {
+    formData.append('variedad', metadata.variedad)
+  }
+  
+  if (metadata.fecha_cosecha) {
+    formData.append('fecha_cosecha', metadata.fecha_cosecha)
+  }
+  
+  if (metadata.notas) {
+    formData.append('notas', metadata.notas)
+  }
+  
+  // Agregar información técnica del archivo
+  formData.append('file_name', file.name)
+  formData.append('file_size', file.size.toString())
+  formData.append('file_type', file.type)
+  
+  // Timestamp para auditoría
+  formData.append('upload_timestamp', new Date().toISOString())
+  
+  return formData
+}
+
 // Exportar API client configurado para uso directo
 export const predictionApiClient = api
 
 export default {
   predictImage,
   getImages,
+  getImageHistory,
+  getPredictionStats,
   getImageDetails,
   deleteImage,
   updateImageMetadata,
   downloadImage,
   exportResults,
   getStats,
-  validateImageFile
+  validateImageFile,
+  createImageFormData
 }
