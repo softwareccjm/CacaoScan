@@ -14,17 +14,20 @@ from django.core.exceptions import ValidationError
 from .models import User, UserProfile
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+class CustomTokenObtainPairSerializer(serializers.Serializer):
     """
     Serializer personalizado para obtener tokens JWT.
     
-    Extiende el serializer base para incluir información
-    adicional del usuario en la respuesta.
+    Maneja autenticación con email como username field.
     """
+    
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
     
     @classmethod
     def get_token(cls, user):
-        token = super().get_token(user)
+        from rest_framework_simplejwt.tokens import RefreshToken
+        token = RefreshToken.for_user(user)
         
         # Agregar claims personalizados
         token['email'] = user.email
@@ -35,23 +38,39 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
     
     def validate(self, attrs):
-        # Obtener datos base
-        data = super().validate(attrs)
+        email = attrs.get('email')
+        password = attrs.get('password')
         
-        # Agregar información del usuario
-        data.update({
+        if not email or not password:
+            raise serializers.ValidationError('Email and password are required.')
+        
+        # Autenticar usando email como username
+        user = authenticate(username=email, password=password)
+        
+        if not user:
+            raise serializers.ValidationError('Invalid email or password.')
+        
+        if not user.is_active:
+            raise serializers.ValidationError('User account is disabled.')
+        
+        # Crear tokens
+        refresh = self.get_token(user)
+        
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
             'user': {
-                'id': str(self.user.id),
-                'email': self.user.email,
-                'username': self.user.username,
-                'first_name': self.user.first_name,
-                'last_name': self.user.last_name,
-                'role': self.user.role,
-                'is_verified': self.user.is_verified,
-                'is_active': self.user.is_active,
-                'date_joined': self.user.date_joined.isoformat(),
+                'id': str(user.id),
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+                'is_verified': user.is_verified,
+                'is_active': user.is_active,
+                'date_joined': user.date_joined.isoformat(),
             }
-        })
+        }
         
         return data
 

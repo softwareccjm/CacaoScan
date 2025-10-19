@@ -12,7 +12,7 @@ const authApi = {
   async login(credentials) {
     try {
       const response = await api.post('/auth/login/', {
-        username: credentials.email || credentials.username,
+        email: credentials.email || credentials.username,
         password: credentials.password
       })
       return response.data

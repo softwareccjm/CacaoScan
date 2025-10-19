@@ -1,2 +1,105 @@
 INFO 2025-08-31 12:43:47,601 autoreload 32700 36176 Watching for file changes with StatReloader
 INFO 2025-10-19 07:37:29,313 autoreload 23632 14188 Watching for file changes with StatReloader
+INFO 2025-10-19 07:59:25,563 basehttp 23632 11516 "OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+WARNING 2025-10-19 07:59:25,766 log 23632 11516 Bad Request: /api/auth/login/
+WARNING 2025-10-19 07:59:25,769 basehttp 23632 11516 "POST /api/auth/login/ HTTP/1.1" 400 37
+WARNING 2025-10-19 07:59:32,955 log 23632 11516 Bad Request: /api/auth/login/
+WARNING 2025-10-19 07:59:32,959 basehttp 23632 11516 "POST /api/auth/login/ HTTP/1.1" 400 37
+WARNING 2025-10-19 07:59:44,513 log 23632 18344 Bad Request: /api/auth/login/
+WARNING 2025-10-19 07:59:44,514 basehttp 23632 18344 "POST /api/auth/login/ HTTP/1.1" 400 37
+INFO 2025-10-19 08:01:34,093 autoreload 20108 21460 Watching for file changes with StatReloader
+INFO 2025-10-19 08:01:39,891 autoreload 16540 6152 Watching for file changes with StatReloader
+WARNING 2025-10-19 08:01:45,037 log 20108 16820 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:01:45,039 basehttp 20108 16820 "POST /api/auth/login/ HTTP/1.1" 400 37
+WARNING 2025-10-19 08:01:51,799 log 20108 16820 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:01:51,801 basehttp 20108 16820 "POST /api/auth/login/ HTTP/1.1" 400 37
+WARNING 2025-10-19 08:01:54,228 log 20108 16820 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:01:54,229 basehttp 20108 16820 "POST /api/auth/login/ HTTP/1.1" 400 37
+WARNING 2025-10-19 08:02:26,839 log 20108 12952 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:02:26,840 basehttp 20108 12952 "POST /api/auth/login/ HTTP/1.1" 400 37
+WARNING 2025-10-19 08:04:20,084 log 20108 24296 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:04:20,085 basehttp 20108 24296 "POST /api/auth/login/ HTTP/1.1" 400 37
+INFO 2025-10-19 08:04:47,621 autoreload 16540 6152 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:04:48,146 autoreload 20108 21460 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:04:51,853 autoreload 4508 9640 Watching for file changes with StatReloader
+INFO 2025-10-19 08:04:52,929 autoreload 19488 14024 Watching for file changes with StatReloader
+ERROR 2025-10-19 08:05:02,896 log 4508 22876 Internal Server Error: /api/auth/login/
+Traceback (most recent call last):
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework\views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework\views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework\views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework\views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework_simplejwt\views.py", line 41, in post
+    serializer = self.get_serializer(data=request.data)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework\generics.py", line 114, in get_serializer
+    return serializer_class(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\apps\users\serializers.py", line 32, in __init__
+    self.fields['username'].required = False
+    ~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\dev\cacaoscan\backend\venv\Lib\site-packages\rest_framework\utils\serializer_helpers.py", line 168, in __getitem__
+    return self.fields[key]
+           ~~~~~~~~~~~^^^^^
+KeyError: 'username'
+ERROR 2025-10-19 08:05:02,912 basehttp 4508 22876 "POST /api/auth/login/ HTTP/1.1" 500 134968
+INFO 2025-10-19 08:05:21,272 autoreload 4508 9640 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:05:21,444 autoreload 19488 14024 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:05:24,785 autoreload 9808 21212 Watching for file changes with StatReloader
+INFO 2025-10-19 08:05:25,022 autoreload 21992 17040 Watching for file changes with StatReloader
+WARNING 2025-10-19 08:05:33,145 log 9808 22184 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:05:33,146 basehttp 9808 22184 "POST /api/auth/login/ HTTP/1.1" 400 37
+INFO 2025-10-19 08:05:52,279 autoreload 9808 21212 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:05:52,320 autoreload 21992 17040 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:05:57,069 autoreload 22444 8132 Watching for file changes with StatReloader
+INFO 2025-10-19 08:05:57,084 autoreload 24364 15820 Watching for file changes with StatReloader
+WARNING 2025-10-19 08:06:06,167 log 24364 21308 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:06:06,169 basehttp 24364 21308 "POST /api/auth/login/ HTTP/1.1" 400 37
+INFO 2025-10-19 08:06:27,167 autoreload 22444 8132 C:\dev\cacaoscan\backend\config\settings.py changed, reloading.
+INFO 2025-10-19 08:06:27,772 autoreload 24364 15820 C:\dev\cacaoscan\backend\config\settings.py changed, reloading.
+INFO 2025-10-19 08:06:32,191 autoreload 13032 23356 Watching for file changes with StatReloader
+INFO 2025-10-19 08:06:33,128 autoreload 8168 20232 Watching for file changes with StatReloader
+WARNING 2025-10-19 08:06:43,394 log 13032 24484 Bad Request: /api/auth/login/
+WARNING 2025-10-19 08:06:43,396 basehttp 13032 24484 "POST /api/auth/login/ HTTP/1.1" 400 37
+INFO 2025-10-19 08:07:02,617 autoreload 13032 23356 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:07:03,313 autoreload 8168 20232 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:07:06,416 autoreload 13068 21776 Watching for file changes with StatReloader
+INFO 2025-10-19 08:07:07,440 autoreload 23468 26532 Watching for file changes with StatReloader
+INFO 2025-10-19 08:07:21,426 basehttp 13068 23996 "POST /api/auth/login/ HTTP/1.1" 200 1069
+INFO 2025-10-19 08:08:01,697 autoreload 13068 21776 C:\dev\cacaoscan\backend\apps\users\serializers.py changed, reloading.
+INFO 2025-10-19 08:08:02,822 autoreload 23468 26532 C:\dev\cacaoscan\backend\config\settings.py changed, reloading.
+INFO 2025-10-19 08:08:10,088 autoreload 13572 516 Watching for file changes with StatReloader
+INFO 2025-10-19 08:08:10,342 autoreload 3768 9380 Watching for file changes with StatReloader
+INFO 2025-10-19 08:08:23,708 basehttp 13572 21724 "POST /api/auth/login/ HTTP/1.1" 200 1061
+INFO 2025-10-19 08:08:23,730 basehttp 13572 21724 "OPTIONS /api/auth/users/me/ HTTP/1.1" 200 0
+INFO 2025-10-19 08:08:23,923 basehttp 13572 21724 "GET /api/auth/users/me/ HTTP/1.1" 200 666
+INFO 2025-10-19 08:08:37,820 basehttp 13572 26208 "OPTIONS /api/images/?processed=true&page=1&page_size=5 HTTP/1.1" 200 0
+INFO 2025-10-19 08:08:38,046 basehttp 13572 26208 "GET /api/images/?processed=true&page=1&page_size=5 HTTP/1.1" 200 12722
+INFO 2025-10-19 08:08:43,288 basehttp 13572 12428 "GET /api/images/?processed=true&page=1&page_size=5 HTTP/1.1" 200 12722
+INFO 2025-10-19 08:09:06,235 basehttp 13572 12604 "GET /api/auth/users/me/ HTTP/1.1" 200 666
+INFO 2025-10-19 08:09:06,533 basehttp 13572 12604 "GET /api/images/?processed=true&page=1&page_size=5 HTTP/1.1" 200 12722
+INFO 2025-10-19 08:09:21,506 autoreload 3768 9380 C:\dev\cacaoscan\backend\config\settings.py changed, reloading.
+INFO 2025-10-19 08:09:21,780 autoreload 13572 516 C:\dev\cacaoscan\backend\config\settings.py changed, reloading.
+INFO 2025-10-19 08:09:25,796 autoreload 11816 26536 Watching for file changes with StatReloader
+INFO 2025-10-19 08:09:25,797 autoreload 15516 9720 Watching for file changes with StatReloader
+WARNING 2025-10-19 08:10:02,247 log 11816 7340 Unauthorized: /api/images/predict/
+WARNING 2025-10-19 08:10:02,252 basehttp 11816 7340 "POST /api/images/predict/ HTTP/1.1" 401 58
+INFO 2025-10-19 08:10:45,492 basehttp 11816 25928 "POST /api/auth/login/ HTTP/1.1" 200 1069
