@@ -96,7 +96,7 @@
                         <span class="font-medium text-green-600">Haz clic para subir</span> o arrastra y suelta
                       </div>
                       <div class="text-xs text-gray-500">
-                        PNG, JPG, BMP hasta 10MB
+                        PNG, JPG, BMP hasta 20MB
                       </div>
                     </div>
                     

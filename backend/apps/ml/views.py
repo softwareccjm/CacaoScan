@@ -167,10 +167,10 @@ class IncrementalTrainingView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Validar tamaño de imagen
-            max_size = 10 * 1024 * 1024  # 10MB
+            max_size = 20 * 1024 * 1024  # 20MB
             if image_file.size > max_size:
                 return Response({
-                    'error': 'La imagen es demasiado grande (máximo 10MB)',
+                    'error': 'La imagen es demasiado grande (máximo 20MB)',
                     'code': 'FILE_TOO_LARGE'
                 }, status=status.HTTP_400_BAD_REQUEST)
             

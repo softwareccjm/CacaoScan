@@ -252,7 +252,7 @@ class FileUploadSecurityMiddleware(MiddlewareMixin):
         'image/webp'
     }
     
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
     
     def process_request(self, request):
         """Valida archivos subidos."""
@@ -378,7 +378,7 @@ class RequestSizeMiddleware(MiddlewareMixin):
     Middleware para limitar el tamaño de requests.
     """
     
-    MAX_REQUEST_SIZE = 15 * 1024 * 1024  # 15MB para requests con imágenes
+    MAX_REQUEST_SIZE = 25 * 1024 * 1024  # 25MB para requests con imágenes
     
     def process_request(self, request):
         """Verifica el tamaño del request."""

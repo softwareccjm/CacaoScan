@@ -66,8 +66,8 @@ class ImageUploadSerializer(serializers.Serializer):
         Raises:
             serializers.ValidationError: Si la imagen no es válida
         """
-        # Verificar tamaño del archivo (max 10MB)
-        max_size = 10 * 1024 * 1024  # 10MB
+        # Verificar tamaño del archivo (max 20MB)
+        max_size = 20 * 1024 * 1024  # 20MB
         if value.size > max_size:
             raise serializers.ValidationError(
                 f"El archivo es demasiado grande. Máximo permitido: {max_size // (1024*1024)}MB"

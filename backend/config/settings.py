@@ -216,8 +216,8 @@ os.makedirs(MEDIA_ROOT / 'uploads', exist_ok=True)
 os.makedirs(MEDIA_ROOT / 'temp', exist_ok=True)
 
 # File upload settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
 FILE_UPLOAD_PERMISSIONS = 0o644
 
 # CORS configuration
@@ -396,7 +396,7 @@ ML_CONFIG = {
     'SUPPORTED_IMAGE_FORMATS': ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'],
     
     # Maximum file sizes
-    'MAX_IMAGE_SIZE': 10 * 1024 * 1024,  # 10MB
+    'MAX_IMAGE_SIZE': 20 * 1024 * 1024,  # 20MB
     'MAX_BATCH_SIZE': 32,
     
     # Default image processing parameters

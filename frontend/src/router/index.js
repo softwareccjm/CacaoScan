@@ -125,10 +125,10 @@ const router = createRouter({
       path: '/prediccion',
       name: 'Prediction',
       component: PredictionView,
-      beforeEnter: ROUTE_GUARDS.canUpload,
+      beforeEnter: ROUTE_GUARDS.auth,
       meta: {
         title: 'Análisis de Granos de Cacao | CacaoScan',
-        requiresVerification: true
+        requiresVerification: false
       }
     },
     {

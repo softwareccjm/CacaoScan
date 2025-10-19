@@ -100,7 +100,7 @@
                   <li>• Usa imágenes claras y bien iluminadas</li>
                   <li>• Asegúrate de que el grano esté completo en la imagen</li>
                   <li>• Evita sombras fuertes o reflejos</li>
-                  <li>• Formatos recomendados: JPG o PNG (máx. 10MB)</li>
+                  <li>• Formatos recomendados: JPG o PNG (máx. 20MB)</li>
                 </ul>
               </div>
             </div>

@@ -74,7 +74,7 @@ python demo_yolo_system.py
 
 ### Entrada (Imagen)
 - **Formatos**: JPG, PNG, BMP, TIFF
-- **Tamaño**: Máximo 10MB
+- **Tamaño**: Máximo 20MB
 - **Resolución**: Cualquier tamaño (se redimensiona a 640x640)
 
 ### Salida (Predicción)

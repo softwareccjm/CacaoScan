@@ -39,10 +39,10 @@ export async function predictImage(formData) {
       throw new Error('Formato de imagen no válido. Use JPEG, PNG o WebP')
     }
 
-    // Validar tamaño máximo (5MB)
-    const maxSize = 5 * 1024 * 1024
+    // Validar tamaño máximo (20MB)
+    const maxSize = 20 * 1024 * 1024
     if (imageFile.size > maxSize) {
-      throw new Error('La imagen es demasiado grande. Máximo 5MB permitido')
+      throw new Error('La imagen es demasiado grande. Máximo 20MB permitido')
     }
 
     // Emitir evento de loading
@@ -111,10 +111,10 @@ export async function predictImageYolo(formData) {
       throw new Error('Formato de imagen no válido. Use JPEG, PNG, WebP o BMP')
     }
 
-    // Validar tamaño máximo (10MB para YOLOv8)
-    const maxSize = 10 * 1024 * 1024
+    // Validar tamaño máximo (20MB para YOLOv8)
+    const maxSize = 20 * 1024 * 1024
     if (imageFile.size > maxSize) {
-      throw new Error('La imagen es demasiado grande. Máximo 10MB permitido')
+      throw new Error('La imagen es demasiado grande. Máximo 20MB permitido')
     }
 
     // Emitir evento de loading
@@ -184,10 +184,10 @@ export async function predictImageSmart(formData, options = {}) {
       throw new Error('Formato de imagen no válido. Use JPEG, PNG, WebP o BMP')
     }
 
-    // Validar tamaño máximo (10MB para YOLOv8)
-    const maxSize = 10 * 1024 * 1024
+    // Validar tamaño máximo (20MB para YOLOv8)
+    const maxSize = 20 * 1024 * 1024
     if (imageFile.size > maxSize) {
-      throw new Error('La imagen es demasiado grande. Máximo 10MB permitido')
+      throw new Error('La imagen es demasiado grande. Máximo 20MB permitido')
     }
 
     // Agregar opciones al FormData
@@ -574,10 +574,10 @@ export function validateImageFile(file) {
     errors.push('Formato no válido. Use JPEG, PNG o WebP')
   }
 
-  // Validar tamaño (5MB máximo)
-  const maxSize = 5 * 1024 * 1024
+  // Validar tamaño (20MB máximo)
+  const maxSize = 20 * 1024 * 1024
   if (file.size > maxSize) {
-    errors.push('Archivo demasiado grande. Máximo 5MB')
+    errors.push('Archivo demasiado grande. Máximo 20MB')
   }
 
   // Validar tamaño mínimo (1KB)

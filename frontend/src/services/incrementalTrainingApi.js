@@ -37,10 +37,10 @@ export async function submitIncrementalTraining(formData) {
       throw new Error('Formato de imagen no válido. Use JPEG, PNG, WebP o BMP')
     }
 
-    // Validar tamaño máximo (10MB)
-    const maxSize = 10 * 1024 * 1024
+    // Validar tamaño máximo (20MB)
+    const maxSize = 20 * 1024 * 1024
     if (imageFile.size > maxSize) {
-      throw new Error('La imagen es demasiado grande. Máximo 10MB permitido')
+      throw new Error('La imagen es demasiado grande. Máximo 20MB permitido')
     }
 
     // Validar datos JSON
@@ -265,9 +265,9 @@ export function validateImageFile(file) {
   }
   
   // Validar tamaño
-  const maxSize = 10 * 1024 * 1024 // 10MB
+  const maxSize = 20 * 1024 * 1024 // 20MB
   if (file.size > maxSize) {
-    errors.push('La imagen es demasiado grande. Máximo 10MB permitido')
+    errors.push('La imagen es demasiado grande. Máximo 20MB permitido')
   }
   
   // Validar que no esté vacío

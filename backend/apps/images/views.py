@@ -484,9 +484,9 @@ class CacaoYOLOPredictionView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Validar tamaño de imagen
-            if image_file.size > 10 * 1024 * 1024:  # 10MB
+            if image_file.size > 20 * 1024 * 1024:  # 20MB
                 return Response({
-                    'error': 'La imagen es demasiado grande (máximo 10MB)',
+                    'error': 'La imagen es demasiado grande (máximo 20MB)',
                     'code': 'FILE_TOO_LARGE'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -561,7 +561,9 @@ class CacaoYOLOPredictionView(APIView):
                         'processing_time': yolo_result.get('processing_time', 0),
                         'method': 'yolo_v8',
                         'success': True,
-                        'analysis_id': analysis.id
+                        'analysis_id': analysis.id,
+                        'image_url': request.build_absolute_uri(cacao_image.image.url) if cacao_image.image else None,
+                        'created_at': cacao_image.created_at.isoformat()
                     }
                     
                     # Agregar imagen de detección si se solicita
@@ -808,9 +810,9 @@ class CacaoSmartWeightPredictionView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Validar tamaño de imagen
-            if image_file.size > 10 * 1024 * 1024:  # 10MB
+            if image_file.size > 20 * 1024 * 1024:  # 20MB
                 return Response({
-                    'error': 'La imagen es demasiado grande (máximo 10MB)',
+                    'error': 'La imagen es demasiado grande (máximo 20MB)',
                     'code': 'FILE_TOO_LARGE'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -891,7 +893,9 @@ class CacaoSmartWeightPredictionView(APIView):
                         'processing_time': smart_result.get('processing_time', 0),
                         'method': 'yolo_v8_smart_crop',
                         'success': True,
-                        'analysis_id': analysis.id
+                        'analysis_id': analysis.id,
+                        'image_url': request.build_absolute_uri(cacao_image.image.url) if cacao_image.image else None,
+                        'created_at': cacao_image.created_at.isoformat()
                     }
                     
                     # Agregar imágenes procesadas si se solicitan

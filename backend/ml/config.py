@@ -110,7 +110,7 @@ SUPPORTED_IMAGE_FORMATS = [
 ]
 
 # Tamaño máximo de archivo (en bytes)
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20 MB
 
 # Configuración de logging para ML
 ML_LOG_LEVEL = 'INFO'
