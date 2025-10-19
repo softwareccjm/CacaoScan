@@ -2,7 +2,7 @@
   <div class="prediction-method-selector">
     <h3 class="text-lg font-semibold text-gray-900 mb-4">Método de Análisis</h3>
     
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <!-- Método Tradicional -->
       <div 
         class="relative cursor-pointer rounded-xl border-2 p-6 transition-all duration-200"
@@ -123,6 +123,52 @@
           </div>
         </div>
       </div>
+
+      <!-- CacaoScan Unificado -->
+      <div 
+        class="relative cursor-pointer rounded-xl border-2 p-6 transition-all duration-200"
+        :class="selectedMethod === 'cacaoscan' ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-300'"
+        @click="selectMethod('cacaoscan')"
+      >
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div v-if="selectedMethod === 'cacaoscan'" class="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+            <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+        </div>
+        
+        <h4 class="font-semibold text-gray-900 mb-2">CacaoScan Unificado</h4>
+        <p class="text-sm text-gray-600 mb-3">
+          Sistema automático completo: YOLOv8-seg + 4 modelos de regresión + inicialización automática.
+        </p>
+        
+        <div class="space-y-1 text-xs text-gray-500">
+          <div class="flex items-center">
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            Inicialización automática
+          </div>
+          <div class="flex items-center">
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            Máxima precisión
+          </div>
+          <div class="flex items-center">
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            Sin configuración manual
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Información adicional -->
@@ -182,6 +228,12 @@ export default {
             title: 'Recorte Inteligente',
             description: 'Combina YOLOv8 con segmentación avanzada para crear recortes precisos estilo iPhone, incluyendo fondo transparente y métricas de calidad.',
             processingTime: '3-5 segundos'
+          }
+        case 'cacaoscan':
+          return {
+            title: 'CacaoScan Unificado',
+            description: 'Sistema automático completo que inicializa automáticamente los modelos, segmenta con YOLOv8-seg y predice dimensiones y peso con 4 modelos de regresión especializados.',
+            processingTime: '2-4 segundos (primera vez: 30-60 segundos)'
           }
         default:
           return {

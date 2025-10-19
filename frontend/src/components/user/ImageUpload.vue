@@ -210,6 +210,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue';
 import { predictImage, predictImageYolo, predictImageSmart, createImageFormData, validateImageFile } from '@/services/predictionApi.js';
+import { predictImage as predictImageNew, createPredictionFormData, validateImageFile as validateImageFileNew } from '@/services/api.js';
 
 export default {
   name: 'ImageUpload',
@@ -339,6 +340,11 @@ export default {
               returnTransparentImage: true
             });
             break;
+          case 'cacaoscan':
+            // Usar la nueva función predictImage del servicio api.js
+            const newFormData = createPredictionFormData(selectedFile.value, formData.value);
+            result = { success: true, data: await predictImageNew(newFormData) };
+            break;
           case 'traditional':
           default:
             result = await predictImage(requestFormData);
@@ -390,12 +396,12 @@ export default {
     // Función para mapear respuesta de API al formato esperado por PredictionResults
     const mapApiResponseToPredictionData = (apiData) => {
       return {
-        id: apiData.id,
+        id: apiData.id || Date.now(),
         width: apiData.ancho_mm || apiData.width,
-        height: apiData.altura_mm || apiData.height,
+        height: apiData.alto_mm || apiData.altura_mm || apiData.height,
         thickness: apiData.grosor_mm || apiData.thickness,
-        predicted_weight: apiData.peso_estimado || apiData.predicted_weight,
-        prediction_method: apiData.method || apiData.prediction_method || 'unknown',
+        predicted_weight: apiData.peso_g || apiData.peso_estimado || apiData.predicted_weight,
+        prediction_method: apiData.method || apiData.prediction_method || props.predictionMethod || 'unknown',
         confidence_level: apiData.nivel_confianza ? 
           (apiData.nivel_confianza > 0.8 ? 'high' : 
            apiData.nivel_confianza > 0.6 ? 'medium' : 'low') : 

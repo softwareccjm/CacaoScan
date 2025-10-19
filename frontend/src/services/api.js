@@ -315,6 +315,171 @@ export const createBaseRequest = () => {
   })
 }
 
+/**
+ * Realiza predicción de características físicas de un grano de cacao
+ * @param {FormData} formData - Datos del formulario con la imagen y metadatos
+ * @returns {Promise<Object>} - Resultado de la predicción con peso, altura, ancho y grosor
+ */
+export async function predictImage(formData) {
+  try {
+    // Validar que FormData contiene una imagen
+    if (!formData.has('image')) {
+      throw new Error('No se ha proporcionado ninguna imagen para procesar')
+    }
+    
+    const imageFile = formData.get('image')
+    if (!imageFile || imageFile.size === 0) {
+      throw new Error('El archivo de imagen está vacío o corrupto')
+    }
+
+    // Validar formato de imagen
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp']
+    if (!allowedTypes.includes(imageFile.type)) {
+      throw new Error('Formato de imagen no válido. Use JPEG, PNG, WebP o BMP')
+    }
+
+    // Validar tamaño máximo (20MB)
+    const maxSize = 20 * 1024 * 1024
+    if (imageFile.size > maxSize) {
+      throw new Error('La imagen es demasiado grande. Máximo 20MB permitido')
+    }
+
+    // Emitir evento de loading
+    window.dispatchEvent(new CustomEvent('api-loading-start', {
+      detail: { type: 'prediction', message: 'Analizando imagen de cacao...' }
+    }))
+
+    console.log('📤 Enviando imagen para predicción:', {
+      fileName: imageFile.name,
+      fileSize: `${(imageFile.size / 1024).toFixed(1)}KB`,
+      fileType: imageFile.type
+    })
+
+    // Realizar la petición al endpoint de predicción
+    const response = await api.post('/api/predict/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 60000 // 60 segundos para procesamiento ML
+    })
+
+    console.log('✅ Predicción completada:', response.data)
+
+    return response.data
+
+  } catch (error) {
+    console.error('❌ Error al predecir imagen:', error)
+    
+    // Extraer mensaje de error más descriptivo
+    let errorMessage = 'Error inesperado al procesar la imagen'
+    
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error
+    } else if (error.response?.data?.detail) {
+      errorMessage = error.response.data.detail
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    // Crear error personalizado con información útil
+    const customError = new Error(errorMessage)
+    customError.originalError = error
+    customError.status = error.response?.status
+    customError.statusText = error.response?.statusText
+
+    throw customError
+
+  } finally {
+    // Emitir evento de fin de loading
+    window.dispatchEvent(new CustomEvent('api-loading-end'))
+  }
+}
+
+/**
+ * Función auxiliar para crear FormData para predicción
+ * @param {File} file - Archivo de imagen
+ * @param {Object} metadata - Metadatos adicionales (opcional)
+ * @returns {FormData} - FormData preparado para envío
+ */
+export function createPredictionFormData(file, metadata = {}) {
+  const formData = new FormData()
+  
+  // Agregar archivo de imagen
+  formData.append('image', file)
+  
+  // Agregar metadatos si se proporcionan
+  if (metadata.lote_id) {
+    formData.append('lote_id', metadata.lote_id)
+  }
+  
+  if (metadata.finca) {
+    formData.append('finca', metadata.finca)
+  }
+  
+  if (metadata.region) {
+    formData.append('region', metadata.region)
+  }
+  
+  if (metadata.variedad) {
+    formData.append('variedad', metadata.variedad)
+  }
+  
+  if (metadata.fecha_cosecha) {
+    formData.append('fecha_cosecha', metadata.fecha_cosecha)
+  }
+  
+  if (metadata.notas) {
+    formData.append('notas', metadata.notas)
+  }
+  
+  // Agregar información técnica del archivo
+  formData.append('file_name', file.name)
+  formData.append('file_size', file.size.toString())
+  formData.append('file_type', file.type)
+  
+  // Timestamp para auditoría
+  formData.append('upload_timestamp', new Date().toISOString())
+  
+  return formData
+}
+
+/**
+ * Función auxiliar para validar archivos de imagen
+ * @param {File} file - Archivo a validar
+ * @returns {Object} - Objeto con isValid y errors
+ */
+export function validateImageFile(file) {
+  const errors = []
+
+  if (!file) {
+    errors.push('Archivo requerido')
+    return { isValid: false, errors }
+  }
+
+  // Validar tipo
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp']
+  if (!allowedTypes.includes(file.type)) {
+    errors.push('Formato no válido. Use JPEG, PNG, WebP o BMP')
+  }
+
+  // Validar tamaño (20MB máximo)
+  const maxSize = 20 * 1024 * 1024
+  if (file.size > maxSize) {
+    errors.push('Archivo demasiado grande. Máximo 20MB')
+  }
+
+  // Validar tamaño mínimo (1KB)
+  const minSize = 1024
+  if (file.size < minSize) {
+    errors.push('Archivo demasiado pequeño')
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
 // Exportar configuraciones útiles
 export const API_CONFIG = {
   BASE_URL: api.defaults.baseURL,

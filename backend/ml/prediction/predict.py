@@ -61,6 +61,7 @@ class CacaoPredictor:
     def load_artifacts(self) -> bool:
         """
         Carga todos los artefactos necesarios para la predicción.
+        Si no existen, entrena automáticamente los modelos.
         
         Returns:
             True si se cargaron exitosamente, False en caso contrario
@@ -78,12 +79,21 @@ class CacaoPredictor:
                 overwrite=False
             )
             
-            # 2. Cargar escaladores
+            # 2. Verificar si existen los modelos y escaladores
             scalers_path = get_regressors_artifacts_dir()
-            if not scalers_path.exists():
-                logger.error(f"Directorio de escaladores no encontrado: {scalers_path}")
-                return False
+            models_exist = all(
+                (get_regressors_artifacts_dir() / f"{target}.pt").exists() 
+                for target in TARGETS
+            )
+            scalers_exist = scalers_path.exists()
             
+            if not models_exist or not scalers_exist:
+                logger.warning("Modelos o escaladores no encontrados. Iniciando entrenamiento automático...")
+                if not self._auto_train_models():
+                    logger.error("Error en entrenamiento automático")
+                    return False
+            
+            # 3. Cargar escaladores
             try:
                 self.scalers = load_scalers()
                 logger.info("Escaladores cargados exitosamente")
@@ -91,7 +101,7 @@ class CacaoPredictor:
                 logger.error(f"Error cargando escaladores: {e}")
                 return False
             
-            # 3. Cargar modelos de regresión
+            # 4. Cargar modelos de regresión
             self.regression_models = {}
             
             for target in TARGETS:
@@ -132,6 +142,56 @@ class CacaoPredictor:
             
         except Exception as e:
             logger.error(f"Error general cargando artefactos: {e}")
+            return False
+    
+    def _auto_train_models(self) -> bool:
+        """
+        Entrena automáticamente los modelos si no existen.
+        
+        Returns:
+            True si el entrenamiento fue exitoso, False en caso contrario
+        """
+        try:
+            logger.info("🚀 Iniciando entrenamiento automático de modelos...")
+            
+            # Importar funciones de entrenamiento
+            from ..pipeline.train_all import run_training_pipeline
+            
+            # Configuración de entrenamiento automático
+            config = {
+                'epochs': 30,  # Menos epochs para entrenamiento rápido
+                'batch_size': 16,  # Batch size más pequeño para memoria
+                'learning_rate': 0.001,
+                'multi_head': False,  # 4 modelos independientes
+                'model_type': 'resnet18',
+                'img_size': 224,
+                'early_stopping_patience': 10,
+                'save_best_only': True
+            }
+            
+            logger.info(f"Configuración de entrenamiento automático: {config}")
+            
+            # Ejecutar pipeline de entrenamiento
+            success = run_training_pipeline(
+                epochs=config['epochs'],
+                batch_size=config['batch_size'],
+                learning_rate=config['learning_rate'],
+                multi_head=config['multi_head'],
+                model_type=config['model_type'],
+                img_size=config['img_size'],
+                early_stopping_patience=config['early_stopping_patience'],
+                save_best_only=config['save_best_only']
+            )
+            
+            if success:
+                logger.info("✅ Entrenamiento automático completado exitosamente")
+                return True
+            else:
+                logger.error("❌ Error en entrenamiento automático")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error en entrenamiento automático: {e}")
             return False
     
     def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
