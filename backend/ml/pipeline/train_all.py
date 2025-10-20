@@ -553,6 +553,44 @@ class CacaoTrainingPipeline:
         save_scalers(self.scalers)
         logger.info("Escaladores guardados")
     
+    def _verify_artifacts_saved(self) -> None:
+        """Verifica que todos los artefactos se guardaron correctamente."""
+        logger.info("Verificando que todos los artefactos se guardaron correctamente...")
+        
+        artifacts_dir = get_regressors_artifacts_dir()
+        missing_files = []
+        
+        # Verificar modelos
+        for target in TARGETS:
+            model_path = artifacts_dir / f"{target}.pt"
+            if not model_path.exists():
+                missing_files.append(f"Modelo {target}: {model_path}")
+            elif model_path.stat().st_size == 0:
+                missing_files.append(f"Modelo {target} está vacío: {model_path}")
+        
+        # Verificar escaladores
+        for target in TARGETS:
+            scaler_path = artifacts_dir / f"{target}_scaler.pkl"
+            if not scaler_path.exists():
+                missing_files.append(f"Escalador {target}: {scaler_path}")
+            elif scaler_path.stat().st_size == 0:
+                missing_files.append(f"Escalador {target} está vacío: {scaler_path}")
+        
+        if missing_files:
+            error_msg = f"❌ Archivos faltantes o vacíos: {missing_files}"
+            logger.error(error_msg)
+            raise IOError(error_msg)
+        else:
+            logger.info("✅ Todos los artefactos se guardaron correctamente")
+            
+            # Mostrar resumen de archivos guardados
+            total_size = sum(
+                (artifacts_dir / f"{target}.pt").stat().st_size + 
+                (artifacts_dir / f"{target}_scaler.pkl").stat().st_size
+                for target in TARGETS
+            )
+            logger.info(f"📊 Total de artefactos guardados: {len(TARGETS) * 2} archivos, {total_size / 1024 / 1024:.2f} MB")
+    
     def generate_reports(self, evaluation_results: Dict, save_dir: Optional[Path] = None) -> None:
         """
         Genera reportes y gráficos.
@@ -616,10 +654,13 @@ class CacaoTrainingPipeline:
             # 6. Guardar escaladores
             self.save_scalers()
             
-            # 7. Evaluar modelos
+            # 7. Verificar que todos los artefactos se guardaron correctamente
+            self._verify_artifacts_saved()
+            
+            # 8. Evaluar modelos
             evaluation_results = self.evaluate_models(multi_head)
             
-            # 8. Generar reportes
+            # 9. Generar reportes
             self.generate_reports(evaluation_results)
             
             total_time = time.time() - start_time

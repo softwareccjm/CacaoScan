@@ -163,14 +163,27 @@ class CacaoScalers:
         if not self.is_fitted:
             raise ValueError("Los escaladores deben ser ajustados antes de guardar")
         
-        artifacts_dir = get_regressors_artifacts_dir()
-        
-        for target in TARGETS:
-            scaler_path = artifacts_dir / f"{file_prefix}{target}_scaler.pkl"
-            joblib.dump(self.scalers[target], scaler_path)
-            logger.debug(f"Escalador guardado para {target} en {scaler_path}")
-        
-        logger.info(f"Escaladores guardados en {artifacts_dir}")
+        try:
+            artifacts_dir = get_regressors_artifacts_dir()
+            saved_scalers = []
+            
+            for target in TARGETS:
+                scaler_path = artifacts_dir / f"{file_prefix}{target}_scaler.pkl"
+                joblib.dump(self.scalers[target], scaler_path)
+                
+                # Verificar que el archivo se guardó correctamente
+                if scaler_path.exists() and scaler_path.stat().st_size > 0:
+                    logger.debug(f"✅ Escalador guardado para {target} en {scaler_path} ({scaler_path.stat().st_size} bytes)")
+                    saved_scalers.append(target)
+                else:
+                    logger.error(f"❌ Error: Escalador no se guardó para {target}: {scaler_path}")
+                    raise IOError(f"No se pudo guardar el escalador para {target}")
+            
+            logger.info(f"✅ Todos los escaladores guardados exitosamente en {artifacts_dir}: {saved_scalers}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error guardando escaladores: {e}")
+            raise
     
     def load(self, file_prefix: str = "") -> None:
         """

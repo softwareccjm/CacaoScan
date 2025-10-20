@@ -237,27 +237,37 @@ class RegressionTrainer:
     
     def save_model(self, file_path: Path) -> None:
         """Guarda el modelo entrenado."""
-        ensure_dir_exists(file_path.parent)
-        
-        # Información del modelo
-        model_info = {
-            'target': self.target,
-            'model_type': type(self.model).__name__,
-            'config': self.config,
-            'best_val_loss': self.best_val_loss,
-            'training_history': self.history,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Guardar modelo y metadatos
-        torch.save({
-            'model_state_dict': self.model.state_dict(),
-            'model_info': model_info,
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'scheduler_state_dict': self.scheduler.state_dict()
-        }, file_path)
-        
-        logger.info(f"Modelo guardado en {file_path}")
+        try:
+            ensure_dir_exists(file_path.parent)
+            
+            # Información del modelo
+            model_info = {
+                'target': self.target,
+                'model_type': type(self.model).__name__,
+                'config': self.config,
+                'best_val_loss': self.best_val_loss,
+                'training_history': self.history,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Guardar modelo y metadatos
+            torch.save({
+                'model_state_dict': self.model.state_dict(),
+                'model_info': model_info,
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'scheduler_state_dict': self.scheduler.state_dict()
+            }, file_path)
+            
+            # Verificar que el archivo se guardó correctamente
+            if file_path.exists() and file_path.stat().st_size > 0:
+                logger.info(f"✅ Modelo guardado exitosamente en {file_path} ({file_path.stat().st_size} bytes)")
+            else:
+                logger.error(f"❌ Error: El archivo no se guardó correctamente: {file_path}")
+                raise IOError(f"No se pudo guardar el modelo en {file_path}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error guardando modelo para {self.target}: {e}")
+            raise
 
 
 def train_single_model(

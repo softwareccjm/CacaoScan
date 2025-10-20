@@ -9,7 +9,11 @@ from pathlib import Path
 # Suprimir warnings molestos
 warnings.filterwarnings('ignore', message='pkg_resources is deprecated')
 warnings.filterwarnings('ignore', message='The parameter.*is deprecated')
+warnings.filterwarnings('ignore', message='Arguments other than a weight enum.*are deprecated')
+warnings.filterwarnings('ignore', message='Using a target size.*that is different to the input size')
 warnings.filterwarnings('ignore', category=UserWarning, module='drf_yasg')
+warnings.filterwarnings('ignore', category=UserWarning, module='torchvision')
+warnings.filterwarnings('ignore', category=UserWarning, module='torch')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -217,6 +221,18 @@ LOGGING = {
         },
         # Suprimir warnings de drf_yasg
         'drf_yasg': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        # Suprimir warnings de torchvision
+        'torchvision': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        # Suprimir warnings de torch
+        'torch': {
             'handlers': ['file'],
             'level': 'ERROR',
             'propagate': False,
