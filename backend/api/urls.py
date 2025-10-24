@@ -33,4 +33,11 @@ urlpatterns = [
     path('images/', views.ImagesListView.as_view(), name='images-list'),
     path('images/<int:image_id>/', views.ImageDetailView.as_view(), name='image-detail'),
     path('images/stats/', views.ImagesStatsView.as_view(), name='images-stats'),
+    
+    # Endpoints de gestión de usuarios (Admin)
+    path('auth/users/', views.UserListView.as_view(), name='user-list'),
+    path('auth/users/<int:user_id>/', views.UserDetailView.as_view(), name='user-detail'),
+    path('auth/users/<int:user_id>/update/', views.UserUpdateView.as_view(), name='user-update'),
+    path('auth/users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user-delete'),
+    path('auth/admin/stats/', views.AdminStatsView.as_view(), name='admin-stats'),
 ]
