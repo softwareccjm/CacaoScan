@@ -1536,9 +1536,9 @@ class ResetPasswordView(APIView):
         # Eliminar token usado
         token_obj.delete()
         
-         return create_success_response(
-             message='Contraseña restablecida exitosamente'
-         )
+        return create_success_response(
+            message='Contraseña restablecida exitosamente'
+        )
 
 
 # Vistas de gestión de usuarios (Admin)
