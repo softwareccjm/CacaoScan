@@ -17,6 +17,25 @@
           title="Reportes"
           subtitle="Genera y gestiona reportes de análisis"
         >
+          <template #actions>
+            <div class="flex gap-2">
+              <button
+                @click="showFilters = !showFilters"
+                class="btn btn-outline"
+                :class="{ 'btn-primary': showFilters }"
+              >
+                <i class="fas fa-filter"></i>
+                {{ showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros' }}
+              </button>
+              <button
+                @click="openReportGenerator"
+                class="btn btn-primary"
+              >
+                <i class="fas fa-plus"></i>
+                Nuevo Reporte
+              </button>
+            </div>
+          </template>
         </PageHeader>
         
         <!-- Contenido principal -->
@@ -53,61 +72,283 @@
             />
           </div>
 
-          <!-- Filtros y controles -->
+          <!-- Panel de filtros avanzados -->
+          <div v-if="showFilters" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">
+                <i class="fas fa-filter mr-2 text-blue-600"></i>
+                Filtros Avanzados
+              </h3>
+              <button
+                @click="clearFilters"
+                class="text-sm text-gray-500 hover:text-gray-700"
+              >
+                <i class="fas fa-times mr-1"></i>
+                Limpiar Filtros
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <!-- Filtro por tipo de reporte -->
+              <div class="form-group">
+                <label class="form-label">Tipo de Reporte</label>
+                <select v-model="filters.tipo_reporte" class="form-select">
+                  <option value="">Todos los tipos</option>
+                  <option value="calidad">Reporte de Calidad</option>
+                  <option value="finca">Reporte de Finca</option>
+                  <option value="lote">Reporte de Lote</option>
+                  <option value="usuario">Reporte de Usuario</option>
+                  <option value="auditoria">Reporte de Auditoría</option>
+                  <option value="personalizado">Reporte Personalizado</option>
+                </select>
+              </div>
+
+              <!-- Filtro por formato -->
+              <div class="form-group">
+                <label class="form-label">Formato</label>
+                <select v-model="filters.formato" class="form-select">
+                  <option value="">Todos los formatos</option>
+                  <option value="pdf">PDF</option>
+                  <option value="excel">Excel</option>
+                  <option value="csv">CSV</option>
+                  <option value="json">JSON</option>
+                </select>
+              </div>
+
+              <!-- Filtro por estado -->
+              <div class="form-group">
+                <label class="form-label">Estado</label>
+                <select v-model="filters.estado" class="form-select">
+                  <option value="">Todos los estados</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="procesando">Procesando</option>
+                  <option value="completado">Completado</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+
+              <!-- Filtro por usuario -->
+              <div class="form-group">
+                <label class="form-label">Usuario</label>
+                <select v-model="filters.usuario_id" class="form-select">
+                  <option value="">Todos los usuarios</option>
+                  <option v-for="user in users" :key="user.id" :value="user.id">
+                    {{ user.first_name }} {{ user.last_name }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Filtro por fecha desde -->
+              <div class="form-group">
+                <label class="form-label">Fecha Desde</label>
+                <input
+                  type="date"
+                  v-model="filters.fecha_desde"
+                  class="form-input"
+                />
+              </div>
+
+              <!-- Filtro por fecha hasta -->
+              <div class="form-group">
+                <label class="form-label">Fecha Hasta</label>
+                <input
+                  type="date"
+                  v-model="filters.fecha_hasta"
+                  class="form-input"
+                />
+              </div>
+
+              <!-- Filtro por finca -->
+              <div class="form-group">
+                <label class="form-label">Finca</label>
+                <select v-model="filters.finca_id" class="form-select">
+                  <option value="">Todas las fincas</option>
+                  <option v-for="finca in fincas" :key="finca.id" :value="finca.id">
+                    {{ finca.nombre }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Filtro por lote -->
+              <div class="form-group">
+                <label class="form-label">Lote</label>
+                <select v-model="filters.lote_id" class="form-select">
+                  <option value="">Todos los lotes</option>
+                  <option v-for="lote in lotes" :key="lote.id" :value="lote.id">
+                    {{ lote.identificador }} - {{ lote.variedad }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Botones de acción de filtros -->
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
+              <button
+                @click="applyFilters"
+                class="btn btn-primary"
+                :disabled="loading"
+              >
+                <i class="fas fa-search mr-2"></i>
+                Aplicar Filtros
+              </button>
+              <button
+                @click="exportFiltered"
+                class="btn btn-outline"
+                :disabled="loading || filteredReports.length === 0"
+              >
+                <i class="fas fa-download mr-2"></i>
+                Exportar Resultados
+              </button>
+            </div>
+          </div>
+
+          <!-- Controles principales -->
           <div class="mb-4 md:mb-6">
-            <div class="flex gap-4 items-center justify-between">
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <!-- Selector de período rápido -->
               <div class="flex gap-4">
                 <PeriodSelector 
                   v-model="selectedPeriod"
                   :options="periodOptions"
                   @update:model-value="handlePeriodChange"
                 />
+                
+                <!-- Selector de vista -->
+                <div class="form-group">
+                  <select v-model="viewMode" class="form-select">
+                    <option value="table">Vista de Tabla</option>
+                    <option value="cards">Vista de Tarjetas</option>
+                    <option value="timeline">Vista de Cronología</option>
+                  </select>
+                </div>
               </div>
               
+              <!-- Botones de acción -->
               <div class="flex gap-2">
-                <ActionButton 
-                  label="Generar Reporte"
-                  short-label="Generar"
-                  variant="secondary"
-                  icon="ChartBarIcon"
-                  @click="handleGenerateReport"
-                />
-                <ActionButton 
-                  label="Exportar"
-                  short-label="Exportar"
-                  variant="secondary"
-                  icon="ArrowDownTrayIcon"
-                  @click="handleExport"
-                />
+                <button
+                  @click="refreshReports"
+                  class="btn btn-outline"
+                  :disabled="loading"
+                >
+                  <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
+                  Actualizar
+                </button>
+                <button
+                  @click="bulkExport"
+                  class="btn btn-outline"
+                  :disabled="loading || selectedReports.length === 0"
+                >
+                  <i class="fas fa-download mr-2"></i>
+                  Exportar Seleccionados ({{ selectedReports.length }})
+                </button>
+                <button
+                  @click="bulkDelete"
+                  class="btn btn-danger"
+                  :disabled="loading || selectedReports.length === 0"
+                >
+                  <i class="fas fa-trash mr-2"></i>
+                  Eliminar Seleccionados
+                </button>
               </div>
             </div>
           </div>
           
-          <!-- Tabla de reportes -->
-          <div class="flex-1 min-h-0">
+          <!-- Vista de tabla -->
+          <div v-if="viewMode === 'table'" class="flex-1 min-h-0">
             <ReportsTable 
-              :reports="reports"
+              :reports="filteredReports"
               :loading="loading"
+              :selected-reports="selectedReports"
               @view="handleViewReport"
               @download="handleDownloadReport"
               @delete="handleDeleteReport"
               @sort="handleSort"
+              @select="handleSelectReport"
+              @select-all="handleSelectAll"
+            />
+          </div>
+
+          <!-- Vista de tarjetas -->
+          <div v-else-if="viewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <ReportCard
+              v-for="report in filteredReports"
+              :key="report.id"
+              :report="report"
+              :selected="selectedReports.includes(report.id)"
+              @view="handleViewReport"
+              @download="handleDownloadReport"
+              @delete="handleDeleteReport"
+              @select="handleSelectReport"
+            />
+          </div>
+
+          <!-- Vista de cronología -->
+          <div v-else-if="viewMode === 'timeline'" class="flex-1 min-h-0">
+            <ReportsTimeline
+              :reports="filteredReports"
+              :loading="loading"
+              @view="handleViewReport"
+              @download="handleDownloadReport"
+            />
+          </div>
+
+          <!-- Paginación -->
+          <div v-if="pagination.totalPages > 1" class="mt-6">
+            <Pagination
+              :current-page="pagination.currentPage"
+              :total-pages="pagination.totalPages"
+              :total-items="pagination.totalItems"
+              :items-per-page="pagination.itemsPerPage"
+              @page-change="handlePageChange"
             />
           </div>
         </main>
       </div>
     </div>
+
+    <!-- Modal de generación de reportes -->
+    <ReportGeneratorModal
+      v-if="showReportGenerator"
+      @close="showReportGenerator = false"
+      @created="handleReportCreated"
+    />
+
+    <!-- Modal de vista previa de reporte -->
+    <ReportPreviewModal
+      v-if="showReportPreview"
+      :report="selectedReport"
+      @close="showReportPreview = false"
+      @download="handleDownloadReport"
+    />
+
+    <!-- Modal de confirmación de eliminación -->
+    <ConfirmModal
+      v-if="showDeleteConfirm"
+      title="Confirmar Eliminación"
+      :message="deleteConfirmMessage"
+      @confirm="confirmDelete"
+      @cancel="showDeleteConfirm = false"
+    />
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import AdminSidebar from '@/components/common/AdminSidebar.vue';
-import PageHeader from '@/components/reportes/PageHeader.vue';
+import PageHeader from '@/components/common/PageHeader.vue';
 import PeriodSelector from '@/components/reportes/PeriodSelector.vue';
-import ActionButton from '@/components/reportes/ActionButton.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
 import ReportsTable from '@/components/reportes/ReportsTable.vue';
+import ReportCard from '@/components/reportes/ReportCard.vue';
+import ReportsTimeline from '@/components/reportes/ReportsTimeline.vue';
+import Pagination from '@/components/common/Pagination.vue';
+import ReportGeneratorModal from '@/components/reports/ReportGeneratorModal.vue';
+import ReportPreviewModal from '@/components/reports/ReportPreviewModal.vue';
+import ConfirmModal from '@/components/common/ConfirmModal.vue';
+import { useReportsStore } from '@/stores/reports';
+import { useAuthStore } from '@/stores/auth';
+import Swal from 'sweetalert2';
 
 export default {
   name: 'Reportes',
@@ -115,21 +356,55 @@ export default {
     AdminSidebar,
     PageHeader,
     PeriodSelector,
-    ActionButton,
     StatsCard,
-    ReportsTable
+    ReportsTable,
+    ReportCard,
+    ReportsTimeline,
+    Pagination,
+    ReportGeneratorModal,
+    ReportPreviewModal,
+    ConfirmModal
   },
   setup() {
+    const router = useRouter();
+    const reportsStore = useReportsStore();
+    const authStore = useAuthStore();
+
     // Estado reactivo
-    const selectedPeriod = ref('month');
     const loading = ref(false);
     const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
-    
+    const showFilters = ref(false);
+    const showReportGenerator = ref(false);
+    const showReportPreview = ref(false);
+    const showDeleteConfirm = ref(false);
+    const viewMode = ref('table');
+    const selectedPeriod = ref('month');
+    const selectedReports = ref([]);
+    const selectedReport = ref(null);
+    const deleteConfirmMessage = ref('');
+    const pendingDeleteId = ref(null);
+
     // Datos de usuario
-    const userInitials = ref('JD');
-    const userName = ref('Juan Doe');
-    const userRole = ref('Administrador');
-    
+    const userInitials = computed(() => {
+      const user = authStore.user;
+      if (user?.first_name && user?.last_name) {
+        return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+      }
+      return user?.username?.[0]?.toUpperCase() || 'U';
+    });
+
+    const userName = computed(() => {
+      const user = authStore.user;
+      if (user?.first_name && user?.last_name) {
+        return `${user.first_name} ${user.last_name}`;
+      }
+      return user?.username || 'Usuario';
+    });
+
+    const userRole = computed(() => {
+      return authStore.user?.is_superuser ? 'Administrador' : 'Usuario';
+    });
+
     // Opciones del selector de período
     const periodOptions = [
       { value: 'week', label: 'Esta Semana' },
@@ -138,149 +413,415 @@ export default {
       { value: 'year', label: 'Este Año' },
       { value: 'custom', label: 'Personalizado' }
     ];
-    
-    // Estadísticas
-    const stats = ref({
-      totalReports: 156,
-      reportsChange: 12,
-      completedReports: 142,
-      completedChange: 8,
-      inProgressReports: 8,
-      inProgressChange: -3,
-      errorReports: 6,
-      errorChange: -2
+
+    // Filtros
+    const filters = ref({
+      tipo_reporte: '',
+      formato: '',
+      estado: '',
+      usuario_id: '',
+      fecha_desde: '',
+      fecha_hasta: '',
+      finca_id: '',
+      lote_id: ''
     });
-    
-    // Lista de reportes
-    const reports = ref([
-      {
-        id: 1,
-        name: 'Reporte Mensual de Producción',
-        type: 'Producción',
-        period: 'Enero 2024',
-        createdAt: '15/01/2024',
-        status: 'Completado'
-      },
-      {
-        id: 2,
-        name: 'Análisis de Calidad Q1',
-        type: 'Calidad',
-        period: 'Q1 2024',
-        createdAt: '10/01/2024',
-        status: 'En Proceso'
-      },
-      {
-        id: 3,
-        name: 'Reporte de Rendimiento Anual',
-        type: 'Rendimiento',
-        period: '2023',
-        createdAt: '05/01/2024',
-        status: 'Completado'
-      },
-      {
-        id: 4,
-        name: 'Análisis de Costos',
-        type: 'Financiero',
-        period: 'Diciembre 2023',
-        createdAt: '30/12/2023',
-        status: 'Completado'
-      },
-      {
-        id: 5,
-        name: 'Reporte de Inventario',
-        type: 'Inventario',
-        period: 'Enero 2024',
-        createdAt: '20/01/2024',
-        status: 'Pendiente'
+
+    // Datos para filtros
+    const users = ref([]);
+    const fincas = ref([]);
+    const lotes = ref([]);
+
+    // Estadísticas
+    const stats = computed(() => reportsStore.stats);
+
+    // Reportes filtrados
+    const filteredReports = computed(() => {
+      let reports = reportsStore.reports;
+
+      // Aplicar filtros
+      if (filters.value.tipo_reporte) {
+        reports = reports.filter(r => r.tipo_reporte === filters.value.tipo_reporte);
       }
-    ]);
-    
+      if (filters.value.formato) {
+        reports = reports.filter(r => r.formato === filters.value.formato);
+      }
+      if (filters.value.estado) {
+        reports = reports.filter(r => r.estado === filters.value.estado);
+      }
+      if (filters.value.usuario_id) {
+        reports = reports.filter(r => r.usuario_id === parseInt(filters.value.usuario_id));
+      }
+      if (filters.value.fecha_desde) {
+        reports = reports.filter(r => new Date(r.fecha_solicitud) >= new Date(filters.value.fecha_desde));
+      }
+      if (filters.value.fecha_hasta) {
+        reports = reports.filter(r => new Date(r.fecha_solicitud) <= new Date(filters.value.fecha_hasta));
+      }
+      if (filters.value.finca_id) {
+        reports = reports.filter(r => r.parametros?.finca_id === parseInt(filters.value.finca_id));
+      }
+      if (filters.value.lote_id) {
+        reports = reports.filter(r => r.parametros?.lote_id === parseInt(filters.value.lote_id));
+      }
+
+      return reports;
+    });
+
+    // Paginación
+    const pagination = computed(() => reportsStore.pagination);
+
     // Métodos
     const toggleSidebar = () => {
       sidebarCollapsed.value = !sidebarCollapsed.value;
       localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value);
     };
-    
-    const handlePeriodChange = (period) => {
+
+    const loadInitialData = async () => {
+      try {
+        loading.value = true;
+        await Promise.all([
+          reportsStore.fetchReports(),
+          reportsStore.fetchStats(),
+          loadUsers(),
+          loadFincas()
+        ]);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudieron cargar los datos iniciales'
+        });
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    const loadUsers = async () => {
+      try {
+        const response = await reportsStore.fetchUsers();
+        users.value = response.data.results || [];
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    };
+
+    const loadFincas = async () => {
+      try {
+        const response = await reportsStore.fetchFincas();
+        fincas.value = response.data.results || [];
+      } catch (error) {
+        console.error('Error loading fincas:', error);
+      }
+    };
+
+    const loadLotes = async (fincaId) => {
+      if (!fincaId) {
+        lotes.value = [];
+        return;
+      }
+      try {
+        const response = await reportsStore.fetchLotesByFinca(fincaId);
+        lotes.value = response.data.results || [];
+      } catch (error) {
+        console.error('Error loading lotes:', error);
+        lotes.value = [];
+      }
+    };
+
+    const handlePeriodChange = async (period) => {
       selectedPeriod.value = period;
-      // Aquí se podría hacer una llamada a la API para obtener reportes del período seleccionado
-      console.log('Período cambiado:', period);
+      await applyFilters();
     };
-    
-    const handleNewReport = () => {
-      console.log('Crear nuevo reporte');
-      // Implementar lógica para crear nuevo reporte
+
+    const applyFilters = async () => {
+      try {
+        loading.value = true;
+        await reportsStore.fetchReports({
+          ...filters.value,
+          period: selectedPeriod.value
+        });
+      } catch (error) {
+        console.error('Error applying filters:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudieron aplicar los filtros'
+        });
+      } finally {
+        loading.value = false;
+      }
     };
-    
-    const handleGenerateReport = () => {
-      console.log('Generar reporte para período:', selectedPeriod.value);
-      // Implementar lógica para generar reporte
+
+    const clearFilters = () => {
+      filters.value = {
+        tipo_reporte: '',
+        formato: '',
+        estado: '',
+        usuario_id: '',
+        fecha_desde: '',
+        fecha_hasta: '',
+        finca_id: '',
+        lote_id: ''
+      };
+      selectedPeriod.value = 'month';
+      applyFilters();
     };
-    
-    const handleExport = () => {
-      console.log('Exportar reportes');
-      // Implementar lógica para exportar
+
+    const openReportGenerator = () => {
+      showReportGenerator.value = true;
     };
-    
+
+    const handleReportCreated = (report) => {
+      reportsStore.addReport(report);
+      showReportGenerator.value = false;
+      Swal.fire({
+        icon: 'success',
+        title: 'Reporte Creado',
+        text: 'El reporte ha sido enviado para generación'
+      });
+    };
+
     const handleViewReport = (report) => {
-      console.log('Ver reporte:', report);
-      // Implementar lógica para ver reporte
+      selectedReport.value = report;
+      showReportPreview.value = true;
     };
-    
-    const handleDownloadReport = (report) => {
-      console.log('Descargar reporte:', report);
-      // Implementar lógica para descargar
+
+    const handleDownloadReport = async (report) => {
+      try {
+        await reportsStore.downloadReport(report.id);
+        Swal.fire({
+          icon: 'success',
+          title: 'Descarga Iniciada',
+          text: 'El archivo se está descargando'
+        });
+      } catch (error) {
+        console.error('Error downloading report:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo descargar el reporte'
+        });
+      }
     };
-    
+
     const handleDeleteReport = (report) => {
-      console.log('Eliminar reporte:', report);
-      // Implementar lógica para eliminar
+      pendingDeleteId.value = report.id;
+      deleteConfirmMessage.value = `¿Estás seguro de que quieres eliminar el reporte "${report.titulo}"?`;
+      showDeleteConfirm.value = true;
     };
-    
-    const handleSort = ({ key, order }) => {
-      console.log('Ordenar por:', key, 'orden:', order);
-      // Implementar lógica de ordenamiento
+
+    const confirmDelete = async () => {
+      if (!pendingDeleteId.value) return;
+
+      try {
+        await reportsStore.deleteReport(pendingDeleteId.value);
+        Swal.fire({
+          icon: 'success',
+          title: 'Reporte Eliminado',
+          text: 'El reporte ha sido eliminado correctamente'
+        });
+      } catch (error) {
+        console.error('Error deleting report:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo eliminar el reporte'
+        });
+      } finally {
+        showDeleteConfirm.value = false;
+        pendingDeleteId.value = null;
+      }
     };
-    
+
+    const handleSort = async ({ key, order }) => {
+      try {
+        await reportsStore.fetchReports({
+          sort_by: key,
+          sort_order: order
+        });
+      } catch (error) {
+        console.error('Error sorting reports:', error);
+      }
+    };
+
+    const handleSelectReport = (reportId) => {
+      const index = selectedReports.value.indexOf(reportId);
+      if (index > -1) {
+        selectedReports.value.splice(index, 1);
+      } else {
+        selectedReports.value.push(reportId);
+      }
+    };
+
+    const handleSelectAll = (checked) => {
+      if (checked) {
+        selectedReports.value = filteredReports.value.map(r => r.id);
+      } else {
+        selectedReports.value = [];
+      }
+    };
+
+    const handlePageChange = async (page) => {
+      try {
+        await reportsStore.fetchReports({ page });
+      } catch (error) {
+        console.error('Error changing page:', error);
+      }
+    };
+
+    const refreshReports = async () => {
+      await loadInitialData();
+    };
+
+    const exportFiltered = async () => {
+      try {
+        await reportsStore.exportReports({
+          ...filters.value,
+          format: 'excel'
+        });
+        Swal.fire({
+          icon: 'success',
+          title: 'Exportación Iniciada',
+          text: 'El archivo se está generando'
+        });
+      } catch (error) {
+        console.error('Error exporting reports:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo exportar los reportes'
+        });
+      }
+    };
+
+    const bulkExport = async () => {
+      if (selectedReports.value.length === 0) return;
+
+      try {
+        await reportsStore.exportReports({
+          report_ids: selectedReports.value,
+          format: 'zip'
+        });
+        Swal.fire({
+          icon: 'success',
+          title: 'Exportación Iniciada',
+          text: 'Los archivos se están generando'
+        });
+      } catch (error) {
+        console.error('Error bulk exporting reports:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo exportar los reportes seleccionados'
+        });
+      }
+    };
+
+    const bulkDelete = async () => {
+      if (selectedReports.value.length === 0) return;
+
+      const confirmed = await Swal.fire({
+        title: 'Confirmar Eliminación',
+        text: `¿Estás seguro de que quieres eliminar ${selectedReports.value.length} reportes?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (confirmed.isConfirmed) {
+        try {
+          await reportsStore.bulkDeleteReports(selectedReports.value);
+          selectedReports.value = [];
+          Swal.fire({
+            icon: 'success',
+            title: 'Reportes Eliminados',
+            text: 'Los reportes han sido eliminados correctamente'
+          });
+        } catch (error) {
+          console.error('Error bulk deleting reports:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudieron eliminar los reportes'
+          });
+        }
+      }
+    };
+
+    // Watchers
+    watch(() => filters.value.finca_id, (newFincaId) => {
+      if (newFincaId) {
+        loadLotes(newFincaId);
+      } else {
+        lotes.value = [];
+        filters.value.lote_id = '';
+      }
+    });
+
     // Lifecycle
     onMounted(() => {
-      // Cargar datos iniciales
-      console.log('Vista Reportes montada');
+      loadInitialData();
       checkScreenSize();
       window.addEventListener('resize', checkScreenSize);
     });
-    
+
     const checkScreenSize = () => {
       if (window.innerWidth <= 768) {
         sidebarCollapsed.value = true;
         localStorage.setItem('sidebarCollapsed', 'true');
       }
     };
-    
+
     return {
       // Estado
-      selectedPeriod,
       loading,
       sidebarCollapsed,
+      showFilters,
+      showReportGenerator,
+      showReportPreview,
+      showDeleteConfirm,
+      viewMode,
+      selectedPeriod,
+      selectedReports,
+      selectedReport,
+      deleteConfirmMessage,
+
+      // Datos de usuario
       userInitials,
       userName,
       userRole,
-      
+
       // Datos
       periodOptions,
+      filters,
+      users,
+      fincas,
+      lotes,
       stats,
-      reports,
-      
+      filteredReports,
+      pagination,
+
       // Métodos
       toggleSidebar,
       handlePeriodChange,
-      handleNewReport,
-      handleGenerateReport,
-      handleExport,
+      applyFilters,
+      clearFilters,
+      openReportGenerator,
+      handleReportCreated,
       handleViewReport,
       handleDownloadReport,
       handleDeleteReport,
-      handleSort
+      confirmDelete,
+      handleSort,
+      handleSelectReport,
+      handleSelectAll,
+      handlePageChange,
+      refreshReports,
+      exportFiltered,
+      bulkExport,
+      bulkDelete
     };
   }
 };
@@ -294,56 +835,6 @@ export default {
 
 .h-screen {
   height: 100vh;
-}
-
-/* Asegurar que el contenido principal no se desborde */
-.min-w-0 {
-  min-width: 0;
-}
-
-/* Eliminar espacio blanco excesivo */
-.flex-1 {
-  flex: 1 1 0%;
-}
-
-/* Asegurar que el contenido principal ocupe toda la altura disponible */
-main {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-
-/* Controlar el overflow */
-.overflow-hidden {
-  overflow: hidden;
-}
-
-.overflow-y-auto {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Asegurar que el contenido se ajuste correctamente */
-.flex.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Asegurar que el contenido se ajuste al viewport */
-.min-h-0 {
-  min-height: 0;
-}
-
-/* Layout específico para la vista de reportes */
-.bg-gray-50 {
-  background-color: #f9fafb;
-}
-
-/* Asegurar que el sidebar y contenido principal se alineen correctamente */
-.flex.h-screen {
-  height: 100vh;
-  max-height: 100vh;
 }
 
 /* Layout principal del dashboard */
@@ -363,249 +854,101 @@ main {
   transition: all 0.3s ease;
 }
 
-/* Asegurar que el contenido se ajuste correctamente */
-.dashboard-content > * {
-  width: 100%;
+/* Formularios */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-/* Mejoras de responsividad */
+.form-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.form-select,
+.form-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Botones */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .p-4 {
-    padding: 1rem;
+  .dashboard-layout {
+    flex-direction: column;
   }
   
-  .md\:p-6 {
-    padding: 1.5rem;
+  .dashboard-content {
+    height: calc(100vh - 60px);
   }
   
-  .mb-6 {
-    margin-bottom: 1rem;
+  .grid {
+    grid-template-columns: 1fr;
   }
   
-  .mb-8 {
-    margin-bottom: 1.5rem;
-  }
-  
-  /* Ajustar el grid en tablets */
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  /* Reducir padding inferior en móviles */
-  .pb-0 {
-    padding-bottom: 0;
-  }
-  
-  /* Asegurar que el layout se ajuste en móviles */
-  .h-screen {
-    height: 100vh;
-    min-height: 100vh;
-  }
-  
-  /* Ajustar el overflow en móviles */
-  .overflow-y-auto {
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  
-  .overflow-y-auto::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Asegurar que el sidebar esté colapsado en móviles */
-  .sidebar-collapsed {
-    width: 70px;
-  }
-  
-  /* Ajustar el contenido principal en móviles */
-  .main-expanded,
-  .main-collapsed {
-    margin-left: 0;
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-@media (max-width: 640px) {
-  .p-4 {
-    padding: 0.75rem;
-  }
-  
-  .mb-6 {
-    margin-bottom: 0.75rem;
-  }
-  
-  .mb-8 {
-    margin-bottom: 1rem;
-  }
-  
-  .gap-4 {
-    gap: 0.75rem;
-  }
-  
-  /* Forzar una columna en móviles */
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  /* Eliminar padding inferior en pantallas pequeñas */
-  .pb-0 {
-    padding-bottom: 0;
-  }
-}
-
-@media (max-width: 480px) {
-  .p-4 {
-    padding: 0.5rem;
-  }
-  
-  .mb-6 {
-    margin-bottom: 0.5rem;
-  }
-  
-  .mb-8 {
-    margin-bottom: 0.75rem;
-  }
-  
-  .gap-4 {
-    gap: 0.5rem;
-  }
-  
-  /* Una sola columna en pantallas muy pequeñas */
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  /* Ajustar espaciado de botones en móviles */
-  .flex.gap-2 {
-    gap: 0.5rem;
-  }
-  
-  /* Eliminar padding inferior en pantallas muy pequeñas */
-  .pb-0 {
-    padding-bottom: 0;
-  }
-  
-  /* Asegurar que el layout se ajuste en pantallas muy pequeñas */
-  .h-screen {
-    height: 100vh;
-    min-height: 100vh;
-  }
-  
-  /* Ajustar el contenido para pantallas muy pequeñas */
-  main {
-    padding: 0.5rem;
-  }
-  
-  /* Reducir espaciado en pantallas muy pequeñas */
-  .mb-4 {
-    margin-bottom: 0.5rem;
-  }
-  
-  /* Asegurar que el sidebar esté completamente colapsado en pantallas muy pequeñas */
-  .sidebar-collapsed {
-    width: 60px;
-  }
-  
-  /* Ajustar el contenido principal en pantallas muy pequeñas */
-  .main-expanded {
-    margin-left: 0;
-  }
-}
-
-/* Transiciones suaves */
-* {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
-}
-
-/* Mejoras para dispositivos táctiles */
-@media (hover: none) and (pointer: coarse) {
-  .min-h-screen {
-    min-height: 100vh;
-  }
-  
-  /* Asegurar que los botones tengan el tamaño mínimo táctil */
-  button {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* Responsive para pantallas muy grandes */
-@media (min-width: 1280px) {
-  .lg\:p-8 {
-    padding: 2rem;
-  }
-  
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-/* Mejoras para orientación landscape en móviles */
-@media (max-width: 768px) and (orientation: landscape) {
-  .p-4 {
-    padding: 0.75rem;
-  }
-  
-  .mb-6 {
-    margin-bottom: 1rem;
-  }
-  
-  .mb-8 {
-    margin-bottom: 1.5rem;
-  }
-}
-
-/* Animaciones de entrada */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-main {
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* Mejoras para accesibilidad */
-*:focus {
-  outline: 2px solid #10b981;
-  outline-offset: 2px;
-}
-
-/* Estados de carga */
-.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* Mejoras para tablas responsivas */
-@media (max-width: 640px) {
-  .grid-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  /* Ajustar el layout de filtros en móviles */
   .flex-col.sm\:flex-row {
     flex-direction: column;
   }
@@ -625,45 +968,74 @@ main {
   }
 }
 
+@media (max-width: 640px) {
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .xl\:grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 480px) {
   .lg\:grid-cols-4 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
   
-  /* Ajustar espaciado en pantallas muy pequeñas */
-  .space-y-1 > * + * {
-    margin-top: 0.25rem;
-  }
-  
-  .space-y-1 > * + * {
-    margin-top: 0.25rem;
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 }
 
-/* Mejoras para el scroll en móviles */
-@media (max-width: 640px) {
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Optimizaciones para pantallas de alta densidad */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .bg-white {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-  }
+main {
+  animation: fadeIn 0.5s ease-out;
 }
 
-/* Mejoras para dispositivos con pantallas pequeñas y alta densidad */
-@media (max-width: 640px) and (-webkit-min-device-pixel-ratio: 2) {
-  .text-sm {
-    font-size: 0.8125rem;
-  }
-  
-  .text-xs {
-    font-size: 0.6875rem;
-  }
+/* Estados de carga */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Mejoras para accesibilidad */
+*:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Scroll suave */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 </style>
