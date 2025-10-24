@@ -1127,12 +1127,12 @@ class ImageDetailView(APIView):
 
 class ImagesStatsView(APIView):
     """
-    Endpoint para obtener estadísticas de imágenes procesadas.
+    Endpoint para obtener estadísticas detalladas de imágenes procesadas.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene estadísticas de imágenes procesadas por el usuario",
+        operation_description="Obtiene estadísticas detalladas de imágenes procesadas por el usuario",
         operation_summary="Estadísticas de imágenes",
         responses={
             200: openapi.Response(
@@ -1145,15 +1145,99 @@ class ImagesStatsView(APIView):
     )
     def get(self, request):
         """
-        Obtiene estadísticas de imágenes procesadas.
+        Obtiene estadísticas detalladas de imágenes procesadas.
         """
-        # Por ahora, devolver una respuesta mock
-        return Response({
-            'total_images': 0,
-            'processed_today': 0,
-            'average_confidence': 0,
-            'message': 'Endpoint de estadísticas en desarrollo'
-        })
+        try:
+            # Obtener queryset base del usuario
+            user_images = CacaoImage.objects.filter(user=request.user)
+            
+            # Estadísticas básicas
+            total_images = user_images.count()
+            processed_images = user_images.filter(processed=True).count()
+            unprocessed_images = total_images - processed_images
+            
+            # Estadísticas por fecha
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            today = timezone.now().date()
+            this_week = today - timedelta(days=7)
+            this_month = today - timedelta(days=30)
+            
+            processed_today = user_images.filter(
+                created_at__date=today, 
+                processed=True
+            ).count()
+            
+            processed_this_week = user_images.filter(
+                created_at__date__gte=this_week,
+                processed=True
+            ).count()
+            
+            processed_this_month = user_images.filter(
+                created_at__date__gte=this_month,
+                processed=True
+            ).count()
+            
+            # Estadísticas de predicciones
+            predictions = CacaoPrediction.objects.filter(image__user=request.user)
+            
+            avg_confidence = predictions.aggregate(
+                avg_conf=Avg('average_confidence')
+            )['avg_conf'] or 0
+            
+            avg_processing_time = predictions.aggregate(
+                avg_time=Avg('processing_time_ms')
+            )['avg_time'] or 0
+            
+            # Estadísticas por región
+            region_stats = user_images.values('region').annotate(
+                count=Count('id'),
+                processed_count=Count('id', filter=Q(processed=True))
+            ).order_by('-count')
+            
+            # Estadísticas por finca
+            finca_stats = user_images.values('finca').annotate(
+                count=Count('id'),
+                processed_count=Count('id', filter=Q(processed=True))
+            ).order_by('-count')[:10]  # Top 10 fincas
+            
+            # Estadísticas de dimensiones promedio
+            avg_dimensions = predictions.aggregate(
+                avg_alto=Avg('alto_mm'),
+                avg_ancho=Avg('ancho_mm'),
+                avg_grosor=Avg('grosor_mm'),
+                avg_peso=Avg('peso_g')
+            )
+            
+            # Preparar respuesta
+            stats = {
+                'total_images': total_images,
+                'processed_images': processed_images,
+                'unprocessed_images': unprocessed_images,
+                'processed_today': processed_today,
+                'processed_this_week': processed_this_week,
+                'processed_this_month': processed_this_month,
+                'average_confidence': round(float(avg_confidence), 3),
+                'average_processing_time_ms': round(float(avg_processing_time), 0),
+                'region_stats': list(region_stats),
+                'top_fincas': list(finca_stats),
+                'average_dimensions': {
+                    'alto_mm': round(float(avg_dimensions['avg_alto'] or 0), 2),
+                    'ancho_mm': round(float(avg_dimensions['avg_ancho'] or 0), 2),
+                    'grosor_mm': round(float(avg_dimensions['avg_grosor'] or 0), 2),
+                    'peso_g': round(float(avg_dimensions['avg_peso'] or 0), 2)
+                }
+            }
+            
+            return Response(stats, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas de imágenes: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Vistas de verificación de email
