@@ -32,7 +32,11 @@ urlpatterns = [
     # Endpoints de imágenes
     path('images/', views.ImagesListView.as_view(), name='images-list'),
     path('images/<int:image_id>/', views.ImageDetailView.as_view(), name='image-detail'),
+    path('images/<int:image_id>/update/', views.ImageUpdateView.as_view(), name='image-update'),
+    path('images/<int:image_id>/delete/', views.ImageDeleteView.as_view(), name='image-delete'),
+    path('images/<int:image_id>/download/', views.ImageDownloadView.as_view(), name='image-download'),
     path('images/stats/', views.ImagesStatsView.as_view(), name='images-stats'),
+    path('images/export/', views.ImagesExportView.as_view(), name='images-export'),
     
     # Endpoints de gestión de usuarios (Admin)
     path('auth/users/', views.UserListView.as_view(), name='user-list'),
