@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('authtoken', '0004_alter_tokenproxy_options'),
+        ('authtoken', '0001_initial'),
     ]
 
     operations = [
