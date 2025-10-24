@@ -1716,6 +1716,136 @@ class UserListView(APIView):
         return user.is_superuser or user.is_staff
 
 
+class UserUpdateView(APIView):
+    """
+    Endpoint para actualizar información de un usuario (Admin only).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Actualiza la información de un usuario específico (solo admins)",
+        operation_summary="Actualizar usuario",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format='email'),
+                'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'is_staff': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'groups': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING))
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Usuario actualizado exitosamente",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT)
+            ),
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+        tags=['Usuarios']
+    )
+    def patch(self, request, user_id):
+        """
+        Actualiza la información de un usuario específico.
+        Solo accesible para administradores.
+        """
+        try:
+            # Verificar permisos de administrador
+            if not self._is_admin_user(request.user):
+                return Response({
+                    'error': 'No tienes permisos para acceder a esta funcionalidad',
+                    'status': 'error'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Obtener usuario
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'error': 'Usuario no encontrado',
+                    'status': 'error'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Validar que no se puede desactivar a sí mismo
+            if user == request.user and request.data.get('is_active') is False:
+                return Response({
+                    'error': 'No puedes desactivar tu propia cuenta',
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Actualizar campos básicos
+            if 'first_name' in request.data:
+                user.first_name = request.data['first_name']
+            
+            if 'last_name' in request.data:
+                user.last_name = request.data['last_name']
+            
+            if 'email' in request.data:
+                # Verificar que el email no esté en uso por otro usuario
+                if User.objects.filter(email=request.data['email']).exclude(id=user_id).exists():
+                    return Response({
+                        'error': 'Este email ya está en uso por otro usuario',
+                        'status': 'error'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                user.email = request.data['email']
+                user.username = request.data['email']  # Mantener username = email
+            
+            if 'is_active' in request.data:
+                user.is_active = request.data['is_active']
+            
+            if 'is_staff' in request.data:
+                user.is_staff = request.data['is_staff']
+            
+            # Guardar cambios
+            user.save()
+            
+            # Actualizar grupos si se proporcionan
+            if 'groups' in request.data:
+                group_names = request.data['groups']
+                from django.contrib.auth.models import Group
+                
+                # Limpiar grupos existentes
+                user.groups.clear()
+                
+                # Agregar nuevos grupos
+                for group_name in group_names:
+                    try:
+                        group = Group.objects.get(name=group_name)
+                        user.groups.add(group)
+                    except Group.DoesNotExist:
+                        logger.warning(f"Grupo '{group_name}' no encontrado")
+            
+            # Serializar usuario actualizado
+            serializer = UserSerializer(user)
+            
+            return Response({
+                'message': 'Usuario actualizado exitosamente',
+                'user': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error actualizando usuario {user_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _is_admin_user(self, user):
+        """
+        Verificar si el usuario es administrador.
+        
+        Args:
+            user: Usuario autenticado
+            
+        Returns:
+            bool: True si es admin, False en caso contrario
+        """
+        return user.is_superuser or user.is_staff
+
+
 class UserDetailView(APIView):
     """
     Endpoint para obtener detalles de un usuario específico (Admin only).
