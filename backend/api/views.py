@@ -1846,6 +1846,110 @@ class UserUpdateView(APIView):
         return user.is_superuser or user.is_staff
 
 
+class UserDeleteView(APIView):
+    """
+    Endpoint para eliminar un usuario (Admin only).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Elimina un usuario del sistema (solo admins)",
+        operation_summary="Eliminar usuario",
+        responses={
+            200: openapi.Response(
+                description="Usuario eliminado exitosamente",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'deleted_user': openapi.Schema(type=openapi.TYPE_OBJECT)
+                    }
+                )
+            ),
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+        tags=['Usuarios']
+    )
+    def delete(self, request, user_id):
+        """
+        Elimina un usuario del sistema.
+        Solo accesible para administradores.
+        """
+        try:
+            # Verificar permisos de administrador
+            if not self._is_admin_user(request.user):
+                return Response({
+                    'error': 'No tienes permisos para acceder a esta funcionalidad',
+                    'status': 'error'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Obtener usuario
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({
+                    'error': 'Usuario no encontrado',
+                    'status': 'error'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Validaciones de seguridad
+            if user == request.user:
+                return Response({
+                    'error': 'No puedes eliminar tu propia cuenta',
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if user.is_superuser and not request.user.is_superuser:
+                return Response({
+                    'error': 'No tienes permisos para eliminar superusuarios',
+                    'status': 'error'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Guardar información del usuario antes de eliminarlo
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'date_joined': user.date_joined.isoformat(),
+                'is_active': user.is_active,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser
+            }
+            
+            # Eliminar usuario (esto también eliminará el perfil y tokens relacionados)
+            user.delete()
+            
+            logger.info(f"Usuario {user_data['username']} eliminado por admin {request.user.username}")
+            
+            return Response({
+                'message': 'Usuario eliminado exitosamente',
+                'deleted_user': user_data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error eliminando usuario {user_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _is_admin_user(self, user):
+        """
+        Verificar si el usuario es administrador.
+        
+        Args:
+            user: Usuario autenticado
+            
+        Returns:
+            bool: True si es admin, False en caso contrario
+        """
+        return user.is_superuser or user.is_staff
+
+
 class UserDetailView(APIView):
     """
     Endpoint para obtener detalles de un usuario específico (Admin only).
