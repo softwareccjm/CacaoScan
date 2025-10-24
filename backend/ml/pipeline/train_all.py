@@ -414,6 +414,13 @@ class CacaoTrainingPipeline:
                 pin_memory=True
             )
             
+            # Preparar información del dataset
+            dataset_info = {
+                'train_size': len(train_loader_single.dataset),
+                'val_size': len(val_loader_single.dataset),
+                'test_size': len(self.test_loader.dataset) if self.test_loader else 0
+            }
+            
             # Entrenar modelo
             history = train_single_model(
                 model=model,
@@ -422,7 +429,10 @@ class CacaoTrainingPipeline:
                 scalers=self.scalers,
                 target=target,
                 config=self.config,
-                device=self.device
+                device=self.device,
+                training_job=None,  # Se puede pasar un TrainingJob si existe
+                dataset_info=dataset_info,
+                save_metrics=True
             )
             
             histories[target] = history
@@ -442,6 +452,13 @@ class CacaoTrainingPipeline:
             multi_head=True
         )
         
+        # Preparar información del dataset
+        dataset_info = {
+            'train_size': len(self.train_loader.dataset),
+            'val_size': len(self.val_loader.dataset),
+            'test_size': len(self.test_loader.dataset) if self.test_loader else 0
+        }
+        
         # Entrenar modelo
         history = train_multi_head_model(
             model=model,
@@ -449,7 +466,10 @@ class CacaoTrainingPipeline:
             val_loader=self.val_loader,
             scalers=self.scalers,
             config=self.config,
-            device=self.device
+            device=self.device,
+            training_job=None,  # Se puede pasar un TrainingJob si existe
+            dataset_info=dataset_info,
+            save_metrics=True
         )
         
         return {'multihead': history}

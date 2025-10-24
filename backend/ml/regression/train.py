@@ -19,6 +19,22 @@ from ..utils.paths import get_regressors_artifacts_dir, ensure_dir_exists
 from .models import create_model, TARGETS, TARGET_NAMES, get_model_info
 from .scalers import CacaoScalers, save_scalers
 
+# Importar Django para usar ModelMetrics
+import os
+import sys
+from pathlib import Path
+
+# Configurar Django
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cacaoscan.settings')
+
+import django
+django.setup()
+
+from api.models import ModelMetrics, TrainingJob
+from django.contrib.auth.models import User
+
 
 logger = get_ml_logger("cacaoscan.ml.regression")
 
@@ -235,6 +251,107 @@ class RegressionTrainer:
         
         return self.history
     
+    def save_metrics_to_db(
+        self, 
+        training_job: TrainingJob = None,
+        dataset_info: Dict = None,
+        additional_metrics: Dict = None
+    ) -> ModelMetrics:
+        """
+        Guarda las métricas del entrenamiento en la base de datos.
+        
+        Args:
+            training_job: Trabajo de entrenamiento asociado
+            dataset_info: Información del dataset usado
+            additional_metrics: Métricas adicionales específicas
+            
+        Returns:
+            Instancia de ModelMetrics creada
+        """
+        try:
+            # Obtener métricas finales del historial
+            final_val_loss = self.history['val_loss'][-1] if self.history['val_loss'] else 0.0
+            final_val_mae = self.history['val_mae'][-1] if self.history['val_mae'] else 0.0
+            final_val_rmse = self.history['val_rmse'][-1] if self.history['val_rmse'] else 0.0
+            final_val_r2 = self.history['val_r2'][-1] if self.history['val_r2'] else 0.0
+            
+            # Calcular MAPE si es posible
+            mape = None
+            if additional_metrics and 'mape' in additional_metrics:
+                mape = additional_metrics['mape']
+            
+            # Obtener información del dataset
+            train_size = dataset_info.get('train_size', 0) if dataset_info else 0
+            val_size = dataset_info.get('val_size', 0) if dataset_info else 0
+            test_size = dataset_info.get('test_size', 0) if dataset_info else 0
+            total_size = train_size + val_size + test_size
+            
+            # Obtener usuario por defecto (admin) si no se especifica
+            try:
+                user = User.objects.filter(is_superuser=True).first()
+                if not user:
+                    user = User.objects.first()
+            except:
+                user = None
+            
+            # Crear instancia de ModelMetrics
+            model_metrics = ModelMetrics.objects.create(
+                model_name=f"regression_{self.target}",
+                model_type='regression',
+                target=self.target,
+                version=f"v{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                training_job=training_job,
+                created_by=user,
+                metric_type='validation',
+                
+                # Métricas principales
+                mae=final_val_mae,
+                mse=final_val_loss,  # MSE es aproximadamente igual a la pérdida de validación
+                rmse=final_val_rmse,
+                r2_score=final_val_r2,
+                mape=mape,
+                
+                # Métricas adicionales
+                additional_metrics=additional_metrics or {},
+                
+                # Información del dataset
+                dataset_size=total_size,
+                train_size=train_size,
+                validation_size=val_size,
+                test_size=test_size,
+                
+                # Configuración del modelo
+                epochs=self.config.get('epochs', 50),
+                batch_size=self.config.get('batch_size', 32),
+                learning_rate=self.config.get('learning_rate', 1e-4),
+                
+                # Parámetros específicos del modelo
+                model_params={
+                    'model_type': self.config.get('model_type', 'resnet18'),
+                    'pretrained': self.config.get('pretrained', True),
+                    'dropout_rate': self.config.get('dropout_rate', 0.2),
+                    'weight_decay': self.config.get('weight_decay', 1e-4),
+                    'early_stopping_patience': self.config.get('early_stopping_patience', 10),
+                    'best_val_loss': self.best_val_loss,
+                },
+                
+                # Información de rendimiento
+                training_time_seconds=None,  # Se puede calcular después
+                inference_time_ms=None,  # Se puede medir después
+                
+                # Notas
+                notes=f"Modelo entrenado para {self.target} usando {get_model_info(self.model)}",
+                is_best_model=False,  # Se puede marcar después si es el mejor
+                is_production_model=False
+            )
+            
+            logger.info(f"✅ Métricas guardadas en DB para {self.target}: MAE={final_val_mae:.4f}, RMSE={final_val_rmse:.4f}, R²={final_val_r2:.4f}")
+            return model_metrics
+            
+        except Exception as e:
+            logger.error(f"❌ Error guardando métricas en DB para {self.target}: {e}")
+            raise
+    
     def save_model(self, file_path: Path) -> None:
         """Guarda el modelo entrenado."""
         try:
@@ -277,7 +394,10 @@ def train_single_model(
     scalers: CacaoScalers,
     target: str,
     config: Dict,
-    device: torch.device
+    device: torch.device,
+    training_job: TrainingJob = None,
+    dataset_info: Dict = None,
+    save_metrics: bool = True
 ) -> Dict[str, List[float]]:
     """
     Entrena un modelo individual.
@@ -290,6 +410,9 @@ def train_single_model(
         target: Target a entrenar
         config: Configuración de entrenamiento
         device: Dispositivo para entrenamiento
+        training_job: Trabajo de entrenamiento asociado
+        dataset_info: Información del dataset usado
+        save_metrics: Si guardar métricas en la base de datos
         
     Returns:
         Historial de entrenamiento
@@ -311,6 +434,40 @@ def train_single_model(
     model_path = artifacts_dir / f"{target}.pt"
     trainer.save_model(model_path)
     
+    # Guardar métricas en la base de datos
+    if save_metrics:
+        try:
+            # Calcular métricas adicionales si es necesario
+            additional_metrics = {}
+            
+            # Calcular MAPE si es posible
+            if history['val_loss'] and history['val_mae']:
+                # MAPE aproximado basado en MAE y valores promedio
+                try:
+                    # Esto es una aproximación, el MAPE real requiere los valores reales
+                    additional_metrics['final_train_loss'] = history['train_loss'][-1] if history['train_loss'] else 0.0
+                    additional_metrics['final_val_loss'] = history['val_loss'][-1]
+                    additional_metrics['final_val_mae'] = history['val_mae'][-1]
+                    additional_metrics['final_val_rmse'] = history['val_rmse'][-1]
+                    additional_metrics['final_val_r2'] = history['val_r2'][-1]
+                    additional_metrics['epochs_completed'] = len(history['train_loss'])
+                    additional_metrics['early_stopping_triggered'] = len(history['train_loss']) < config.get('epochs', 50)
+                except Exception as e:
+                    logger.warning(f"No se pudieron calcular métricas adicionales: {e}")
+            
+            # Guardar métricas en la base de datos
+            model_metrics = trainer.save_metrics_to_db(
+                training_job=training_job,
+                dataset_info=dataset_info,
+                additional_metrics=additional_metrics
+            )
+            
+            logger.info(f"✅ Métricas del modelo {target} guardadas con ID: {model_metrics.id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error guardando métricas para {target}: {e}")
+            # No interrumpir el entrenamiento si falla el guardado de métricas
+    
     return history
 
 
@@ -320,7 +477,10 @@ def train_multi_head_model(
     val_loader: DataLoader,
     scalers: CacaoScalers,
     config: Dict,
-    device: torch.device
+    device: torch.device,
+    training_job: TrainingJob = None,
+    dataset_info: Dict = None,
+    save_metrics: bool = True
 ) -> Dict[str, List[float]]:
     """
     Entrena un modelo multi-head.
@@ -332,6 +492,9 @@ def train_multi_head_model(
         scalers: Escaladores para normalización
         config: Configuración de entrenamiento
         device: Dispositivo para entrenamiento
+        training_job: Trabajo de entrenamiento asociado
+        dataset_info: Información del dataset usado
+        save_metrics: Si guardar métricas en la base de datos
         
     Returns:
         Historial de entrenamiento
@@ -488,6 +651,97 @@ def train_multi_head_model(
     
     logger.info(f"Modelo multi-head guardado en {model_path}")
     
+    # Guardar métricas en la base de datos para cada target
+    if save_metrics:
+        try:
+            # Obtener usuario por defecto
+            try:
+                user = User.objects.filter(is_superuser=True).first()
+                if not user:
+                    user = User.objects.first()
+            except:
+                user = None
+            
+            # Obtener información del dataset
+            train_size = dataset_info.get('train_size', 0) if dataset_info else 0
+            val_size = dataset_info.get('val_size', 0) if dataset_info else 0
+            test_size = dataset_info.get('test_size', 0) if dataset_info else 0
+            total_size = train_size + val_size + test_size
+            
+            # Guardar métricas para cada target
+            for target in TARGETS:
+                if target in history['val_mae'] and history['val_mae'][target]:
+                    final_val_mae = history['val_mae'][target][-1]
+                    final_val_rmse = history['val_rmse'][target][-1]
+                    final_val_r2 = history['val_r2'][target][-1]
+                    
+                    # Métricas adicionales específicas del multi-head
+                    additional_metrics = {
+                        'model_type': 'multi_head',
+                        'final_train_loss': history['train_loss'][-1] if history['train_loss'] else 0.0,
+                        'final_val_loss': history['val_loss'][-1] if history['val_loss'] else 0.0,
+                        'epochs_completed': len(history['train_loss']),
+                        'early_stopping_triggered': len(history['train_loss']) < config.get('epochs', 50),
+                        'best_val_loss': best_val_loss,
+                    }
+                    
+                    # Crear métricas para este target
+                    model_metrics = ModelMetrics.objects.create(
+                        model_name=f"multihead_regression",
+                        model_type='regression',
+                        target=target,
+                        version=f"v{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                        training_job=training_job,
+                        created_by=user,
+                        metric_type='validation',
+                        
+                        # Métricas principales
+                        mae=final_val_mae,
+                        mse=history['val_loss'][-1] if history['val_loss'] else 0.0,
+                        rmse=final_val_rmse,
+                        r2_score=final_val_r2,
+                        mape=None,
+                        
+                        # Métricas adicionales
+                        additional_metrics=additional_metrics,
+                        
+                        # Información del dataset
+                        dataset_size=total_size,
+                        train_size=train_size,
+                        validation_size=val_size,
+                        test_size=test_size,
+                        
+                        # Configuración del modelo
+                        epochs=config.get('epochs', 50),
+                        batch_size=config.get('batch_size', 32),
+                        learning_rate=config.get('learning_rate', 1e-4),
+                        
+                        # Parámetros específicos del modelo
+                        model_params={
+                            'model_type': config.get('model_type', 'resnet18'),
+                            'pretrained': config.get('pretrained', True),
+                            'dropout_rate': config.get('dropout_rate', 0.2),
+                            'weight_decay': config.get('weight_decay', 1e-4),
+                            'early_stopping_patience': config.get('early_stopping_patience', 10),
+                            'best_val_loss': best_val_loss,
+                        },
+                        
+                        # Información de rendimiento
+                        training_time_seconds=None,
+                        inference_time_ms=None,
+                        
+                        # Notas
+                        notes=f"Modelo multi-head entrenado para {target}",
+                        is_best_model=False,
+                        is_production_model=False
+                    )
+                    
+                    logger.info(f"✅ Métricas del modelo multi-head para {target} guardadas con ID: {model_metrics.id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error guardando métricas del modelo multi-head: {e}")
+            # No interrumpir el entrenamiento si falla el guardado de métricas
+    
     return history
 
 
@@ -501,3 +755,80 @@ def get_device() -> torch.device:
         logger.info("Usando CPU")
     
     return device
+
+
+def create_training_job(
+    job_type: str = 'regression',
+    model_name: str = 'regression_model',
+    dataset_size: int = 0,
+    config: Dict = None,
+    user: User = None
+) -> TrainingJob:
+    """
+    Crea un TrainingJob para asociar con las métricas.
+    
+    Args:
+        job_type: Tipo de trabajo de entrenamiento
+        model_name: Nombre del modelo
+        dataset_size: Tamaño del dataset
+        config: Configuración del entrenamiento
+        user: Usuario que ejecuta el entrenamiento
+        
+    Returns:
+        Instancia de TrainingJob creada
+    """
+    try:
+        # Obtener usuario por defecto si no se especifica
+        if not user:
+            user = User.objects.filter(is_superuser=True).first()
+            if not user:
+                user = User.objects.first()
+        
+        # Crear job ID único con microsegundos para evitar duplicados
+        import time
+        job_id = f"{job_type}_{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{int(time.time() * 1000000) % 1000000}"
+        
+        # Crear TrainingJob
+        training_job = TrainingJob.objects.create(
+            job_id=job_id,
+            job_type=job_type,
+            model_name=model_name,
+            dataset_size=dataset_size,
+            epochs=config.get('epochs', 50) if config else 50,
+            batch_size=config.get('batch_size', 32) if config else 32,
+            learning_rate=config.get('learning_rate', 1e-4) if config else 1e-4,
+            config_params=config or {},
+            created_by=user,
+            status='running'
+        )
+        
+        logger.info(f"✅ TrainingJob creado con ID: {job_id}")
+        return training_job
+        
+    except Exception as e:
+        logger.error(f"❌ Error creando TrainingJob: {e}")
+        return None
+
+
+def update_training_job_metrics(
+    training_job: TrainingJob,
+    metrics: Dict,
+    model_path: str = None
+) -> None:
+    """
+    Actualiza un TrainingJob con las métricas finales.
+    
+    Args:
+        training_job: TrainingJob a actualizar
+        metrics: Métricas del entrenamiento
+        model_path: Ruta del modelo entrenado
+    """
+    try:
+        if training_job:
+            training_job.mark_completed(
+                metrics=metrics,
+                model_path=model_path
+            )
+            logger.info(f"✅ TrainingJob {training_job.job_id} actualizado con métricas")
+    except Exception as e:
+        logger.error(f"❌ Error actualizando TrainingJob: {e}")
