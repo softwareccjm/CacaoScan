@@ -8,6 +8,7 @@ from django.utils.crypto import get_random_string
 from rest_framework.authtoken.models import Token
 import uuid
 import logging
+from datetime import timedelta
 
 logger = logging.getLogger("cacaoscan.api")
 
@@ -911,6 +912,254 @@ class LoginHistory(models.Model):
                 
         except Exception as e:
             logger.error(f"Error registrando logout: {e}")
+
+
+class ReporteGenerado(models.Model):
+    """
+    Modelo para gestionar reportes generados del sistema.
+    """
+    TIPO_REPORTE_CHOICES = [
+        ('calidad', 'Reporte de Calidad'),
+        ('defectos', 'Reporte de Defectos'),
+        ('rendimiento', 'Reporte de Rendimiento'),
+        ('finca', 'Reporte de Finca'),
+        ('lote', 'Reporte de Lote'),
+        ('usuario', 'Reporte de Usuario'),
+        ('auditoria', 'Reporte de Auditoría'),
+        ('personalizado', 'Reporte Personalizado'),
+    ]
+    
+    FORMATO_CHOICES = [
+        ('pdf', 'PDF'),
+        ('excel', 'Excel'),
+        ('csv', 'CSV'),
+        ('json', 'JSON'),
+    ]
+    
+    ESTADO_CHOICES = [
+        ('generando', 'Generando'),
+        ('completado', 'Completado'),
+        ('fallido', 'Fallido'),
+        ('expirado', 'Expirado'),
+    ]
+    
+    usuario = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='reportes_generados',
+        help_text="Usuario que solicitó el reporte"
+    )
+    tipo_reporte = models.CharField(
+        max_length=20,
+        choices=TIPO_REPORTE_CHOICES,
+        help_text="Tipo de reporte generado"
+    )
+    formato = models.CharField(
+        max_length=10,
+        choices=FORMATO_CHOICES,
+        help_text="Formato del reporte"
+    )
+    titulo = models.CharField(
+        max_length=200,
+        help_text="Título del reporte"
+    )
+    descripcion = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Descripción del reporte"
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='generando',
+        help_text="Estado actual del reporte"
+    )
+    
+    # Archivo generado
+    archivo = models.FileField(
+        upload_to='reportes/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        help_text="Archivo del reporte generado"
+    )
+    nombre_archivo = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Nombre del archivo generado"
+    )
+    tamaño_archivo = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Tamaño del archivo en bytes"
+    )
+    
+    # Parámetros del reporte
+    parametros = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Parámetros utilizados para generar el reporte"
+    )
+    filtros_aplicados = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Filtros aplicados al generar el reporte"
+    )
+    
+    # Metadatos
+    fecha_solicitud = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha de solicitud del reporte"
+    )
+    fecha_generacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de generación del reporte"
+    )
+    fecha_expiracion = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de expiración del reporte"
+    )
+    tiempo_generacion = models.DurationField(
+        null=True,
+        blank=True,
+        help_text="Tiempo que tardó en generarse"
+    )
+    
+    # Información de error
+    mensaje_error = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Mensaje de error si falló la generación"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Reporte Generado'
+        verbose_name_plural = 'Reportes Generados'
+        ordering = ['-fecha_solicitud']
+        indexes = [
+            models.Index(fields=['usuario', '-fecha_solicitud']),
+            models.Index(fields=['tipo_reporte', '-fecha_solicitud']),
+            models.Index(fields=['estado']),
+            models.Index(fields=['formato']),
+            models.Index(fields=['fecha_solicitud']),
+        ]
+    
+    def __str__(self):
+        return f"{self.titulo} - {self.get_tipo_reporte_display()} ({self.get_estado_display()})"
+    
+    @property
+    def archivo_url(self):
+        """Obtener URL del archivo."""
+        if self.archivo:
+            return self.archivo.url
+        return None
+    
+    @property
+    def tamaño_archivo_mb(self):
+        """Obtener tamaño del archivo en MB."""
+        if self.tamaño_archivo:
+            return round(self.tamaño_archivo / (1024 * 1024), 2)
+        return None
+    
+    @property
+    def tiempo_generacion_segundos(self):
+        """Obtener tiempo de generación en segundos."""
+        if self.tiempo_generacion:
+            return self.tiempo_generacion.total_seconds()
+        return None
+    
+    @property
+    def esta_expirado(self):
+        """Verificar si el reporte ha expirado."""
+        if self.fecha_expiracion:
+            return timezone.now() > self.fecha_expiracion
+        return False
+    
+    def marcar_completado(self, archivo, tiempo_generacion=None):
+        """Marcar reporte como completado."""
+        self.estado = 'completado'
+        self.archivo = archivo
+        self.fecha_generacion = timezone.now()
+        self.tiempo_generacion = tiempo_generacion
+        
+        # Establecer fecha de expiración (7 días por defecto)
+        if not self.fecha_expiracion:
+            self.fecha_expiracion = timezone.now() + timedelta(days=7)
+        
+        # Guardar información del archivo
+        if archivo:
+            self.nombre_archivo = archivo.name
+            self.tamaño_archivo = archivo.size
+        
+        self.save()
+    
+    def marcar_fallido(self, mensaje_error):
+        """Marcar reporte como fallido."""
+        self.estado = 'fallido'
+        self.mensaje_error = mensaje_error
+        self.fecha_generacion = timezone.now()
+        self.save()
+    
+    def marcar_expirado(self):
+        """Marcar reporte como expirado."""
+        self.estado = 'expirado'
+        self.save()
+    
+    @classmethod
+    def limpiar_expirados(cls):
+        """Limpiar reportes expirados."""
+        expirados = cls.objects.filter(
+            fecha_expiracion__lt=timezone.now(),
+            estado='completado'
+        )
+        
+        count = 0
+        for reporte in expirados:
+            try:
+                # Eliminar archivo físico
+                if reporte.archivo:
+                    reporte.archivo.delete(save=False)
+                
+                # Marcar como expirado
+                reporte.marcar_expirado()
+                count += 1
+                
+            except Exception as e:
+                logger.error(f"Error limpiando reporte expirado {reporte.id}: {e}")
+        
+        logger.info(f"Se limpiaron {count} reportes expirados")
+        return count
+    
+    @classmethod
+    def generar_reporte(cls, usuario, tipo_reporte, formato, titulo, 
+                       descripcion=None, parametros=None, filtros=None):
+        """
+        Crear un nuevo reporte para generar.
+        
+        Args:
+            usuario: Usuario que solicita el reporte
+            tipo_reporte: Tipo de reporte
+            formato: Formato del reporte
+            titulo: Título del reporte
+            descripcion: Descripción del reporte
+            parametros: Parámetros del reporte
+            filtros: Filtros a aplicar
+        """
+        return cls.objects.create(
+            usuario=usuario,
+            tipo_reporte=tipo_reporte,
+            formato=formato,
+            titulo=titulo,
+            descripcion=descripcion,
+            parametros=parametros or {},
+            filtros_aplicados=filtros or {}
+        )
 
 
 class Lote(models.Model):
