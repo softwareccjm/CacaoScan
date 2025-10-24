@@ -72,4 +72,13 @@ urlpatterns = [
     path('lotes/<int:lote_id>/delete/', views.LoteDeleteView.as_view(), name='lote-delete'),
     path('lotes/<int:lote_id>/stats/', views.LoteStatsView.as_view(), name='lote-stats'),
     path('fincas/<int:finca_id>/lotes/', views.LotesPorFincaView.as_view(), name='lotes-por-finca'),
+    
+    # Endpoints de gestión de notificaciones
+    path('notifications/', views.NotificationListCreateView.as_view(), name='notifications-list'),
+    path('notifications/<int:notification_id>/', views.NotificationDetailView.as_view(), name='notification-detail'),
+    path('notifications/<int:notification_id>/read/', views.NotificationMarkReadView.as_view(), name='notification-mark-read'),
+    path('notifications/mark-all-read/', views.NotificationMarkAllReadView.as_view(), name='notifications-mark-all-read'),
+    path('notifications/unread-count/', views.NotificationUnreadCountView.as_view(), name='notifications-unread-count'),
+    path('notifications/stats/', views.NotificationStatsView.as_view(), name='notifications-stats'),
+    path('notifications/create/', views.NotificationCreateView.as_view(), name='notification-create'),
 ]
