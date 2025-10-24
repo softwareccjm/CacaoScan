@@ -1,72 +1,68 @@
 """
 Servicio de autenticación para CacaoScan.
-Maneja login, registro, verificación de email y recuperación de contraseña.
 """
 import logging
 from typing import Dict, Any, Optional, Tuple
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.db import transaction
-from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
-from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import timedelta
 
-from .base import BaseService, ServiceError, ValidationServiceError, PermissionServiceError, NotFoundServiceError
+from .base import BaseService, ServiceResult, ValidationServiceError, PermissionServiceError
+from ..models import EmailVerificationToken, LoginHistory, ActivityLog
 
 logger = logging.getLogger("cacaoscan.services.auth")
 
 
 class AuthenticationService(BaseService):
     """
-    Servicio para manejo de autenticación de usuarios.
+    Servicio para manejar autenticación de usuarios.
     """
     
     def __init__(self):
         super().__init__()
     
-    def authenticate_user(self, username_or_email: str, password: str) -> Tuple[User, Dict[str, Any]]:
+    def login_user(self, username: str, password: str, request=None) -> ServiceResult:
         """
-        Autentica un usuario con username/email y contraseña.
+        Autentica un usuario y genera tokens JWT.
         
         Args:
-            username_or_email: Username o email del usuario
-            password: Contraseña del usuario
+            username: Nombre de usuario o email
+            password: Contraseña
+            request: Request object para obtener IP y user agent
             
         Returns:
-            Tupla con (usuario, tokens)
-            
-        Raises:
-            ValidationServiceError: Si las credenciales son inválidas
-            PermissionServiceError: Si el usuario no está activo
+            ServiceResult con tokens y datos del usuario
         """
         try:
-            # Intentar autenticar con username o email
-            user = authenticate(username=username_or_email, password=password)
+            # Validar campos requeridos
+            self.validate_required_fields(
+                {'username': username, 'password': password},
+                ['username', 'password']
+            )
+            
+            # Autenticar usuario
+            user = authenticate(username=username, password=password)
             
             if not user:
-                # Intentar con email si no funcionó con username
-                try:
-                    user_obj = User.objects.get(email=username_or_email)
-                    user = authenticate(username=user_obj.username, password=password)
-                except User.DoesNotExist:
-                    pass
-            
-            if not user:
-                raise ValidationServiceError("Credenciales inválidas", "invalid_credentials")
+                return ServiceResult.validation_error(
+                    "Credenciales inválidas",
+                    details={"field": "credentials"}
+                )
             
             if not user.is_active:
-                raise PermissionServiceError("Cuenta desactivada", "account_disabled")
+                return ServiceResult.validation_error(
+                    "Cuenta de usuario desactivada",
+                    details={"field": "account_status"}
+                )
             
             # Generar tokens JWT
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
             
-            tokens = {
-                'access': str(access_token),
-                'refresh': str(refresh),
-                'access_expires_at': access_token['exp'],
-                'refresh_expires_at': refresh['exp']
-            }
+            # Registrar login en historial
+            self._log_user_login(user, request)
             
             # Crear log de auditoría
             self.create_audit_log(
@@ -74,269 +70,354 @@ class AuthenticationService(BaseService):
                 action="login",
                 resource_type="user",
                 resource_id=user.id,
-                details={'login_method': 'password'}
+                details={"login_method": "password"}
             )
             
-            self.log_info(f"Usuario autenticado: {user.username}", user_id=user.id)
+            self.log_info(f"Usuario {user.username} autenticado exitosamente")
             
-            return user, tokens
+            return ServiceResult.success(
+                data={
+                    'access': str(access_token),
+                    'refresh': str(refresh),
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'is_staff': user.is_staff,
+                        'is_superuser': user.is_superuser,
+                        'is_active': user.is_active,
+                        'date_joined': user.date_joined.isoformat(),
+                        'last_login': user.last_login.isoformat() if user.last_login else None
+                    },
+                    'access_expires_at': access_token['exp'],
+                    'refresh_expires_at': refresh['exp']
+                },
+                message="Login exitoso"
+            )
             
-        except (ValidationServiceError, PermissionServiceError):
-            raise
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error en autenticación: {e}")
-            raise ServiceError("Error interno en autenticación", "authentication_error")
+            self.log_error(f"Error en login: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante el login", details={"original_error": str(e)})
+            )
     
-    def register_user(self, user_data: Dict[str, Any]) -> Tuple[User, Dict[str, Any]]:
+    def register_user(self, user_data: Dict[str, Any], request=None) -> ServiceResult:
         """
-        Registra un nuevo usuario en el sistema.
+        Registra un nuevo usuario.
         
         Args:
-            user_data: Datos del usuario a registrar
+            user_data: Datos del usuario
+            request: Request object para obtener IP y user agent
             
         Returns:
-            Tupla con (usuario, tokens)
-            
-        Raises:
-            ValidationServiceError: Si los datos son inválidos
-            ServiceError: Si el usuario ya existe
+            ServiceResult con datos del usuario creado
         """
         try:
             # Validar campos requeridos
             required_fields = ['username', 'email', 'password', 'password_confirm']
             self.validate_required_fields(user_data, required_fields)
             
-            # Validar email
-            self.validate_email(user_data['email'])
-            
             # Validar contraseñas
             if user_data['password'] != user_data['password_confirm']:
-                raise ValidationServiceError("Las contraseñas no coinciden", "password_mismatch")
-            
-            if len(user_data['password']) < 8:
-                raise ValidationServiceError("La contraseña debe tener al menos 8 caracteres", "password_too_short")
-            
-            # Verificar si el usuario ya existe
-            if User.objects.filter(username=user_data['username']).exists():
-                raise ValidationServiceError("El nombre de usuario ya está en uso", "username_exists")
-            
-            if User.objects.filter(email=user_data['email']).exists():
-                raise ValidationServiceError("El email ya está registrado", "email_exists")
-            
-            with transaction.atomic():
-                # Crear usuario
-                user = User.objects.create_user(
-                    username=user_data['username'],
-                    email=user_data['email'],
-                    password=user_data['password'],
-                    first_name=user_data.get('first_name', ''),
-                    last_name=user_data.get('last_name', ''),
-                    is_active=True
+                return ServiceResult.validation_error(
+                    "Las contraseñas no coinciden",
+                    details={"field": "password_confirm"}
                 )
-                
-                # Crear token de verificación de email
-                from ..models import EmailVerificationToken
-                verification_token = EmailVerificationToken.create_for_user(user)
-                
-                # Generar tokens JWT
-                refresh = RefreshToken.for_user(user)
-                access_token = refresh.access_token
-                
-                tokens = {
+            
+            # Validar fortaleza de contraseña
+            password = user_data['password']
+            if len(password) < 8:
+                return ServiceResult.validation_error(
+                    "La contraseña debe tener al menos 8 caracteres",
+                    details={"field": "password", "min_length": 8}
+                )
+            
+            # Validar email único
+            if User.objects.filter(email=user_data['email']).exists():
+                return ServiceResult.validation_error(
+                    "Este email ya está registrado",
+                    details={"field": "email"}
+                )
+            
+            # Validar username único
+            if User.objects.filter(username=user_data['username']).exists():
+                return ServiceResult.validation_error(
+                    "Este nombre de usuario ya está en uso",
+                    details={"field": "username"}
+                )
+            
+            # Crear usuario
+            user = User.objects.create_user(
+                username=user_data['username'],
+                email=user_data['email'],
+                password=user_data['password'],
+                first_name=user_data.get('first_name', ''),
+                last_name=user_data.get('last_name', ''),
+                is_active=True
+            )
+            
+            # Crear token de verificación de email
+            verification_token = EmailVerificationToken.create_for_user(user)
+            
+            # Generar tokens JWT automáticamente
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
+            
+            # Registrar registro en historial
+            self._log_user_registration(user, request)
+            
+            # Crear log de auditoría
+            self.create_audit_log(
+                user=user,
+                action="register",
+                resource_type="user",
+                resource_id=user.id,
+                details={"registration_method": "password"}
+            )
+            
+            self.log_info(f"Usuario {user.username} registrado exitosamente")
+            
+            return ServiceResult.success(
+                data={
                     'access': str(access_token),
                     'refresh': str(refresh),
-                    'access_expires_at': access_token['exp'],
-                    'refresh_expires_at': refresh['exp'],
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'is_staff': user.is_staff,
+                        'is_superuser': user.is_superuser,
+                        'is_active': user.is_active,
+                        'date_joined': user.date_joined.isoformat()
+                    },
                     'verification_token': str(verification_token.token),
-                    'verification_required': True
-                }
-                
-                # Enviar email de bienvenida
-                try:
-                    email_context = {
-                        'verification_token': str(verification_token.token),
-                        'verification_url': f"/auth/verify-email/?token={verification_token.token}"
-                    }
-                    self.send_email_notification(
-                        user=user,
-                        notification_type='welcome',
-                        context=email_context
-                    )
-                except Exception as e:
-                    self.log_warning(f"Error enviando email de bienvenida: {e}")
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="register",
-                    resource_type="user",
-                    resource_id=user.id,
-                    details={'email': user.email}
-                )
-                
-                self.log_info(f"Usuario registrado: {user.username}", user_id=user.id)
-                
-                return user, tokens
-                
-        except (ValidationServiceError, ServiceError):
-            raise
+                    'verification_required': True,
+                    'access_expires_at': access_token['exp'],
+                    'refresh_expires_at': refresh['exp']
+                },
+                message="Usuario registrado exitosamente"
+            )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error en registro: {e}")
-            raise ServiceError("Error interno en registro", "registration_error")
+            self.log_error(f"Error en registro: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante el registro", details={"original_error": str(e)})
+            )
     
-    def verify_email(self, token: str) -> User:
+    def logout_user(self, user: User, refresh_token: str = None) -> ServiceResult:
         """
-        Verifica el email de un usuario usando un token.
+        Cierra sesión de un usuario.
+        
+        Args:
+            user: Usuario a cerrar sesión
+            refresh_token: Token de refresh a invalidar
+            
+        Returns:
+            ServiceResult con resultado del logout
+        """
+        try:
+            # Invalidar token de refresh si se proporciona
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                except Exception as e:
+                    self.log_warning(f"Error invalidando token: {str(e)}")
+            
+            # Crear log de auditoría
+            self.create_audit_log(
+                user=user,
+                action="logout",
+                resource_type="user",
+                resource_id=user.id
+            )
+            
+            self.log_info(f"Usuario {user.username} cerró sesión")
+            
+            return ServiceResult.success(
+                message="Logout exitoso"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error en logout: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante el logout", details={"original_error": str(e)})
+            )
+    
+    def refresh_token(self, refresh_token: str) -> ServiceResult:
+        """
+        Refresca un token de acceso.
+        
+        Args:
+            refresh_token: Token de refresh
+            
+        Returns:
+            ServiceResult con nuevo token de acceso
+        """
+        try:
+            token = RefreshToken(refresh_token)
+            new_access_token = token.access_token
+            
+            return ServiceResult.success(
+                data={
+                    'access': str(new_access_token),
+                    'access_expires_at': new_access_token['exp']
+                },
+                message="Token refrescado exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error refrescando token: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Token de refresh inválido", details={"original_error": str(e)})
+            )
+    
+    def verify_email(self, token: str) -> ServiceResult:
+        """
+        Verifica un email usando token.
         
         Args:
             token: Token de verificación
             
         Returns:
-            Usuario verificado
-            
-        Raises:
-            ValidationServiceError: Si el token es inválido o expirado
+            ServiceResult con resultado de verificación
         """
         try:
-            from ..models import EmailVerificationToken
-            
-            token_obj = EmailVerificationToken.objects.filter(
-                token=token,
-                is_used=False,
-                expires_at__gt=timezone.now()
-            ).first()
+            token_obj = EmailVerificationToken.objects.filter(token=token).first()
             
             if not token_obj:
-                raise ValidationServiceError("Token inválido o expirado", "invalid_token")
-            
-            with transaction.atomic():
-                # Marcar token como usado
-                token_obj.is_used = True
-                token_obj.save()
-                
-                # Marcar usuario como verificado (si tienes campo is_verified)
-                user = token_obj.user
-                if hasattr(user, 'is_verified'):
-                    user.is_verified = True
-                    user.save()
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="email_verified",
-                    resource_type="user",
-                    resource_id=user.id
+                return ServiceResult.validation_error(
+                    "Token inválido o expirado",
+                    details={"field": "token"}
                 )
-                
-                self.log_info(f"Email verificado: {user.email}", user_id=user.id)
-                
-                return user
-                
-        except ValidationServiceError:
-            raise
+            
+            if token_obj.is_expired():
+                return ServiceResult.validation_error(
+                    "Token expirado",
+                    details={"field": "token", "expired": True}
+                )
+            
+            # Verificar email
+            token_obj.verify()
+            
+            # Crear log de auditoría
+            self.create_audit_log(
+                user=token_obj.user,
+                action="email_verified",
+                resource_type="user",
+                resource_id=token_obj.user.id
+            )
+            
+            self.log_info(f"Email verificado para usuario {token_obj.user.username}")
+            
+            return ServiceResult.success(
+                data={
+                    'user': {
+                        'id': token_obj.user.id,
+                        'username': token_obj.user.username,
+                        'email': token_obj.user.email,
+                        'is_active': token_obj.user.is_active
+                    }
+                },
+                message="Email verificado exitosamente"
+            )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error en verificación de email: {e}")
-            raise ServiceError("Error interno en verificación", "verification_error")
+            self.log_error(f"Error verificando email: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante la verificación", details={"original_error": str(e)})
+            )
     
-    def resend_verification(self, email: str) -> Dict[str, Any]:
+    def resend_verification(self, email: str) -> ServiceResult:
         """
-        Reenvía el token de verificación de email.
+        Reenvía token de verificación de email.
         
         Args:
             email: Email del usuario
             
         Returns:
-            Información del token reenviado
-            
-        Raises:
-            NotFoundServiceError: Si el usuario no existe
-            ValidationServiceError: Si el email ya está verificado
+            ServiceResult con resultado del reenvío
         """
         try:
-            self.validate_email(email)
+            if not email:
+                return ServiceResult.validation_error(
+                    "Email es requerido",
+                    details={"field": "email"}
+                )
             
-            user = self.get_user_by_email(email)
-            
-            # Verificar si ya está verificado
-            if hasattr(user, 'is_verified') and user.is_verified:
-                raise ValidationServiceError("El email ya está verificado", "already_verified")
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                # Por seguridad, no revelar si el email existe
+                return ServiceResult.success(
+                    message=f"Si el email existe, se enviará un nuevo token de verificación"
+                )
             
             # Crear nuevo token de verificación
-            from ..models import EmailVerificationToken
-            verification_token = EmailVerificationToken.create_for_user(user)
-            
-            # Enviar email de verificación
-            try:
-                email_context = {
-                    'verification_token': str(verification_token.token),
-                    'verification_url': f"/auth/verify-email/?token={verification_token.token}"
-                }
-                self.send_email_notification(
-                    user=user,
-                    notification_type='welcome',  # Reutilizar template de bienvenida
-                    context=email_context
-                )
-            except Exception as e:
-                self.log_warning(f"Error enviando email de verificación: {e}")
+            token_obj = EmailVerificationToken.create_for_user(user)
             
             # Crear log de auditoría
             self.create_audit_log(
                 user=user,
-                action="resend_verification",
+                action="verification_resent",
                 resource_type="user",
                 resource_id=user.id
             )
             
-            self.log_info(f"Token de verificación reenviado: {email}", user_id=user.id)
+            self.log_info(f"Token de verificación reenviado para usuario {user.username}")
             
-            return {
-                'token': str(verification_token.token),
-                'expires_at': verification_token.expires_at.isoformat()
-            }
+            return ServiceResult.success(
+                data={
+                    'token': str(token_obj.token),
+                    'expires_at': token_obj.expires_at.isoformat()
+                },
+                message=f"Token de verificación enviado a {email}"
+            )
             
-        except (NotFoundServiceError, ValidationServiceError):
-            raise
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error reenviando verificación: {e}")
-            raise ServiceError("Error interno reenviando verificación", "resend_error")
+            self.log_error(f"Error reenviando verificación: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante el reenvío", details={"original_error": str(e)})
+            )
     
-    def request_password_reset(self, email: str) -> Dict[str, Any]:
+    def forgot_password(self, email: str, request=None) -> ServiceResult:
         """
         Solicita restablecimiento de contraseña.
         
         Args:
             email: Email del usuario
+            request: Request object para obtener IP y user agent
             
         Returns:
-            Información del token de restablecimiento
-            
-        Raises:
-            ValidationServiceError: Si el email no es válido
+            ServiceResult con resultado de la solicitud
         """
         try:
-            self.validate_email(email)
+            if not email:
+                return ServiceResult.validation_error(
+                    "Email es requerido",
+                    details={"field": "email"}
+                )
             
             try:
-                user = self.get_user_by_email(email)
+                user = User.objects.get(email=email)
                 
-                # Crear token de restablecimiento
-                from ..models import EmailVerificationToken
+                # Crear token de recuperación
                 reset_token = EmailVerificationToken.create_for_user(user)
                 
-                # Enviar email de restablecimiento
-                try:
-                    email_context = {
-                        'token': str(reset_token.token),
-                        'reset_url': f"/auth/reset-password/?token={reset_token.token}",
-                        'token_expiry_hours': 24
-                    }
-                    self.send_email_notification(
-                        user=user,
-                        notification_type='password_reset',
-                        context=email_context
-                    )
-                except Exception as e:
-                    self.log_warning(f"Error enviando email de restablecimiento: {e}")
+                # Registrar solicitud en historial
+                self._log_password_reset_request(user, request)
                 
                 # Crear log de auditoría
                 self.create_audit_log(
@@ -346,156 +427,117 @@ class AuthenticationService(BaseService):
                     resource_id=user.id
                 )
                 
-                self.log_info(f"Solicitud de restablecimiento: {email}", user_id=user.id)
+                self.log_info(f"Solicitud de restablecimiento de contraseña para usuario {user.username}")
                 
-                return {
-                    'token': str(reset_token.token),
-                    'expires_at': reset_token.expires_at.isoformat()
-                }
+                return ServiceResult.success(
+                    data={
+                        'token': str(reset_token.token),
+                        'expires_at': reset_token.expires_at.isoformat()
+                    },
+                    message=f"Instrucciones de recuperación enviadas a {email}"
+                )
                 
-            except NotFoundServiceError:
-                # Por seguridad, no revelar si el email existe o no
-                self.log_info(f"Solicitud de restablecimiento para email inexistente: {email}")
-                return {'message': 'Si el email existe, recibirás instrucciones de restablecimiento'}
-                
-        except ValidationServiceError:
-            raise
+            except User.DoesNotExist:
+                # Por seguridad, no revelar si el email existe
+                return ServiceResult.success(
+                    message="Si el email existe, recibirás instrucciones de recuperación"
+                )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error en solicitud de restablecimiento: {e}")
-            raise ServiceError("Error interno en restablecimiento", "reset_request_error")
+            self.log_error(f"Error en solicitud de restablecimiento: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante la solicitud", details={"original_error": str(e)})
+            )
     
-    def reset_password(self, token: str, new_password: str, confirm_password: str) -> User:
+    def reset_password(self, token: str, new_password: str, confirm_password: str) -> ServiceResult:
         """
-        Restablece la contraseña de un usuario usando un token.
+        Restablece contraseña usando token.
         
         Args:
-            token: Token de restablecimiento
+            token: Token de recuperación
             new_password: Nueva contraseña
             confirm_password: Confirmación de contraseña
             
         Returns:
-            Usuario con contraseña restablecida
-            
-        Raises:
-            ValidationServiceError: Si los datos son inválidos
+            ServiceResult con resultado del restablecimiento
         """
         try:
+            # Validar campos requeridos
+            self.validate_required_fields(
+                {'token': token, 'new_password': new_password, 'confirm_password': confirm_password},
+                ['token', 'new_password', 'confirm_password']
+            )
+            
             # Validar contraseñas
             if new_password != confirm_password:
-                raise ValidationServiceError("Las contraseñas no coinciden", "password_mismatch")
+                return ServiceResult.validation_error(
+                    "Las contraseñas no coinciden",
+                    details={"field": "confirm_password"}
+                )
             
+            # Validar fortaleza de contraseña
             if len(new_password) < 8:
-                raise ValidationServiceError("La contraseña debe tener al menos 8 caracteres", "password_too_short")
+                return ServiceResult.validation_error(
+                    "La contraseña debe tener al menos 8 caracteres",
+                    details={"field": "new_password", "min_length": 8}
+                )
             
-            from ..models import EmailVerificationToken
-            
-            token_obj = EmailVerificationToken.objects.filter(
-                token=token,
-                is_used=False,
-                expires_at__gt=timezone.now()
-            ).first()
+            # Verificar token
+            token_obj = EmailVerificationToken.objects.filter(token=token).first()
             
             if not token_obj:
-                raise ValidationServiceError("Token inválido o expirado", "invalid_token")
-            
-            with transaction.atomic():
-                # Marcar token como usado
-                token_obj.is_used = True
-                token_obj.save()
-                
-                # Cambiar contraseña
-                user = token_obj.user
-                user.set_password(new_password)
-                user.save()
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="password_reset",
-                    resource_type="user",
-                    resource_id=user.id
+                return ServiceResult.validation_error(
+                    "Token inválido o expirado",
+                    details={"field": "token"}
                 )
-                
-                self.log_info(f"Contraseña restablecida: {user.username}", user_id=user.id)
-                
-                return user
-                
-        except ValidationServiceError:
-            raise
-        except Exception as e:
-            self.log_error(f"Error en restablecimiento de contraseña: {e}")
-            raise ServiceError("Error interno en restablecimiento", "reset_error")
-    
-    def logout_user(self, user: User) -> None:
-        """
-        Cierra la sesión de un usuario.
-        
-        Args:
-            user: Usuario a cerrar sesión
-        """
-        try:
+            
+            if token_obj.is_expired():
+                return ServiceResult.validation_error(
+                    "Token expirado",
+                    details={"field": "token", "expired": True}
+                )
+            
+            # Restablecer contraseña
+            user = token_obj.user
+            user.set_password(new_password)
+            user.save()
+            
+            # Marcar token como usado
+            token_obj.delete()
+            
             # Crear log de auditoría
             self.create_audit_log(
                 user=user,
-                action="logout",
+                action="password_reset",
                 resource_type="user",
                 resource_id=user.id
             )
             
-            self.log_info(f"Usuario cerró sesión: {user.username}", user_id=user.id)
+            self.log_info(f"Contraseña restablecida para usuario {user.username}")
             
+            return ServiceResult.success(
+                message="Contraseña restablecida exitosamente"
+            )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error en logout: {e}")
+            self.log_error(f"Error restableciendo contraseña: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante el restablecimiento", details={"original_error": str(e)})
+            )
     
-    def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
+    def get_user_profile(self, user: User) -> ServiceResult:
         """
-        Refresca un token de acceso usando un refresh token.
+        Obtiene el perfil de un usuario.
         
         Args:
-            refresh_token: Refresh token válido
+            user: Usuario
             
         Returns:
-            Nuevos tokens
-            
-        Raises:
-            ValidationServiceError: Si el refresh token es inválido
-        """
-        try:
-            from rest_framework_simplejwt.exceptions import TokenError
-            
-            try:
-                refresh = RefreshToken(refresh_token)
-                access_token = refresh.access_token
-                
-                tokens = {
-                    'access': str(access_token),
-                    'refresh': str(refresh),
-                    'access_expires_at': access_token['exp'],
-                    'refresh_expires_at': refresh['exp']
-                }
-                
-                self.log_info(f"Token refrescado para usuario: {refresh.payload.get('user_id')}")
-                
-                return tokens
-                
-            except TokenError as e:
-                raise ValidationServiceError("Refresh token inválido", "invalid_refresh_token")
-                
-        except ValidationServiceError:
-            raise
-        except Exception as e:
-            self.log_error(f"Error refrescando token: {e}")
-            raise ServiceError("Error interno refrescando token", "refresh_error")
-    
-    def get_user_profile(self, user: User) -> Dict[str, Any]:
-        """
-        Obtiene el perfil completo de un usuario.
-        
-        Args:
-            user: Usuario del cual obtener el perfil
-            
-        Returns:
-            Diccionario con información del perfil
+            ServiceResult con datos del perfil
         """
         try:
             profile_data = {
@@ -504,96 +546,164 @@ class AuthenticationService(BaseService):
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'full_name': user.get_full_name(),
-                'is_active': user.is_active,
                 'is_staff': user.is_staff,
                 'is_superuser': user.is_superuser,
+                'is_active': user.is_active,
                 'date_joined': user.date_joined.isoformat(),
                 'last_login': user.last_login.isoformat() if user.last_login else None,
+                'email_verified': hasattr(user, 'email_verified') and user.email_verified
             }
             
-            # Agregar información adicional si existe UserProfile
-            try:
-                from ..models import UserProfile
-                profile = UserProfile.objects.get(user=user)
-                profile_data.update({
-                    'phone': profile.phone,
-                    'address': profile.address,
-                    'city': profile.city,
-                    'country': profile.country,
-                    'is_verified': profile.is_verified,
-                    'profile_picture': profile.profile_picture.url if profile.profile_picture else None,
-                })
-            except:
-                pass
-            
-            return profile_data
+            return ServiceResult.success(
+                data=profile_data,
+                message="Perfil obtenido exitosamente"
+            )
             
         except Exception as e:
-            self.log_error(f"Error obteniendo perfil: {e}")
-            raise ServiceError("Error interno obteniendo perfil", "profile_error")
+            self.log_error(f"Error obteniendo perfil: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo perfil", details={"original_error": str(e)})
+            )
     
-    def update_user_profile(self, user: User, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_user_profile(self, user: User, profile_data: Dict[str, Any]) -> ServiceResult:
         """
         Actualiza el perfil de un usuario.
         
         Args:
-            user: Usuario a actualizar
-            profile_data: Datos del perfil a actualizar
+            user: Usuario
+            profile_data: Datos a actualizar
             
         Returns:
-            Perfil actualizado
-            
-        Raises:
-            ValidationServiceError: Si los datos son inválidos
+            ServiceResult con datos actualizados
         """
         try:
-            with transaction.atomic():
-                # Actualizar campos básicos del usuario
-                if 'first_name' in profile_data:
-                    user.first_name = profile_data['first_name']
-                if 'last_name' in profile_data:
-                    user.last_name = profile_data['last_name']
-                if 'email' in profile_data:
-                    self.validate_email(profile_data['email'])
-                    user.email = profile_data['email']
-                
-                user.save()
-                
-                # Actualizar UserProfile si existe
-                try:
-                    from ..models import UserProfile
-                    profile, created = UserProfile.objects.get_or_create(user=user)
-                    
-                    if 'phone' in profile_data:
-                        profile.phone = profile_data['phone']
-                    if 'address' in profile_data:
-                        profile.address = profile_data['address']
-                    if 'city' in profile_data:
-                        profile.city = profile_data['city']
-                    if 'country' in profile_data:
-                        profile.country = profile_data['country']
-                    
-                    profile.save()
-                    
-                except Exception as e:
-                    self.log_warning(f"Error actualizando UserProfile: {e}")
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="profile_updated",
-                    resource_type="user",
-                    resource_id=user.id,
-                    details={'updated_fields': list(profile_data.keys())}
-                )
-                
-                self.log_info(f"Perfil actualizado: {user.username}", user_id=user.id)
-                
-                return self.get_user_profile(user)
-                
-        except ValidationServiceError:
-            raise
+            # Campos permitidos para actualización
+            allowed_fields = ['first_name', 'last_name', 'email']
+            
+            # Validar campos
+            for field in profile_data:
+                if field not in allowed_fields:
+                    return ServiceResult.validation_error(
+                        f"Campo '{field}' no permitido para actualización",
+                        details={"field": field, "allowed_fields": allowed_fields}
+                    )
+            
+            # Validar email único si se está cambiando
+            if 'email' in profile_data and profile_data['email'] != user.email:
+                if User.objects.filter(email=profile_data['email']).exclude(id=user.id).exists():
+                    return ServiceResult.validation_error(
+                        "Este email ya está registrado",
+                        details={"field": "email"}
+                    )
+            
+            # Actualizar campos
+            for field, value in profile_data.items():
+                setattr(user, field, value)
+            
+            user.save()
+            
+            # Crear log de auditoría
+            self.create_audit_log(
+                user=user,
+                action="profile_updated",
+                resource_type="user",
+                resource_id=user.id,
+                details={"updated_fields": list(profile_data.keys())}
+            )
+            
+            self.log_info(f"Perfil actualizado para usuario {user.username}")
+            
+            return ServiceResult.success(
+                data={
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'is_staff': user.is_staff,
+                    'is_superuser': user.is_superuser,
+                    'is_active': user.is_active,
+                    'date_joined': user.date_joined.isoformat(),
+                    'last_login': user.last_login.isoformat() if user.last_login else None
+                },
+                message="Perfil actualizado exitosamente"
+            )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error actualizando perfil: {e}")
-            raise ServiceError("Error interno actualizando perfil", "profile_update_error")
+            self.log_error(f"Error actualizando perfil: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno actualizando perfil", details={"original_error": str(e)})
+            )
+    
+    def _log_user_login(self, user: User, request=None):
+        """Registra login en historial."""
+        try:
+            ip_address = None
+            user_agent = None
+            
+            if request:
+                ip_address = self._get_client_ip(request)
+                user_agent = request.META.get('HTTP_USER_AGENT', '')
+            
+            LoginHistory.objects.create(
+                user=user,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                login_time=timezone.now(),
+                success=True
+            )
+        except Exception as e:
+            self.log_warning(f"Error registrando login: {str(e)}")
+    
+    def _log_user_registration(self, user: User, request=None):
+        """Registra registro en historial."""
+        try:
+            ip_address = None
+            user_agent = None
+            
+            if request:
+                ip_address = self._get_client_ip(request)
+                user_agent = request.META.get('HTTP_USER_AGENT', '')
+            
+            LoginHistory.objects.create(
+                user=user,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                login_time=timezone.now(),
+                success=True,
+                is_registration=True
+            )
+        except Exception as e:
+            self.log_warning(f"Error registrando registro: {str(e)}")
+    
+    def _log_password_reset_request(self, user: User, request=None):
+        """Registra solicitud de restablecimiento."""
+        try:
+            ip_address = None
+            user_agent = None
+            
+            if request:
+                ip_address = self._get_client_ip(request)
+                user_agent = request.META.get('HTTP_USER_AGENT', '')
+            
+            LoginHistory.objects.create(
+                user=user,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                login_time=timezone.now(),
+                success=True,
+                is_password_reset=True
+            )
+        except Exception as e:
+            self.log_warning(f"Error registrando solicitud de restablecimiento: {str(e)}")
+    
+    def _get_client_ip(self, request):
+        """Obtiene la IP del cliente."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip

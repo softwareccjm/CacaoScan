@@ -1,560 +1,476 @@
 """
-Servicio de imágenes para CacaoScan.
-Maneja la gestión de imágenes de granos de cacao.
+Servicio de gestión de imágenes para CacaoScan.
 """
 import logging
-from typing import Dict, Any, Optional, Tuple, List
-from django.contrib.auth.models import User
-from django.db import transaction
+from typing import Dict, Any, Optional, List
+from django.core.files.uploadedfile import UploadedFile
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.db.models import Q, Count, Avg, Min, Max
 from PIL import Image
 import io
+import os
 
-from .base import BaseService, ServiceError, ValidationServiceError, PermissionServiceError, NotFoundServiceError, FileService, PaginationService
+from .base import BaseService, ServiceResult, ValidationServiceError, PermissionServiceError, NotFoundServiceError
+from ..models import CacaoImage, User
 
 logger = logging.getLogger("cacaoscan.services.images")
 
 
-class ImageService(BaseService):
+class ImageManagementService(BaseService):
     """
-    Servicio para manejo de imágenes de granos de cacao.
+    Servicio para manejar gestión de imágenes de cacao.
     """
     
     def __init__(self):
         super().__init__()
-        self.file_service = FileService()
+        self.allowed_image_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp']
+        self.max_file_size = 20 * 1024 * 1024  # 20MB
     
-    def upload_image(self, user: User, image_file, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def upload_image(self, image_file: UploadedFile, user: User, metadata: Dict[str, Any] = None) -> ServiceResult:
         """
-        Sube una nueva imagen al sistema.
+        Sube una nueva imagen de cacao.
         
         Args:
-            user: Usuario que sube la imagen
             image_file: Archivo de imagen
+            user: Usuario que sube la imagen
             metadata: Metadatos adicionales
             
         Returns:
-            Diccionario con información de la imagen subida
-            
-        Raises:
-            ValidationServiceError: Si la imagen no es válida
-            ServiceError: Si hay error en la subida
+            ServiceResult con datos de la imagen subida
         """
         try:
-            # Validar archivo de imagen
-            validation_result = self.file_service.validate_image_file(image_file)
-            self.log_info(f"Imagen validada: {validation_result['size_mb']:.2f}MB", user_id=user.id)
+            # Validar archivo
+            validation_result = self._validate_image_file(image_file)
+            if not validation_result.success:
+                return validation_result
             
-            # Generar nombre único para el archivo
-            unique_filename = self.file_service.generate_unique_filename(
-                image_file.name, 
-                f"user_{user.id}"
+            # Crear imagen
+            cacao_image = CacaoImage(
+                user=user,
+                image=image_file,
+                file_name=image_file.name,
+                file_size=image_file.size,
+                file_type=image_file.content_type,
+                processed=False
             )
             
-            with transaction.atomic():
-                # Crear objeto CacaoImage
-                from ..models import CacaoImage
-                
-                cacao_image = CacaoImage(
-                    user=user,
-                    image=image_file,
-                    file_name=unique_filename,
-                    file_size=image_file.size,
-                    file_type=image_file.content_type,
-                    processed=False,
-                    metadata=metadata or {}
-                )
-                
-                # Guardar en BD
-                cacao_image.save()
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="image_uploaded",
-                    resource_type="cacao_image",
-                    resource_id=cacao_image.id,
-                    details={
-                        'file_name': unique_filename,
-                        'file_size': image_file.size,
-                        'file_type': image_file.content_type
-                    }
-                )
-                
-                self.log_info(f"Imagen subida con ID {cacao_image.id}", user_id=user.id)
-                
-                return {
+            # Agregar metadatos si se proporcionan
+            if metadata:
+                cacao_image.metadata = metadata
+            
+            cacao_image.save()
+            
+            # Crear log de auditoría
+            self.create_audit_log(
+                user=user,
+                action="image_uploaded",
+                resource_type="cacao_image",
+                resource_id=cacao_image.id,
+                details={
+                    'file_name': image_file.name,
+                    'file_size': image_file.size,
+                    'file_type': image_file.content_type
+                }
+            )
+            
+            self.log_info(f"Imagen {cacao_image.id} subida por usuario {user.username}")
+            
+            return ServiceResult.success(
+                data={
                     'id': cacao_image.id,
                     'file_name': cacao_image.file_name,
                     'file_size': cacao_image.file_size,
                     'file_type': cacao_image.file_type,
                     'processed': cacao_image.processed,
-                    'uploaded_at': cacao_image.created_at.isoformat(),
-                    'image_url': cacao_image.image.url if cacao_image.image else None
-                }
-                
-        except ValidationServiceError:
-            raise
+                    'created_at': cacao_image.created_at.isoformat(),
+                    'image_url': cacao_image.image.url if cacao_image.image else None,
+                    'metadata': cacao_image.metadata
+                },
+                message="Imagen subida exitosamente"
+            )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error subiendo imagen: {e}")
-            raise ServiceError("Error interno subiendo imagen", "upload_error")
+            self.log_error(f"Error subiendo imagen: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno subiendo imagen", details={"original_error": str(e)})
+            )
     
-    def get_user_images(self, user: User, page: int = 1, page_size: int = 20, 
-                       filters: Dict[str, Any] = None) -> Dict[str, Any]:
+    def get_user_images(self, user: User, page: int = 1, page_size: int = 20, filters: Dict[str, Any] = None) -> ServiceResult:
         """
-        Obtiene las imágenes de un usuario con paginación.
+        Obtiene imágenes de un usuario.
         
         Args:
-            user: Usuario del cual obtener imágenes
+            user: Usuario
             page: Número de página
             page_size: Tamaño de página
             filters: Filtros adicionales
             
         Returns:
-            Diccionario con imágenes paginadas
+            ServiceResult con imágenes paginadas
         """
         try:
-            from ..models import CacaoImage
-            
-            # Construir queryset base
-            if user.is_superuser:
-                # Administradores ven todas las imágenes
-                queryset = CacaoImage.objects.all().select_related('user')
-            else:
-                # Usuarios normales solo ven sus imágenes
-                queryset = CacaoImage.objects.filter(user=user)
+            # Construir queryset
+            queryset = CacaoImage.objects.filter(user=user).order_by('-created_at')
             
             # Aplicar filtros
             if filters:
                 if 'processed' in filters:
                     queryset = queryset.filter(processed=filters['processed'])
+                if 'file_type' in filters:
+                    queryset = queryset.filter(file_type=filters['file_type'])
                 if 'date_from' in filters:
                     queryset = queryset.filter(created_at__gte=filters['date_from'])
                 if 'date_to' in filters:
                     queryset = queryset.filter(created_at__lte=filters['date_to'])
-                if 'file_type' in filters:
-                    queryset = queryset.filter(file_type=filters['file_type'])
-            
-            # Ordenar por fecha de creación descendente
-            queryset = queryset.order_by('-created_at')
+                if 'search' in filters:
+                    search_term = filters['search']
+                    queryset = queryset.filter(
+                        Q(file_name__icontains=search_term) |
+                        Q(metadata__icontains=search_term)
+                    )
             
             # Paginar resultados
-            paginated_data = PaginationService.paginate_queryset(queryset, page, page_size)
+            paginated_data = self.paginate_results(queryset, page, page_size)
             
-            # Serializar resultados
-            results = []
+            # Formatear datos
+            images = []
             for image in paginated_data['results']:
-                results.append({
+                images.append({
                     'id': image.id,
                     'file_name': image.file_name,
                     'file_size': image.file_size,
                     'file_type': image.file_type,
                     'processed': image.processed,
-                    'uploaded_at': image.created_at.isoformat(),
+                    'created_at': image.created_at.isoformat(),
+                    'updated_at': image.updated_at.isoformat(),
                     'image_url': image.image.url if image.image else None,
-                    'user': {
-                        'id': image.user.id,
-                        'username': image.user.username,
-                        'email': image.user.email
-                    } if user.is_superuser else None
+                    'metadata': image.metadata
                 })
             
-            return {
-                'results': results,
-                'pagination': paginated_data['pagination']
-            }
+            return ServiceResult.success(
+                data={
+                    'images': images,
+                    'pagination': paginated_data['pagination']
+                },
+                message="Imágenes obtenidas exitosamente"
+            )
             
         except Exception as e:
-            self.log_error(f"Error obteniendo imágenes: {e}")
-            raise ServiceError("Error interno obteniendo imágenes", "list_error")
+            self.log_error(f"Error obteniendo imágenes: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo imágenes", details={"original_error": str(e)})
+            )
     
-    def get_image_detail(self, user: User, image_id: int) -> Dict[str, Any]:
+    def get_image_details(self, image_id: int, user: User) -> ServiceResult:
         """
-        Obtiene los detalles de una imagen específica.
+        Obtiene detalles de una imagen específica.
         
         Args:
-            user: Usuario que solicita los detalles
             image_id: ID de la imagen
+            user: Usuario
             
         Returns:
-            Diccionario con detalles de la imagen
-            
-        Raises:
-            NotFoundServiceError: Si la imagen no existe
-            PermissionServiceError: Si el usuario no tiene permisos
+            ServiceResult con detalles de la imagen
         """
         try:
-            from ..models import CacaoImage
-            
-            # Obtener imagen
             try:
-                image = CacaoImage.objects.select_related('user').get(id=image_id)
+                image = CacaoImage.objects.get(id=image_id, user=user)
             except CacaoImage.DoesNotExist:
-                raise NotFoundServiceError(f"Imagen con ID {image_id} no encontrada", "image_not_found")
-            
-            # Verificar permisos
-            if image.user != user and not user.is_superuser:
-                raise PermissionServiceError("No tienes permisos para ver esta imagen", "no_permission")
+                return ServiceResult.not_found_error("Imagen no encontrada")
             
             # Obtener predicciones asociadas
             predictions = image.predictions.all().order_by('-created_at')
+            prediction_data = []
             
-            # Serializar imagen
+            for prediction in predictions:
+                prediction_data.append({
+                    'id': prediction.id,
+                    'alto_mm': prediction.alto_mm,
+                    'ancho_mm': prediction.ancho_mm,
+                    'grosor_mm': prediction.grosor_mm,
+                    'peso_g': prediction.peso_g,
+                    'average_confidence': prediction.average_confidence,
+                    'processing_time_ms': prediction.processing_time_ms,
+                    'created_at': prediction.created_at.isoformat(),
+                    'crop_url': getattr(prediction, 'crop_url', None)
+                })
+            
             image_data = {
                 'id': image.id,
                 'file_name': image.file_name,
                 'file_size': image.file_size,
                 'file_type': image.file_type,
                 'processed': image.processed,
-                'uploaded_at': image.created_at.isoformat(),
+                'created_at': image.created_at.isoformat(),
                 'updated_at': image.updated_at.isoformat(),
                 'image_url': image.image.url if image.image else None,
                 'metadata': image.metadata,
-                'user': {
-                    'id': image.user.id,
-                    'username': image.user.username,
-                    'email': image.user.email
-                },
-                'predictions': [
-                    {
-                        'id': pred.id,
-                        'alto_mm': pred.alto_mm,
-                        'ancho_mm': pred.ancho_mm,
-                        'grosor_mm': pred.grosor_mm,
-                        'peso_g': pred.peso_g,
-                        'average_confidence': pred.average_confidence,
-                        'processing_time_ms': pred.processing_time_ms,
-                        'model_version': pred.model_version,
-                        'crop_url': pred.crop_url,
-                        'created_at': pred.created_at.isoformat()
-                    }
-                    for pred in predictions
-                ]
+                'predictions': prediction_data,
+                'predictions_count': len(prediction_data)
             }
             
-            return image_data
+            return ServiceResult.success(
+                data=image_data,
+                message="Detalles de imagen obtenidos exitosamente"
+            )
             
-        except (NotFoundServiceError, PermissionServiceError):
-            raise
         except Exception as e:
-            self.log_error(f"Error obteniendo detalles de imagen: {e}")
-            raise ServiceError("Error interno obteniendo detalles", "detail_error")
+            self.log_error(f"Error obteniendo detalles: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo detalles", details={"original_error": str(e)})
+            )
     
-    def update_image_metadata(self, user: User, image_id: int, 
-                             metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def update_image_metadata(self, image_id: int, user: User, metadata: Dict[str, Any]) -> ServiceResult:
         """
-        Actualiza los metadatos de una imagen.
+        Actualiza metadatos de una imagen.
         
         Args:
-            user: Usuario que actualiza
             image_id: ID de la imagen
+            user: Usuario
             metadata: Nuevos metadatos
             
         Returns:
-            Diccionario con imagen actualizada
-            
-        Raises:
-            NotFoundServiceError: Si la imagen no existe
-            PermissionServiceError: Si el usuario no tiene permisos
+            ServiceResult con imagen actualizada
         """
         try:
-            from ..models import CacaoImage
-            
-            # Obtener imagen
             try:
-                image = CacaoImage.objects.get(id=image_id)
+                image = CacaoImage.objects.get(id=image_id, user=user)
             except CacaoImage.DoesNotExist:
-                raise NotFoundServiceError(f"Imagen con ID {image_id} no encontrada", "image_not_found")
+                return ServiceResult.not_found_error("Imagen no encontrada")
             
-            # Verificar permisos
-            if image.user != user and not user.is_superuser:
-                raise PermissionServiceError("No tienes permisos para actualizar esta imagen", "no_permission")
-            
-            with transaction.atomic():
-                # Actualizar metadatos
-                current_metadata = image.metadata or {}
-                current_metadata.update(metadata)
-                image.metadata = current_metadata
-                image.save()
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="image_metadata_updated",
-                    resource_type="cacao_image",
-                    resource_id=image_id,
-                    details={'updated_metadata': list(metadata.keys())}
-                )
-                
-                self.log_info(f"Metadatos de imagen actualizados: {image_id}", user_id=user.id)
-                
-                return self.get_image_detail(user, image_id)
-                
-        except (NotFoundServiceError, PermissionServiceError):
-            raise
-        except Exception as e:
-            self.log_error(f"Error actualizando metadatos: {e}")
-            raise ServiceError("Error interno actualizando metadatos", "update_error")
-    
-    def delete_image(self, user: User, image_id: int) -> bool:
-        """
-        Elimina una imagen del sistema.
-        
-        Args:
-            user: Usuario que solicita la eliminación
-            image_id: ID de la imagen
-            
-        Returns:
-            True si se eliminó exitosamente
-            
-        Raises:
-            NotFoundServiceError: Si la imagen no existe
-            PermissionServiceError: Si el usuario no tiene permisos
-        """
-        try:
-            from ..models import CacaoImage
-            
-            # Obtener imagen
-            try:
-                image = CacaoImage.objects.get(id=image_id)
-            except CacaoImage.DoesNotExist:
-                raise NotFoundServiceError(f"Imagen con ID {image_id} no encontrada", "image_not_found")
-            
-            # Verificar permisos
-            if image.user != user and not user.is_superuser:
-                raise PermissionServiceError("No tienes permisos para eliminar esta imagen", "no_permission")
-            
-            with transaction.atomic():
-                # Eliminar archivo físico si existe
-                if image.image and image.image.name:
-                    try:
-                        default_storage.delete(image.image.name)
-                    except Exception as e:
-                        self.log_warning(f"Error eliminando archivo físico: {e}")
-                
-                # Eliminar imagen de BD (esto también eliminará las predicciones asociadas por CASCADE)
-                image.delete()
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="image_deleted",
-                    resource_type="cacao_image",
-                    resource_id=image_id
-                )
-                
-                self.log_info(f"Imagen eliminada: {image_id}", user_id=user.id)
-                
-                return True
-                
-        except (NotFoundServiceError, PermissionServiceError):
-            raise
-        except Exception as e:
-            self.log_error(f"Error eliminando imagen: {e}")
-            raise ServiceError("Error interno eliminando imagen", "delete_error")
-    
-    def get_image_statistics(self, user: User, date_from: str = None, 
-                           date_to: str = None) -> Dict[str, Any]:
-        """
-        Obtiene estadísticas de imágenes de un usuario.
-        
-        Args:
-            user: Usuario del cual obtener estadísticas
-            date_from: Fecha de inicio (opcional)
-            date_to: Fecha de fin (opcional)
-            
-        Returns:
-            Diccionario con estadísticas
-        """
-        try:
-            from ..models import CacaoImage, CacaoPrediction
-            from django.db.models import Count, Avg, Sum
-            
-            # Construir queryset base
-            queryset = CacaoImage.objects.filter(user=user)
-            
-            # Aplicar filtros de fecha
-            if date_from:
-                queryset = queryset.filter(created_at__gte=date_from)
-            if date_to:
-                queryset = queryset.filter(created_at__lte=date_to)
-            
-            # Calcular estadísticas básicas
-            total_images = queryset.count()
-            processed_images = queryset.filter(processed=True).count()
-            unprocessed_images = total_images - processed_images
-            
-            # Estadísticas por tipo de archivo
-            file_type_stats = queryset.values('file_type').annotate(
-                count=Count('id')
-            ).order_by('-count')
-            
-            # Estadísticas de tamaño
-            size_stats = queryset.aggregate(
-                total_size=Sum('file_size'),
-                avg_size=Avg('file_size')
-            )
-            
-            # Estadísticas de predicciones
-            prediction_stats = CacaoPrediction.objects.filter(
-                image__user=user,
-                image__created_at__gte=date_from if date_from else '1900-01-01',
-                image__created_at__lte=date_to if date_to else '2100-12-31'
-            ).aggregate(
-                total_predictions=Count('id'),
-                avg_confidence=Avg('average_confidence'),
-                avg_processing_time=Avg('processing_time_ms')
-            )
-            
-            return {
-                'total_images': total_images,
-                'processed_images': processed_images,
-                'unprocessed_images': unprocessed_images,
-                'processing_rate': round((processed_images / total_images * 100) if total_images > 0 else 0, 2),
-                'file_type_distribution': list(file_type_stats),
-                'size_stats': {
-                    'total_size_bytes': size_stats['total_size'] or 0,
-                    'total_size_mb': round((size_stats['total_size'] or 0) / (1024 * 1024), 2),
-                    'average_size_bytes': round(size_stats['avg_size'] or 0, 0)
-                },
-                'prediction_stats': {
-                    'total_predictions': prediction_stats['total_predictions'] or 0,
-                    'average_confidence': round(prediction_stats['avg_confidence'] or 0, 3),
-                    'average_processing_time_ms': round(prediction_stats['avg_processing_time'] or 0, 0)
-                }
-            }
-            
-        except Exception as e:
-            self.log_error(f"Error obteniendo estadísticas de imágenes: {e}")
-            raise ServiceError("Error interno obteniendo estadísticas", "stats_error")
-    
-    def download_image(self, user: User, image_id: int) -> Tuple[bytes, str, str]:
-        """
-        Descarga una imagen específica.
-        
-        Args:
-            user: Usuario que solicita la descarga
-            image_id: ID de la imagen
-            
-        Returns:
-            Tupla con (contenido_archivo, nombre_archivo, tipo_mime)
-            
-        Raises:
-            NotFoundServiceError: Si la imagen no existe
-            PermissionServiceError: Si el usuario no tiene permisos
-        """
-        try:
-            from ..models import CacaoImage
-            
-            # Obtener imagen
-            try:
-                image = CacaoImage.objects.get(id=image_id)
-            except CacaoImage.DoesNotExist:
-                raise NotFoundServiceError(f"Imagen con ID {image_id} no encontrada", "image_not_found")
-            
-            # Verificar permisos
-            if image.user != user and not user.is_superuser:
-                raise PermissionServiceError("No tienes permisos para descargar esta imagen", "no_permission")
-            
-            # Leer contenido del archivo
-            if not image.image or not image.image.name:
-                raise NotFoundServiceError("Archivo de imagen no encontrado", "file_not_found")
-            
-            try:
-                file_content = default_storage.open(image.image.name).read()
-            except Exception as e:
-                raise NotFoundServiceError(f"Error leyendo archivo: {str(e)}", "file_read_error")
+            # Actualizar metadatos
+            old_metadata = image.metadata.copy() if image.metadata else {}
+            image.metadata = metadata
+            image.save()
             
             # Crear log de auditoría
             self.create_audit_log(
                 user=user,
-                action="image_downloaded",
+                action="image_metadata_updated",
                 resource_type="cacao_image",
-                resource_id=image_id
+                resource_id=image_id,
+                details={
+                    'old_metadata': old_metadata,
+                    'new_metadata': metadata
+                }
             )
             
-            self.log_info(f"Imagen descargada: {image_id}", user_id=user.id)
+            self.log_info(f"Metadatos de imagen {image_id} actualizados por usuario {user.username}")
             
-            return file_content, image.file_name, image.file_type
+            return ServiceResult.success(
+                data={
+                    'id': image.id,
+                    'file_name': image.file_name,
+                    'metadata': image.metadata,
+                    'updated_at': image.updated_at.isoformat()
+                },
+                message="Metadatos actualizados exitosamente"
+            )
             
-        except (NotFoundServiceError, PermissionServiceError):
-            raise
         except Exception as e:
-            self.log_error(f"Error descargando imagen: {e}")
-            raise ServiceError("Error interno descargando imagen", "download_error")
+            self.log_error(f"Error actualizando metadatos: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno actualizando metadatos", details={"original_error": str(e)})
+            )
     
-    def bulk_delete_images(self, user: User, image_ids: List[int]) -> Dict[str, Any]:
+    def delete_image(self, image_id: int, user: User) -> ServiceResult:
         """
-        Elimina múltiples imágenes en lote.
+        Elimina una imagen y sus predicciones asociadas.
         
         Args:
-            user: Usuario que solicita la eliminación
-            image_ids: Lista de IDs de imágenes
+            image_id: ID de la imagen
+            user: Usuario
             
         Returns:
-            Diccionario con resultados de la eliminación
+            ServiceResult con resultado de la eliminación
+        """
+        try:
+            try:
+                image = CacaoImage.objects.get(id=image_id, user=user)
+            except CacaoImage.DoesNotExist:
+                return ServiceResult.not_found_error("Imagen no encontrada")
             
-        Raises:
-            ValidationServiceError: Si la lista está vacía
+            # Obtener información para el log
+            predictions_count = image.predictions.count()
+            
+            # Crear log de auditoría antes de eliminar
+            self.create_audit_log(
+                user=user,
+                action="image_deleted",
+                resource_type="cacao_image",
+                resource_id=image_id,
+                details={
+                    'file_name': image.file_name,
+                    'file_size': image.file_size,
+                    'predictions_count': predictions_count
+                }
+            )
+            
+            # Eliminar imagen (esto también eliminará las predicciones por CASCADE)
+            image.delete()
+            
+            self.log_info(f"Imagen {image_id} eliminada por usuario {user.username}")
+            
+            return ServiceResult.success(
+                message="Imagen eliminada exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error eliminando imagen: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno eliminando imagen", details={"original_error": str(e)})
+            )
+    
+    def get_image_statistics(self, user: User, filters: Dict[str, Any] = None) -> ServiceResult:
+        """
+        Obtiene estadísticas de imágenes de un usuario.
+        
+        Args:
+            user: Usuario
+            filters: Filtros adicionales
+            
+        Returns:
+            ServiceResult con estadísticas
+        """
+        try:
+            # Construir queryset base
+            queryset = CacaoImage.objects.filter(user=user)
+            
+            # Aplicar filtros
+            if filters:
+                if 'date_from' in filters:
+                    queryset = queryset.filter(created_at__gte=filters['date_from'])
+                if 'date_to' in filters:
+                    queryset = queryset.filter(created_at__lte=filters['date_to'])
+            
+            # Calcular estadísticas
+            stats = {
+                'total_images': queryset.count(),
+                'processed_images': queryset.filter(processed=True).count(),
+                'unprocessed_images': queryset.filter(processed=False).count(),
+                'total_size_bytes': queryset.aggregate(total=Sum('file_size'))['total'] or 0,
+                'average_size_bytes': queryset.aggregate(avg=Avg('file_size'))['avg'] or 0,
+                'file_types': dict(queryset.values('file_type').annotate(count=Count('id')).values_list('file_type', 'count')),
+                'processing_rate': 0,
+                'size_distribution': {
+                    'small': queryset.filter(file_size__lt=1024*1024).count(),  # < 1MB
+                    'medium': queryset.filter(file_size__gte=1024*1024, file_size__lt=5*1024*1024).count(),  # 1-5MB
+                    'large': queryset.filter(file_size__gte=5*1024*1024).count()  # > 5MB
+                },
+                'recent_uploads': queryset.filter(created_at__gte=timezone.now() - timedelta(days=7)).count()
+            }
+            
+            # Calcular tasa de procesamiento
+            if stats['total_images'] > 0:
+                stats['processing_rate'] = stats['processed_images'] / stats['total_images']
+            
+            return ServiceResult.success(
+                data=stats,
+                message="Estadísticas obtenidas exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error obteniendo estadísticas: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo estadísticas", details={"original_error": str(e)})
+            )
+    
+    def bulk_delete_images(self, image_ids: List[int], user: User) -> ServiceResult:
+        """
+        Elimina múltiples imágenes.
+        
+        Args:
+            image_ids: Lista de IDs de imágenes
+            user: Usuario
+            
+        Returns:
+            ServiceResult con resultado de la eliminación masiva
         """
         try:
             if not image_ids:
-                raise ValidationServiceError("Lista de imágenes vacía", "empty_list")
+                return ServiceResult.validation_error("Lista de IDs de imágenes vacía")
             
-            from ..models import CacaoImage
+            # Verificar que todas las imágenes pertenezcan al usuario
+            images = CacaoImage.objects.filter(id__in=image_ids, user=user)
             
-            deleted_count = 0
-            errors = []
+            if len(images) != len(image_ids):
+                return ServiceResult.validation_error(
+                    "Algunas imágenes no existen o no pertenecen al usuario",
+                    details={"requested_count": len(image_ids), "found_count": len(images)}
+                )
             
-            for image_id in image_ids:
-                try:
-                    # Obtener imagen
-                    try:
-                        image = CacaoImage.objects.get(id=image_id)
-                    except CacaoImage.DoesNotExist:
-                        errors.append({'id': image_id, 'error': 'Imagen no encontrada'})
-                        continue
-                    
-                    # Verificar permisos
-                    if image.user != user and not user.is_superuser:
-                        errors.append({'id': image_id, 'error': 'Sin permisos'})
-                        continue
-                    
-                    with transaction.atomic():
-                        # Eliminar archivo físico si existe
-                        if image.image and image.image.name:
-                            try:
-                                default_storage.delete(image.image.name)
-                            except Exception as e:
-                                self.log_warning(f"Error eliminando archivo físico: {e}")
-                        
-                        # Eliminar imagen de BD
-                        image.delete()
-                        deleted_count += 1
-                        
-                        # Crear log de auditoría
-                        self.create_audit_log(
-                            user=user,
-                            action="image_deleted",
-                            resource_type="cacao_image",
-                            resource_id=image_id
-                        )
-                
-                except Exception as e:
-                    errors.append({'id': image_id, 'error': str(e)})
+            # Crear log de auditoría
+            self.create_audit_log(
+                user=user,
+                action="bulk_image_delete",
+                resource_type="cacao_image",
+                resource_id=None,
+                details={
+                    'image_ids': image_ids,
+                    'count': len(image_ids)
+                }
+            )
             
-            self.log_info(f"Eliminación masiva completada: {deleted_count}/{len(image_ids)}", user_id=user.id)
+            # Eliminar imágenes
+            deleted_count = images.count()
+            images.delete()
             
-            return {
-                'total_requested': len(image_ids),
-                'deleted_count': deleted_count,
-                'errors': errors,
-                'success_rate': round((deleted_count / len(image_ids)) * 100, 2)
-            }
+            self.log_info(f"{deleted_count} imágenes eliminadas por usuario {user.username}")
             
-        except ValidationServiceError:
-            raise
+            return ServiceResult.success(
+                data={'deleted_count': deleted_count},
+                message=f"{deleted_count} imágenes eliminadas exitosamente"
+            )
+            
         except Exception as e:
-            self.log_error(f"Error en eliminación masiva: {e}")
-            raise ServiceError("Error interno en eliminación masiva", "bulk_delete_error")
+            self.log_error(f"Error eliminando imágenes masivamente: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno eliminando imágenes", details={"original_error": str(e)})
+            )
+    
+    def _validate_image_file(self, image_file: UploadedFile) -> ServiceResult:
+        """
+        Valida un archivo de imagen.
+        
+        Args:
+            image_file: Archivo de imagen
+            
+        Returns:
+            ServiceResult con resultado de validación
+        """
+        try:
+            # Validar tipo de archivo
+            if image_file.content_type not in self.allowed_image_types:
+                return ServiceResult.validation_error(
+                    f"Tipo de archivo no válido. Tipos permitidos: {', '.join(self.allowed_image_types)}",
+                    details={"field": "content_type", "allowed_types": self.allowed_image_types}
+                )
+            
+            # Validar tamaño del archivo
+            if image_file.size > self.max_file_size:
+                return ServiceResult.validation_error(
+                    f"Archivo demasiado grande. Máximo {self.max_file_size // (1024*1024)}MB permitido",
+                    details={"field": "file_size", "max_size": self.max_file_size, "actual_size": image_file.size}
+                )
+            
+            # Validar que sea una imagen válida
+            try:
+                image_data = image_file.read()
+                image_file.seek(0)  # Resetear posición del archivo
+                Image.open(io.BytesIO(image_data))
+            except Exception as e:
+                return ServiceResult.validation_error(
+                    "Archivo de imagen inválido o corrupto",
+                    details={"field": "image_validity", "error": str(e)}
+                )
+            
+            return ServiceResult.success(message="Archivo de imagen válido")
+            
+        except Exception as e:
+            self.log_error(f"Error validando imagen: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno validando imagen", details={"original_error": str(e)})
+            )

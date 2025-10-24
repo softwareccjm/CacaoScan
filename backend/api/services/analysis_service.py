@@ -1,330 +1,143 @@
 """
 Servicio de análisis para CacaoScan.
-Maneja el procesamiento de imágenes de granos de cacao y predicciones.
 """
 import logging
 import time
-from typing import Dict, Any, Optional, Tuple
-from django.contrib.auth.models import User
-from django.db import transaction
+from typing import Dict, Any, Optional, List
+from django.core.files.uploadedfile import UploadedFile
+from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from PIL import Image
 import io
+import os
 
-from .base import BaseService, ServiceError, ValidationServiceError, PermissionServiceError, NotFoundServiceError, FileService
+from .base import BaseService, ServiceResult, ValidationServiceError, PermissionServiceError
+from ..models import CacaoImage, CacaoPrediction, User
+from ml.prediction.predict import get_predictor, load_artifacts
 
 logger = logging.getLogger("cacaoscan.services.analysis")
 
 
 class AnalysisService(BaseService):
     """
-    Servicio para manejo de análisis de granos de cacao.
+    Servicio para manejar análisis de granos de cacao.
     """
     
     def __init__(self):
         super().__init__()
-        self.file_service = FileService()
+        self.allowed_image_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp']
+        self.max_file_size = 20 * 1024 * 1024  # 20MB
     
-    def process_image_analysis(self, user: User, image_file, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def analyze_cacao_grain(self, image_file: UploadedFile, user: User) -> ServiceResult:
         """
-        Procesa una imagen de grano de cacao y realiza análisis completo.
+        Analiza un grano de cacao desde una imagen.
         
         Args:
+            image_file: Archivo de imagen subido
             user: Usuario que realiza el análisis
-            image_file: Archivo de imagen a procesar
-            metadata: Metadatos adicionales (opcional)
             
         Returns:
-            Diccionario con resultados del análisis
-            
-        Raises:
-            ValidationServiceError: Si la imagen no es válida
-            ServiceError: Si hay error en el procesamiento
+            ServiceResult con resultados del análisis
         """
         try:
+            # Validar archivo
+            validation_result = self._validate_image_file(image_file)
+            if not validation_result.success:
+                return validation_result
+            
             start_time = time.time()
             
-            # Validar archivo de imagen
-            validation_result = self.file_service.validate_image_file(image_file)
-            self.log_info(f"Imagen validada: {validation_result['size_mb']:.2f}MB", user_id=user.id)
+            # Guardar imagen
+            save_result = self._save_uploaded_image(image_file, user)
+            if not save_result.success:
+                return save_result
             
-            # Guardar imagen en el sistema
-            cacao_image, image_saved = self._save_uploaded_image(user, image_file, metadata)
+            cacao_image = save_result.data
             
             # Cargar imagen para procesamiento
             image_data = image_file.read()
-            image_file.seek(0)  # Resetear posición
             image = Image.open(io.BytesIO(image_data))
             
-            # Realizar predicción
-            prediction_result = self._perform_prediction(image)
-            prediction_time_ms = int((time.time() - start_time) * 1000)
-            
-            # Guardar predicción en BD
-            cacao_prediction, prediction_saved = self._save_prediction(
-                cacao_image, prediction_result, prediction_time_ms
-            )
-            
-            # Enviar notificación por email
-            self._send_analysis_notification(user, prediction_result, cacao_prediction)
-            
-            # Crear log de auditoría
-            self.create_audit_log(
-                user=user,
-                action="analysis_completed",
-                resource_type="cacao_prediction",
-                resource_id=cacao_prediction.id if cacao_prediction else None,
-                details={
-                    'image_id': cacao_image.id if cacao_image else None,
-                    'processing_time_ms': prediction_time_ms,
-                    'confidence': prediction_result.get('average_confidence', 0)
-                }
-            )
-            
-            # Preparar respuesta
-            response_data = {
-                'alto_mm': prediction_result.get('alto_mm', 0),
-                'ancho_mm': prediction_result.get('ancho_mm', 0),
-                'grosor_mm': prediction_result.get('grosor_mm', 0),
-                'peso_g': prediction_result.get('peso_g', 0),
-                'confidences': prediction_result.get('confidences', {}),
-                'crop_url': prediction_result.get('crop_url', ''),
-                'debug': prediction_result.get('debug', {}),
-                'image_id': cacao_image.id if cacao_image else None,
-                'prediction_id': cacao_prediction.id if cacao_prediction else None,
-                'saved_to_database': image_saved and prediction_saved,
-                'processing_time_ms': prediction_time_ms
-            }
-            
-            self.log_info(f"Análisis completado en {prediction_time_ms}ms", 
-                         user_id=user.id, 
-                         prediction_id=cacao_prediction.id if cacao_prediction else None)
-            
-            return response_data
-            
-        except ValidationServiceError:
-            raise
-        except Exception as e:
-            self.log_error(f"Error en análisis de imagen: {e}")
-            raise ServiceError("Error interno en análisis", "analysis_error")
-    
-    def _save_uploaded_image(self, user: User, image_file, metadata: Dict[str, Any] = None) -> Tuple[Any, bool]:
-        """
-        Guarda la imagen subida en el sistema de archivos y BD.
-        
-        Args:
-            user: Usuario propietario
-            image_file: Archivo de imagen
-            metadata: Metadatos adicionales
-            
-        Returns:
-            Tupla con (cacao_image_obj, success)
-        """
-        try:
-            from ..models import CacaoImage
-            
-            # Generar nombre único para el archivo
-            unique_filename = self.file_service.generate_unique_filename(
-                image_file.name, 
-                f"user_{user.id}"
-            )
-            
-            # Crear objeto CacaoImage
-            cacao_image = CacaoImage(
-                user=user,
-                image=image_file,
-                file_name=unique_filename,
-                file_size=image_file.size,
-                file_type=image_file.content_type,
-                processed=False,
-                metadata=metadata or {}
-            )
-            
-            # Guardar en BD
-            cacao_image.save()
-            
-            self.log_info(f"Imagen guardada con ID {cacao_image.id}", user_id=user.id)
-            return cacao_image, True
-            
-        except Exception as e:
-            self.log_error(f"Error guardando imagen: {e}")
-            return None, False
-    
-    def _perform_prediction(self, image: Image.Image) -> Dict[str, Any]:
-        """
-        Realiza la predicción de dimensiones y peso del grano.
-        
-        Args:
-            image: Imagen PIL a procesar
-            
-        Returns:
-            Diccionario con resultados de la predicción
-            
-        Raises:
-            ServiceError: Si hay error en la predicción
-        """
-        try:
-            from ml.prediction.predict import get_predictor, load_artifacts
-            
             # Obtener predictor
-            predictor = get_predictor()
+            predictor_result = self._get_predictor()
+            if not predictor_result.success:
+                return predictor_result
             
-            if not predictor.models_loaded:
-                # Intentar cargar modelos automáticamente
-                self.log_info("Modelos no cargados. Intentando carga automática...")
-                success = load_artifacts()
-                
-                if not success:
-                    raise ServiceError("Modelos no disponibles", "models_not_available")
-                
-                # Reintentar obtener predictor
-                predictor = get_predictor()
-                
-                if not predictor.models_loaded:
-                    raise ServiceError("Error cargando modelos", "model_loading_error")
+            predictor = predictor_result.data
             
             # Realizar predicción
             prediction_start = time.time()
             result = predictor.predict(image)
             prediction_time_ms = int((time.time() - prediction_start) * 1000)
             
-            # Agregar información de tiempo de procesamiento
-            result['processing_time_ms'] = prediction_time_ms
+            # Guardar predicción
+            prediction_result = self._save_prediction(cacao_image, result, prediction_time_ms)
+            if not prediction_result.success:
+                self.log_warning(f"Error guardando predicción: {prediction_result.error.message}")
             
-            self.log_info(f"Predicción completada en {prediction_time_ms}ms")
+            cacao_prediction = prediction_result.data if prediction_result.success else None
             
-            return result
-            
-        except Exception as e:
-            self.log_error(f"Error en predicción: {e}")
-            raise ServiceError(f"Error en predicción: {str(e)}", "prediction_error")
-    
-    def _save_prediction(self, cacao_image, prediction_result: Dict[str, Any], 
-                        processing_time_ms: int) -> Tuple[Any, bool]:
-        """
-        Guarda los resultados de la predicción en BD.
-        
-        Args:
-            cacao_image: Objeto de imagen asociada
-            prediction_result: Resultados de la predicción
-            processing_time_ms: Tiempo de procesamiento
-            
-        Returns:
-            Tupla con (cacao_prediction_obj, success)
-        """
-        try:
-            from ..models import CacaoPrediction
-            
-            # Calcular confianza promedio
-            confidences = prediction_result.get('confidences', {})
-            avg_confidence = sum(confidences.values()) / len(confidences) if confidences else 0
-            
-            # Crear objeto CacaoPrediction
-            cacao_prediction = CacaoPrediction(
-                image=cacao_image,
-                user=cacao_image.user,
-                alto_mm=prediction_result.get('alto_mm', 0),
-                ancho_mm=prediction_result.get('ancho_mm', 0),
-                grosor_mm=prediction_result.get('grosor_mm', 0),
-                peso_g=prediction_result.get('peso_g', 0),
-                confidence_alto=confidences.get('alto', 0),
-                confidence_ancho=confidences.get('ancho', 0),
-                confidence_grosor=confidences.get('grosor', 0),
-                confidence_peso=confidences.get('peso', 0),
-                average_confidence=avg_confidence,
-                processing_time_ms=processing_time_ms,
-                model_version=prediction_result.get('debug', {}).get('model_version', 'v1.0'),
-                crop_url=prediction_result.get('crop_url', ''),
-                metadata=prediction_result.get('debug', {})
-            )
-            
-            # Guardar en BD
-            cacao_prediction.save()
-            
-            # Marcar imagen como procesada
-            cacao_image.processed = True
-            cacao_image.save()
-            
-            self.log_info(f"Predicción guardada con ID {cacao_prediction.id}")
-            return cacao_prediction, True
-            
-        except Exception as e:
-            self.log_error(f"Error guardando predicción: {e}")
-            return None, False
-    
-    def _send_analysis_notification(self, user: User, prediction_result: Dict[str, Any], 
-                                  cacao_prediction) -> None:
-        """
-        Envía notificación por email del análisis completado.
-        
-        Args:
-            user: Usuario destinatario
-            prediction_result: Resultados de la predicción
-            cacao_prediction: Objeto de predicción guardado
-        """
-        try:
-            # Determinar nivel de confianza
-            avg_confidence = prediction_result.get('average_confidence', 0)
-            if avg_confidence >= 0.8:
-                confidence_level = 'high'
-            elif avg_confidence >= 0.6:
-                confidence_level = 'medium'
-            else:
-                confidence_level = 'low'
-            
-            email_context = {
-                'analysis_id': cacao_prediction.id if cacao_prediction else 'N/A',
-                'confidence': round(avg_confidence * 100, 1),
-                'confidence_level': confidence_level,
-                'alto_mm': prediction_result.get('alto_mm', 0),
-                'ancho_mm': prediction_result.get('ancho_mm', 0),
-                'grosor_mm': prediction_result.get('grosor_mm', 0),
-                'peso_g': prediction_result.get('peso_g', 0),
-                'confidence_alto': round(prediction_result.get('confidences', {}).get('alto', 0) * 100, 1),
-                'confidence_ancho': round(prediction_result.get('confidences', {}).get('ancho', 0) * 100, 1),
-                'confidence_grosor': round(prediction_result.get('confidences', {}).get('grosor', 0) * 100, 1),
-                'confidence_peso': round(prediction_result.get('confidences', {}).get('peso', 0) * 100, 1),
-                'processing_time_ms': prediction_result.get('processing_time_ms', 0),
-                'model_version': prediction_result.get('debug', {}).get('model_version', 'v1.0'),
-                'analysis_date': timezone.now().strftime('%d/%m/%Y %H:%M'),
-                'crop_url': prediction_result.get('crop_url', ''),
-                'defects_detected': []  # TODO: Implementar detección de defectos
+            # Preparar respuesta
+            response_data = {
+                'alto_mm': result['alto_mm'],
+                'ancho_mm': result['ancho_mm'],
+                'grosor_mm': result['grosor_mm'],
+                'peso_g': result['peso_g'],
+                'confidences': result['confidences'],
+                'crop_url': result['crop_url'],
+                'debug': result['debug'],
+                'image_id': cacao_image.id,
+                'prediction_id': cacao_prediction.id if cacao_prediction else None,
+                'saved_to_database': prediction_result.success
             }
             
-            email_result = self.send_email_notification(
+            # Crear log de auditoría
+            self.create_audit_log(
                 user=user,
-                notification_type='analysis_complete',
-                context=email_context
+                action="analysis_performed",
+                resource_type="cacao_analysis",
+                resource_id=cacao_prediction.id if cacao_prediction else None,
+                details={
+                    'image_id': cacao_image.id,
+                    'processing_time_ms': prediction_time_ms,
+                    'confidence_scores': result['confidences']
+                }
             )
             
-            if email_result['success']:
-                self.log_info(f"Email de análisis enviado a {user.email}", user_id=user.id)
-            else:
-                self.log_warning(f"Error enviando email: {email_result.get('error')}", user_id=user.id)
-                
+            total_time = time.time() - start_time
+            self.log_info(f"Análisis completado en {total_time:.2f}s para usuario {user.username}")
+            
+            return ServiceResult.success(
+                data=response_data,
+                message="Análisis completado exitosamente"
+            )
+            
+        except ValidationServiceError as e:
+            return ServiceResult.error(e)
         except Exception as e:
-            self.log_error(f"Error enviando notificación de análisis: {e}")
+            self.log_error(f"Error en análisis: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno durante el análisis", details={"original_error": str(e)})
+            )
     
-    def get_analysis_history(self, user: User, page: int = 1, page_size: int = 20, 
-                            filters: Dict[str, Any] = None) -> Dict[str, Any]:
+    def get_analysis_history(self, user: User, page: int = 1, page_size: int = 20, filters: Dict[str, Any] = None) -> ServiceResult:
         """
         Obtiene el historial de análisis de un usuario.
         
         Args:
-            user: Usuario del cual obtener historial
+            user: Usuario
             page: Número de página
             page_size: Tamaño de página
             filters: Filtros adicionales
             
         Returns:
-            Diccionario con historial paginado
+            ServiceResult con historial paginado
         """
         try:
-            from ..models import CacaoPrediction
-            from .base import PaginationService
-            
-            # Construir queryset base
-            queryset = CacaoPrediction.objects.filter(user=user).select_related('image').order_by('-created_at')
+            # Construir queryset
+            queryset = CacaoPrediction.objects.filter(
+                image__user=user
+            ).select_related('image').order_by('-created_at')
             
             # Aplicar filtros
             if filters:
@@ -338,12 +151,12 @@ class AnalysisService(BaseService):
                     queryset = queryset.filter(average_confidence__lte=filters['max_confidence'])
             
             # Paginar resultados
-            paginated_data = PaginationService.paginate_queryset(queryset, page, page_size)
+            paginated_data = self.paginate_results(queryset, page, page_size)
             
-            # Serializar resultados
-            results = []
+            # Formatear datos
+            analyses = []
             for prediction in paginated_data['results']:
-                results.append({
+                analyses.append({
                     'id': prediction.id,
                     'image_id': prediction.image.id,
                     'alto_mm': prediction.alto_mm,
@@ -352,137 +165,366 @@ class AnalysisService(BaseService):
                     'peso_g': prediction.peso_g,
                     'average_confidence': prediction.average_confidence,
                     'processing_time_ms': prediction.processing_time_ms,
-                    'model_version': prediction.model_version,
-                    'crop_url': prediction.crop_url,
-                    'created_at': prediction.created_at.isoformat()
+                    'created_at': prediction.created_at.isoformat(),
+                    'image_url': prediction.image.image.url if prediction.image.image else None,
+                    'crop_url': getattr(prediction, 'crop_url', None)
                 })
             
-            return {
-                'results': results,
-                'pagination': paginated_data['pagination']
-            }
+            return ServiceResult.success(
+                data={
+                    'analyses': analyses,
+                    'pagination': paginated_data['pagination']
+                },
+                message="Historial de análisis obtenido exitosamente"
+            )
             
         except Exception as e:
-            self.log_error(f"Error obteniendo historial de análisis: {e}")
-            raise ServiceError("Error interno obteniendo historial", "history_error")
+            self.log_error(f"Error obteniendo historial: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo historial", details={"original_error": str(e)})
+            )
     
-    def get_analysis_statistics(self, user: User, date_from: str = None, 
-                               date_to: str = None) -> Dict[str, Any]:
+    def get_analysis_details(self, analysis_id: int, user: User) -> ServiceResult:
+        """
+        Obtiene detalles de un análisis específico.
+        
+        Args:
+            analysis_id: ID del análisis
+            user: Usuario
+            
+        Returns:
+            ServiceResult con detalles del análisis
+        """
+        try:
+            try:
+                prediction = CacaoPrediction.objects.select_related('image').get(
+                    id=analysis_id,
+                    image__user=user
+                )
+            except CacaoPrediction.DoesNotExist:
+                return ServiceResult.not_found_error("Análisis no encontrado")
+            
+            analysis_data = {
+                'id': prediction.id,
+                'image_id': prediction.image.id,
+                'alto_mm': prediction.alto_mm,
+                'ancho_mm': prediction.ancho_mm,
+                'grosor_mm': prediction.grosor_mm,
+                'peso_g': prediction.peso_g,
+                'average_confidence': prediction.average_confidence,
+                'processing_time_ms': prediction.processing_time_ms,
+                'created_at': prediction.created_at.isoformat(),
+                'updated_at': prediction.updated_at.isoformat(),
+                'image': {
+                    'id': prediction.image.id,
+                    'file_name': prediction.image.file_name,
+                    'file_size': prediction.image.file_size,
+                    'file_type': prediction.image.file_type,
+                    'image_url': prediction.image.image.url if prediction.image.image else None,
+                    'processed': prediction.image.processed
+                },
+                'crop_url': getattr(prediction, 'crop_url', None),
+                'debug_info': getattr(prediction, 'debug_info', {})
+            }
+            
+            return ServiceResult.success(
+                data=analysis_data,
+                message="Detalles del análisis obtenidos exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error obteniendo detalles: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo detalles", details={"original_error": str(e)})
+            )
+    
+    def delete_analysis(self, analysis_id: int, user: User) -> ServiceResult:
+        """
+        Elimina un análisis.
+        
+        Args:
+            analysis_id: ID del análisis
+            user: Usuario
+            
+        Returns:
+            ServiceResult con resultado de la eliminación
+        """
+        try:
+            try:
+                prediction = CacaoPrediction.objects.select_related('image').get(
+                    id=analysis_id,
+                    image__user=user
+                )
+            except CacaoPrediction.DoesNotExist:
+                return ServiceResult.not_found_error("Análisis no encontrado")
+            
+            # Crear log de auditoría antes de eliminar
+            self.create_audit_log(
+                user=user,
+                action="analysis_deleted",
+                resource_type="cacao_analysis",
+                resource_id=analysis_id,
+                details={
+                    'image_id': prediction.image.id,
+                    'analysis_data': {
+                        'alto_mm': prediction.alto_mm,
+                        'ancho_mm': prediction.ancho_mm,
+                        'grosor_mm': prediction.grosor_mm,
+                        'peso_g': prediction.peso_g
+                    }
+                }
+            )
+            
+            # Eliminar análisis
+            prediction.delete()
+            
+            self.log_info(f"Análisis {analysis_id} eliminado por usuario {user.username}")
+            
+            return ServiceResult.success(
+                message="Análisis eliminado exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error eliminando análisis: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno eliminando análisis", details={"original_error": str(e)})
+            )
+    
+    def get_analysis_statistics(self, user: User, filters: Dict[str, Any] = None) -> ServiceResult:
         """
         Obtiene estadísticas de análisis de un usuario.
         
         Args:
-            user: Usuario del cual obtener estadísticas
-            date_from: Fecha de inicio (opcional)
-            date_to: Fecha de fin (opcional)
+            user: Usuario
+            filters: Filtros adicionales
             
         Returns:
-            Diccionario con estadísticas
+            ServiceResult con estadísticas
         """
         try:
-            from ..models import CacaoPrediction
-            from django.db.models import Avg, Min, Max, Count, StdDev
-            
             # Construir queryset base
-            queryset = CacaoPrediction.objects.filter(user=user)
+            queryset = CacaoPrediction.objects.filter(image__user=user)
             
-            # Aplicar filtros de fecha
-            if date_from:
-                queryset = queryset.filter(created_at__gte=date_from)
-            if date_to:
-                queryset = queryset.filter(created_at__lte=date_to)
+            # Aplicar filtros
+            if filters:
+                if 'date_from' in filters:
+                    queryset = queryset.filter(created_at__gte=filters['date_from'])
+                if 'date_to' in filters:
+                    queryset = queryset.filter(created_at__lte=filters['date_to'])
             
             # Calcular estadísticas
-            stats = queryset.aggregate(
-                total_analyses=Count('id'),
-                avg_alto=Avg('alto_mm'),
-                avg_ancho=Avg('ancho_mm'),
-                avg_grosor=Avg('grosor_mm'),
-                avg_peso=Avg('peso_g'),
-                avg_confidence=Avg('average_confidence'),
-                min_confidence=Min('average_confidence'),
-                max_confidence=Max('average_confidence'),
-                avg_processing_time=Avg('processing_time_ms')
-            )
-            
-            # Calcular distribución por confianza
-            high_confidence = queryset.filter(average_confidence__gte=0.8).count()
-            medium_confidence = queryset.filter(average_confidence__gte=0.6, average_confidence__lt=0.8).count()
-            low_confidence = queryset.filter(average_confidence__lt=0.6).count()
-            
-            return {
-                'total_analyses': stats['total_analyses'] or 0,
+            stats = {
+                'total_analyses': queryset.count(),
                 'average_dimensions': {
-                    'alto_mm': round(float(stats['avg_alto'] or 0), 2),
-                    'ancho_mm': round(float(stats['avg_ancho'] or 0), 2),
-                    'grosor_mm': round(float(stats['avg_grosor'] or 0), 2),
-                    'peso_g': round(float(stats['avg_peso'] or 0), 2)
+                    'alto_mm': float(queryset.aggregate(avg=Avg('alto_mm'))['avg'] or 0),
+                    'ancho_mm': float(queryset.aggregate(avg=Avg('ancho_mm'))['avg'] or 0),
+                    'grosor_mm': float(queryset.aggregate(avg=Avg('grosor_mm'))['avg'] or 0),
+                    'peso_g': float(queryset.aggregate(avg=Avg('peso_g'))['avg'] or 0)
                 },
-                'confidence_stats': {
-                    'average': round(float(stats['avg_confidence'] or 0), 3),
-                    'minimum': round(float(stats['min_confidence'] or 0), 3),
-                    'maximum': round(float(stats['max_confidence'] or 0), 3),
-                    'distribution': {
-                        'high': high_confidence,
-                        'medium': medium_confidence,
-                        'low': low_confidence
+                'average_confidence': float(queryset.aggregate(avg=Avg('average_confidence'))['avg'] or 0),
+                'average_processing_time_ms': float(queryset.aggregate(avg=Avg('processing_time_ms'))['avg'] or 0),
+                'confidence_distribution': {
+                    'high': queryset.filter(average_confidence__gte=0.8).count(),
+                    'medium': queryset.filter(average_confidence__gte=0.6, average_confidence__lt=0.8).count(),
+                    'low': queryset.filter(average_confidence__lt=0.6).count()
+                },
+                'dimension_ranges': {
+                    'alto_mm': {
+                        'min': float(queryset.aggregate(min=Min('alto_mm'))['min'] or 0),
+                        'max': float(queryset.aggregate(max=Max('alto_mm'))['max'] or 0)
+                    },
+                    'ancho_mm': {
+                        'min': float(queryset.aggregate(min=Min('ancho_mm'))['min'] or 0),
+                        'max': float(queryset.aggregate(max=Max('ancho_mm'))['max'] or 0)
+                    },
+                    'grosor_mm': {
+                        'min': float(queryset.aggregate(min=Min('grosor_mm'))['min'] or 0),
+                        'max': float(queryset.aggregate(max=Max('grosor_mm'))['max'] or 0)
+                    },
+                    'peso_g': {
+                        'min': float(queryset.aggregate(min=Min('peso_g'))['min'] or 0),
+                        'max': float(queryset.aggregate(max=Max('peso_g'))['max'] or 0)
                     }
-                },
-                'performance_stats': {
-                    'average_processing_time_ms': round(float(stats['avg_processing_time'] or 0), 0)
                 }
             }
             
+            return ServiceResult.success(
+                data=stats,
+                message="Estadísticas obtenidas exitosamente"
+            )
+            
         except Exception as e:
-            self.log_error(f"Error obteniendo estadísticas: {e}")
-            raise ServiceError("Error interno obteniendo estadísticas", "stats_error")
+            self.log_error(f"Error obteniendo estadísticas: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo estadísticas", details={"original_error": str(e)})
+            )
     
-    def delete_analysis(self, user: User, analysis_id: int) -> bool:
+    def _validate_image_file(self, image_file: UploadedFile) -> ServiceResult:
         """
-        Elimina un análisis específico.
+        Valida un archivo de imagen.
         
         Args:
-            user: Usuario que solicita la eliminación
-            analysis_id: ID del análisis a eliminar
+            image_file: Archivo de imagen
             
         Returns:
-            True si se eliminó exitosamente
-            
-        Raises:
-            NotFoundServiceError: Si el análisis no existe
-            PermissionServiceError: Si el usuario no tiene permisos
+            ServiceResult con resultado de validación
         """
         try:
-            from ..models import CacaoPrediction
-            
-            # Obtener análisis
-            try:
-                analysis = CacaoPrediction.objects.get(id=analysis_id)
-            except CacaoPrediction.DoesNotExist:
-                raise NotFoundServiceError(f"Análisis con ID {analysis_id} no encontrado", "analysis_not_found")
-            
-            # Verificar permisos
-            if analysis.user != user and not user.is_superuser:
-                raise PermissionServiceError("No tienes permisos para eliminar este análisis", "no_permission")
-            
-            with transaction.atomic():
-                # Eliminar análisis
-                analysis.delete()
-                
-                # Crear log de auditoría
-                self.create_audit_log(
-                    user=user,
-                    action="analysis_deleted",
-                    resource_type="cacao_prediction",
-                    resource_id=analysis_id
+            # Validar tipo de archivo
+            if image_file.content_type not in self.allowed_image_types:
+                return ServiceResult.validation_error(
+                    f"Tipo de archivo no válido. Tipos permitidos: {', '.join(self.allowed_image_types)}",
+                    details={"field": "content_type", "allowed_types": self.allowed_image_types}
                 )
-                
-                self.log_info(f"Análisis eliminado: {analysis_id}", user_id=user.id)
-                
-                return True
-                
-        except (NotFoundServiceError, PermissionServiceError):
-            raise
+            
+            # Validar tamaño del archivo
+            if image_file.size > self.max_file_size:
+                return ServiceResult.validation_error(
+                    f"Archivo demasiado grande. Máximo {self.max_file_size // (1024*1024)}MB permitido",
+                    details={"field": "file_size", "max_size": self.max_file_size, "actual_size": image_file.size}
+                )
+            
+            # Validar que sea una imagen válida
+            try:
+                image_data = image_file.read()
+                image_file.seek(0)  # Resetear posición del archivo
+                Image.open(io.BytesIO(image_data))
+            except Exception as e:
+                return ServiceResult.validation_error(
+                    "Archivo de imagen inválido o corrupto",
+                    details={"field": "image_validity", "error": str(e)}
+                )
+            
+            return ServiceResult.success(message="Archivo de imagen válido")
+            
         except Exception as e:
-            self.log_error(f"Error eliminando análisis: {e}")
-            raise ServiceError("Error interno eliminando análisis", "delete_error")
+            self.log_error(f"Error validando imagen: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno validando imagen", details={"original_error": str(e)})
+            )
+    
+    def _save_uploaded_image(self, image_file: UploadedFile, user: User) -> ServiceResult:
+        """
+        Guarda una imagen subida en el sistema.
+        
+        Args:
+            image_file: Archivo de imagen
+            user: Usuario
+            
+        Returns:
+            ServiceResult con datos de la imagen guardada
+        """
+        try:
+            cacao_image = CacaoImage(
+                user=user,
+                image=image_file,
+                file_name=image_file.name,
+                file_size=image_file.size,
+                file_type=image_file.content_type,
+                processed=False
+            )
+            
+            cacao_image.save()
+            
+            self.log_info(f"Imagen guardada con ID {cacao_image.id} para usuario {user.username}")
+            
+            return ServiceResult.success(
+                data=cacao_image,
+                message="Imagen guardada exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error guardando imagen: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno guardando imagen", details={"original_error": str(e)})
+            )
+    
+    def _save_prediction(self, cacao_image: CacaoImage, result: Dict[str, Any], processing_time_ms: int) -> ServiceResult:
+        """
+        Guarda una predicción en la base de datos.
+        
+        Args:
+            cacao_image: Imagen de cacao
+            result: Resultado de la predicción
+            processing_time_ms: Tiempo de procesamiento en milisegundos
+            
+        Returns:
+            ServiceResult con datos de la predicción guardada
+        """
+        try:
+            # Calcular confianza promedio
+            confidences = result['confidences']
+            avg_confidence = sum(confidences.values()) / len(confidences)
+            
+            prediction = CacaoPrediction(
+                image=cacao_image,
+                alto_mm=result['alto_mm'],
+                ancho_mm=result['ancho_mm'],
+                grosor_mm=result['grosor_mm'],
+                peso_g=result['peso_g'],
+                average_confidence=avg_confidence,
+                processing_time_ms=processing_time_ms,
+                crop_url=result.get('crop_url', ''),
+                debug_info=result.get('debug', {})
+            )
+            
+            prediction.save()
+            
+            # Marcar imagen como procesada
+            cacao_image.processed = True
+            cacao_image.save()
+            
+            self.log_info(f"Predicción guardada con ID {prediction.id}")
+            
+            return ServiceResult.success(
+                data=prediction,
+                message="Predicción guardada exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error guardando predicción: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno guardando predicción", details={"original_error": str(e)})
+            )
+    
+    def _get_predictor(self) -> ServiceResult:
+        """
+        Obtiene el predictor de modelos.
+        
+        Returns:
+            ServiceResult con predictor
+        """
+        try:
+            predictor = get_predictor()
+            
+            if not predictor.models_loaded:
+                # Intentar cargar modelos automáticamente
+                self.log_info("Modelos no cargados. Intentando carga automática...")
+                success = load_artifacts()
+                
+                if not success:
+                    return ServiceResult.error(
+                        ValidationServiceError(
+                            "Modelos no disponibles. Ejecutar inicialización automática primero.",
+                            details={"suggestion": "POST /api/v1/auto-initialize/ para inicializar el sistema"}
+                        )
+                    )
+                
+                # Reintentar obtener predictor
+                predictor = get_predictor()
+                
+                if not predictor.models_loaded:
+                    return ServiceResult.error(
+                        ValidationServiceError("Error cargando modelos después de intento automático.")
+                    )
+            
+            return ServiceResult.success(
+                data=predictor,
+                message="Predictor obtenido exitosamente"
+            )
+            
+        except Exception as e:
+            self.log_error(f"Error obteniendo predictor: {str(e)}")
+            return ServiceResult.error(
+                ValidationServiceError("Error interno obteniendo predictor", details={"original_error": str(e)})
+            )
