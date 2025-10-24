@@ -81,4 +81,9 @@ urlpatterns = [
     path('notifications/unread-count/', views.NotificationUnreadCountView.as_view(), name='notifications-unread-count'),
     path('notifications/stats/', views.NotificationStatsView.as_view(), name='notifications-stats'),
     path('notifications/create/', views.NotificationCreateView.as_view(), name='notification-create'),
+    
+    # Endpoints de auditoría (solo administradores)
+    path('audit/activity-logs/', views.ActivityLogListView.as_view(), name='activity-logs-list'),
+    path('audit/login-history/', views.LoginHistoryListView.as_view(), name='login-history-list'),
+    path('audit/stats/', views.AuditStatsView.as_view(), name='audit-stats'),
 ]
