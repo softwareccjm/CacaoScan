@@ -33,7 +33,9 @@ from .serializers import (
     RegisterSerializer,
     UserSerializer,
     EmailVerificationSerializer,
-    ResendVerificationSerializer
+    ResendVerificationSerializer,
+    CacaoImageSerializer,
+    CacaoImageDetailSerializer
 )
 from .utils import create_error_response, create_success_response
 from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPrediction
@@ -1533,6 +1535,181 @@ class ResetPasswordView(APIView):
         # Eliminar token usado
         token_obj.delete()
         
-        return create_success_response(
-            message='Contraseña restablecida exitosamente'
-        )
+         return create_success_response(
+             message='Contraseña restablecida exitosamente'
+         )
+
+
+# Vistas de gestión de usuarios (Admin)
+class UserListView(APIView):
+    """
+    Endpoint para listar usuarios con filtros y paginación (Admin only).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Obtiene la lista de usuarios con filtros y paginación (solo admins)",
+        operation_summary="Lista de usuarios",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página (máximo 100)", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('role', openapi.IN_QUERY, description="Filtrar por rol (admin, analyst, farmer)", type=openapi.TYPE_STRING),
+            openapi.Parameter('is_active', openapi.IN_QUERY, description="Filtrar por estado activo", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('is_verified', openapi.IN_QUERY, description="Filtrar por estado de verificación", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('search', openapi.IN_QUERY, description="Buscar en username, email, nombre", type=openapi.TYPE_STRING),
+            openapi.Parameter('date_from', openapi.IN_QUERY, description="Fecha de registro desde (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+            openapi.Parameter('date_to', openapi.IN_QUERY, description="Fecha de registro hasta (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Lista de usuarios obtenida exitosamente",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'results': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)),
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'page': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'page_size': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'total_pages': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'next': openapi.Schema(type=openapi.TYPE_STRING),
+                        'previous': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            ),
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+        tags=['Usuarios']
+    )
+    def get(self, request):
+        """
+        Obtiene la lista de usuarios con filtros y paginación.
+        Solo accesible para administradores.
+        """
+        try:
+            # Verificar permisos de administrador
+            if not self._is_admin_user(request.user):
+                return Response({
+                    'error': 'No tienes permisos para acceder a esta funcionalidad',
+                    'status': 'error'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Obtener parámetros de consulta
+            page = int(request.GET.get('page', 1))
+            page_size = min(int(request.GET.get('page_size', 20)), 100)  # Máximo 100 por página
+            role = request.GET.get('role')
+            is_active = request.GET.get('is_active')
+            is_verified = request.GET.get('is_verified')
+            search = request.GET.get('search')
+            date_from = request.GET.get('date_from')
+            date_to = request.GET.get('date_to')
+            
+            # Construir queryset base
+            queryset = User.objects.all().select_related('profile').prefetch_related('groups')
+            
+            # Aplicar filtros
+            if role:
+                if role == 'admin':
+                    queryset = queryset.filter(Q(is_superuser=True) | Q(is_staff=True))
+                elif role == 'analyst':
+                    queryset = queryset.filter(groups__name='analyst')
+                elif role == 'farmer':
+                    queryset = queryset.filter(
+                        ~Q(is_superuser=True),
+                        ~Q(is_staff=True),
+                        ~Q(groups__name='analyst')
+                    )
+            
+            if is_active is not None:
+                active_bool = is_active.lower() in ['true', '1', 'yes']
+                queryset = queryset.filter(is_active=active_bool)
+            
+            if is_verified is not None:
+                verified_bool = is_verified.lower() in ['true', '1', 'yes']
+                if verified_bool:
+                    queryset = queryset.filter(email_verification_token__is_verified=True)
+                else:
+                    queryset = queryset.filter(
+                        Q(email_verification_token__is_verified=False) | 
+                        Q(email_verification_token__isnull=True)
+                    )
+            
+            if search:
+                queryset = queryset.filter(
+                    Q(username__icontains=search) |
+                    Q(email__icontains=search) |
+                    Q(first_name__icontains=search) |
+                    Q(last_name__icontains=search)
+                )
+            
+            if date_from:
+                queryset = queryset.filter(date_joined__date__gte=date_from)
+            
+            if date_to:
+                queryset = queryset.filter(date_joined__date__lte=date_to)
+            
+            # Ordenar por fecha de registro (más recientes primero)
+            queryset = queryset.order_by('-date_joined')
+            
+            # Paginación
+            paginator = Paginator(queryset, page_size)
+            total_pages = paginator.num_pages
+            
+            # Validar página
+            if page > total_pages and total_pages > 0:
+                return Response({
+                    'error': f'Página {page} no existe. Total de páginas: {total_pages}',
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            page_obj = paginator.get_page(page)
+            
+            # Serializar resultados
+            serializer = UserSerializer(page_obj.object_list, many=True)
+            
+            # Preparar respuesta
+            response_data = {
+                'results': serializer.data,
+                'count': paginator.count,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': total_pages,
+                'next': None,
+                'previous': None
+            }
+            
+            # URLs de paginación
+            if page_obj.has_next():
+                response_data['next'] = f"{request.build_absolute_uri()}?page={page + 1}&page_size={page_size}"
+            
+            if page_obj.has_previous():
+                response_data['previous'] = f"{request.build_absolute_uri()}?page={page - 1}&page_size={page_size}"
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except ValueError as e:
+            return Response({
+                'error': 'Parámetros de consulta inválidos',
+                'status': 'error',
+                'details': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo lista de usuarios: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _is_admin_user(self, user):
+        """
+        Verificar si el usuario es administrador.
+        
+        Args:
+            user: Usuario autenticado
+            
+        Returns:
+            bool: True si es admin, False en caso contrario
+        """
+        return user.is_superuser or user.is_staff
