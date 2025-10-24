@@ -668,34 +668,14 @@
       <div v-if="activeSection === 'history'" class="dashboard-section">
         <div class="section-header">
           <h1>Historial de Análisis</h1>
-          <p>Revisa todos tus análisis anteriores</p>
+          <p>Revisa todos tus análisis de granos de cacao</p>
         </div>
         
-        <div class="history-filters">
-          <div class="filter-group">
-            <label>Filtrar por fecha:</label>
-            <select v-model="historyFilter.dateRange">
-              <option value="all">Todas las fechas</option>
-              <option value="week">Última semana</option>
-              <option value="month">Último mes</option>
-              <option value="quarter">Último trimestre</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label>Filtrar por calidad:</label>
-            <select v-model="historyFilter.quality">
-              <option value="all">Todas las calidades</option>
-              <option value="excellent">Excelente (90%+)</option>
-              <option value="good">Buena (80-89%)</option>
-              <option value="fair">Regular (70-79%)</option>
-              <option value="poor">Baja (<70%)</option>
-            </select>
-          </div>
-        </div>
-        
-        <RecentAnalyses 
-          :analyses="filteredAnalyses" 
-          @view-details="viewAnalysisDetails" 
+        <ImageHistoryCard 
+          :initial-images="recentAnalyses"
+          :auto-load="true"
+          @image-selected="handleImageSelected"
+          @refresh-requested="refreshData"
         />
       </div>
 
@@ -760,11 +740,13 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useImageStats } from '@/composables/useImageStats'
+import ImageHistoryCard from '@/components/dashboard/ImageHistoryCard.vue'
 
 export default {
   name: 'AgricultorDashboard',
   components: {
-    AgricultorSidebar
+    AgricultorSidebar,
+    ImageHistoryCard
   },
   setup() {
     const authStore = useAuthStore();
@@ -846,6 +828,12 @@ export default {
         fetchStats(),
         loadRecentAnalyses()
       ]);
+    }
+    
+    // Función para manejar selección de imagen
+    function handleImageSelected(image) {
+      console.log('Imagen seleccionada:', image);
+      // Aquí se puede agregar lógica adicional si es necesario
     }
     
     // Computed para estadísticas formateadas
@@ -1182,7 +1170,8 @@ export default {
       goBack,
       handleGenerateReport,
       refreshData,
-      loadRecentAnalyses
+      loadRecentAnalyses,
+      handleImageSelected
     };
   },
   mounted() {
