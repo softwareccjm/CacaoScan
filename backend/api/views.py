@@ -19,12 +19,17 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q, Count, Avg, Min, Max, Sum
 
+# Importar vistas refactorizadas
+from .refactored_views import (
+    LoginView, RegisterView, LogoutView, UserProfileView, RefreshTokenView,
+    EmailVerificationView, ResendVerificationView, ForgotPasswordView, 
+    ResetPasswordView, ScanMeasureView
+)
+
 # Importar vistas de calibración
 from .calibration_views import CalibrationStatusView, CalibrationView, CalibratedScanMeasureView
-
 # Importar vistas de emails
 from .email_views import EmailStatusView, SendTestEmailView, SendBulkNotificationView, EmailTemplatePreviewView, EmailLogsView
-from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse
 from PIL import Image
@@ -852,25 +857,47 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         
         if serializer.is_valid():
-            user = serializer.validated_data['user']
-            
-            # Generar tokens JWT
-            refresh = RefreshToken.for_user(user)
-            access_token = refresh.access_token
-            
-            # Login en la sesión
-            login(request, user)
-            
-            return create_success_response(
-                message='Login exitoso',
-                data={
-                    'access': str(access_token),
-                    'refresh': str(refresh),
-                    'user': UserSerializer(user).data,
-                    'access_expires_at': access_token['exp'],
-                    'refresh_expires_at': refresh['exp']
-                }
-            )
+            try:
+                from .services import auth_service
+                
+                # Usar servicio de autenticación
+                user, tokens = auth_service().authenticate_user(
+                    username_or_email=serializer.validated_data['username'],
+                    password=serializer.validated_data['password']
+                )
+                
+                # Login en la sesión
+                login(request, user)
+                
+                return create_success_response(
+                    message='Login exitoso',
+                    data={
+                        **tokens,
+                        'user': UserSerializer(user).data
+                    }
+                )
+                
+            except ValidationServiceError as e:
+                return create_error_response(
+                    message=e.message,
+                    error_type=e.error_code or 'invalid_credentials',
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    details=e.details
+                )
+            except PermissionServiceError as e:
+                return create_error_response(
+                    message=e.message,
+                    error_type=e.error_code or 'account_disabled',
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    details=e.details
+                )
+            except ServiceError as e:
+                return create_error_response(
+                    message='Error interno en autenticación',
+                    error_type=e.error_code or 'authentication_error',
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    details=e.details
+                )
         
         return create_error_response(
             message='Credenciales inválidas',
@@ -921,56 +948,42 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=data)
         
         if serializer.is_valid():
-            print("✅ DEBUG RegisterView - Serializer válido")
-            user = serializer.save()
-            print(f"✅ DEBUG RegisterView - Usuario creado: {user.username} ({user.email})")
-            
-            # Crear token de verificación de email
-            verification_token = EmailVerificationToken.create_for_user(user)
-            print(f"✅ DEBUG RegisterView - Token de verificación creado: {verification_token.token}")
-            
-            # Enviar email de bienvenida
             try:
-                from .email_service import send_email_notification
-                email_context = {
-                    'user_name': user.get_full_name() or user.username,
-                    'user_email': user.email,
-                    'verification_token': str(verification_token.token),
-                    'verification_url': f"{request.build_absolute_uri('/')}auth/verify-email/?token={verification_token.token}"
-                }
-                email_result = send_email_notification(
-                    user_email=user.email,
-                    notification_type='welcome',
-                    context=email_context
+                from .services import auth_service
+                
+                # Usar servicio de registro
+                user, tokens = auth_service().register_user(data)
+                
+                # Login en la sesión
+                login(request, user)
+                
+                print(f"✅ DEBUG RegisterView - Usuario registrado: {user.username} ({user.email})")
+                
+                return create_success_response(
+                    message='Usuario registrado exitosamente',
+                    data={
+                        **tokens,
+                        'user': UserSerializer(user).data
+                    },
+                    status_code=status.HTTP_201_CREATED
                 )
-                if email_result['success']:
-                    print(f"✅ DEBUG RegisterView - Email de bienvenida enviado a {user.email}")
-                else:
-                    print(f"⚠️ DEBUG RegisterView - Error enviando email de bienvenida: {email_result.get('error')}")
-            except Exception as e:
-                print(f"⚠️ DEBUG RegisterView - Error en envío de email: {e}")
-            
-            # Generar tokens JWT automáticamente para auto-login
-            refresh = RefreshToken.for_user(user)
-            access_token = refresh.access_token
-            print(f"✅ DEBUG RegisterView - Tokens JWT creados")
-            
-            # Login en la sesión
-            login(request, user)
-            
-            return create_success_response(
-                message='Usuario registrado exitosamente',
-                data={
-                    'access': str(access_token),
-                    'refresh': str(refresh),
-                    'user': UserSerializer(user).data,
-                    'verification_token': str(verification_token.token),  # Solo para desarrollo
-                    'verification_required': True,
-                    'access_expires_at': access_token['exp'],
-                    'refresh_expires_at': refresh['exp']
-                },
-                status_code=status.HTTP_201_CREATED
-            )
+                
+            except ValidationServiceError as e:
+                print(f"❌ DEBUG RegisterView - Error de validación: {e.message}")
+                return create_error_response(
+                    message=e.message,
+                    error_type=e.error_code or 'validation_error',
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    details=e.details
+                )
+            except ServiceError as e:
+                print(f"❌ DEBUG RegisterView - Error de servicio: {e.message}")
+                return create_error_response(
+                    message='Error interno en registro',
+                    error_type=e.error_code or 'registration_error',
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    details=e.details
+                )
         
         print(f"❌ DEBUG RegisterView - Errores de validación: {serializer.errors}")
         return create_error_response(
