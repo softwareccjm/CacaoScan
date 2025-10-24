@@ -14,7 +14,7 @@ from typing import Dict, List, Any
 
 from .services import analysis_service
 from .utils import create_error_response, create_success_response
-from ..models import TrainingJob, CacaoPrediction, CacaoImage
+from .models import TrainingJob, CacaoPrediction, CacaoImage
 
 logger = logging.getLogger("cacaoscan.api")
 

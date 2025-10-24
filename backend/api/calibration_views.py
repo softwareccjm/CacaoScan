@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..serializers import ErrorResponseSerializer
+from .serializers import ErrorResponseSerializer
 
 logger = logging.getLogger("cacaoscan.api")
 

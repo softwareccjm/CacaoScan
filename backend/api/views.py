@@ -23,7 +23,7 @@ from django.db.models import Q, Count, Avg, Min, Max, Sum
 from .calibration_views import CalibrationStatusView, CalibrationView, CalibratedScanMeasureView
 
 # Importar vistas de emails
-from .email_views import EmailStatusView, SendTestEmailView, SendBulkNotificationView, EmailTemplatePreviewView, EmailLogsView
+# from .email_views import EmailStatusView, SendTestEmailView, SendBulkNotificationView, EmailTemplatePreviewView, EmailLogsView
 
 # Importar vistas de entrenamiento incremental
 from .incremental_views import (
@@ -32,6 +32,20 @@ from .incremental_views import (
     IncrementalDataUploadView,
     IncrementalModelVersionsView,
     IncrementalDataVersionsView
+)
+
+# Importar vistas de métricas de modelos
+from .model_metrics_views import (
+    ModelMetricsListView,
+    ModelMetricsDetailView,
+    ModelMetricsCreateView,
+    ModelMetricsUpdateView,
+    ModelMetricsDeleteView,
+    ModelMetricsStatsView,
+    ModelPerformanceTrendView,
+    ModelComparisonView,
+    BestModelsView,
+    ProductionModelsView
 )
 from django.core.paginator import Paginator
 from django.utils import timezone
