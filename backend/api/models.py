@@ -188,3 +188,59 @@ class UserProfile(models.Model):
             return self.user.email_verification_token.is_verified
         except:
             return False
+
+
+class CacaoImage(models.Model):
+    """
+    Modelo para almacenar imágenes de granos de cacao procesadas.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cacao_images')
+    
+    # Archivo de imagen
+    image = models.ImageField(upload_to='cacao_images/processed/%Y/%m/%d/')
+    
+    # Metadatos de procesamiento
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    processed = models.BooleanField(default=False)
+    
+    # Metadatos del grano/finca
+    finca = models.CharField(max_length=200, blank=True, null=True)
+    region = models.CharField(max_length=100, blank=True, null=True)
+    lote_id = models.CharField(max_length=50, blank=True, null=True)
+    variedad = models.CharField(max_length=100, blank=True, null=True)
+    fecha_cosecha = models.DateField(blank=True, null=True)
+    notas = models.TextField(blank=True, null=True)
+    
+    # Información técnica del archivo
+    file_name = models.CharField(max_length=255, blank=True, null=True)
+    file_size = models.PositiveIntegerField(blank=True, null=True)
+    file_type = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Imagen de Cacao'
+        verbose_name_plural = 'Imágenes de Cacao'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['processed']),
+            models.Index(fields=['region', 'finca']),
+        ]
+    
+    def __str__(self):
+        return f"Imagen {self.id} - {self.user.username} ({self.uploaded_at.strftime('%Y-%m-%d')})"
+    
+    @property
+    def file_size_mb(self):
+        """Obtener tamaño del archivo en MB."""
+        if self.file_size:
+            return round(self.file_size / (1024 * 1024), 2)
+        return None
+    
+    @property
+    def has_prediction(self):
+        """Verificar si tiene predicción asociada."""
+        return hasattr(self, 'prediction') and self.prediction is not None
