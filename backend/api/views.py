@@ -45,6 +45,7 @@ from .serializers import (
 )
 from .utils import create_error_response, create_success_response
 from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification, ActivityLog, LoginHistory, ReporteGenerado
+from django.db.models import Prefetch
 from .fincas_views import (
     FincaListCreateView,
     FincaDetailView,
