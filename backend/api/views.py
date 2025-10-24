@@ -2917,6 +2917,129 @@ class AdminImageDetailView(APIView):
         return user.is_superuser or user.is_staff
 
 
+class AdminImageUpdateView(APIView):
+    """
+    Endpoint para actualizar cualquier imagen del sistema (Admin only).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Actualiza cualquier imagen del sistema (solo admins)",
+        operation_summary="Actualizar imagen global",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'finca': openapi.Schema(type=openapi.TYPE_STRING),
+                'region': openapi.Schema(type=openapi.TYPE_STRING),
+                'lote_id': openapi.Schema(type=openapi.TYPE_STRING),
+                'variedad': openapi.Schema(type=openapi.TYPE_STRING),
+                'fecha_cosecha': openapi.Schema(type=openapi.TYPE_STRING, format='date'),
+                'notas': openapi.Schema(type=openapi.TYPE_STRING),
+                'processed': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'admin_notes': openapi.Schema(type=openapi.TYPE_STRING, description="Notas administrativas")
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Imagen actualizada exitosamente",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT)
+            ),
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+        tags=['Admin Dataset']
+    )
+    def patch(self, request, image_id):
+        """
+        Actualiza cualquier imagen del sistema.
+        Solo accesible para administradores.
+        """
+        try:
+            # Verificar permisos de administrador
+            if not self._is_admin_user(request.user):
+                return Response({
+                    'error': 'No tienes permisos para acceder a esta funcionalidad',
+                    'status': 'error'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Obtener imagen
+            try:
+                image = CacaoImage.objects.get(id=image_id)
+            except CacaoImage.DoesNotExist:
+                return Response({
+                    'error': 'Imagen no encontrada',
+                    'status': 'error'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Actualizar campos permitidos (incluyendo campos administrativos)
+            allowed_fields = ['finca', 'region', 'lote_id', 'variedad', 'fecha_cosecha', 'notas', 'processed']
+            updated_fields = []
+            
+            for field in allowed_fields:
+                if field in request.data:
+                    setattr(image, field, request.data[field])
+                    updated_fields.append(field)
+            
+            # Validar fecha_cosecha si se proporciona
+            if 'fecha_cosecha' in request.data and request.data['fecha_cosecha']:
+                try:
+                    from datetime import datetime
+                    fecha_cosecha = datetime.strptime(request.data['fecha_cosecha'], '%Y-%m-%d').date()
+                    image.fecha_cosecha = fecha_cosecha
+                except ValueError:
+                    return Response({
+                        'error': 'Formato de fecha inválido. Use YYYY-MM-DD',
+                        'status': 'error'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Agregar notas administrativas si se proporcionan
+            admin_notes = request.data.get('admin_notes')
+            if admin_notes:
+                # Agregar timestamp y admin info a las notas administrativas
+                admin_entry = f"\n[ADMIN {request.user.username} - {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}]: {admin_notes}"
+                if image.notas:
+                    image.notas += admin_entry
+                else:
+                    image.notas = admin_entry.strip()
+                updated_fields.append('admin_notes')
+            
+            # Guardar cambios
+            image.save()
+            
+            # Serializar imagen actualizada
+            serializer = CacaoImageDetailSerializer(image, context={'request': request})
+            
+            logger.info(f"Imagen {image_id} actualizada por admin {request.user.username}. Campos: {updated_fields}")
+            
+            return Response({
+                'message': 'Imagen actualizada exitosamente por administrador',
+                'updated_fields': updated_fields,
+                'updated_by': request.user.username,
+                'update_timestamp': timezone.now().isoformat(),
+                'image': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error actualizando imagen {image_id} por admin: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _is_admin_user(self, user):
+        """
+        Verificar si el usuario es administrador.
+        
+        Args:
+            user: Usuario autenticado
+            
+        Returns:
+            bool: True si es admin, False en caso contrario
+        """
+        return user.is_superuser or user.is_staff
+
+
 class UserDetailView(APIView):
     """
     Endpoint para obtener detalles de un usuario específico (Admin only).
