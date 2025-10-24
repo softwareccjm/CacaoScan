@@ -2292,6 +2292,136 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class ImageDownloadView(APIView, ImagePermissionMixin):
+    """
+    Endpoint para descargar imágenes originales o procesadas.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Descarga una imagen original o procesada",
+        operation_summary="Descargar imagen",
+        manual_parameters=[
+            openapi.Parameter('type', openapi.IN_QUERY, description="Tipo de imagen: 'original' o 'processed'", type=openapi.TYPE_STRING),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Archivo de imagen descargado",
+                schema=openapi.Schema(type=openapi.TYPE_FILE)
+            ),
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+        tags=['Imágenes']
+    )
+    def get(self, request, image_id):
+        """
+        Descarga una imagen original o procesada.
+        Solo el propietario o un admin pueden descargar.
+        """
+        try:
+            # Obtener imagen
+            try:
+                image = CacaoImage.objects.get(id=image_id)
+            except CacaoImage.DoesNotExist:
+                return Response({
+                    'error': 'Imagen no encontrada',
+                    'status': 'error'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Verificar permisos de acceso
+            if not self.can_access_image(request.user, image):
+                return Response({
+                    'error': 'No tienes permisos para descargar esta imagen',
+                    'status': 'error'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Obtener tipo de descarga
+            download_type = request.GET.get('type', 'original').lower()
+            
+            if download_type == 'original':
+                # Descargar imagen original
+                if not image.image:
+                    return Response({
+                        'error': 'Imagen original no disponible',
+                        'status': 'error'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                file_path = image.image.path
+                file_name = image.file_name or f"image_{image_id}.jpg"
+                
+            elif download_type == 'processed':
+                # Descargar imagen procesada (crop)
+                if not hasattr(image, 'prediction') or not image.prediction:
+                    return Response({
+                        'error': 'No hay imagen procesada disponible para esta imagen',
+                        'status': 'error'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                crop_url = image.prediction.crop_url
+                if not crop_url:
+                    return Response({
+                        'error': 'URL de imagen procesada no disponible',
+                        'status': 'error'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                # Para imágenes procesadas, redirigir a la URL del crop
+                from django.http import HttpResponseRedirect
+                return HttpResponseRedirect(crop_url)
+                
+            else:
+                return Response({
+                    'error': 'Tipo de descarga inválido. Use "original" o "processed"',
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verificar que el archivo existe
+            import os
+            if not os.path.exists(file_path):
+                return Response({
+                    'error': 'Archivo de imagen no encontrado en el servidor',
+                    'status': 'error'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Preparar respuesta de descarga
+            from django.http import FileResponse
+            from django.utils.encoding import escape_uri_path
+            
+            # Determinar content type
+            if file_name.lower().endswith('.png'):
+                content_type = 'image/png'
+            elif file_name.lower().endswith('.jpg') or file_name.lower().endswith('.jpeg'):
+                content_type = 'image/jpeg'
+            elif file_name.lower().endswith('.bmp'):
+                content_type = 'image/bmp'
+            else:
+                content_type = 'application/octet-stream'
+            
+            # Crear respuesta de archivo
+            response = FileResponse(
+                open(file_path, 'rb'),
+                content_type=content_type,
+                as_attachment=True,
+                filename=escape_uri_path(file_name)
+            )
+            
+            # Agregar headers adicionales
+            response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(file_name)}"'
+            response['Content-Length'] = os.path.getsize(file_path)
+            
+            logger.info(f"Imagen {image_id} ({download_type}) descargada por usuario {request.user.username}")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error descargando imagen {image_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class UserDetailView(APIView):
     """
     Endpoint para obtener detalles de un usuario específico (Admin only).
