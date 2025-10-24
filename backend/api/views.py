@@ -37,10 +37,29 @@ from .serializers import (
     EmailVerificationSerializer,
     ResendVerificationSerializer,
     CacaoImageSerializer,
-    CacaoImageDetailSerializer
+    CacaoImageDetailSerializer,
+    FincaSerializer,
+    FincaListSerializer,
+    FincaDetailSerializer,
+    FincaStatsSerializer
 )
 from .utils import create_error_response, create_success_response
-from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPrediction, TrainingJob
+from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote
+from .fincas_views import (
+    FincaListCreateView,
+    FincaDetailView,
+    FincaUpdateView,
+    FincaDeleteView,
+    FincaStatsView
+)
+from .lotes_views import (
+    LoteListCreateView,
+    LoteDetailView,
+    LoteUpdateView,
+    LoteDeleteView,
+    LoteStatsView,
+    LotesPorFincaView
+)
 
 
 logger = logging.getLogger("cacaoscan.api")

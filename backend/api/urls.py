@@ -57,4 +57,19 @@ urlpatterns = [
     path('train/jobs/', views.TrainingJobListView.as_view(), name='training-jobs-list'),
     path('train/jobs/create/', views.TrainingJobCreateView.as_view(), name='training-job-create'),
     path('train/jobs/<str:job_id>/status/', views.TrainingJobStatusView.as_view(), name='training-job-status'),
+    
+    # Endpoints de gestión de fincas
+    path('fincas/', views.FincaListCreateView.as_view(), name='fincas-list-create'),
+    path('fincas/<int:finca_id>/', views.FincaDetailView.as_view(), name='finca-detail'),
+    path('fincas/<int:finca_id>/update/', views.FincaUpdateView.as_view(), name='finca-update'),
+    path('fincas/<int:finca_id>/delete/', views.FincaDeleteView.as_view(), name='finca-delete'),
+    path('fincas/<int:finca_id>/stats/', views.FincaStatsView.as_view(), name='finca-stats'),
+    
+    # Endpoints de gestión de lotes
+    path('lotes/', views.LoteListCreateView.as_view(), name='lotes-list-create'),
+    path('lotes/<int:lote_id>/', views.LoteDetailView.as_view(), name='lote-detail'),
+    path('lotes/<int:lote_id>/update/', views.LoteUpdateView.as_view(), name='lote-update'),
+    path('lotes/<int:lote_id>/delete/', views.LoteDeleteView.as_view(), name='lote-delete'),
+    path('lotes/<int:lote_id>/stats/', views.LoteStatsView.as_view(), name='lote-stats'),
+    path('fincas/<int:finca_id>/lotes/', views.LotesPorFincaView.as_view(), name='lotes-por-finca'),
 ]

@@ -1,0 +1,418 @@
+"""
+Vistas para gestión de fincas en CacaoScan.
+"""
+import logging
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.paginator import Paginator
+from django.db.models import Q
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+from .models import Finca
+from .serializers import (
+    FincaSerializer,
+    FincaListSerializer,
+    FincaDetailSerializer,
+    FincaStatsSerializer,
+    ErrorResponseSerializer
+)
+
+logger = logging.getLogger("cacaoscan.api")
+
+
+class FincaPermissionMixin:
+    """
+    Mixin para permisos de fincas.
+    Los agricultores solo pueden ver/editar sus propias fincas.
+    Los administradores pueden ver/editar todas las fincas.
+    """
+    
+    def get_queryset(self):
+        """Obtener queryset filtrado por permisos."""
+        user = self.request.user
+        
+        if user.is_superuser or user.is_staff:
+            # Admin puede ver todas las fincas
+            return Finca.objects.all().select_related('agricultor')
+        else:
+            # Agricultor solo ve sus fincas
+            return Finca.objects.filter(agricultor=user).select_related('agricultor')
+    
+    def perform_create(self, serializer):
+        """Asignar automáticamente el agricultor al crear finca."""
+        serializer.save(agricultor=self.request.user)
+
+
+class FincaListCreateView(FincaPermissionMixin, APIView):
+    """
+    Vista para listar y crear fincas.
+    GET: Lista fincas del usuario (o todas si es admin)
+    POST: Crea nueva finca
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Lista todas las fincas del usuario autenticado",
+        operation_summary="Listar fincas",
+        manual_parameters=[
+            openapi.Parameter('search', openapi.IN_QUERY, description="Búsqueda por nombre", type=openapi.TYPE_STRING),
+            openapi.Parameter('municipio', openapi.IN_QUERY, description="Filtrar por municipio", type=openapi.TYPE_STRING),
+            openapi.Parameter('departamento', openapi.IN_QUERY, description="Filtrar por departamento", type=openapi.TYPE_STRING),
+            openapi.Parameter('activa', openapi.IN_QUERY, description="Filtrar por estado activo", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página", type=openapi.TYPE_INTEGER),
+        ],
+        responses={
+            200: openapi.Response(description="Lista de fincas obtenida exitosamente"),
+            401: ErrorResponseSerializer,
+        },
+        tags=['Fincas']
+    )
+    def get(self, request):
+        """Listar fincas con filtros."""
+        try:
+            queryset = self.get_queryset()
+            
+            # Aplicar filtros
+            search = request.GET.get('search', '').strip()
+            if search:
+                queryset = queryset.filter(
+                    Q(nombre__icontains=search) |
+                    Q(municipio__icontains=search) |
+                    Q(departamento__icontains=search)
+                )
+            
+            municipio = request.GET.get('municipio', '').strip()
+            if municipio:
+                queryset = queryset.filter(municipio__icontains=municipio)
+            
+            departamento = request.GET.get('departamento', '').strip()
+            if departamento:
+                queryset = queryset.filter(departamento__icontains=departamento)
+            
+            activa = request.GET.get('activa')
+            if activa is not None:
+                activa_bool = activa.lower() in ['true', '1', 'yes']
+                queryset = queryset.filter(activa=activa_bool)
+            
+            # Paginación
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            
+            paginator = Paginator(queryset, page_size)
+            page_obj = paginator.get_page(page)
+            
+            # Serializar datos
+            serializer = FincaListSerializer(page_obj.object_list, many=True)
+            
+            return Response({
+                'results': serializer.data,
+                'count': paginator.count,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': paginator.num_pages,
+                'next': page_obj.next_page_number() if page_obj.has_next() else None,
+                'previous': page_obj.previous_page_number() if page_obj.has_previous() else None,
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error listando fincas para usuario {request.user.username}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @swagger_auto_schema(
+        operation_description="Crea una nueva finca para el usuario autenticado",
+        operation_summary="Crear finca",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'nombre': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de la finca"),
+                'ubicacion': openapi.Schema(type=openapi.TYPE_STRING, description="Ubicación de la finca"),
+                'municipio': openapi.Schema(type=openapi.TYPE_STRING, description="Municipio"),
+                'departamento': openapi.Schema(type=openapi.TYPE_STRING, description="Departamento"),
+                'hectareas': openapi.Schema(type=openapi.TYPE_NUMBER, description="Hectáreas de la finca"),
+                'descripcion': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción adicional"),
+                'coordenadas_lat': openapi.Schema(type=openapi.TYPE_NUMBER, description="Latitud GPS"),
+                'coordenadas_lng': openapi.Schema(type=openapi.TYPE_NUMBER, description="Longitud GPS"),
+            },
+            required=['nombre', 'ubicacion', 'municipio', 'departamento', 'hectareas']
+        ),
+        responses={
+            201: openapi.Response(description="Finca creada exitosamente"),
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
+        tags=['Fincas']
+    )
+    def post(self, request):
+        """Crear nueva finca."""
+        try:
+            serializer = FincaSerializer(data=request.data, context={'request': request})
+            
+            if serializer.is_valid():
+                finca = serializer.save(agricultor=request.user)
+                
+                logger.info(f"Finca '{finca.nombre}' creada por usuario {request.user.username}")
+                
+                # Devolver datos completos
+                response_serializer = FincaSerializer(finca, context={'request': request})
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    'error': 'Datos de entrada inválidos',
+                    'details': serializer.errors,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            logger.error(f"Error creando finca para usuario {request.user.username}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FincaDetailView(FincaPermissionMixin, APIView):
+    """
+    Vista para obtener detalles de una finca específica.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Obtiene los detalles de una finca específica",
+        operation_summary="Detalles de finca",
+        responses={
+            200: openapi.Response(description="Detalles de finca obtenidos exitosamente"),
+            404: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
+        tags=['Fincas']
+    )
+    def get(self, request, finca_id):
+        """Obtener detalles de finca."""
+        try:
+            queryset = self.get_queryset()
+            finca = queryset.get(id=finca_id)
+            
+            serializer = FincaDetailSerializer(finca, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except Finca.DoesNotExist:
+            return Response({
+                'error': 'Finca no encontrada',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error obteniendo detalles de finca {finca_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FincaUpdateView(FincaPermissionMixin, APIView):
+    """
+    Vista para actualizar una finca específica.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Actualiza una finca específica",
+        operation_summary="Actualizar finca",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'nombre': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de la finca"),
+                'ubicacion': openapi.Schema(type=openapi.TYPE_STRING, description="Ubicación de la finca"),
+                'municipio': openapi.Schema(type=openapi.TYPE_STRING, description="Municipio"),
+                'departamento': openapi.Schema(type=openapi.TYPE_STRING, description="Departamento"),
+                'hectareas': openapi.Schema(type=openapi.TYPE_NUMBER, description="Hectáreas de la finca"),
+                'descripcion': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción adicional"),
+                'coordenadas_lat': openapi.Schema(type=openapi.TYPE_NUMBER, description="Latitud GPS"),
+                'coordenadas_lng': openapi.Schema(type=openapi.TYPE_NUMBER, description="Longitud GPS"),
+                'activa': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Estado activo"),
+            }
+        ),
+        responses={
+            200: openapi.Response(description="Finca actualizada exitosamente"),
+            400: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
+        tags=['Fincas']
+    )
+    def put(self, request, finca_id):
+        """Actualizar finca completa."""
+        try:
+            queryset = self.get_queryset()
+            finca = queryset.get(id=finca_id)
+            
+            serializer = FincaSerializer(finca, data=request.data, context={'request': request})
+            
+            if serializer.is_valid():
+                finca = serializer.save()
+                
+                logger.info(f"Finca '{finca.nombre}' actualizada por usuario {request.user.username}")
+                
+                response_serializer = FincaSerializer(finca, context={'request': request})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Datos de entrada inválidos',
+                    'details': serializer.errors,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Finca.DoesNotExist:
+            return Response({
+                'error': 'Finca no encontrada',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error actualizando finca {finca_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def patch(self, request, finca_id):
+        """Actualizar finca parcialmente."""
+        try:
+            queryset = self.get_queryset()
+            finca = queryset.get(id=finca_id)
+            
+            serializer = FincaSerializer(finca, data=request.data, partial=True, context={'request': request})
+            
+            if serializer.is_valid():
+                finca = serializer.save()
+                
+                logger.info(f"Finca '{finca.nombre}' actualizada parcialmente por usuario {request.user.username}")
+                
+                response_serializer = FincaSerializer(finca, context={'request': request})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Datos de entrada inválidos',
+                    'details': serializer.errors,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Finca.DoesNotExist:
+            return Response({
+                'error': 'Finca no encontrada',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error actualizando finca {finca_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FincaDeleteView(FincaPermissionMixin, APIView):
+    """
+    Vista para eliminar una finca específica.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Elimina una finca específica",
+        operation_summary="Eliminar finca",
+        responses={
+            204: openapi.Response(description="Finca eliminada exitosamente"),
+            400: openapi.Response(description="No se puede eliminar finca con dependencias"),
+            404: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
+        tags=['Fincas']
+    )
+    def delete(self, request, finca_id):
+        """Eliminar finca."""
+        try:
+            queryset = self.get_queryset()
+            finca = queryset.get(id=finca_id)
+            
+            # Verificar si tiene lotes asociados
+            if hasattr(finca, 'lotes') and finca.lotes.exists():
+                return Response({
+                    'error': 'No se puede eliminar la finca porque tiene lotes asociados',
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verificar si tiene análisis asociados
+            if hasattr(finca, 'cacao_images') and finca.cacao_images.exists():
+                return Response({
+                    'error': 'No se puede eliminar la finca porque tiene análisis asociados',
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            finca_nombre = finca.nombre
+            finca.delete()
+            
+            logger.info(f"Finca '{finca_nombre}' eliminada por usuario {request.user.username}")
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except Finca.DoesNotExist:
+            return Response({
+                'error': 'Finca no encontrada',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error eliminando finca {finca_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FincaStatsView(FincaPermissionMixin, APIView):
+    """
+    Vista para obtener estadísticas de una finca específica.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Obtiene estadísticas detalladas de una finca",
+        operation_summary="Estadísticas de finca",
+        responses={
+            200: openapi.Response(description="Estadísticas obtenidas exitosamente"),
+            404: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
+        tags=['Fincas']
+    )
+    def get(self, request, finca_id):
+        """Obtener estadísticas de finca."""
+        try:
+            queryset = self.get_queryset()
+            finca = queryset.get(id=finca_id)
+            
+            stats = finca.get_estadisticas()
+            
+            # Agregar estadísticas adicionales
+            stats.update({
+                'finca_nombre': finca.nombre,
+                'agricultor_nombre': finca.agricultor.get_full_name(),
+                'ubicacion_completa': finca.ubicacion_completa,
+            })
+            
+            return Response(stats, status=status.HTTP_200_OK)
+            
+        except Finca.DoesNotExist:
+            return Response({
+                'error': 'Finca no encontrada',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas de finca {finca_id}: {e}")
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
