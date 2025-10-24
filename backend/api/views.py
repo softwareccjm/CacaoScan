@@ -32,7 +32,7 @@ from .serializers import (
     ResendVerificationSerializer
 )
 from .utils import create_error_response, create_success_response
-from .models import EmailVerificationToken, ExpiringToken
+from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPrediction
 
 
 logger = logging.getLogger("cacaoscan.api")
@@ -44,6 +44,38 @@ class ScanMeasureView(APIView):
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    
+    def _save_uploaded_image(self, image_file, user):
+        """
+        Guarda la imagen subida en el sistema de archivos y crea registro en BD.
+        
+        Args:
+            image_file: Archivo de imagen subido
+            user: Usuario autenticado
+            
+        Returns:
+            tuple: (cacao_image_obj, success, error_message)
+        """
+        try:
+            # Crear objeto CacaoImage
+            cacao_image = CacaoImage(
+                user=user,
+                image=image_file,
+                file_name=image_file.name,
+                file_size=image_file.size,
+                file_type=image_file.content_type,
+                processed=False
+            )
+            
+            # Guardar en BD
+            cacao_image.save()
+            
+            logger.info(f"Imagen guardada con ID {cacao_image.id} para usuario {user.username}")
+            return cacao_image, True, None
+            
+        except Exception as e:
+            logger.error(f"Error guardando imagen: {e}")
+            return None, False, str(e)
     
     @swagger_auto_schema(
         operation_description="Procesa una imagen de grano de cacao y devuelve predicciones de dimensiones y peso",
