@@ -34,6 +34,7 @@ from ml.regression.models import create_model, TARGETS, TARGET_NAMES
 from ml.regression.scalers import create_scalers_from_data, save_scalers
 from ml.regression.train import train_single_model, train_multi_head_model, get_device
 from ml.regression.evaluate import RegressionEvaluator
+from ml.regression.incremental_train import IncrementalTrainer, run_incremental_training
 from ml.utils.paths import get_regressors_artifacts_dir, get_artifacts_dir
 from ml.utils.io import save_json
 from ml.utils.logs import get_ml_logger
@@ -610,6 +611,67 @@ class CacaoTrainingPipeline:
         
         logger.info(f"Reporte guardado en {report_path}")
     
+    def run_incremental_training(self, new_data: List[Dict], target: str = "alto") -> Dict:
+        """
+        Ejecuta entrenamiento incremental con nuevos datos.
+        
+        Args:
+            new_data: Nuevos datos para entrenamiento incremental
+            target: Target específico a entrenar
+            
+        Returns:
+            Resultados del entrenamiento incremental
+        """
+        logger.info(f"Iniciando entrenamiento incremental para {target}")
+        
+        # Configuración para entrenamiento incremental
+        incremental_config = {
+            'strategy_type': 'elastic_weight_consolidation',
+            'learning_rate': self.config.get('learning_rate', 1e-4),
+            'epochs': self.config.get('incremental_epochs', 20),
+            'batch_size': self.config.get('batch_size', 16),
+            'ewc_lambda': self.config.get('ewc_lambda', 1000.0),
+            'replay_ratio': self.config.get('replay_ratio', 0.3),
+            'img_size': self.config.get('img_size', 224),
+            'num_workers': self.config.get('num_workers', 2),
+            'weight_decay': self.config.get('weight_decay', 1e-4),
+            'min_lr': self.config.get('min_lr', 1e-6)
+        }
+        
+        # Ejecutar entrenamiento incremental
+        results = run_incremental_training(new_data, incremental_config, target)
+        
+        logger.info(f"Entrenamiento incremental completado para {target}")
+        return results
+    
+    def get_incremental_status(self) -> Dict:
+        """
+        Obtiene el estado del sistema de entrenamiento incremental.
+        
+        Returns:
+            Estado del sistema incremental
+        """
+        try:
+            from ml.regression.incremental_train import IncrementalDataManager, IncrementalModelManager
+            
+            data_manager = IncrementalDataManager()
+            model_manager = IncrementalModelManager()
+            
+            return {
+                "data_versions": data_manager.list_versions(),
+                "model_versions": model_manager.list_model_versions(),
+                "current_data_version": data_manager.current_version,
+                "current_model_version": model_manager.current_version,
+                "total_data_samples": data_manager.dataset_metadata.get("total_samples", 0),
+                "best_performance": model_manager.model_metadata.get("best_performance", {})
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo estado incremental: {e}")
+            return {
+                "error": str(e),
+                "status": "not_available"
+            }
+    
     def run_pipeline(self, multi_head: bool = False) -> Dict[str, Union[Dict, List]]:
         """
         Ejecuta el pipeline completo.
@@ -937,6 +999,93 @@ def run_training_pipeline(
     except Exception as e:
         logger.error(f"❌ Error en pipeline de entrenamiento: {e}")
         return False
+
+
+def run_incremental_training_pipeline(
+    new_data: List[Dict],
+    target: str = "alto",
+    epochs: int = 20,
+    batch_size: int = 16,
+    learning_rate: float = 1e-4,
+    strategy_type: str = "elastic_weight_consolidation",
+    ewc_lambda: float = 1000.0,
+    replay_ratio: float = 0.3
+) -> bool:
+    """
+    Función para ejecutar entrenamiento incremental desde otros módulos.
+    
+    Args:
+        new_data: Nuevos datos para entrenamiento
+        target: Target específico a entrenar
+        epochs: Número de épocas para entrenamiento incremental
+        batch_size: Tamaño de batch
+        learning_rate: Learning rate
+        strategy_type: Estrategia de aprendizaje incremental
+        ewc_lambda: Peso del término EWC
+        replay_ratio: Proporción de datos de replay
+        
+    Returns:
+        bool: True si el entrenamiento fue exitoso, False en caso contrario
+    """
+    try:
+        logger.info("🚀 Iniciando entrenamiento incremental...")
+        
+        # Configuración para entrenamiento incremental
+        config = {
+            'strategy_type': strategy_type,
+            'learning_rate': learning_rate,
+            'epochs': epochs,
+            'batch_size': batch_size,
+            'ewc_lambda': ewc_lambda,
+            'replay_ratio': replay_ratio,
+            'img_size': 224,
+            'num_workers': 2,
+            'weight_decay': 1e-4,
+            'min_lr': 1e-6
+        }
+        
+        # Ejecutar entrenamiento incremental
+        results = run_incremental_training(new_data, config, target)
+        
+        logger.info("✅ Entrenamiento incremental completado exitosamente!")
+        logger.info(f"Modelo versión: {results['model_version']}")
+        logger.info(f"Métricas de rendimiento: {results['performance_metrics']}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error en entrenamiento incremental: {e}")
+        return False
+
+
+def get_incremental_training_status() -> Dict:
+    """
+    Obtiene el estado del sistema de entrenamiento incremental.
+    
+    Returns:
+        Estado del sistema incremental
+    """
+    try:
+        from ml.regression.incremental_train import IncrementalDataManager, IncrementalModelManager
+        
+        data_manager = IncrementalDataManager()
+        model_manager = IncrementalModelManager()
+        
+        return {
+            "data_versions": data_manager.list_versions(),
+            "model_versions": model_manager.list_model_versions(),
+            "current_data_version": data_manager.current_version,
+            "current_model_version": model_manager.current_version,
+            "total_data_samples": data_manager.dataset_metadata.get("total_samples", 0),
+            "best_performance": model_manager.model_metadata.get("best_performance", {}),
+            "status": "available"
+        }
+    except Exception as e:
+        logger.error(f"Error obteniendo estado incremental: {e}")
+        return {
+            "error": str(e),
+            "status": "not_available"
+        }
 
 
 if __name__ == "__main__":

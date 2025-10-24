@@ -24,6 +24,15 @@ from .calibration_views import CalibrationStatusView, CalibrationView, Calibrate
 
 # Importar vistas de emails
 from .email_views import EmailStatusView, SendTestEmailView, SendBulkNotificationView, EmailTemplatePreviewView, EmailLogsView
+
+# Importar vistas de entrenamiento incremental
+from .incremental_views import (
+    IncrementalTrainingStatusView, 
+    IncrementalTrainingView, 
+    IncrementalDataUploadView,
+    IncrementalModelVersionsView,
+    IncrementalDataVersionsView
+)
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse

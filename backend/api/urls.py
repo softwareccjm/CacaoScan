@@ -106,4 +106,11 @@ urlpatterns = [
     path('emails/bulk/', views.SendBulkNotificationView.as_view(), name='email-bulk'),
     path('emails/template-preview/', views.EmailTemplatePreviewView.as_view(), name='email-template-preview'),
     path('emails/logs/', views.EmailLogsView.as_view(), name='email-logs'),
+    
+    # Endpoints de entrenamiento incremental
+    path('incremental/status/', views.IncrementalTrainingStatusView.as_view(), name='incremental-status'),
+    path('incremental/train/', views.IncrementalTrainingView.as_view(), name='incremental-train'),
+    path('incremental/upload/', views.IncrementalDataUploadView.as_view(), name='incremental-upload'),
+    path('incremental/models/', views.IncrementalModelVersionsView.as_view(), name='incremental-models'),
+    path('incremental/data/', views.IncrementalDataVersionsView.as_view(), name='incremental-data'),
 ]
