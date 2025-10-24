@@ -42,6 +42,57 @@ from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPred
 logger = logging.getLogger("cacaoscan.api")
 
 
+class ImagePermissionMixin:
+    """
+    Mixin para manejar permisos de acceso a imágenes.
+    """
+    
+    def can_access_image(self, user, image):
+        """
+        Verificar si el usuario puede acceder a la imagen.
+        
+        Args:
+            user: Usuario autenticado
+            image: Objeto CacaoImage
+            
+        Returns:
+            bool: True si puede acceder, False en caso contrario
+        """
+        # El propietario siempre puede acceder
+        if image.user == user:
+            return True
+        
+        # Los admins pueden acceder a cualquier imagen
+        if user.is_superuser or user.is_staff:
+            return True
+        
+        # Los analistas pueden acceder a imágenes de todos los usuarios
+        if user.groups.filter(name='analyst').exists():
+            return True
+        
+        return False
+    
+    def get_user_images_queryset(self, user):
+        """
+        Obtener queryset de imágenes según permisos del usuario.
+        
+        Args:
+            user: Usuario autenticado
+            
+        Returns:
+            QuerySet: Queryset filtrado según permisos
+        """
+        if user.is_superuser or user.is_staff:
+            # Admins pueden ver todas las imágenes
+            return CacaoImage.objects.all().select_related('user')
+        elif user.groups.filter(name='analyst').exists():
+            # Analistas pueden ver todas las imágenes
+            return CacaoImage.objects.all().select_related('user')
+        else:
+            # Agricultores solo ven sus propias imágenes
+            return CacaoImage.objects.filter(user=user).select_related('user')
+
+
 class ScanMeasureView(APIView):
     """
     Endpoint para medición de granos de cacao.
@@ -908,7 +959,7 @@ class RefreshTokenView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ImagesListView(APIView):
+class ImagesListView(APIView, ImagePermissionMixin):
     """
     Endpoint para listar imágenes procesadas con paginación y filtros.
     """
@@ -963,8 +1014,8 @@ class ImagesListView(APIView):
             date_from = request.GET.get('date_from')
             date_to = request.GET.get('date_to')
             
-            # Construir queryset base
-            queryset = CacaoImage.objects.filter(user=request.user).select_related('user')
+            # Construir queryset base según permisos
+            queryset = self.get_user_images_queryset(request.user)
             
             # Aplicar filtros
             if region:
@@ -1046,7 +1097,7 @@ class ImagesListView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ImageDetailView(APIView):
+class ImageDetailView(APIView, ImagePermissionMixin):
     """
     Endpoint para obtener detalles de una imagen específica con acceso por owner/admin.
     """
@@ -1081,7 +1132,7 @@ class ImageDetailView(APIView):
                 }, status=status.HTTP_404_NOT_FOUND)
             
             # Verificar permisos de acceso
-            if not self._can_access_image(request.user, image):
+            if not self.can_access_image(request.user, image):
                 return Response({
                     'error': 'No tienes permisos para acceder a esta imagen',
                     'status': 'error'
@@ -1098,34 +1149,9 @@ class ImageDetailView(APIView):
                 'error': 'Error interno del servidor',
                 'status': 'error'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def _can_access_image(self, user, image):
-        """
-        Verificar si el usuario puede acceder a la imagen.
-        
-        Args:
-            user: Usuario autenticado
-            image: Objeto CacaoImage
-            
-        Returns:
-            bool: True si puede acceder, False en caso contrario
-        """
-        # El propietario siempre puede acceder
-        if image.user == user:
-            return True
-        
-        # Los admins pueden acceder a cualquier imagen
-        if user.is_superuser or user.is_staff:
-            return True
-        
-        # Los analistas pueden acceder a imágenes de todos los usuarios
-        if user.groups.filter(name='analyst').exists():
-            return True
-        
-        return False
 
 
-class ImagesStatsView(APIView):
+class ImagesStatsView(APIView, ImagePermissionMixin):
     """
     Endpoint para obtener estadísticas detalladas de imágenes procesadas.
     """
@@ -1148,8 +1174,8 @@ class ImagesStatsView(APIView):
         Obtiene estadísticas detalladas de imágenes procesadas.
         """
         try:
-            # Obtener queryset base del usuario
-            user_images = CacaoImage.objects.filter(user=request.user)
+            # Obtener queryset base según permisos
+            user_images = self.get_user_images_queryset(request.user)
             
             # Estadísticas básicas
             total_images = user_images.count()
