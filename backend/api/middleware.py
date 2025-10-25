@@ -293,11 +293,11 @@ def log_failed_login(username, ip_address, user_agent, failure_reason):
         ip_address: Dirección IP
         user_agent: User Agent del navegador
         failure_reason: Razón del fallo
-        """
-        try:
+    """
+    try:
         # Crear usuario temporal para el log (no se guarda en BD)
         temp_user = User(username=username)
-        
+    
         LoginHistory.log_login(
             usuario=temp_user,
             ip_address=ip_address,
@@ -307,6 +307,49 @@ def log_failed_login(username, ip_address, user_agent, failure_reason):
         )
         
         logger.warning(f"Login fallido registrado: {username} - {failure_reason}")
+            
+    except Exception as e:
+        logger.error(f"Error registrando login fallido: {e}")
+
+
+class TokenCleanupMiddleware(MiddlewareMixin):
+    """
+    Middleware para limpiar tokens JWT expirados automáticamente.
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        super().__init__(get_response)
+    
+    def process_request(self, request):
+        """
+        Procesar request para limpiar tokens expirados.
+        """
+        try:
+            # Importar aquí para evitar imports circulares
+            from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+            from django.utils import timezone
+            
+            # Limpiar tokens expirados de la blacklist
+            expired_blacklisted = BlacklistedToken.objects.filter(
+                token__expires_at__lt=timezone.now()
+            )
+            expired_count = expired_blacklisted.count()
+            if expired_count > 0:
+                expired_blacklisted.delete()
+                logger.debug(f"Limpiados {expired_count} tokens blacklisted expirados")
+            
+            # Limpiar tokens outstanding expirados
+            expired_outstanding = OutstandingToken.objects.filter(
+                expires_at__lt=timezone.now()
+            )
+            outstanding_count = expired_outstanding.count()
+            if outstanding_count > 0:
+                expired_outstanding.delete()
+                logger.debug(f"Limpiados {outstanding_count} tokens outstanding expirados")
                 
         except Exception as e:
-        logger.error(f"Error registrando login fallido: {e}")
+            # No interrumpir el request si hay error en la limpieza
+            logger.warning(f"Error en limpieza de tokens: {e}")
+        
+        return None

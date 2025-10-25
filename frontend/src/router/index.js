@@ -19,8 +19,9 @@ import SubirDatosEntrenamiento from '../views/SubirDatosEntrenamiento.vue'
 import FincasView from '../views/FincasView.vue'
 import LotesView from '../views/LotesView.vue'
 
-// Importar guards
+// Importar guards y auth store
 import { ROUTE_GUARDS } from './guards'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -371,8 +372,7 @@ router.beforeEach(async (to, from, next) => {
       }))
     }
     
-    // Importar store de autenticación dinámicamente
-    const { useAuthStore } = await import('@/stores/auth')
+    // Usar store de autenticación (ya importado estáticamente)
     const authStore = useAuthStore()
     
     // Verificar estado de autenticación si se requiere

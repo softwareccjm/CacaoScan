@@ -343,3 +343,6 @@ export const useNotificationsStore = defineStore('notifications', {
     }
   }
 })
+
+// Alias para compatibilidad (singular)
+export const useNotificationStore = useNotificationsStore

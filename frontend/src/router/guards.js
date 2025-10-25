@@ -3,9 +3,10 @@
  * Controla el acceso a rutas según autenticación, roles y verificación
  */
 
-// Función helper para obtener el store dinámicamente y evitar dependencias circulares
-const getAuthStore = async () => {
-  const { useAuthStore } = await import('@/stores/auth')
+import { useAuthStore } from '@/stores/auth'
+
+// Función helper para obtener el store (ya no es async)
+const getAuthStore = () => {
   return useAuthStore()
 }
 
@@ -13,7 +14,7 @@ const getAuthStore = async () => {
  * Guard principal que verifica autenticación y validez del token
  */
 export const requireAuth = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   // Si no hay token, redirigir al login
   if (!authStore.accessToken) {
@@ -65,7 +66,7 @@ export const requireAuth = async (to, from, next) => {
  * Guard que requiere que el usuario NO esté autenticado
  */
 export const requireGuest = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (authStore.isAuthenticated) {
     console.log('👤 Usuario ya autenticado, redirigiendo...')
@@ -84,7 +85,7 @@ export const requireGuest = async (to, from, next) => {
  */
 export const requireRole = (allowedRoles) => {
   return async (to, from, next) => {
-    const authStore = await getAuthStore()
+    const authStore = getAuthStore()
 
     if (!authStore.isAuthenticated) {
       console.warn('🚫 Acceso denegado: Usuario no autenticado')
@@ -125,7 +126,7 @@ export const requireRole = (allowedRoles) => {
  * Guard que requiere usuario verificado
  */
 export const requireVerified = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (!authStore.isAuthenticated) {
     console.warn('🚫 Acceso denegado: Usuario no autenticado')
@@ -158,7 +159,7 @@ export const requireVerified = async (to, from, next) => {
  */
 export const requirePermission = (permission) => {
   return async (to, from, next) => {
-    const authStore = await getAuthStore()
+    const authStore = getAuthStore()
 
     if (!authStore.isAuthenticated) {
       console.warn('🚫 Acceso denegado: Usuario no autenticado')
@@ -195,7 +196,7 @@ export const requirePermission = (permission) => {
  * Guard combinado para agricultores (autenticado + verificado + rol farmer)
  */
 export const requireFarmer = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   // Verificar autenticación
   if (!authStore.isAuthenticated) {
@@ -239,7 +240,7 @@ export const requireFarmer = async (to, from, next) => {
  * Guard para analistas
  */
 export const requireAnalyst = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (!authStore.isAuthenticated) {
     next({
@@ -270,7 +271,7 @@ export const requireAnalyst = async (to, from, next) => {
  * Guard para administradores
  */
 export const requireAdmin = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (!authStore.isAuthenticated) {
     next({
@@ -301,7 +302,7 @@ export const requireAdmin = async (to, from, next) => {
  * Guard para verificar si el usuario puede subir imágenes
  */
 export const requireCanUpload = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (!authStore.isAuthenticated) {
     next({
@@ -341,7 +342,7 @@ export const requireCanUpload = async (to, from, next) => {
  * Guard que actualiza actividad del usuario
  */
 export const updateActivity = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (authStore.isAuthenticated) {
     authStore.updateLastActivity()
@@ -359,7 +360,7 @@ export const updateActivity = async (to, from, next) => {
  * Guard que verifica el estado del token en tiempo real
  */
 export const checkTokenValidity = async (to, from, next) => {
-  const authStore = await getAuthStore()
+  const authStore = getAuthStore()
 
   if (authStore.isAuthenticated && authStore.accessToken) {
     try {

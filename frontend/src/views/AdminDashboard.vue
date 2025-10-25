@@ -115,7 +115,7 @@
                         <strong>{{ user.first_name }} {{ user.last_name }}</strong>
                         <small>@{{ user.username }}</small>
                       </div>
-                </div>
+                    </div>
                   </td>
                   <td>{{ user.email }}</td>
                   <td>
@@ -136,21 +136,21 @@
                         @click="viewUser(user.id)"
                       >
                         <i class="fas fa-eye"></i>
-                  </button>
+                      </button>
                       <button 
                         class="btn btn-sm btn-outline-warning"
                         @click="editUser(user.id)"
                       >
                         <i class="fas fa-edit"></i>
-                  </button>
-                </div>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
             </table>
-              </div>
-            </div>
-            
+          </div>
+        </div>
+        
         <!-- Tabla de Actividad Reciente -->
         <div class="table-container">
           <div class="table-header">
@@ -158,7 +158,7 @@
             <router-link to="/admin/audit" class="btn btn-sm btn-outline-primary">
               Ver Auditoría
             </router-link>
-                </div>
+          </div>
           <div class="table-body">
             <table class="table">
               <thead>
@@ -184,9 +184,9 @@
                 </tr>
               </tbody>
             </table>
-                  </div>
-                </div>
-              </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Alertas y Notificaciones -->
       <div class="content-row">
@@ -208,7 +208,7 @@
               >
                 <div class="alert-icon">
                   <i :class="getAlertIcon(alert.type)"></i>
-          </div>
+                </div>
                 <div class="alert-content">
                   <h4>{{ alert.title }}</h4>
                   <p>{{ alert.message }}</p>
@@ -224,8 +224,8 @@
                 </div>
               </div>
             </div>
-                        </div>
-                      </div>
+          </div>
+        </div>
 
         <!-- Estadísticas de Reportes -->
         <div class="reports-container">
@@ -240,15 +240,15 @@
               <div class="report-stat">
                 <h4>{{ reportStats.total_reportes || 0 }}</h4>
                 <p>Total Reportes</p>
-            </div>
+              </div>
               <div class="report-stat">
                 <h4>{{ reportStats.reportes_completados || 0 }}</h4>
                 <p>Completados</p>
-                </div>
+              </div>
               <div class="report-stat">
                 <h4>{{ reportStats.reportes_generando || 0 }}</h4>
                 <p>Generando</p>
-                </div>
+              </div>
               <div class="report-stat">
                 <h4>{{ reportStats.reportes_fallidos || 0 }}</h4>
                 <p>Fallidos</p>
@@ -257,7 +257,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">

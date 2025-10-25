@@ -298,20 +298,21 @@
                 <div class="col-md-6">
                   <h6>Información General</h6>
                   <table class="table table-sm">
-                    <tr>
-                      <td><strong>Título:</strong></td>
-                      <td>{{ detallesReporte.titulo }}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Tipo:</strong></td>
-                      <td>{{ detallesReporte.tipo_reporte_display }}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Formato:</strong></td>
-                      <td>{{ detallesReporte.formato_display }}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Estado:</strong></td>
+                    <tbody>
+                      <tr>
+                        <td><strong>Título:</strong></td>
+                        <td>{{ detallesReporte.titulo }}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Tipo:</strong></td>
+                        <td>{{ detallesReporte.tipo_reporte_display }}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Formato:</strong></td>
+                        <td>{{ detallesReporte.formato_display }}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Estado:</strong></td>
                       <td>
                         <span
                           class="badge"
@@ -324,28 +325,31 @@
                           {{ detallesReporte.estado_display }}
                         </span>
                       </td>
-                    </tr>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
                 <div class="col-md-6">
                   <h6>Información Técnica</h6>
                   <table class="table table-sm">
-                    <tr>
-                      <td><strong>Fecha Solicitud:</strong></td>
-                      <td>{{ formatearFecha(detallesReporte.fecha_solicitud) }}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Fecha Generación:</strong></td>
-                      <td>{{ detallesReporte.fecha_generacion ? formatearFecha(detallesReporte.fecha_generacion) : 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                      <td><strong>Tiempo Generación:</strong></td>
-                      <td>{{ detallesReporte.tiempo_generacion_segundos ? `${detallesReporte.tiempo_generacion_segundos}s` : 'N/A' }}</td>
+                    <tbody>
+                      <tr>
+                        <td><strong>Fecha Solicitud:</strong></td>
+                        <td>{{ formatearFecha(detallesReporte.fecha_solicitud) }}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Fecha Generación:</strong></td>
+                        <td>{{ detallesReporte.fecha_generacion ? formatearFecha(detallesReporte.fecha_generacion) : 'N/A' }}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Tiempo Generación:</strong></td>
+                        <td>{{ detallesReporte.tiempo_generacion_segundos ? `${detallesReporte.tiempo_generacion_segundos}s` : 'N/A' }}</td>
                     </tr>
                     <tr>
                       <td><strong>Tamaño:</strong></td>
                       <td>{{ detallesReporte.tamaño_archivo_mb ? `${detallesReporte.tamaño_archivo_mb} MB` : 'N/A' }}</td>
-                    </tr>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
               </div>
