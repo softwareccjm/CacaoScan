@@ -15,7 +15,42 @@ const authApi = {
         username: credentials.username || credentials.email,
         password: credentials.password
       })
-      return response.data
+      
+      console.log('🔍 [authApi] Respuesta cruda del backend:', response.data)
+      
+      // El backend puede devolver dos estructuras:
+      // 1. { success, data: { access, refresh, user, ... }, message } (con wrapper)
+      // 2. { success, access, refresh, user, ..., message } (plana)
+      
+      let normalizedData;
+      
+      if (response.data && response.data.data) {
+        // Estructura con wrapper 'data'
+        normalizedData = {
+          token: response.data.data.access,
+          refresh: response.data.data.refresh,
+          user: response.data.data.user,
+          access_expires_at: response.data.data.access_expires_at,
+          refresh_expires_at: response.data.data.refresh_expires_at,
+          message: response.data.message
+        }
+      } else if (response.data && response.data.access && response.data.user) {
+        // Estructura plana (la que realmente usa el backend)
+        normalizedData = {
+          token: response.data.access,
+          refresh: response.data.refresh,
+          user: response.data.user,
+          access_expires_at: response.data.access_expires_at,
+          refresh_expires_at: response.data.refresh_expires_at,
+          message: response.data.message
+        }
+      } else {
+        console.error('❌ [authApi] Estructura de respuesta inesperada:', response.data)
+        throw new Error('Respuesta del servidor con formato inválido')
+      }
+      
+      console.log('✅ [authApi] Datos normalizados para el store:', normalizedData)
+      return normalizedData
     } catch (error) {
       console.error('Error en login API:', error)
       throw error
@@ -36,7 +71,46 @@ const authApi = {
         last_name: userData.last_name
         // El rol 'farmer' se asigna automáticamente en el backend
       })
-      return response.data
+      
+      console.log('🔍 [authApi] Respuesta cruda del backend (registro):', response.data)
+      
+      // El backend puede devolver dos estructuras:
+      // 1. { success, data: { access, refresh, user, ... }, message } (con wrapper)
+      // 2. { success, access, refresh, user, ..., message } (plana)
+      
+      let normalizedData;
+      
+      if (response.data && response.data.data) {
+        // Estructura con wrapper 'data'
+        normalizedData = {
+          token: response.data.data.access,
+          refresh: response.data.data.refresh,
+          user: response.data.data.user,
+          access_expires_at: response.data.data.access_expires_at,
+          refresh_expires_at: response.data.data.refresh_expires_at,
+          verification_token: response.data.data.verification_token,
+          verification_required: response.data.data.verification_required,
+          message: response.data.message
+        }
+      } else if (response.data && response.data.access && response.data.user) {
+        // Estructura plana (la que realmente usa el backend)
+        normalizedData = {
+          token: response.data.access,
+          refresh: response.data.refresh,
+          user: response.data.user,
+          access_expires_at: response.data.access_expires_at,
+          refresh_expires_at: response.data.refresh_expires_at,
+          verification_token: response.data.verification_token,
+          verification_required: response.data.verification_required,
+          message: response.data.message
+        }
+      } else {
+        console.error('❌ [authApi] Estructura de respuesta inesperada:', response.data)
+        throw new Error('Respuesta del servidor con formato inválido')
+      }
+      
+      console.log('✅ [authApi] Datos normalizados para el store (registro):', normalizedData)
+      return normalizedData
     } catch (error) {
       console.error('Error en registro API:', error)
       throw error
@@ -146,7 +220,7 @@ const authApi = {
    */
   async requestPasswordReset(email) {
     try {
-      const response = await api.post('/auth/password-reset/', {
+      const response = await api.post('/auth/forgot-password/', {
         email: email
       })
       return response.data
@@ -161,7 +235,7 @@ const authApi = {
    */
   async confirmPasswordReset(resetData) {
     try {
-      const response = await api.post('/auth/password-reset-confirm/', {
+      const response = await api.post('/auth/reset-password/', {
         uid: resetData.uid,
         token: resetData.token,
         new_password: resetData.newPassword,

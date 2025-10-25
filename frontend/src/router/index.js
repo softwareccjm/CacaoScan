@@ -4,7 +4,7 @@ import NuevoAnalisis from '../views/NuevoAnalisis.vue'
 import DetalleAnalisisView from '../views/DetalleAnalisisView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
-import AdminDashboard from '../views/AdminDashboard.vue'
+import AdminDashboard from '../views/Dasnborads/AdminDashboard.vue'
 import ChartDashboard from '../views/ChartDashboard.vue'
 import Agricultores from '../views/Agricultores.vue'
 import Analisis from '../views/Analisis.vue'
@@ -350,7 +350,8 @@ let isNavigating = false
 router.beforeEach(async (to, from, next) => {
   // Prevenir navegación múltiple simultánea
   if (isNavigating) {
-    return
+    // Abortar navegación si ya hay una en curso para evitar errores
+    return false
   }
   
   isNavigating = true
@@ -417,7 +418,9 @@ router.beforeEach(async (to, from, next) => {
       // Verificar si la sesión ha expirado por inactividad
       if (authStore.checkSessionTimeout()) {
         console.warn('⏰ Sesión expirada por inactividad')
-        return
+        // La sesión ha expirado, el store se encargará de redirigir.
+        // Abortamos la navegación actual para evitar conflictos.
+        return false
       }
       
       // Actualizar actividad del usuario
@@ -431,15 +434,19 @@ router.beforeEach(async (to, from, next) => {
         
         // Redirigir según rol usando router.replace para evitar historial
         const redirectPath = getRedirectPathByRole(authStore.userRole)
+        
+        // IMPORTANTE: Llamar next() con el destino y salir inmediatamente
         next({ path: redirectPath, replace: true })
         return
       }
     }
     
+    // Solo llamar next() una vez, al final
     next()
   } catch (error) {
     console.error('Error en navigation guard:', error)
     next({ path: '/acceso-denegado', replace: true })
+    return
   } finally {
     // Pequeño delay para mejor UX
     setTimeout(() => {
