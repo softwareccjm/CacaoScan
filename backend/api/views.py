@@ -4,6 +4,10 @@ Views para la API de CacaoScan.
 import time
 import logging
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.exceptions import TokenError
+from django.contrib.auth import login, logout
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -14,6 +18,35 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q, Count, Avg, Min, Max, Sum
+
+# Importar vistas de calibración
+from .calibration_views import CalibrationStatusView, CalibrationView, CalibratedScanMeasureView
+
+# Importar vistas de emails
+# from .email_views import EmailStatusView, SendTestEmailView, SendBulkNotificationView, EmailTemplatePreviewView, EmailLogsView
+
+# Importar vistas de entrenamiento incremental
+from .incremental_views import (
+    IncrementalTrainingStatusView, 
+    IncrementalTrainingView, 
+    IncrementalDataUploadView,
+    IncrementalModelVersionsView,
+    IncrementalDataVersionsView
+)
+
+# Importar vistas de métricas de modelos
+from .model_metrics_views import (
+    ModelMetricsListView,
+    ModelMetricsDetailView,
+    ModelMetricsCreateView,
+    ModelMetricsUpdateView,
+    ModelMetricsDeleteView,
+    ModelMetricsStatsView,
+    ModelPerformanceTrendView,
+    ModelComparisonView,
+    BestModelsView,
+    ProductionModelsView
+)
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse
@@ -44,7 +77,7 @@ from .serializers import (
     FincaStatsSerializer
 )
 from .utils import create_error_response, create_success_response
-from .models import EmailVerificationToken, ExpiringToken, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification, ActivityLog, LoginHistory, ReporteGenerado
+from .models import EmailVerificationToken, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification, ActivityLog, LoginHistory, ReporteGenerado
 from django.db.models import Prefetch
 from .fincas_views import (
     FincaListCreateView,
@@ -373,6 +406,56 @@ class ScanMeasureView(APIView):
                     'prediction_id': cacao_prediction.id if cacao_prediction else None,
                     'saved_to_database': save_success and pred_success
                 }
+                
+                # 10. Enviar email de análisis completado
+                try:
+                    from .email_service import send_email_notification
+                    
+                    # Determinar nivel de confianza
+                    avg_confidence = (result['confidences']['alto'] + result['confidences']['ancho'] + 
+                                    result['confidences']['grosor'] + result['confidences']['peso']) / 4
+                    
+                    if avg_confidence >= 0.8:
+                        confidence_level = 'high'
+                    elif avg_confidence >= 0.6:
+                        confidence_level = 'medium'
+                    else:
+                        confidence_level = 'low'
+                    
+                    email_context = {
+                        'user_name': request.user.get_full_name() or request.user.username,
+                        'user_email': request.user.email,
+                        'analysis_id': cacao_prediction.id if cacao_prediction else 'N/A',
+                        'confidence': round(avg_confidence * 100, 1),
+                        'confidence_level': confidence_level,
+                        'alto_mm': result['alto_mm'],
+                        'ancho_mm': result['ancho_mm'],
+                        'grosor_mm': result['grosor_mm'],
+                        'peso_g': result['peso_g'],
+                        'confidence_alto': round(result['confidences']['alto'] * 100, 1),
+                        'confidence_ancho': round(result['confidences']['ancho'] * 100, 1),
+                        'confidence_grosor': round(result['confidences']['grosor'] * 100, 1),
+                        'confidence_peso': round(result['confidences']['peso'] * 100, 1),
+                        'processing_time_ms': prediction_time_ms,
+                        'model_version': result.get('debug', {}).get('model_version', 'v1.0'),
+                        'analysis_date': timezone.now().strftime('%d/%m/%Y %H:%M'),
+                        'crop_url': result['crop_url'],
+                        'defects_detected': []  # TODO: Implementar detección de defectos
+                    }
+                    
+                    email_result = send_email_notification(
+                        user_email=request.user.email,
+                        notification_type='analysis_complete',
+                        context=email_context
+                    )
+                    
+                    if email_result['success']:
+                        logger.info(f"Email de análisis completado enviado a {request.user.email}")
+                    else:
+                        logger.warning(f"Error enviando email de análisis: {email_result.get('error')}")
+                        
+                except Exception as e:
+                    logger.error(f"Error en envío de email de análisis: {e}")
                 
                 # Validar respuesta con serializer
                 serializer = ScanMeasureResponseSerializer(data=response_data)
@@ -787,13 +870,16 @@ class LoginView(APIView):
     )
     def post(self, request):
         """
-        Autentica un usuario.
+        Autentica un usuario y devuelve tokens JWT.
         """
         serializer = LoginSerializer(data=request.data)
         
         if serializer.is_valid():
             user = serializer.validated_data['user']
-            token = ExpiringToken.create_for_user(user)
+            
+            # Generar tokens JWT
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
             
             # Login en la sesión
             login(request, user)
@@ -801,9 +887,11 @@ class LoginView(APIView):
             return create_success_response(
                 message='Login exitoso',
                 data={
-                    'token': token.key,
+                    'access': str(access_token),
+                    'refresh': str(refresh),
                     'user': UserSerializer(user).data,
-                    'expires_at': token.expires_at.isoformat()
+                    'access_expires_at': access_token['exp'],
+                    'refresh_expires_at': refresh['exp']
                 }
             )
         
@@ -842,7 +930,7 @@ class RegisterView(APIView):
     )
     def post(self, request):
         """
-        Registra un nuevo usuario y genera token automáticamente.
+        Registra un nuevo usuario y genera tokens JWT automáticamente.
         """
         # Log de depuración - datos recibidos
         print(f"🔍 DEBUG RegisterView - Datos recibidos: {request.data}")
@@ -864,9 +952,31 @@ class RegisterView(APIView):
             verification_token = EmailVerificationToken.create_for_user(user)
             print(f"✅ DEBUG RegisterView - Token de verificación creado: {verification_token.token}")
             
-            # Generar token automáticamente para auto-login
-            token = ExpiringToken.create_for_user(user)
-            print(f"✅ DEBUG RegisterView - Token de acceso creado: {token.key[:10]}...")
+            # Enviar email de bienvenida
+            try:
+                from .email_service import send_email_notification
+                email_context = {
+                    'user_name': user.get_full_name() or user.username,
+                    'user_email': user.email,
+                    'verification_token': str(verification_token.token),
+                    'verification_url': f"{request.build_absolute_uri('/')}auth/verify-email/?token={verification_token.token}"
+                }
+                email_result = send_email_notification(
+                    user_email=user.email,
+                    notification_type='welcome',
+                    context=email_context
+                )
+                if email_result['success']:
+                    print(f"✅ DEBUG RegisterView - Email de bienvenida enviado a {user.email}")
+                else:
+                    print(f"⚠️ DEBUG RegisterView - Error enviando email de bienvenida: {email_result.get('error')}")
+            except Exception as e:
+                print(f"⚠️ DEBUG RegisterView - Error en envío de email: {e}")
+            
+            # Generar tokens JWT automáticamente para auto-login
+            refresh = RefreshToken.for_user(user)
+            access_token = refresh.access_token
+            print(f"✅ DEBUG RegisterView - Tokens JWT creados")
             
             # Login en la sesión
             login(request, user)
@@ -874,11 +984,13 @@ class RegisterView(APIView):
             return create_success_response(
                 message='Usuario registrado exitosamente',
                 data={
-                    'token': token.key,
+                    'access': str(access_token),
+                    'refresh': str(refresh),
                     'user': UserSerializer(user).data,
                     'verification_token': str(verification_token.token),  # Solo para desarrollo
                     'verification_required': True,
-                    'expires_at': token.expires_at.isoformat()
+                    'access_expires_at': access_token['exp'],
+                    'refresh_expires_at': refresh['exp']
                 },
                 status_code=status.HTTP_201_CREATED
             )
@@ -917,11 +1029,16 @@ class LogoutView(APIView):
     )
     def post(self, request):
         """
-        Cierra la sesión del usuario.
+        Cierra la sesión del usuario y blacklistea el token de refresh.
         """
         try:
-            # Eliminar token
-            request.user.auth_token.delete()
+            # Obtener el token de refresh del cuerpo de la petición
+            refresh_token = request.data.get('refresh')
+            
+            if refresh_token:
+                # Blacklistear el token de refresh
+                token = RefreshToken(refresh_token)
+                token.blacklist()
             
             # Logout de la sesión
             logout(request)
@@ -929,6 +1046,11 @@ class LogoutView(APIView):
             return Response({
                 'message': 'Logout exitoso'
             })
+        except TokenError:
+            return Response({
+                'error': 'Token inválido',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
                 'error': f'Error en logout: {str(e)}',
@@ -960,49 +1082,77 @@ class UserProfileView(APIView):
 
 class RefreshTokenView(APIView):
     """
-    Endpoint para refrescar token de acceso.
+    Endpoint para refrescar token de acceso JWT.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Cambiar a AllowAny porque necesitamos el refresh token
     
     @swagger_auto_schema(
-        operation_description="Refresca el token de acceso del usuario autenticado",
-        operation_summary="Refrescar token",
+        operation_description="Refresca el token de acceso usando el token de refresh",
+        operation_summary="Refrescar token JWT",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'refresh': openapi.Schema(type=openapi.TYPE_STRING, description='Token de refresh')
+            },
+            required=['refresh']
+        ),
         responses={
             200: openapi.Response(
                 description="Token refrescado exitosamente",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'token': openapi.Schema(type=openapi.TYPE_STRING),
-                        'user': UserSerializer
+                        'access': openapi.Schema(type=openapi.TYPE_STRING),
+                        'refresh': openapi.Schema(type=openapi.TYPE_STRING),
+                        'access_expires_at': openapi.Schema(type=openapi.TYPE_INTEGER)
                     }
                 )
             ),
-            401: ErrorResponseSerializer,
+            400: ErrorResponseSerializer,
         },
         tags=['Autenticación']
     )
     def post(self, request):
         """
-        Refresca el token del usuario actual.
+        Refresca el token de acceso usando el token de refresh.
         """
         try:
-            # Eliminar token actual
-            request.user.auth_token.delete()
+            refresh_token = request.data.get('refresh')
             
-            # Crear nuevo token
-            token, created = Token.objects.get_or_create(user=request.user)
+            if not refresh_token:
+                return create_error_response(
+                    message='Token de refresh requerido',
+                    error_type='missing_refresh_token',
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
             
-            return Response({
-                'token': token.key,
-                'user': UserSerializer(request.user).data
-            })
+            # Crear nuevo token de acceso usando el refresh token
+            refresh = RefreshToken(refresh_token)
+            new_access_token = refresh.access_token
             
+            return create_success_response(
+                message='Token refrescado exitosamente',
+                data={
+                    'access': str(new_access_token),
+                    'refresh': str(refresh),
+                    'access_expires_at': new_access_token['exp']
+                }
+            )
+            
+        except TokenError as e:
+            return create_error_response(
+                message='Token de refresh inválido o expirado',
+                error_type='invalid_refresh_token',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={'error': str(e)}
+            )
         except Exception as e:
-            return Response({
-                'error': f'Error refrescando token: {str(e)}',
-                'status': 'error'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return create_error_response(
+                message='Error refrescando token',
+                error_type='refresh_error',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={'error': str(e)}
+            )
 
 
 class ImagesListView(APIView, ImagePermissionMixin):
@@ -1481,8 +1631,27 @@ class ForgotPasswordView(APIView):
             # Crear token de recuperación (usando el mismo modelo de verificación)
             reset_token = EmailVerificationToken.create_for_user(user)
             
-            # TODO: Enviar email con token (implementar en producción)
-            # send_password_reset_email(user, reset_token.token)
+            # Enviar email de restablecimiento de contraseña
+            try:
+                from .email_service import send_email_notification
+                email_context = {
+                    'user_name': user.get_full_name() or user.username,
+                    'user_email': user.email,
+                    'token': str(reset_token.token),
+                    'reset_url': f"{request.build_absolute_uri('/')}auth/reset-password/?token={reset_token.token}",
+                    'token_expiry_hours': 24  # Token válido por 24 horas
+                }
+                email_result = send_email_notification(
+                    user_email=user.email,
+                    notification_type='password_reset',
+                    context=email_context
+                )
+                if email_result['success']:
+                    logger.info(f"Email de restablecimiento enviado a {user.email}")
+                else:
+                    logger.error(f"Error enviando email de restablecimiento: {email_result.get('error')}")
+            except Exception as e:
+                logger.error(f"Error en envío de email de restablecimiento: {e}")
             
             return create_success_response(
                 message=f'Instrucciones de recuperación enviadas a {email}',

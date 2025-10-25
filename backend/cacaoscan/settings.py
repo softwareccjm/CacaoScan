@@ -6,6 +6,7 @@ import os
 import warnings
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -40,8 +41,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_yasg',
+    'channels',
     'api',
     'users.apps.UsersConfig',
     'reports',
@@ -57,6 +61,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'api.middleware.TokenCleanupMiddleware',  # Limpieza automática de tokens
+    'api.realtime_middleware.RealtimeAuditMiddleware',
+    'api.realtime_middleware.RealtimeLoginMiddleware',
 ]
 
 ROOT_URLCONF = 'cacaoscan.urls'
@@ -134,7 +140,7 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -269,3 +275,103 @@ LOGGING = {
         },
     },
 }
+
+# Configuración de Email
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '30'))
+
+# Configuración de SendGrid (alternativa)
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
+SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@cacaoscan.com')
+
+# Configuración de emails del sistema
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'CacaoScan <noreply@cacaoscan.com>')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+ADMINS = [
+    ('Admin CacaoScan', os.environ.get('ADMIN_EMAIL', 'admin@cacaoscan.com')),
+]
+MANAGERS = ADMINS
+
+# Configuración de templates de email
+EMAIL_TEMPLATES_DIR = BASE_DIR / 'api' / 'templates' / 'emails'
+
+# Configuración de notificaciones por email
+EMAIL_NOTIFICATIONS_ENABLED = os.environ.get('EMAIL_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
+EMAIL_NOTIFICATION_TYPES = [
+    'welcome',           # Email de bienvenida
+    'password_reset',    # Restablecimiento de contraseña
+    'analysis_complete', # Análisis completado
+    'report_ready',      # Reporte listo
+    'training_complete', # Entrenamiento completado
+    'defect_alert',      # Alerta de defectos
+    'system_alert',      # Alertas del sistema
+    'weekly_summary',    # Resumen semanal
+]
+
+# Configuración de cola de emails (para producción)
+EMAIL_QUEUE_ENABLED = os.environ.get('EMAIL_QUEUE_ENABLED', 'False').lower() == 'true'
+EMAIL_BATCH_SIZE = int(os.environ.get('EMAIL_BATCH_SIZE', '50'))
+EMAIL_RETRY_ATTEMPTS = int(os.environ.get('EMAIL_RETRY_ATTEMPTS', '3'))
+
+# Configuración de JWT
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Token de acceso válido por 1 hora
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Token de refresh válido por 7 días
+    'ROTATE_REFRESH_TOKENS': True,                   # Rotar tokens de refresh
+    'BLACKLIST_AFTER_ROTATION': True,                # Blacklistear tokens antiguos
+    'UPDATE_LAST_LOGIN': True,                       # Actualizar último login
+    
+    'ALGORITHM': 'HS256',                            # Algoritmo de firma
+    'SIGNING_KEY': SECRET_KEY,                       # Clave de firma
+    'VERIFYING_KEY': None,                           # Clave de verificación
+    'AUDIENCE': None,                                # Audiencia
+    'ISSUER': None,                                  # Emisor
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),               # Tipo de header de autorización
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',        # Nombre del header
+    'USER_ID_FIELD': 'id',                           # Campo de ID de usuario
+    'USER_ID_CLAIM': 'user_id',                     # Claim de ID de usuario
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    
+    'JTI_CLAIM': 'jti',                              # Claim de JTI
+    
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+}
+
+# Configuración de Django Channels
+ASGI_APPLICATION = 'cacaoscan.asgi.application'
+
+# Configuración de Channels
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+            'capacity': 1500,
+            'expiry': 60,
+        },
+    },
+}
+
+# Configuración de WebSockets
+WEBSOCKET_URL = os.environ.get('WEBSOCKET_URL', 'ws://localhost:8000/ws/')
+WEBSOCKET_HEARTBEAT_INTERVAL = int(os.environ.get('WEBSOCKET_HEARTBEAT_INTERVAL', '30'))
+WEBSOCKET_MAX_CONNECTIONS = int(os.environ.get('WEBSOCKET_MAX_CONNECTIONS', '1000'))
+
+# Configuración de notificaciones en tiempo real
+REALTIME_NOTIFICATIONS_ENABLED = os.environ.get('REALTIME_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
+NOTIFICATION_BROADCAST_ENABLED = os.environ.get('NOTIFICATION_BROADCAST_ENABLED', 'True').lower() == 'true'
+NOTIFICATION_PERSISTENCE_ENABLED = os.environ.get('NOTIFICATION_PERSISTENCE_ENABLED', 'True').lower() == 'true'

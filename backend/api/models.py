@@ -80,58 +80,6 @@ class EmailVerificationToken(models.Model):
             return None
 
 
-class ExpiringToken(Token):
-    """
-    Token con expiración personalizado para CacaoScan.
-    Extiende el Token de DRF para agregar funcionalidad de expiración.
-    """
-    # Duración del token en horas (24 horas por defecto)
-    EXPIRATION_HOURS = 24
-    
-    class Meta:
-        proxy = True
-        verbose_name = 'Token con Expiración'
-        verbose_name_plural = 'Tokens con Expiración'
-    
-    @property
-    def is_expired(self):
-        """Verificar si el token ha expirado."""
-        expiration_time = self.created + timezone.timedelta(hours=self.EXPIRATION_HOURS)
-        return timezone.now() > expiration_time
-    
-    @property
-    def expires_at(self):
-        """Obtener fecha de expiración del token."""
-        return self.created + timezone.timedelta(hours=self.EXPIRATION_HOURS)
-    
-    @classmethod
-    def get_valid_token(cls, key):
-        """Obtener un token válido por clave."""
-        try:
-            token = cls.objects.get(key=key)
-            if token.is_expired:
-                token.delete()  # Eliminar token expirado
-                return None
-            return token
-        except cls.DoesNotExist:
-            return None
-    
-    @classmethod
-    def create_for_user(cls, user):
-        """Crear un nuevo token para un usuario."""
-        # Eliminar tokens existentes del usuario
-        cls.objects.filter(user=user).delete()
-        
-        # Crear nuevo token
-        return cls.objects.create(user=user)
-    
-    def save(self, *args, **kwargs):
-        """Guardar token con timestamp de creación."""
-        if not self.pk:
-            self.created = timezone.now()
-        super().save(*args, **kwargs)
-
-
 class UserProfile(models.Model):
     """
     Perfil extendido del usuario con información específica de agricultores.
@@ -210,7 +158,6 @@ class CacaoImage(models.Model):
     # Metadatos del grano/finca
     finca = models.CharField(max_length=200, blank=True, null=True)  # Mantener para compatibilidad
     region = models.CharField(max_length=100, blank=True, null=True)
-    lote_id = models.CharField(max_length=50, blank=True, null=True)  # Mantener para compatibilidad
     lote = models.ForeignKey(
         'Lote', 
         on_delete=models.SET_NULL, 
@@ -1301,3 +1248,279 @@ class Lote(models.Model):
             'fecha_plantacion': self.fecha_plantacion.strftime('%d/%m/%Y'),
             'fecha_cosecha': self.fecha_cosecha.strftime('%d/%m/%Y') if self.fecha_cosecha else None,
         }
+
+
+class ModelMetrics(models.Model):
+    """
+    Modelo para almacenar métricas detalladas de modelos de machine learning.
+    """
+    MODEL_TYPE_CHOICES = [
+        ('regression', 'Modelo de Regresión'),
+        ('classification', 'Modelo de Clasificación'),
+        ('segmentation', 'Modelo de Segmentación'),
+        ('incremental', 'Modelo Incremental'),
+    ]
+    
+    TARGET_CHOICES = [
+        ('alto', 'Altura'),
+        ('ancho', 'Ancho'),
+        ('grosor', 'Grosor'),
+        ('peso', 'Peso'),
+        ('calidad', 'Calidad'),
+        ('variedad', 'Variedad'),
+    ]
+    
+    METRIC_TYPE_CHOICES = [
+        ('training', 'Métricas de Entrenamiento'),
+        ('validation', 'Métricas de Validación'),
+        ('test', 'Métricas de Prueba'),
+        ('incremental', 'Métricas Incrementales'),
+    ]
+    
+    # Información básica del modelo
+    model_name = models.CharField(max_length=100, help_text="Nombre del modelo")
+    model_type = models.CharField(max_length=20, choices=MODEL_TYPE_CHOICES)
+    target = models.CharField(max_length=20, choices=TARGET_CHOICES, help_text="Variable objetivo")
+    version = models.CharField(max_length=20, help_text="Versión del modelo")
+    
+    # Información del entrenamiento
+    training_job = models.ForeignKey(
+        TrainingJob, 
+        on_delete=models.CASCADE, 
+        related_name='model_metrics',
+        null=True, 
+        blank=True,
+        help_text="Trabajo de entrenamiento asociado"
+    )
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='model_metrics')
+    
+    # Tipo de métricas
+    metric_type = models.CharField(max_length=20, choices=METRIC_TYPE_CHOICES)
+    
+    # Métricas principales
+    mae = models.FloatField(help_text="Mean Absolute Error")
+    mse = models.FloatField(help_text="Mean Squared Error")
+    rmse = models.FloatField(help_text="Root Mean Squared Error")
+    r2_score = models.FloatField(help_text="R² Score")
+    mape = models.FloatField(help_text="Mean Absolute Percentage Error", null=True, blank=True)
+    
+    # Métricas adicionales (almacenadas como JSON)
+    additional_metrics = models.JSONField(
+        default=dict, 
+        help_text="Métricas adicionales específicas del modelo"
+    )
+    
+    # Información del dataset
+    dataset_size = models.PositiveIntegerField(help_text="Tamaño del dataset usado")
+    train_size = models.PositiveIntegerField(help_text="Tamaño del conjunto de entrenamiento")
+    validation_size = models.PositiveIntegerField(help_text="Tamaño del conjunto de validación")
+    test_size = models.PositiveIntegerField(help_text="Tamaño del conjunto de prueba")
+    
+    # Configuración del modelo
+    epochs = models.PositiveIntegerField(help_text="Número de épocas de entrenamiento")
+    batch_size = models.PositiveIntegerField(help_text="Tamaño del batch")
+    learning_rate = models.FloatField(help_text="Tasa de aprendizaje")
+    
+    # Parámetros específicos del modelo
+    model_params = models.JSONField(
+        default=dict, 
+        help_text="Parámetros específicos del modelo"
+    )
+    
+    # Información de rendimiento
+    training_time_seconds = models.PositiveIntegerField(
+        help_text="Tiempo de entrenamiento en segundos",
+        null=True, 
+        blank=True
+    )
+    inference_time_ms = models.FloatField(
+        help_text="Tiempo de inferencia promedio en milisegundos",
+        null=True, 
+        blank=True
+    )
+    
+    # Información de estabilidad (para modelos incrementales)
+    stability_score = models.FloatField(
+        help_text="Puntuación de estabilidad del modelo",
+        null=True, 
+        blank=True
+    )
+    knowledge_retention = models.FloatField(
+        help_text="Porcentaje de retención de conocimiento",
+        null=True, 
+        blank=True
+    )
+    
+    # Metadatos adicionales
+    notes = models.TextField(blank=True, help_text="Notas adicionales sobre el modelo")
+    is_best_model = models.BooleanField(default=False, help_text="Indica si es el mejor modelo")
+    is_production_model = models.BooleanField(default=False, help_text="Indica si está en producción")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Métricas de Modelo'
+        verbose_name_plural = 'Métricas de Modelos'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['model_name', 'version']),
+            models.Index(fields=['model_type', 'target']),
+            models.Index(fields=['metric_type']),
+            models.Index(fields=['created_by', '-created_at']),
+            models.Index(fields=['is_best_model']),
+            models.Index(fields=['is_production_model']),
+        ]
+        unique_together = ['model_name', 'version', 'metric_type', 'target']
+    
+    def __str__(self):
+        return f"{self.model_name} v{self.version} - {self.get_target_display()} ({self.get_metric_type_display()})"
+    
+    @property
+    def accuracy_percentage(self):
+        """Obtener precisión como porcentaje."""
+        if self.r2_score is not None:
+            return round(self.r2_score * 100, 2)
+        return None
+    
+    @property
+    def training_time_formatted(self):
+        """Obtener tiempo de entrenamiento formateado."""
+        if not self.training_time_seconds:
+            return "N/A"
+        
+        hours = self.training_time_seconds // 3600
+        minutes = (self.training_time_seconds % 3600) // 60
+        seconds = self.training_time_seconds % 60
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{seconds}s"
+    
+    @property
+    def performance_summary(self):
+        """Obtener resumen de rendimiento."""
+        return {
+            'mae': round(self.mae, 4),
+            'rmse': round(self.rmse, 4),
+            'r2_score': round(self.r2_score, 4),
+            'accuracy_percentage': self.accuracy_percentage,
+            'training_time': self.training_time_formatted,
+            'inference_time_ms': round(self.inference_time_ms, 2) if self.inference_time_ms else None,
+        }
+    
+    @property
+    def dataset_summary(self):
+        """Obtener resumen del dataset."""
+        return {
+            'total_size': self.dataset_size,
+            'train_size': self.train_size,
+            'validation_size': self.validation_size,
+            'test_size': self.test_size,
+            'train_ratio': round(self.train_size / self.dataset_size, 3) if self.dataset_size > 0 else 0,
+            'validation_ratio': round(self.validation_size / self.dataset_size, 3) if self.dataset_size > 0 else 0,
+            'test_ratio': round(self.test_size / self.dataset_size, 3) if self.dataset_size > 0 else 0,
+        }
+    
+    @property
+    def model_summary(self):
+        """Obtener resumen del modelo."""
+        return {
+            'name': self.model_name,
+            'type': self.get_model_type_display(),
+            'target': self.get_target_display(),
+            'version': self.version,
+            'epochs': self.epochs,
+            'batch_size': self.batch_size,
+            'learning_rate': self.learning_rate,
+            'is_best': self.is_best_model,
+            'is_production': self.is_production_model,
+        }
+    
+    def get_comparison_with_previous(self):
+        """Comparar con la versión anterior del mismo modelo."""
+        previous = ModelMetrics.objects.filter(
+            model_name=self.model_name,
+            target=self.target,
+            metric_type=self.metric_type,
+            created_at__lt=self.created_at
+        ).order_by('-created_at').first()
+        
+        if not previous:
+            return None
+        
+        return {
+            'previous_version': previous.version,
+            'mae_change': round(self.mae - previous.mae, 4),
+            'rmse_change': round(self.rmse - previous.rmse, 4),
+            'r2_change': round(self.r2_score - previous.r2_score, 4),
+            'improvement': self.r2_score > previous.r2_score,
+        }
+    
+    def mark_as_best(self):
+        """Marcar como el mejor modelo de su tipo."""
+        # Desmarcar otros modelos del mismo tipo como mejores
+        ModelMetrics.objects.filter(
+            model_name=self.model_name,
+            target=self.target,
+            is_best_model=True
+        ).exclude(id=self.id).update(is_best_model=False)
+        
+        # Marcar este modelo como el mejor
+        self.is_best_model = True
+        self.save(update_fields=['is_best_model'])
+    
+    def mark_as_production(self):
+        """Marcar como modelo en producción."""
+        # Desmarcar otros modelos del mismo tipo en producción
+        ModelMetrics.objects.filter(
+            model_name=self.model_name,
+            target=self.target,
+            is_production_model=True
+        ).exclude(id=self.id).update(is_production_model=False)
+        
+        # Marcar este modelo como en producción
+        self.is_production_model = True
+        self.save(update_fields=['is_production_model'])
+    
+    @classmethod
+    def get_best_models(cls):
+        """Obtener todos los mejores modelos."""
+        return cls.objects.filter(is_best_model=True).order_by('model_name', 'target')
+    
+    @classmethod
+    def get_production_models(cls):
+        """Obtener todos los modelos en producción."""
+        return cls.objects.filter(is_production_model=True).order_by('model_name', 'target')
+    
+    @classmethod
+    def get_model_history(cls, model_name, target=None):
+        """Obtener historial de un modelo específico."""
+        queryset = cls.objects.filter(model_name=model_name)
+        if target:
+            queryset = queryset.filter(target=target)
+        return queryset.order_by('-created_at')
+    
+    @classmethod
+    def get_performance_trend(cls, model_name, target, metric_type='validation'):
+        """Obtener tendencia de rendimiento de un modelo."""
+        metrics = cls.objects.filter(
+            model_name=model_name,
+            target=target,
+            metric_type=metric_type
+        ).order_by('created_at')
+        
+        return [
+            {
+                'version': m.version,
+                'date': m.created_at.strftime('%Y-%m-%d'),
+                'r2_score': m.r2_score,
+                'mae': m.mae,
+                'rmse': m.rmse,
+            }
+            for m in metrics
+        ]

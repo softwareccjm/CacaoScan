@@ -5,15 +5,19 @@ import DetalleAnalisisView from '../views/DetalleAnalisisView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
+import ChartDashboard from '../views/ChartDashboard.vue'
 import Agricultores from '../views/Agricultores.vue'
 import Analisis from '../views/Analisis.vue'
 import Reportes from '../views/Reportes.vue'
+import ReportsManagement from '../views/ReportsManagement.vue'
 import AgricultorDashboard from '../views/AgricultorDashboard.vue'
 import PredictionView from '../views/PredictionView.vue'
 import UserPrediction from '../views/UserPrediction.vue'
 import AdminDataset from '../views/AdminDataset.vue'
 import AdminTraining from '../views/AdminTraining.vue'
 import SubirDatosEntrenamiento from '../views/SubirDatosEntrenamiento.vue'
+import FincasView from '../views/FincasView.vue'
+import LotesView from '../views/LotesView.vue'
 
 // Importar guards
 import { ROUTE_GUARDS } from './guards'
@@ -109,6 +113,15 @@ const router = createRouter({
           }
         },
         {
+          path: 'charts',
+          name: 'ChartDashboard',
+          component: ChartDashboard,
+          beforeEnter: ROUTE_GUARDS.admin,
+          meta: {
+            title: 'Dashboard de Gráficas | CacaoScan'
+          }
+        },
+        {
           path: 'agricultores',
           name: 'Agricultores',
           component: Agricultores,
@@ -165,6 +178,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/reportes/management',
+      name: 'ReportsManagement',
+      component: ReportsManagement,
+      beforeEnter: ROUTE_GUARDS.analyst,
+      meta: {
+        title: 'Gestión de Reportes | CacaoScan'
+      }
+    },
+    {
       path: '/agricultor-dashboard',
       name: 'AgricultorDashboard',
       component: AgricultorDashboard,
@@ -200,6 +222,67 @@ const router = createRouter({
       beforeEnter: ROUTE_GUARDS.canUpload,
       meta: {
         title: 'Entrenamiento Incremental | CacaoScan',
+        requiresVerification: true
+      }
+    },
+    // Rutas de gestión de fincas y lotes
+    {
+      path: '/fincas',
+      name: 'Fincas',
+      component: FincasView,
+      beforeEnter: ROUTE_GUARDS.farmer,
+      meta: {
+        title: 'Gestión de Fincas | CacaoScan',
+        requiresVerification: true
+      }
+    },
+    {
+      path: '/fincas/:id',
+      name: 'FincaDetail',
+      component: () => import('../views/FincaDetailView.vue'),
+      beforeEnter: ROUTE_GUARDS.farmer,
+      meta: {
+        title: 'Detalle de Finca | CacaoScan',
+        requiresVerification: true
+      }
+    },
+    {
+      path: '/fincas/:id/lotes',
+      name: 'FincaLotes',
+      component: () => import('../views/FincaLotesView.vue'),
+      beforeEnter: ROUTE_GUARDS.farmer,
+      meta: {
+        title: 'Lotes de Finca | CacaoScan',
+        requiresVerification: true
+      }
+    },
+    {
+      path: '/lotes',
+      name: 'Lotes',
+      component: LotesView,
+      beforeEnter: ROUTE_GUARDS.farmer,
+      meta: {
+        title: 'Gestión de Lotes | CacaoScan',
+        requiresVerification: true
+      }
+    },
+    {
+      path: '/lotes/:id',
+      name: 'LoteDetail',
+      component: () => import('../views/LoteDetailView.vue'),
+      beforeEnter: ROUTE_GUARDS.farmer,
+      meta: {
+        title: 'Detalle de Lote | CacaoScan',
+        requiresVerification: true
+      }
+    },
+    {
+      path: '/lotes/:id/analisis',
+      name: 'LoteAnalisis',
+      component: () => import('../views/LoteAnalisisView.vue'),
+      beforeEnter: ROUTE_GUARDS.farmer,
+      meta: {
+        title: 'Análisis de Lote | CacaoScan',
         requiresVerification: true
       }
     },

@@ -19,7 +19,7 @@ urlpatterns = [
     path('auth/register/', views.RegisterView.as_view(), name='auth-register'),
     path('auth/logout/', views.LogoutView.as_view(), name='auth-logout'),
     path('auth/profile/', views.UserProfileView.as_view(), name='auth-profile'),
-    # path('auth/refresh/', views.RefreshTokenView.as_view(), name='auth-refresh'),  # No usado con Token Auth
+    path('auth/refresh/', views.RefreshTokenView.as_view(), name='auth-refresh'),
     
     # Endpoints de verificación de email
     path('auth/verify-email/', views.EmailVerificationView.as_view(), name='auth-verify-email'),
@@ -94,4 +94,35 @@ urlpatterns = [
     path('reportes/<int:reporte_id>/delete/', views.ReporteDeleteView.as_view(), name='reporte-delete'),
     path('reportes/stats/', views.ReporteStatsView.as_view(), name='reportes-stats'),
     path('reportes/cleanup/', views.ReporteCleanupView.as_view(), name='reportes-cleanup'),
+    
+    # Endpoints de calibración
+    path('calibration/status/', views.CalibrationStatusView.as_view(), name='calibration-status'),
+    path('calibration/', views.CalibrationView.as_view(), name='calibration'),
+    path('scan/measure/calibrated/', views.CalibratedScanMeasureView.as_view(), name='scan-measure-calibrated'),
+    
+    # Endpoints de gestión de emails
+    # path('emails/status/', views.EmailStatusView.as_view(), name='email-status'),
+    # path('emails/test/', views.SendTestEmailView.as_view(), name='email-test'),
+    # path('emails/bulk/', views.SendBulkNotificationView.as_view(), name='email-bulk'),
+    # path('emails/template-preview/', views.EmailTemplatePreviewView.as_view(), name='email-template-preview'),
+    # path('emails/logs/', views.EmailLogsView.as_view(), name='email-logs'),
+    
+    # Endpoints de entrenamiento incremental
+    path('incremental/status/', views.IncrementalTrainingStatusView.as_view(), name='incremental-status'),
+    path('incremental/train/', views.IncrementalTrainingView.as_view(), name='incremental-train'),
+    path('incremental/upload/', views.IncrementalDataUploadView.as_view(), name='incremental-upload'),
+    path('incremental/models/', views.IncrementalModelVersionsView.as_view(), name='incremental-models'),
+    path('incremental/data/', views.IncrementalDataVersionsView.as_view(), name='incremental-data'),
+    
+    # Endpoints de métricas de modelos
+    path('model-metrics/', views.ModelMetricsListView.as_view(), name='model-metrics-list'),
+    path('model-metrics/create/', views.ModelMetricsCreateView.as_view(), name='model-metrics-create'),
+    path('model-metrics/<int:metrics_id>/', views.ModelMetricsDetailView.as_view(), name='model-metrics-detail'),
+    path('model-metrics/<int:metrics_id>/update/', views.ModelMetricsUpdateView.as_view(), name='model-metrics-update'),
+    path('model-metrics/<int:metrics_id>/delete/', views.ModelMetricsDeleteView.as_view(), name='model-metrics-delete'),
+    path('model-metrics/stats/', views.ModelMetricsStatsView.as_view(), name='model-metrics-stats'),
+    path('model-metrics/trend/', views.ModelPerformanceTrendView.as_view(), name='model-metrics-trend'),
+    path('model-metrics/compare/', views.ModelComparisonView.as_view(), name='model-metrics-compare'),
+    path('model-metrics/best/', views.BestModelsView.as_view(), name='model-metrics-best'),
+    path('model-metrics/production/', views.ProductionModelsView.as_view(), name='model-metrics-production'),
 ]

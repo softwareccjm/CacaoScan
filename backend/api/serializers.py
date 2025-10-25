@@ -4,7 +4,7 @@ Serializers para la API de CacaoScan.
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import UserProfile, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification
+from .models import UserProfile, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification, ModelMetrics
 
 
 class ConfidenceSerializer(serializers.Serializer):
@@ -813,3 +813,153 @@ class NotificationStatsSerializer(serializers.Serializer):
     unread_count = serializers.IntegerField()
     notifications_by_type = serializers.DictField()
     recent_notifications = serializers.ListField()
+
+
+class ModelMetricsSerializer(serializers.ModelSerializer):
+    """Serializer para métricas de modelos."""
+    accuracy_percentage = serializers.ReadOnlyField()
+    training_time_formatted = serializers.ReadOnlyField()
+    performance_summary = serializers.ReadOnlyField()
+    dataset_summary = serializers.ReadOnlyField()
+    model_summary = serializers.ReadOnlyField()
+    comparison_with_previous = serializers.SerializerMethodField()
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    
+    class Meta:
+        model = ModelMetrics
+        fields = [
+            'id', 'model_name', 'model_type', 'target', 'version',
+            'training_job', 'created_by', 'created_by_username',
+            'metric_type', 'mae', 'mse', 'rmse', 'r2_score', 'mape',
+            'additional_metrics', 'dataset_size', 'train_size',
+            'validation_size', 'test_size', 'epochs', 'batch_size',
+            'learning_rate', 'model_params', 'training_time_seconds',
+            'inference_time_ms', 'stability_score', 'knowledge_retention',
+            'notes', 'is_best_model', 'is_production_model',
+            'created_at', 'updated_at',
+            # Campos calculados
+            'accuracy_percentage', 'training_time_formatted',
+            'performance_summary', 'dataset_summary', 'model_summary',
+            'comparison_with_previous'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_comparison_with_previous(self, obj):
+        """Obtener comparación con versión anterior."""
+        return obj.get_comparison_with_previous()
+
+
+class ModelMetricsListSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para listado de métricas de modelos."""
+    accuracy_percentage = serializers.ReadOnlyField()
+    training_time_formatted = serializers.ReadOnlyField()
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    
+    class Meta:
+        model = ModelMetrics
+        fields = [
+            'id', 'model_name', 'model_type', 'target', 'version',
+            'metric_type', 'mae', 'rmse', 'r2_score', 'accuracy_percentage',
+            'training_time_formatted', 'is_best_model', 'is_production_model',
+            'created_by_username', 'created_at'
+        ]
+
+
+class ModelMetricsCreateSerializer(serializers.ModelSerializer):
+    """Serializer para crear métricas de modelos."""
+    
+    class Meta:
+        model = ModelMetrics
+        fields = [
+            'model_name', 'model_type', 'target', 'version',
+            'training_job', 'metric_type', 'mae', 'mse', 'rmse',
+            'r2_score', 'mape', 'additional_metrics', 'dataset_size',
+            'train_size', 'validation_size', 'test_size', 'epochs',
+            'batch_size', 'learning_rate', 'model_params',
+            'training_time_seconds', 'inference_time_ms',
+            'stability_score', 'knowledge_retention', 'notes',
+            'is_best_model', 'is_production_model'
+        ]
+    
+    def validate(self, data):
+        """Validar datos del serializer."""
+        # Validar que el dataset_size sea igual a la suma de train, validation y test
+        dataset_size = data.get('dataset_size', 0)
+        train_size = data.get('train_size', 0)
+        validation_size = data.get('validation_size', 0)
+        test_size = data.get('test_size', 0)
+        
+        if dataset_size != (train_size + validation_size + test_size):
+            raise serializers.ValidationError(
+                "El tamaño del dataset debe ser igual a la suma de train_size + validation_size + test_size"
+            )
+        
+        # Validar métricas principales
+        if data.get('r2_score', 0) < 0 or data.get('r2_score', 0) > 1:
+            raise serializers.ValidationError("R² score debe estar entre 0 y 1")
+        
+        if data.get('mae', 0) < 0:
+            raise serializers.ValidationError("MAE debe ser mayor o igual a 0")
+        
+        if data.get('rmse', 0) < 0:
+            raise serializers.ValidationError("RMSE debe ser mayor o igual a 0")
+        
+        return data
+
+
+class ModelMetricsUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para actualizar métricas de modelos."""
+    
+    class Meta:
+        model = ModelMetrics
+        fields = [
+            'mae', 'mse', 'rmse', 'r2_score', 'mape', 'additional_metrics',
+            'training_time_seconds', 'inference_time_ms', 'stability_score',
+            'knowledge_retention', 'notes', 'is_best_model', 'is_production_model'
+        ]
+    
+    def validate(self, data):
+        """Validar datos del serializer."""
+        # Validar métricas principales
+        if 'r2_score' in data and (data['r2_score'] < 0 or data['r2_score'] > 1):
+            raise serializers.ValidationError("R² score debe estar entre 0 y 1")
+        
+        if 'mae' in data and data['mae'] < 0:
+            raise serializers.ValidationError("MAE debe ser mayor o igual a 0")
+        
+        if 'rmse' in data and data['rmse'] < 0:
+            raise serializers.ValidationError("RMSE debe ser mayor o igual a 0")
+        
+        return data
+
+
+class ModelMetricsStatsSerializer(serializers.Serializer):
+    """Serializer para estadísticas de métricas de modelos."""
+    total_models = serializers.IntegerField()
+    models_by_type = serializers.DictField()
+    models_by_target = serializers.DictField()
+    best_models_count = serializers.IntegerField()
+    production_models_count = serializers.IntegerField()
+    average_r2_score = serializers.FloatField()
+    best_r2_score = serializers.FloatField()
+    worst_r2_score = serializers.FloatField()
+    recent_models = serializers.ListField()
+
+
+class ModelPerformanceTrendSerializer(serializers.Serializer):
+    """Serializer para tendencia de rendimiento de modelos."""
+    model_name = serializers.CharField()
+    target = serializers.CharField()
+    metric_type = serializers.CharField()
+    trend_data = serializers.ListField()
+    current_performance = serializers.DictField()
+    improvement_trend = serializers.CharField()
+
+
+class ModelComparisonSerializer(serializers.Serializer):
+    """Serializer para comparación entre modelos."""
+    model_a = ModelMetricsSerializer()
+    model_b = ModelMetricsSerializer()
+    comparison_metrics = serializers.DictField()
+    winner = serializers.CharField()
+    improvement_percentage = serializers.FloatField()
