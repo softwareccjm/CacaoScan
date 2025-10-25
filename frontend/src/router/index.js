@@ -8,6 +8,7 @@ import AdminDashboard from '../views/AdminDashboard.vue'
 import Agricultores from '../views/Agricultores.vue'
 import Analisis from '../views/Analisis.vue'
 import Reportes from '../views/Reportes.vue'
+import ReportsManagement from '../views/ReportsManagement.vue'
 import AgricultorDashboard from '../views/AgricultorDashboard.vue'
 import PredictionView from '../views/PredictionView.vue'
 import UserPrediction from '../views/UserPrediction.vue'
@@ -164,6 +165,15 @@ const router = createRouter({
       beforeEnter: ROUTE_GUARDS.analyst,
       meta: {
         title: 'Reportes | CacaoScan'
+      }
+    },
+    {
+      path: '/reportes/management',
+      name: 'ReportsManagement',
+      component: ReportsManagement,
+      beforeEnter: ROUTE_GUARDS.analyst,
+      meta: {
+        title: 'Gestión de Reportes | CacaoScan'
       }
     },
     {

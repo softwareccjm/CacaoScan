@@ -91,6 +91,6 @@ redis==5.0.1
 django-celery-beat==2.5.0
 django-celery-results==2.5.1
 
-# WebSocket dependencies
-channels==4.0.0
-channels-redis==4.1.0
+# Report dependencies
+openpyxl==3.1.2
+xlsxwriter==3.1.9
