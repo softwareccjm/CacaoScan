@@ -636,17 +636,15 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import AdminSidebar from '@/components/layout/AdminSidebar.vue';
-import AdminNavbar from '@/components/layout/AdminNavbar.vue';
-import { useAuthStore } from '@/stores/auth';
-import Swal from 'sweetalert2';
+import { useRouter }                from 'vue-router';
+import AdminSidebar                 from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import { useAuthStore }             from '@/stores/auth';
+import Swal                         from 'sweetalert2';
 
 export default {
   name: 'Configuracion',
   components: {
     AdminSidebar,
-    AdminNavbar
   },
   setup() {
     const router = useRouter();

@@ -217,25 +217,21 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-import { useAnalysisStore } from '@/stores/analysis';
-import AdminSidebar from '@/components/layout/AdminSidebar.vue';
-import AdminNavbar from '@/components/layout/AdminNavbar.vue';
-import ProgressIndicator from '@/components/common/ProgressIndicator.vue';
-import ErrorAlert from '@/components/common/ErrorAlert.vue';
-import BatchInfoForm from '@/components/analysis/BatchInfoForm.vue';
-import ImageUploader from '@/components/analysis/ImageUploader.vue';
-import CameraCapture from '@/components/analysis/CameraCapture.vue';
+import { ref, computed, onMounted, watch }  from 'vue';
+import { useRouter }                        from 'vue-router';
+import { useAuthStore }                     from '@/stores/auth';
+import { useAnalysisStore }                 from '@/stores/analysis';
+import AdminSidebar                         from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import ProgressIndicator                    from '@/components/admin/AdminAnalisisComponents/ProgressIndicator.vue';
+import BatchInfoForm                        from '@/components/admin/AdminAnalisisComponents/BatchInfoForm.vue';
+import ImageUploader                        from '@/components/admin/AdminAnalisisComponents/ImageUploader.vue';
+import CameraCapture                        from '@/components/admin/AdminAnalisisComponents/CameraCapture.vue';
 
 export default {
   name: 'NuevoAnalisis',
   components: {
     AdminSidebar,
-    AdminNavbar,
     ProgressIndicator,
-    ErrorAlert,
     BatchInfoForm,
     ImageUploader,
     CameraCapture

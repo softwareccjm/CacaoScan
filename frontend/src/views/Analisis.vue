@@ -10,20 +10,6 @@
       @logout="handleLogout"
     />
 
-    <!-- Navbar Component -->
-    <AdminNavbar 
-      :title="navbarTitle"
-      :subtitle="navbarSubtitle"
-      :user-name="userName"
-      :user-role="userRole"
-      :search-placeholder="searchPlaceholder"
-      :refresh-button-text="refreshButtonText"
-      :loading="loading"
-      :initial-search-query="searchQuery"
-      @search="handleSearch"
-      @refresh="handleRefresh"
-    />
-
     <!-- Main Content -->
     <div class="p-4 sm:ml-64">
       <div class="analysis-view">
@@ -121,8 +107,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useAuthStore } from '@/stores/auth';
-import AdminSidebar from '@/components/layout/AdminSidebar.vue';
-import AdminNavbar from '@/components/layout/AdminNavbar.vue';
+import AdminSidebar from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
 import PageHeader from '@/components/analisis/PageHeader.vue';
 import SearchBar from '@/components/analisis/SearchBar.vue';
 import ActionButton from '@/components/analisis/ActionButton.vue';
@@ -135,7 +120,6 @@ export default {
   name: 'AnalisisView',
   components: {
     AdminSidebar,
-    AdminNavbar,
     PageHeader,
     SearchBar,
     ActionButton,

@@ -148,7 +148,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import LoadingSpinner from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 // Store y route
 const authStore = useAuthStore()

@@ -201,28 +201,16 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import AdminSidebar from '@/components/layout/AdminSidebar.vue';
-import AdminNavbar from '@/components/layout/AdminNavbar.vue';
-import SearchBar from '@/components/agricultores/SearchBar.vue';
-import ActionButton from '@/components/agricultores/ActionButton.vue';
-import FilterSelect from '@/components/agricultores/FilterSelect.vue';
-import DataTable from '@/components/agricultores/DataTable.vue';
-import Pagination from '@/components/agricultores/Pagination.vue';
-import { useAuthStore } from '@/stores/auth';
-import Swal from 'sweetalert2';
+import { useRouter }                from 'vue-router';
+import AdminSidebar                 from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import DataTable                    from '@/components/admin/AdminAgricultorComponents/DataTable.vue';
+import Pagination                   from '@/components/admin/AdminAgricultorComponents/Pagination.vue';
+import { useAuthStore }             from '@/stores/auth';
+import Swal                         from 'sweetalert2';
 
 export default {
-  name: 'AgricultoresView',
-  components: {
-    AdminSidebar,
-    AdminNavbar,
-    SearchBar,
-    ActionButton,
-    FilterSelect,
-    DataTable,
-    Pagination
-  },
+  name: 'AdminAgricultores',
+  components: { AdminSidebar, DataTable, Pagination },
   setup() {
     const router = useRouter();
     const authStore = useAuthStore();

@@ -10,21 +10,6 @@
       @logout="handleLogout"
     />
     
-    <!-- Navbar -->
-    <AdminNavbar
-      :title="navbarTitle"
-      :subtitle="navbarSubtitle"
-      :user-name="userName"
-      :user-role="userRole"
-      :search-placeholder="searchPlaceholder"
-      :refresh-button-text="refreshButtonText"
-      :loading="loading"
-      :initial-period="selectedPeriod"
-      @search="handleSearch"
-      @period-change="handlePeriodChange"
-      @refresh="handleRefresh"
-    />
-    
     <!-- Contenido principal -->
     <div class="p-4 sm:ml-64">
       <div class="p-4 mt-14">
@@ -346,8 +331,7 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import AdminSidebar from '@/components/layout/AdminSidebar.vue';
-import AdminNavbar from '@/components/layout/AdminNavbar.vue';
+import AdminSidebar from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
 import PeriodSelector from '@/components/reportes/PeriodSelector.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
 import ReportsTable from '@/components/reportes/ReportsTable.vue';
@@ -365,7 +349,6 @@ export default {
   name: 'Reportes',
   components: {
     AdminSidebar,
-    AdminNavbar,
     PeriodSelector,
     StatsCard,
     ReportsTable,

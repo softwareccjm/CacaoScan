@@ -75,7 +75,7 @@
 <script>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import LoadingSpinner from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 export default {
   name: 'DashboardCharts',

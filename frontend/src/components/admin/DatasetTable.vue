@@ -373,7 +373,7 @@
 <script>
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { getDatasetImages, exportDatasetCSV, formatNumber } from '@/services/datasetApi.js';
-import Pagination from '@/components/agricultores/Pagination.vue';
+import Pagination from '@/components/admin/AdminAgricultorComponents/Pagination.vue';
 
 // Debounce utility (DRY)
 const debounce = (func, wait) => {

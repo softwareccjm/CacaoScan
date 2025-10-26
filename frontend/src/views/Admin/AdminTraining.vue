@@ -408,17 +408,15 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-import AdminSidebar from '@/components/layout/AdminSidebar.vue';
-import AdminNavbar from '@/components/layout/AdminNavbar.vue';
+import { useRouter }                          from 'vue-router';
+import { useAuthStore }                       from '@/stores/auth';
+import AdminSidebar                           from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
 import { getTrainingHistory, cancelTrainingJob, getModelMetrics, compareModels } from '@/services/adminApi.js';
 
 export default {
   name: 'AdminTraining',
   components: {
-    AdminSidebar,
-    AdminNavbar
+    AdminSidebar
   },
   
   setup() {

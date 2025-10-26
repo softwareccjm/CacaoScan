@@ -430,23 +430,21 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import Swal from 'sweetalert2'
-import { useAdminStore } from '@/stores/admin'
-import { useAuthStore } from '@/stores/auth'
-import AdminSidebar from '@/components/layout/AdminSidebar.vue'
-import AdminNavbar from '@/components/layout/AdminNavbar.vue'
-import UserFormModal from '@/components/admin/UserFormModal.vue'
-import UserDetailsModal from '@/components/admin/UserDetailsModal.vue'
-import UserActivityModal from '@/components/admin/UserActivityModal.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { ref, computed, onMounted, watch }  from 'vue'
+import { useRouter }                        from 'vue-router'
+import Swal                                 from 'sweetalert2'
+import { useAdminStore }                    from '@/stores/admin'
+import { useAuthStore }                     from '@/stores/auth'
+import AdminSidebar                         from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue'
+import UserFormModal                        from '@/components/admin/AdminUserComponents/UserFormModal.vue'
+import UserDetailsModal                     from '@/components/admin/AdminUserComponents/UserDetailsModal.vue'
+import UserActivityModal                    from '@/components/admin/AdminUserComponents/UserActivityModal.vue'
+import LoadingSpinner                       from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 export default {
   name: 'UserManagement',
   components: {
     AdminSidebar,
-    AdminNavbar,
     UserFormModal,
     UserDetailsModal,
     UserActivityModal,

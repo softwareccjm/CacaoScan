@@ -99,25 +99,23 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import Chart from 'chart.js/auto'
-import Swal from 'sweetalert2'
-import { useAuthStore } from '@/stores/auth'
-import { useAdminStore } from '@/stores/admin'
-import AdminSidebar from '@/components/layout/AdminSidebar.vue'
-import AdminNavbar from '@/components/layout/AdminNavbar.vue'
-import KPICards from '@/components/dashboard/KPICards.vue'
-import DashboardCharts from '@/components/dashboard/DashboardCharts.vue'
-import DashboardTables from '@/components/dashboard/DashboardTables.vue'
-import DashboardAlerts from '@/components/dashboard/DashboardAlerts.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { ref, onMounted, onUnmounted, computed }  from 'vue'
+import { useRouter }                              from 'vue-router'
+import Chart                                      from 'chart.js/auto'
+import Swal                                       from 'sweetalert2'
+import { useAuthStore }                           from '@/stores/auth'
+import { useAdminStore }                          from '@/stores/admin'
+import AdminSidebar                               from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue'
+import KPICards                                   from '@/components/admin/AdminDashboardComponents/KPICards.vue'
+import DashboardCharts                            from '@/components/admin/AdminDashboardComponents/DashboardCharts.vue'
+import DashboardTables                            from '@/components/admin/AdminDashboardComponents/DashboardTables.vue'
+import DashboardAlerts                            from '@/components/admin/AdminDashboardComponents/DashboardAlerts.vue'
+import LoadingSpinner                             from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 export default {
   name: 'AdminDashboard',
   components: {
     AdminSidebar,
-    AdminNavbar,
     KPICards,
     DashboardCharts,
     DashboardTables,
