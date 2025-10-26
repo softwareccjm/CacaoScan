@@ -329,7 +329,7 @@
 <script>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import AdminSidebar from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
 import AuditTable from '@/components/audit/AuditTable.vue';
 import AuditTimeline from '@/components/audit/AuditTimeline.vue';

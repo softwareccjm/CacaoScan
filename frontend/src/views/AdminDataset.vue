@@ -278,8 +278,8 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import DatasetUpload from '@/components/admin/DatasetUpload.vue';
-import DatasetTable from '@/components/admin/DatasetTable.vue';
+import DatasetUpload from '@/components/DatasetUpload.vue';
+import DatasetTable from '@/components/DatasetTable.vue';
 import { 
   getDatasetStats, 
   validateDataIntegrity,

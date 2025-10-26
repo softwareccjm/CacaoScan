@@ -279,7 +279,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import AdminSidebar from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import AdminNavbar from '@/components/admin/AdminGeneralComponents/AdminNavbar.vue';
 import ImageUploadCard from '@/components/training/ImageUploadCard.vue';
 import TrainingProgress from '@/components/training/TrainingProgress.vue';

@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 
 //Vistas Admin
-import AdminAnalisis from '../views/Admin/AdminAnalisis.vue'
+import AdminAnalisis from '../views/common/AdminAnalisis.vue'
 import AdminConfiguracion from '../views/Admin/AdminConfiguracion.vue'
 import AdminDashboard from '../views/Admin/AdminDashboard.vue'
 import AdminAgricultores from '../views/Admin/AdminAgricultores.vue'
@@ -17,11 +17,11 @@ import ChartDashboard from '../views/ChartDashboard.vue'
 import Analisis from '../views/Analisis.vue'
 import Reportes from '../views/Reportes.vue'
 import ReportsManagement from '../views/ReportsManagement.vue'
-import AgricultorDashboard from '../views/AgricultorDashboard.vue'
+import AgricultorDashboard from '../views/Agricultor/AgricultorDashboard.vue'
 import PredictionView from '../views/PredictionView.vue'
 import UserPrediction from '../views/UserPrediction.vue'
 import SubirDatosEntrenamiento from '../views/SubirDatosEntrenamiento.vue'
-import FincasView from '../views/FincasView.vue'
+import FincasView from '../views/common/FincasView.vue'
 import LotesView from '../views/LotesView.vue'
 
 // Importar auth store
@@ -233,6 +233,11 @@ const router = createRouter({
         requiresVerification: true,
       },
     },
+    // Redirección de ruta antigua de agricultor a la nueva ruta unificada
+    {
+      path: '/agricultor/fincas',
+      redirect: '/fincas'
+    },
     // Rutas de gestión de fincas y lotes
     {
       path: '/fincas',
@@ -241,8 +246,7 @@ const router = createRouter({
       meta: {
         title: 'Gestión de Fincas | CacaoScan',
         requiresAuth: true,
-        requiresRole: 'farmer',
-        requiresVerification: true,
+        // Both admin and farmer can access fincas
       },
     },
     {
@@ -470,9 +474,8 @@ router.beforeEach(async (to, from) => {
       }
 
       // NUEVO: Verificar rol requerido si la ruta lo especifica
-      const requiredRole =
-        to.meta.requiresRole ||
-        to.matched.find((record) => record.meta.requiresRole)?.meta.requiresRole
+      // Solo verificar el requiresRole de la ruta actual, no de las rutas padres
+      const requiredRole = to.meta.requiresRole
       if (requiredRole) {
         const userRole = authStore.userRole?.toLowerCase().trim()
         const normalizedRequiredRole = String(requiredRole).toLowerCase().trim()

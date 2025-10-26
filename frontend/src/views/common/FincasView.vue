@@ -1,7 +1,24 @@
 <template>
-  <div class="fincas-view">
-    <!-- Header con título y botón de nueva finca -->
-    <div class="flex justify-between items-center mb-6">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Sidebar -->
+    <Sidebar 
+      :brand-name="'CacaoScan'"
+      :user-name="userName"
+      :user-role="userRole"
+      :current-route="$route.path"
+      :active-section="activeSection"
+      :collapsed="false"
+      @menu-click="handleMenuClick"
+      @logout="handleLogout"
+    />
+
+    <!-- Main Content -->
+    <div class="lg:pl-64">
+      <!-- Page Content -->
+      <main class="py-6 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+          <!-- Header con título y botón de nueva finca -->
+          <div class="flex justify-between items-center mb-6">
       <div>
         <h1 class="text-3xl font-bold text-gray-900">Gestión de Fincas</h1>
         <p class="text-gray-600 mt-1">Administra las fincas de cacao registradas</p>
@@ -179,16 +196,22 @@
       @close="closeModal"
       @saved="handleFincaSaved"
     />
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import Sidebar from '@/components/layout/Common/Sidebar.vue'
 import FincaForm from '@/components/FincaForm.vue'
 import fincasApi from '@/services/fincasApi'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // Estado reactivo
 const fincas = ref([])
@@ -202,9 +225,22 @@ const filters = ref({
 const showModal = ref(false)
 const selectedFinca = ref(null)
 const isEditing = ref(false)
+const activeSection = ref('fincas')
 
 // Computed
 const departamentos = computed(() => fincasApi.getDepartamentosColombia())
+
+const userName = computed(() => {
+  return authStore.userFullName || 'Usuario'
+})
+
+const userRole = computed(() => {
+  const role = authStore.userRole || 'Usuario'
+  // Normalize role for sidebar
+  if (role === 'farmer' || role === 'Agricultor') return 'agricultor'
+  if (role === 'admin' || role === 'Administrador') return 'admin'
+  return role
+})
 
 // Debounced search
 let searchTimeout = null
@@ -281,6 +317,39 @@ const handleFincaSaved = () => {
   loadFincas()
 }
 
+// Sidebar and navbar methods
+const handleMenuClick = (item) => {
+  if (item.route && item.route !== null) {
+    // Navigate to external routes
+    const currentPath = router.currentRoute.value.path
+    if (currentPath !== item.route) {
+      router.push(item.route)
+    }
+  } else {
+    // For internal sections without routes, navigate to dashboard with query param
+    const role = authStore.userRole
+    if (role === 'farmer' || role === 'Agricultor') {
+      router.push({ 
+        name: 'AgricultorDashboard',
+        query: { section: item.id }
+      })
+    } else {
+      router.push({ 
+        name: 'AdminDashboard',
+        query: { section: item.id }
+      })
+    }
+  }
+}
+
+const handleLogout = async () => {
+  try {
+    await authStore.logout()
+  } catch (error) {
+    console.error('Error during logout:', error)
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadFincas()
@@ -288,9 +357,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.fincas-view {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
-}
+/* Estilos específicos si son necesarios */
 </style>

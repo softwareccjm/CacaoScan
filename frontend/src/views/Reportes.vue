@@ -331,7 +331,7 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import AdminSidebar from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import PeriodSelector from '@/components/reportes/PeriodSelector.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
 import ReportsTable from '@/components/reportes/ReportsTable.vue';

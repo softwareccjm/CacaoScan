@@ -1,97 +1,55 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <!-- Sidebar Component -->
-    <AdminSidebar 
-      :brand-name="brandName"
-      :user-name="userName"
-      :user-role="userRole"
-      :current-route="$route.path"
-      @menu-click="handleMenuClick"
-      @logout="handleLogout"
-    />
+    <AdminSidebar :brand-name="brandName" :user-name="userName" :user-role="userRole" :current-route="$route.path"
+      :collapsed="isSidebarCollapsed"
+      @menu-click="handleMenuClick" @logout="handleLogout" @toggle-collapse="toggleSidebarCollapse" />
 
     <!-- Main Content -->
-    <div class="p-6 sm:ml-64">
+    <div class="p-6 transition-all duration-300" :class="isSidebarCollapsed ? 'sm:ml-20' : 'sm:ml-64'">
       <!-- Dashboard Header -->
       <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
+        <div
+          class="bg-white rounded-lg border border-gray-200 hover:shadow-md hover:border-green-200 transition-all duration-200">
+          <div class="px-6 py-4">
+            <div class="flex-1">
             <h1 class="text-3xl font-bold text-gray-900 mb-2">Dashboard de Administración</h1>
             <p class="text-gray-600 text-lg">Panel de control completo del sistema CacaoScan</p>
-    </div>
-          <div class="flex items-center space-x-3">
-                      <button 
-              @click="handleRefresh"
-              :disabled="loading"
-              class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <svg class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-              </svg>
-              {{ loading ? 'Actualizando...' : 'Actualizar' }}
-                      </button>
-                    </div>
+            </div>
           </div>
-        </div>
+          </div>
+      </div>
       <!-- KPI Cards Component -->
       <div class="mb-8">
-        <KPICards 
-          :cards="kpiCards"
-          @card-click="handleKPICardClick"
-        />
+        <KPICards :cards="kpiCards" @card-click="handleKPICardClick" />
       </div>
 
       <!-- Charts Component -->
       <div class="mb-8">
-        <DashboardCharts 
-          :activity-chart-title="activityChartTitle"
-          :quality-chart-title="qualityChartTitle"
-          :activity-chart-data="activityChartData"
-          :quality-chart-data="qualityChartData"
-          :activity-chart-options="activityChartOptions"
-          :quality-chart-options="qualityChartOptions"
-          :loading="loading"
-          :initial-activity-chart-type="activityChartType"
-          @activity-chart-type-change="handleActivityChartTypeChange"
-          @activity-refresh="handleActivityRefresh"
-          @quality-refresh="handleQualityRefresh"
-          @activity-click="handleActivityClick"
-          @quality-click="handleQualityClick"
-        />
+        <DashboardCharts :activity-chart-title="activityChartTitle" :quality-chart-title="qualityChartTitle"
+          :activity-chart-data="activityChartData" :quality-chart-data="qualityChartData"
+          :activity-chart-options="activityChartOptions" :quality-chart-options="qualityChartOptions" :loading="loading"
+          :initial-activity-chart-type="activityChartType" @activity-chart-type-change="handleActivityChartTypeChange"
+          @activity-refresh="handleActivityRefresh" @quality-refresh="handleQualityRefresh"
+          @activity-click="handleActivityClick" @quality-click="handleQualityClick" />
       </div>
 
       <!-- Tables Component -->
       <div class="mb-8">
-        <DashboardTables 
-          :users-table-title="usersTableTitle"
-          :users-table-link="usersTableLink"
-          :users-table-link-text="usersTableLinkText"
-          :activity-table-title="activityTableTitle"
-          :activity-table-link="activityTableLink"
-          :activity-table-link-text="activityTableLinkText"
-          :recent-users="recentUsers"
-          :recent-activities="recentActivities"
-          @view-user="handleViewUser"
-          @edit-user="handleEditUser"
-        />
-        </div>
+        <DashboardTables :users-table-title="usersTableTitle" :users-table-link="usersTableLink"
+          :users-table-link-text="usersTableLinkText" :activity-table-title="activityTableTitle"
+          :activity-table-link="activityTableLink" :activity-table-link-text="activityTableLinkText"
+          :recent-users="recentUsers" :recent-activities="recentActivities" @view-user="handleViewUser"
+          @edit-user="handleEditUser" />
+      </div>
 
       <!-- Alerts and Reports Component -->
       <div class="mb-8">
-        <DashboardAlerts 
-          :alerts-title="alertsTitle"
-          :no-alerts-message="noAlertsMessage"
-          :reports-title="reportsTitle"
-          :reports-link="reportsLink"
-          :reports-link-text="reportsLinkText"
-          :total-reports-label="totalReportsLabel"
-          :completed-reports-label="completedReportsLabel"
-          :generating-reports-label="generatingReportsLabel"
-          :failed-reports-label="failedReportsLabel"
-          :alerts="alerts"
-          :report-stats="reportStats"
-          @dismiss-alert="handleDismissAlert"
-        />
+        <DashboardAlerts :alerts-title="alertsTitle" :no-alerts-message="noAlertsMessage" :reports-title="reportsTitle"
+          :reports-link="reportsLink" :reports-link-text="reportsLinkText" :total-reports-label="totalReportsLabel"
+          :completed-reports-label="completedReportsLabel" :generating-reports-label="generatingReportsLabel"
+          :failed-reports-label="failedReportsLabel" :alerts="alerts" :report-stats="reportStats"
+          @dismiss-alert="handleDismissAlert" />
       </div>
 
     </div>
@@ -99,18 +57,18 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, computed }  from 'vue'
-import { useRouter }                              from 'vue-router'
-import Chart                                      from 'chart.js/auto'
-import Swal                                       from 'sweetalert2'
-import { useAuthStore }                           from '@/stores/auth'
-import { useAdminStore }                          from '@/stores/admin'
-import AdminSidebar                               from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue'
-import KPICards                                   from '@/components/admin/AdminDashboardComponents/KPICards.vue'
-import DashboardCharts                            from '@/components/admin/AdminDashboardComponents/DashboardCharts.vue'
-import DashboardTables                            from '@/components/admin/AdminDashboardComponents/DashboardTables.vue'
-import DashboardAlerts                            from '@/components/admin/AdminDashboardComponents/DashboardAlerts.vue'
-import LoadingSpinner                             from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import Chart from 'chart.js/auto'
+import Swal from 'sweetalert2'
+import { useAuthStore } from '@/stores/auth'
+import { useAdminStore } from '@/stores/admin'
+import AdminSidebar from '@/components/layout/Common/Sidebar.vue'
+import KPICards from '@/components/admin/AdminDashboardComponents/KPICards.vue'
+import DashboardCharts from '@/components/admin/AdminDashboardComponents/DashboardCharts.vue'
+import DashboardTables from '@/components/admin/AdminDashboardComponents/DashboardTables.vue'
+import DashboardAlerts from '@/components/admin/AdminDashboardComponents/DashboardAlerts.vue'
+import LoadingSpinner from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 export default {
   name: 'AdminDashboard',
@@ -166,6 +124,14 @@ export default {
     const searchPlaceholder = ref('Buscar usuarios, análisis, reportes...')
     const refreshButtonText = ref('Actualizar')
     const searchQuery = ref('')
+
+    // Sidebar collapse state
+    const isSidebarCollapsed = ref(false)
+
+    const toggleSidebarCollapse = () => {
+      isSidebarCollapsed.value = !isSidebarCollapsed.value
+      localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value)
+    }
 
     // Charts properties
     const activityChartTitle = ref('Actividad de Usuarios')
@@ -441,9 +407,9 @@ export default {
           }]
         },
         options: {
-      responsive: true,
+          responsive: true,
           maintainAspectRatio: false,
-      plugins: {
+          plugins: {
             legend: {
               display: false
             }
@@ -478,9 +444,9 @@ export default {
           }]
         },
         options: {
-      responsive: true,
+          responsive: true,
           maintainAspectRatio: false,
-      plugins: {
+          plugins: {
             legend: {
               position: 'bottom'
             }
@@ -760,7 +726,7 @@ export default {
       }
 
       await loadDashboardData()
-      
+
       // Crear gráficos después de cargar los datos
       setTimeout(() => {
         createCharts()
@@ -781,6 +747,8 @@ export default {
       loading,
       stats,
       recentUsers,
+      isSidebarCollapsed,
+      toggleSidebarCollapse,
       recentActivities,
       alerts,
       reportStats,
@@ -902,7 +870,7 @@ button:focus-visible {
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .dashboard-header {
-  flex-direction: column;
+    flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
@@ -912,10 +880,10 @@ button:focus-visible {
   .dashboard-header h1 {
     font-size: 1.875rem;
   }
-  
+
   .dashboard-header p {
-  font-size: 1rem;
-}
+    font-size: 1rem;
+  }
 }
 
 /* Estilos para elementos de estado */

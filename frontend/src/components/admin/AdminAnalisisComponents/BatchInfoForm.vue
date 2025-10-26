@@ -8,15 +8,23 @@
         <label for="farm" class="block text-sm font-medium text-gray-700">
           Finca <span class="text-red-500">*</span>
         </label>
-        <input
-          type="text"
+        <select
           id="farm"
           v-model="formData.farm"
-          @input="updateForm"
+          @change="updateForm"
+          :disabled="loadingFincas"
           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-          :class="{ 'border-red-500': errors.farm }"
-        />
+          :class="{ 'border-red-500': errors.farm, 'bg-gray-100 cursor-wait': loadingFincas }"
+        >
+          <option value="">{{ loadingFincas ? 'Cargando fincas...' : 'Selecciona una finca' }}</option>
+          <option v-for="finca in fincas" :key="finca.id" :value="finca.nombre">
+            {{ finca.nombre }} - {{ finca.ubicacion || 'Sin ubicación' }}
+          </option>
+        </select>
         <p v-if="errors.farm" class="mt-1 text-sm text-red-600">{{ errors.farm }}</p>
+        <p v-if="fincas.length === 0 && !loadingFincas" class="mt-1 text-xs text-amber-600">
+          {{ userRole === 'agricultor' ? 'No tienes fincas registradas' : 'No hay fincas disponibles' }}
+        </p>
       </div>
 
       <!-- Lugar de Origen -->
@@ -45,10 +53,17 @@
           id="farmer"
           v-model="formData.farmer"
           @input="updateForm"
-          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-          :class="{ 'border-red-500': errors.farmer }"
+          :readonly="userRole === 'agricultor'"
+          :class="[
+            'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500',
+            { 'border-red-500': errors.farmer },
+            { 'bg-gray-100 cursor-not-allowed': userRole === 'agricultor' }
+          ]"
         />
         <p v-if="errors.farmer" class="mt-1 text-sm text-red-600">{{ errors.farmer }}</p>
+        <p v-if="userRole === 'agricultor'" class="mt-1 text-xs text-gray-500">
+          Este campo se completa automáticamente con tu nombre
+        </p>
       </div>
 
       <!-- Genética -->
@@ -150,6 +165,7 @@
 
 <script>
 import { ref, watch, onMounted } from 'vue';
+import { getFincas } from '@/services/fincasApi';
 
 export default {
   name: 'BatchInfoForm',
@@ -161,6 +177,18 @@ export default {
     errors: {
       type: Object,
       default: () => ({})
+    },
+    userRole: {
+      type: String,
+      default: 'admin'
+    },
+    userName: {
+      type: String,
+      default: ''
+    },
+    userId: {
+      type: Number,
+      default: null
     }
   },
   emits: ['update:modelValue'],
@@ -173,10 +201,43 @@ export default {
       ...props.modelValue
     });
 
-    // Set max date to today
-    onMounted(() => {
+    const fincas = ref([]);
+    const loadingFincas = ref(false);
+
+    // Load fincas from backend
+    const loadFincas = async () => {
+      loadingFincas.value = true;
+      try {
+        const response = await getFincas();
+        
+        if (props.userRole === 'agricultor' && props.userId) {
+          // Filter only fincas owned by the current user
+          fincas.value = response.results?.filter(finca => finca.propietario === props.userId) || [];
+        } else {
+          // Admin sees all fincas
+          fincas.value = response.results || [];
+        }
+      } catch (error) {
+        console.error('Error loading fincas:', error);
+        fincas.value = [];
+      } finally {
+        loadingFincas.value = false;
+      }
+    };
+
+    // Set max date to today and auto-fill farmer name for agricultor role
+    onMounted(async () => {
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('collectionDate')?.setAttribute('max', today);
+      
+      // Load fincas
+      await loadFincas();
+      
+      // Auto-fill farmer name if user is agricultor
+      if (props.userRole === 'agricultor' && props.userName && !formData.value.farmer) {
+        formData.value.farmer = props.userName;
+        emit('update:modelValue', { ...formData.value });
+      }
     });
 
     const updateForm = () => {
@@ -190,7 +251,10 @@ export default {
 
     return {
       formData,
-      updateForm
+      updateForm,
+      userRole: props.userRole,
+      fincas,
+      loadingFincas
     };
   }
 };

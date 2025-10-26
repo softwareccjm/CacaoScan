@@ -6,12 +6,14 @@
       :user-name="userName"
       :user-role="userRole"
       :current-route="$route.path"
+      :collapsed="isSidebarCollapsed"
       @menu-click="handleMenuClick"
       @logout="handleLogout"
+      @toggle-collapse="toggleSidebarCollapse"
     />
     
     <!-- Contenido principal -->
-    <div class="p-4 sm:ml-64">
+    <div class="p-4 transition-all duration-300" :class="isSidebarCollapsed ? 'sm:ml-20' : 'sm:ml-64'">
       <div class="p-4 mt-14">
         <!-- Contenido principal -->
         <main class="space-y-6">
@@ -637,7 +639,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter }                from 'vue-router';
-import AdminSidebar                 from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import AdminSidebar                 from '@/components/layout/Common/Sidebar.vue';
 import { useAuthStore }             from '@/stores/auth';
 import Swal                         from 'sweetalert2';
 
@@ -667,6 +669,14 @@ export default {
     const userRole = computed(() => {
       return authStore.user?.is_superuser ? 'Administrador' : 'Usuario';
     });
+
+    // Sidebar collapse state
+    const isSidebarCollapsed = ref(false);
+
+    const toggleSidebarCollapse = () => {
+      isSidebarCollapsed.value = !isSidebarCollapsed.value;
+      localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value);
+    };
 
     const navbarTitle = ref('Configuración del Sistema');
     const navbarSubtitle = ref('Gestiona la configuración general de la aplicación');
@@ -1070,6 +1080,8 @@ export default {
     return {
       // Estado
       loading,
+      isSidebarCollapsed,
+      toggleSidebarCollapse,
       
       // Props para componentes
       brandName,

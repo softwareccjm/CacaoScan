@@ -1,10 +1,13 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <!-- Sidebar -->
-    <AdminSidebar 
+    <Sidebar 
+      :brand-name="'CacaoScan'"
       :user-name="userName"
       :user-role="userRole"
       :current-route="$route.path"
+      :active-section="activeSection"
+      :collapsed="false"
       @menu-click="handleMenuClick"
       @logout="handleLogout"
     />
@@ -18,22 +21,13 @@
         <div class="max-w-5xl mx-auto">
           <!-- Page Header -->
           <div class="mb-8">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="bg-white rounded-lg border border-gray-200 hover:shadow-md hover:border-green-200 transition-all duration-200">
+            <div class="px-6 py-4">
               <div class="flex-1">
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Nuevo Análisis de Lote</h1>
                 <p class="text-gray-600 text-lg">Sube imágenes de granos de cacao y completa la información del lote para iniciar un análisis de calidad detallado y preciso.</p>
               </div>
-              <div class="flex items-center space-x-3">
-                <router-link 
-                  to="/admin/dashboard"
-                  class="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-                >
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                  </svg>
-                  Volver al Dashboard
-                </router-link>
-              </div>
+            </div>
             </div>
           </div>
 
@@ -78,7 +72,14 @@
               <!-- Batch Info Form -->
               <div class="bg-gray-50 rounded-lg p-6">
                 <h2 class="text-xl font-semibold text-gray-900 mb-4">Información del Lote</h2>
-                <BatchInfoForm v-model="batchData" :errors="formErrors" @update:modelValue="updateBatchData" />
+                <BatchInfoForm 
+                  v-model="batchData" 
+                  :errors="formErrors" 
+                  :user-role="userRole"
+                  :user-name="userName"
+                  :user-id="authStore.user?.id"
+                  @update:modelValue="updateBatchData" 
+                />
               </div>
 
               <!-- Image Capture Section -->
@@ -221,7 +222,7 @@ import { ref, computed, onMounted, watch }  from 'vue';
 import { useRouter }                        from 'vue-router';
 import { useAuthStore }                     from '@/stores/auth';
 import { useAnalysisStore }                 from '@/stores/analysis';
-import AdminSidebar                         from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import Sidebar                              from '@/components/layout/Common/Sidebar.vue';
 import ProgressIndicator                    from '@/components/admin/AdminAnalisisComponents/ProgressIndicator.vue';
 import BatchInfoForm                        from '@/components/admin/AdminAnalisisComponents/BatchInfoForm.vue';
 import ImageUploader                        from '@/components/admin/AdminAnalisisComponents/ImageUploader.vue';
@@ -230,7 +231,7 @@ import CameraCapture                        from '@/components/admin/AdminAnalis
 export default {
   name: 'NuevoAnalisis',
   components: {
-    AdminSidebar,
+    Sidebar,
     ProgressIndicator,
     BatchInfoForm,
     ImageUploader,
@@ -296,12 +297,18 @@ export default {
     });
 
     const userRole = computed(() => {
-      return authStore.userRole || 'Usuario';
+      const role = authStore.userRole || 'Usuario';
+      // Normalize role for sidebar
+      if (role === 'farmer' || role === 'Agricultor') return 'agricultor';
+      if (role === 'admin' || role === 'Administrador') return 'admin';
+      return role;
     });
 
     const userEmail = computed(() => {
       return authStore.user?.email || '';
     });
+
+    const activeSection = ref('analysis');
 
     // Methods
     const updateBatchData = (data) => {
@@ -391,8 +398,28 @@ export default {
     };
 
     // Sidebar and navbar methods
-    const handleMenuClick = (menuItem) => {
-      router.push(menuItem.route);
+    const handleMenuClick = (item) => {
+      if (item.route && item.route !== null) {
+        // Navigate to external routes
+        const currentPath = router.currentRoute.value.path;
+        if (currentPath !== item.route) {
+          router.push(item.route);
+        }
+      } else {
+        // For internal sections without routes, navigate to dashboard with query param
+        const role = authStore.userRole;
+        if (role === 'farmer' || role === 'Agricultor') {
+          router.push({ 
+            name: 'AgricultorDashboard',
+            query: { section: item.id }
+          });
+        } else {
+          router.push({ 
+            name: 'AdminDashboard',
+            query: { section: item.id }
+          });
+        }
+      }
     };
 
     const handleLogout = async () => {
@@ -428,6 +455,7 @@ export default {
       userName,
       userRole,
       userEmail,
+      activeSection,
 
       // Methods
       updateBatchData,

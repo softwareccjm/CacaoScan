@@ -6,18 +6,22 @@
       :user-name="userName"
       :user-role="userRole"
       :current-route="$route.path"
+      :collapsed="isSidebarCollapsed"
       @menu-click="handleMenuClick"
       @logout="handleLogout"
+      @toggle-collapse="toggleSidebarCollapse"
     />
     
     <!-- Contenido principal -->
-    <div class="p-6 sm:ml-64">
+    <div class="p-6 transition-all duration-300" :class="isSidebarCollapsed ? 'sm:ml-20' : 'sm:ml-64'">
       <!-- Page Header -->
       <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Gestión de Agricultores</h1>
-            <p class="text-gray-600 text-lg">Administra todos los agricultores y fincas del sistema</p>
+        <div class="bg-white rounded-lg border border-gray-200 hover:shadow-md hover:border-green-200 transition-all duration-200">
+        <div class="px-6 py-4">
+            <div class="flex-1">
+              <h1 class="text-3xl font-bold text-gray-900 mb-2">Gestión de Agricultores</h1>
+              <p class="text-gray-600 text-lg">Administra todos los agricultores y fincas del sistema</p>
+            </div>
           </div>
         </div>
       </div>
@@ -202,7 +206,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter }                from 'vue-router';
-import AdminSidebar                 from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import AdminSidebar                 from '@/components/layout/Common/Sidebar.vue';
 import DataTable                    from '@/components/admin/AdminAgricultorComponents/DataTable.vue';
 import Pagination                   from '@/components/admin/AdminAgricultorComponents/Pagination.vue';
 import { useAuthStore }             from '@/stores/auth';
@@ -234,6 +238,14 @@ export default {
     const userRole = computed(() => {
       return authStore.user?.is_superuser ? 'Administrador' : 'Usuario';
     });
+
+    // Sidebar collapse state
+    const isSidebarCollapsed = ref(false);
+
+    const toggleSidebarCollapse = () => {
+      isSidebarCollapsed.value = !isSidebarCollapsed.value;
+      localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value);
+    };
 
     const navbarTitle = ref('Agricultores');
     const navbarSubtitle = ref('Gestión de agricultores y fincas');
@@ -438,6 +450,8 @@ export default {
       searchQuery,
       currentPage,
       loading,
+      isSidebarCollapsed,
+      toggleSidebarCollapse,
       
       // Props para componentes
       brandName,

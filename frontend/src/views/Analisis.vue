@@ -107,7 +107,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useAuthStore } from '@/stores/auth';
-import AdminSidebar from '@/components/admin/AdminGeneralComponents/AdminSidebar.vue';
+import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import PageHeader from '@/components/analisis/PageHeader.vue';
 import SearchBar from '@/components/analisis/SearchBar.vue';
 import ActionButton from '@/components/analisis/ActionButton.vue';
