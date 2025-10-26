@@ -89,7 +89,7 @@ const router = createRouter({
       meta: {
         title: 'Nuevo Análisis de Lote | CacaoScan',
         requiresAuth: true,
-        requiresRole: 'farmer',
+        requiresRole: 'admin',
         requiresVerification: true
       }
     },
@@ -484,16 +484,44 @@ router.beforeEach(async (to, from) => {
         
         console.log('🔐 Verificando rol requerido:', normalizedRequiredRole, '- Rol del usuario:', userRole)
         
+        // Función para normalizar roles del usuario
+        const normalizeUserRole = (role) => {
+          if (!role) return null
+          const normalized = String(role).toLowerCase().trim()
+          
+          // Mapear variantes comunes de roles
+          switch (normalized) {
+            case 'administrador':
+            case 'administrator':
+            case 'admin':
+              return 'admin'
+            case 'analista':
+            case 'analyst':
+              return 'analyst'
+            case 'agricultor':
+            case 'farmer':
+              return 'farmer'
+            default:
+              return normalized
+          }
+        }
+        
+        const normalizedUserRole = normalizeUserRole(userRole)
+        
         // Verificar si el usuario tiene el rol requerido
-        if (userRole !== normalizedRequiredRole) {
-          console.warn('⛔ Acceso denegado: Rol insuficiente')
+        if (normalizedUserRole !== normalizedRequiredRole) {
+          console.warn('⛔ Acceso denegado: Rol insuficiente', {
+            userRole: userRole,
+            normalizedUserRole: normalizedUserRole,
+            requiredRole: normalizedRequiredRole
+          })
           return {
             path: '/acceso-denegado',
             replace: true,
             query: {
               reason: 'insufficient_role',
               required: normalizedRequiredRole,
-              current: userRole
+              current: normalizedUserRole
             }
           }
         }
@@ -524,19 +552,36 @@ router.beforeEach(async (to, from) => {
 const getRedirectPathByRole = (role) => {
   console.log('🔍 getRedirectPathByRole llamado con rol:', role, 'tipo:', typeof role)
   
-  // Normalizar el rol a minúsculas para comparación
-  const normalizedRole = String(role).toLowerCase().trim()
+  // Función para normalizar roles (misma lógica que en el guard)
+  const normalizeRole = (role) => {
+    if (!role) return null
+    const normalized = String(role).toLowerCase().trim()
+    
+    // Mapear variantes comunes de roles
+    switch (normalized) {
+      case 'administrador':
+      case 'administrator':
+      case 'admin':
+        return 'admin'
+      case 'analista':
+      case 'analyst':
+        return 'analyst'
+      case 'agricultor':
+      case 'farmer':
+        return 'farmer'
+      default:
+        return normalized
+    }
+  }
+  
+  const normalizedRole = normalizeRole(role)
   
   switch (normalizedRole) {
     case 'admin':
-    case 'administrator':
-    case 'administrador':
       return '/admin/dashboard'
     case 'analyst':
-    case 'analista':
       return '/analisis'
     case 'farmer':
-    case 'agricultor':
       return '/agricultor-dashboard'
     default:
       console.warn('⚠️ Rol no reconocido:', role, '- Redirigiendo a /admin/dashboard por defecto')

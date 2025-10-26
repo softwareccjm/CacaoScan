@@ -1,16 +1,50 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto">
-      <!-- Page Header -->
-      <PageHeader 
-        title="Nuevo Análisis de Lote"
-        description="Sube imágenes de granos de cacao y completa la información del lote para iniciar un análisis de calidad detallado y preciso."
-        back-route="/admin/analisis"
-        back-text="Volver"
+  <div class="min-h-screen bg-gray-50">
+    <!-- Sidebar -->
+    <AdminSidebar 
+      :user-name="userName"
+      :user-role="userRole"
+      :current-route="$route.path"
+      @menu-click="handleMenuClick"
+      @logout="handleLogout"
+    />
+
+    <!-- Main Content with Navbar -->
+    <div class="lg:pl-64">
+      <!-- Navbar -->
+      <AdminNavbar 
+        :user-name="userName"
+        :user-role="userRole"
+        :user-email="userEmail"
+        @logout="handleLogout"
       />
 
-      <!-- Main Content -->
-      <div class="bg-white shadow rounded-lg overflow-hidden">
+      <!-- Page Content -->
+      <main class="py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+          <!-- Page Header -->
+          <div class="mb-8">
+            <div class="flex items-center justify-between">
+              <div>
+                <h1 class="text-3xl font-bold text-gray-900">Nuevo Análisis de Lote</h1>
+                <p class="mt-2 text-gray-600">Sube imágenes de granos de cacao y completa la información del lote para iniciar un análisis de calidad detallado y preciso.</p>
+              </div>
+              <div class="flex items-center space-x-3">
+                <router-link 
+                  to="/admin/dashboard"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                  </svg>
+                  Volver al Dashboard
+                </router-link>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Content -->
+          <div class="bg-white shadow rounded-lg overflow-hidden">
         <div class="p-6 space-y-8">
           <!-- Progress Indicator -->
           <ProgressIndicator v-if="isUploading" :progress="uploadProgress" label="Procesando imágenes..." />
@@ -162,14 +196,19 @@
           <ErrorAlert v-if="error" :message="error" />
         </div>
       </div>
+        </div>
+      </main>
     </div>
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 import { useAnalysisStore } from '@/stores/analysis';
-import PageHeader from '@/components/common/PageHeader.vue';
+import AdminSidebar from '@/components/layout/AdminSidebar.vue';
+import AdminNavbar from '@/components/layout/AdminNavbar.vue';
 import ProgressIndicator from '@/components/common/ProgressIndicator.vue';
 import ErrorAlert from '@/components/common/ErrorAlert.vue';
 import BatchInfoForm from '@/components/analysis/BatchInfoForm.vue';
@@ -179,7 +218,8 @@ import CameraCapture from '@/components/analysis/CameraCapture.vue';
 export default {
   name: 'NuevoAnalisis',
   components: {
-    PageHeader,
+    AdminSidebar,
+    AdminNavbar,
     ProgressIndicator,
     ErrorAlert,
     BatchInfoForm,
@@ -187,6 +227,8 @@ export default {
     CameraCapture
   },
   setup() {
+    const router = useRouter();
+    const authStore = useAuthStore();
     const analysisStore = useAnalysisStore();
 
     // Local state
@@ -236,6 +278,19 @@ export default {
 
     const error = computed(() => {
       return analysisStore.uploadError;
+    });
+
+    // User data for sidebar and navbar
+    const userName = computed(() => {
+      return authStore.userFullName || 'Usuario';
+    });
+
+    const userRole = computed(() => {
+      return authStore.userRole || 'Usuario';
+    });
+
+    const userEmail = computed(() => {
+      return authStore.user?.email || '';
     });
 
     // Methods
@@ -325,6 +380,19 @@ export default {
       formErrors.value = {};
     };
 
+    // Sidebar and navbar methods
+    const handleMenuClick = (menuItem) => {
+      router.push(menuItem.route);
+    };
+
+    const handleLogout = async () => {
+      try {
+        await authStore.logout();
+      } catch (error) {
+        console.error('Error during logout:', error);
+      }
+    };
+
     // Lifecycle hooks
     onMounted(() => {
       // Reset store when component is mounted
@@ -347,6 +415,9 @@ export default {
       uploadProgress,
       isUploading,
       error,
+      userName,
+      userRole,
+      userEmail,
 
       // Methods
       updateBatchData,
@@ -354,7 +425,9 @@ export default {
       handleCapturedImage,
       removeCapturedImage,
       submitAnalysis,
-      resetForm
+      resetForm,
+      handleMenuClick,
+      handleLogout
     };
   }
 };

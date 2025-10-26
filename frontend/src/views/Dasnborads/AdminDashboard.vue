@@ -82,14 +82,6 @@
       />
 
     </div>
-
-    <!-- Loading Overlay -->
-    <div v-if="loading" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
-        <LoadingSpinner size="md" color="blue" />
-        <span class="text-gray-700">Cargando datos...</span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -623,26 +615,8 @@ export default {
 
     const handleLogout = async () => {
       try {
-        await Swal.fire({
-          title: '¿Cerrar sesión?',
-          text: '¿Estás seguro de que quieres cerrar sesión?',
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonColor: '#d33',
-          cancelButtonColor: '#3085d6',
-          confirmButtonText: 'Sí, cerrar sesión',
-          cancelButtonText: 'Cancelar'
-        }).then(async (result) => {
-          if (result.isConfirmed) {
-            await authStore.logout()
-            router.push('/login')
-            Swal.fire({
-              icon: 'success',
-              title: 'Sesión cerrada',
-              text: 'Has cerrado sesión exitosamente'
-            })
-          }
-        })
+        await authStore.logout()
+        // No redirigir aquí - authStore.logout() ya maneja la redirección
       } catch (error) {
         console.error('Error during logout:', error)
         Swal.fire({
