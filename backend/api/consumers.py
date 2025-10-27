@@ -479,3 +479,131 @@ class AuditConsumer(AsyncWebsocketConsumer):
                 'logins': logins_data
             }
         }))
+
+
+class UserStatsConsumer(AsyncWebsocketConsumer):
+    """
+    Consumer para estadísticas de usuarios en tiempo real.
+    """
+    
+    async def connect(self):
+        """Conectar al WebSocket de estadísticas de usuarios."""
+        self.stats_group_name = 'user_stats'
+        
+        # Unirse al grupo de estadísticas de usuarios
+        await self.channel_layer.group_add(
+            self.stats_group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+        
+        # Enviar estadísticas iniciales
+        await self.send_user_stats()
+        
+        logger.info("Cliente conectado a WebSocket de estadísticas de usuarios")
+    
+    async def disconnect(self, close_code):
+        """Desconectar del WebSocket."""
+        await self.channel_layer.group_discard(
+            self.stats_group_name,
+            self.channel_name
+        )
+        
+        logger.info("Cliente desconectado de WebSocket de estadísticas de usuarios")
+    
+    async def receive(self, text_data):
+        """Recibir mensaje del cliente."""
+        try:
+            data = json.loads(text_data)
+            message_type = data.get('type')
+            
+            if message_type == 'ping':
+                await self.send(text_data=json.dumps({
+                    'type': 'pong',
+                    'timestamp': timezone.now().isoformat()
+                }))
+            elif message_type == 'get_stats':
+                await self.send_user_stats()
+            
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Formato JSON inválido'
+            }))
+        except Exception as e:
+            logger.error(f"Error procesando mensaje WebSocket: {e}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Error interno del servidor'
+            }))
+    
+    async def user_stats_update(self, event):
+        """Enviar actualización de estadísticas de usuarios."""
+        await self.send(text_data=json.dumps({
+            'type': 'user_stats_update',
+            'data': event['data']
+        }))
+    
+    @database_sync_to_async
+    def send_user_stats(self):
+        """Enviar estadísticas actuales de usuarios."""
+        from django.db.models import Count, Q
+        from datetime import timedelta
+        
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        five_minutes_ago = now - timedelta(minutes=5)
+        
+        # Total de usuarios
+        total_users = User.objects.count()
+        
+        # Usuarios activos
+        active_users = User.objects.filter(is_active=True).count()
+        
+        # Usuarios online (han tenido actividad en los últimos 5 minutos)
+        # Usar ActivityLog en lugar de LoginHistory para detectar usuarios activos
+        online_user_ids = ActivityLog.objects.filter(
+            timestamp__gte=five_minutes_ago
+        ).exclude(usuario__isnull=True).values_list('usuario_id', flat=True).distinct()
+        
+        online_users = len(set(online_user_ids))
+        
+        # Si no hay actividad reciente, usar last_login como fallback
+        if online_users == 0:
+            online_users = User.objects.filter(
+                last_login__gte=five_minutes_ago
+            ).count()
+        
+        # Nuevos usuarios hoy
+        new_users_today = User.objects.filter(date_joined__gte=today_start).count()
+        
+        # Usuarios por rol
+        users_by_role = {
+            'admin': 0,
+            'analyst': 0,
+            'farmer': 0
+        }
+        
+        # Contar por rol
+        for user in User.objects.all():
+            if user.is_superuser:
+                users_by_role['admin'] += 1
+            elif user.groups.filter(name='analyst').exists():
+                users_by_role['analyst'] += 1
+            else:
+                users_by_role['farmer'] += 1
+        
+        stats = {
+            'timestamp': now.isoformat(),
+            'total': total_users,
+            'active': active_users,
+            'online': online_users,
+            'new_today': new_users_today,
+            'by_role': users_by_role
+        }
+        
+        self.send(text_data=json.dumps({
+            'type': 'user_stats',
+            'data': stats
+        }))

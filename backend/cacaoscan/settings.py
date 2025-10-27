@@ -355,16 +355,28 @@ SIMPLE_JWT = {
 ASGI_APPLICATION = 'cacaoscan.asgi.application'
 
 # Configuración de Channels
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
-            'capacity': 1500,
-            'expiry': 60,
+# Para desarrollo sin Redis, usa InMemoryChannelLayer
+# Para producción, usa Redis: 'channels_redis.core.RedisChannelLayer'
+USE_REDIS = os.environ.get('USE_REDIS', 'False').lower() == 'true'
+
+if USE_REDIS:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [('127.0.0.1', 6379)],
+                'capacity': 1500,
+                'expiry': 60,
+            },
         },
-    },
-}
+    }
+else:
+    # Channel layer in-memory para desarrollo sin Redis
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 # Configuración de WebSockets
 WEBSOCKET_URL = os.environ.get('WEBSOCKET_URL', 'ws://localhost:8000/ws/')

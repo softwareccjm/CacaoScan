@@ -169,12 +169,13 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'
 import { useAdminStore } from '@/stores/admin'
 import { useAuthStore } from '@/stores/auth'
 import authApi from '@/services/authApi'
+import { useWebSocket } from '@/composables/useWebSocket'
 import AdminSidebar from '@/components/layout/Common/Sidebar.vue'
 import UserFormModal from '@/components/admin/AdminUserComponents/UserFormModal.vue'
 import UserDetailsModal from '@/components/admin/AdminUserComponents/UserDetailsModal.vue'
@@ -200,6 +201,7 @@ export default {
     const router = useRouter()
     const adminStore = useAdminStore()
     const authStore = useAuthStore()
+    const websocket = useWebSocket()
 
     // Sidebar properties
     const brandName = computed(() => 'CacaoScan')
@@ -775,7 +777,45 @@ export default {
 
       loadUserStats()
       loadUsers()
+      
+      // Conectar a WebSocket para estadísticas en tiempo real
+      setupWebSocketConnection()
+      
+      // Configurar polling para actualizaciones periódicas (fallback si WebSockets fallan)
+      const statsPollingInterval = setInterval(() => {
+        loadUserStats()
+        // Solo recargar usuarios si están en la primera página
+        if (currentPage.value === 1) {
+          loadUsers()
+        }
+      }, 30000) // Actualizar cada 30 segundos
+      
+      // Limpiar intervalo y listeners de WebSocket al desmontar
+      onUnmounted(() => {
+        clearInterval(statsPollingInterval)
+        // Limpiar listeners de WebSocket si es necesario
+        if (websocket && websocket.off) {
+          websocket.off('user-stats-updated', handleStatsUpdate)
+        }
+      })
     })
+    
+
+    
+    const setupWebSocketConnection = () => {
+      // Escuchar actualizaciones de estadísticas
+      websocket.on('user-stats-updated', handleStatsUpdate)
+    }
+    
+    const handleStatsUpdate = (data) => {
+      console.log('📊 Actualización de estadísticas recibida:', data)
+      userStats.value = {
+        total: data.total || 0,
+        active: data.active || 0,
+        online: data.online || 0,
+        new_today: data.new_today || 0
+      }
+    }
 
     return {
       // Sidebar & Navbar
