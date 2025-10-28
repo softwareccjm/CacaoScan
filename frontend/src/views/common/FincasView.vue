@@ -260,10 +260,19 @@ const debouncedSearch = () => {
 
 // Métodos
 const loadFincas = async () => {
-  const params = {
-    search: searchQuery.value,
-    departamento: filters.value.departamento,
-    activa: filters.value.activa
+  const params = {}
+  
+  // Solo agregar parámetros que tengan valores
+  if (searchQuery.value && searchQuery.value.trim()) {
+    params.search = searchQuery.value.trim()
+  }
+  
+  if (filters.value.departamento && filters.value.departamento.trim()) {
+    params.departamento = filters.value.departamento.trim()
+  }
+  
+  if (filters.value.activa && filters.value.activa !== '') {
+    params.activa = filters.value.activa
   }
   
   await fincasStore.fetchFincas(params)

@@ -29,6 +29,7 @@
                 </label>
                 <input
                   v-model="formData.nombre"
+                  name="nombre"
                   type="text"
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -43,6 +44,7 @@
                 </label>
                 <input
                   v-model="formData.hectareas"
+                  name="hectareas"
                   type="number"
                   step="0.01"
                   min="0.01"
@@ -65,6 +67,7 @@
                 </label>
                 <input
                   v-model="formData.ubicacion"
+                  name="ubicacion"
                   type="text"
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -80,6 +83,7 @@
                   </label>
                   <select
                     v-model="formData.departamento"
+                    name="departamento"
                     required
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     :class="{ 'border-red-500': errors.departamento }"
@@ -99,6 +103,7 @@
                   </label>
                   <select
                     v-model="formData.municipio"
+                    name="municipio"
                     required
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     :class="{ 'border-red-500': errors.municipio }"
@@ -124,6 +129,7 @@
                 </label>
                 <input
                   v-model="formData.coordenadas_lat"
+                  name="coordenadas_lat"
                   type="number"
                   step="any"
                   min="-90"
@@ -140,6 +146,7 @@
                 </label>
                 <input
                   v-model="formData.coordenadas_lng"
+                  name="coordenadas_lng"
                   type="number"
                   step="any"
                   min="-180"
@@ -159,6 +166,7 @@
             </label>
             <textarea
               v-model="formData.descripcion"
+              name="descripcion"
               rows="3"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               :class="{ 'border-red-500': errors.descripcion }"
@@ -318,6 +326,9 @@ const handleSubmit = async () => {
   try {
     const formattedData = fincasApi.formatFincaData(formData)
     
+    console.log('📤 [FincaForm] Datos a enviar:', formattedData)
+    console.log('📤 [FincaForm] Datos originales del formulario:', JSON.stringify(formData, null, 2))
+    
     if (props.isEditing) {
       await fincasStore.update(props.finca.id, formattedData)
       // Notificación de éxito
@@ -342,34 +353,99 @@ const handleSubmit = async () => {
     
     emit('saved')
   } catch (error) {
-    console.error('Error saving finca:', error)
+    console.error('❌ [FincaForm] Error saving finca:', error)
+    console.error('❌ [FincaForm] Error completo:', JSON.stringify(error.response?.data, null, 2))
+    console.error('❌ [FincaForm] Error response status:', error.response?.status)
     
     // Manejar errores de validación del servidor
     if (error.response?.data) {
-      const serverErrors = error.response.data
+      // El backend devuelve errores en error.response.data.details o error.response.data directamente
+      const serverErrors = error.response.data.details || error.response.data
+      
+      console.log('Server errors:', serverErrors)
+      
       errors.value = {}
       
+      // Mapear nombres de campos del backend al frontend
+      const fieldMapping = {
+        'nombre': 'nombre',
+        'ubicacion': 'ubicacion',
+        'municipio': 'municipio',
+        'departamento': 'departamento',
+        'hectareas': 'hectareas',
+        'coordenadas_lat': 'coordenadas_lat',
+        'coordenadas_lng': 'coordenadas_lng',
+        'descripcion': 'descripcion'
+      }
+      
+      let errorMessage = ''
+      let firstErrorField = null
+      
       Object.keys(serverErrors).forEach(field => {
-        if (Array.isArray(serverErrors[field])) {
-          errors.value[field] = serverErrors[field][0]
-        } else {
-          errors.value[field] = serverErrors[field]
+        // Evitar campos no relacionados como 'error', 'status', etc.
+        if (field === 'error' || field === 'status' || field === 'error_detail') {
+          if (!errorMessage && typeof serverErrors[field] === 'string') {
+            errorMessage = serverErrors[field]
+          }
+          return
+        }
+        
+        const frontendField = fieldMapping[field] || field
+        const errorValue = serverErrors[field]
+        
+        // Manejar diferentes formatos de error
+        if (Array.isArray(errorValue) && errorValue.length > 0) {
+          errors.value[frontendField] = errorValue[0]
+          if (!errorMessage) errorMessage = errorValue[0]
+        } else if (typeof errorValue === 'string') {
+          errors.value[frontendField] = errorValue
+          if (!errorMessage) errorMessage = errorValue
+        } else if (errorValue && typeof errorValue === 'object') {
+          // Si es un objeto, extraer el primer mensaje
+          const firstKey = Object.keys(errorValue)[0]
+          if (firstKey && errorValue[firstKey]) {
+            const msg = Array.isArray(errorValue[firstKey]) ? errorValue[firstKey][0] : errorValue[firstKey]
+            errors.value[frontendField] = msg
+            if (!errorMessage) errorMessage = msg
+          }
+        }
+        
+        // Guardar el primer campo con error para hacer scroll
+        if (!firstErrorField && errors.value[frontendField]) {
+          firstErrorField = frontendField
         }
       })
       
-      // Notificación de error
+      // Scroll al primer campo con error
+      if (firstErrorField) {
+        setTimeout(() => {
+          const errorElement = document.querySelector(`[name="${firstErrorField}"]`)
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            errorElement.focus()
+          }
+        }, 300)
+      }
+      
+      // Notificación de error con mensaje específico
       Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: 'Por favor corrige los errores en el formulario.',
-        timer: 4000
+        title: 'Error de validación',
+        html: errorMessage 
+          ? `<p style="margin: 0; padding: 10px;">${errorMessage}</p>`
+          : '<p style="margin: 0; padding: 10px;">Por favor revisa los campos marcados en rojo.</p>',
+        timer: errorMessage ? 6000 : 4000,
+        showConfirmButton: true
       })
     } else {
       // Error general
+      const errorMsg = error.message || 'No se pudo guardar la finca. Intenta nuevamente.'
+      console.error('General error:', errorMsg)
+      
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'No se pudo guardar la finca. Intenta nuevamente.',
+        text: errorMsg,
         timer: 4000
       })
     }

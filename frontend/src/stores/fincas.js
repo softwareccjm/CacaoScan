@@ -11,12 +11,15 @@ export const useFincasStore = defineStore('fincas', () => {
     loading.value = true
     error.value = null
     try {
+      console.log('📥 [FincasStore] Fetching fincas with params:', params)
       const data = await getFincas(params)
+      console.log('✅ [FincasStore] Fincas received:', data)
       fincas.value = Array.isArray(data) ? data : (data?.results ?? [])
     } catch (err) {
       const errorDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'No se pudieron cargar las fincas'
       error.value = errorDetail
-      console.error('Error fetching fincas:', err)
+      console.error('❌ [FincasStore] Error fetching fincas:', err)
+      console.error('❌ [FincasStore] Error response:', JSON.stringify(err?.response?.data, null, 2))
     } finally {
       loading.value = false
     }

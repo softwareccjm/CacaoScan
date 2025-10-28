@@ -204,22 +204,45 @@ export function formatFincaData(fincaData) {
   }
 
   // Convertir hectáreas a número
-  if (formatted.hectareas) {
+  if (formatted.hectareas !== '' && formatted.hectareas !== null && formatted.hectareas !== undefined) {
     formatted.hectareas = parseFloat(formatted.hectareas)
   }
 
-  // Convertir coordenadas a número si se proporcionan
-  if (formatted.coordenadas_lat !== null && formatted.coordenadas_lat !== undefined) {
-    formatted.coordenadas_lat = parseFloat(formatted.coordenadas_lat)
+  // Convertir coordenadas a número si se proporcionan (no vacías)
+  if (formatted.coordenadas_lat !== '' && formatted.coordenadas_lat !== null && formatted.coordenadas_lat !== undefined) {
+    const lat = parseFloat(formatted.coordenadas_lat)
+    if (!isNaN(lat)) {
+      formatted.coordenadas_lat = lat
+    } else {
+      formatted.coordenadas_lat = null
+    }
+  } else {
+    formatted.coordenadas_lat = null
   }
-  if (formatted.coordenadas_lng !== null && formatted.coordenadas_lng !== undefined) {
-    formatted.coordenadas_lng = parseFloat(formatted.coordenadas_lng)
+  
+  if (formatted.coordenadas_lng !== '' && formatted.coordenadas_lng !== null && formatted.coordenadas_lng !== undefined) {
+    const lng = parseFloat(formatted.coordenadas_lng)
+    if (!isNaN(lng)) {
+      formatted.coordenadas_lng = lng
+    } else {
+      formatted.coordenadas_lng = null
+    }
+  } else {
+    formatted.coordenadas_lng = null
   }
 
   // Establecer activa por defecto
   if (formatted.activa === undefined) {
     formatted.activa = true
   }
+
+  // Eliminar campos que no existen en el modelo
+  delete formatted.id
+  delete formatted.created_at
+  delete formatted.updated_at
+  delete formatted.total_lotes
+  delete formatted.total_analisis
+  delete formatted.calidad_promedio
 
   return formatted
 }
