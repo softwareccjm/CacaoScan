@@ -19,16 +19,27 @@ app.use(pinia)
 // Configurar router
 app.use(router)
 
-// Inicializar store de autenticación
+// Inicializar stores
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 
 // Función para inicializar la aplicación
 const initApp = async () => {
   try {
     const authStore = useAuthStore()
+    const configStore = useConfigStore()
     
     // Inicializar autenticación completa
     await authStore.initializeAuth()
+    
+    // Cargar configuración del sistema
+    console.log('🔄 Cargando configuración del sistema...')
+    const configLoaded = await configStore.loadAll()
+    if (configLoaded) {
+      console.log('✅ Configuración del sistema cargada:', configStore.brandName)
+    } else {
+      console.warn('⚠️ No se pudo cargar la configuración del sistema, usando valores por defecto')
+    }
     
   } catch (error) {
     console.error('❌ Error inicializando aplicación:', error)

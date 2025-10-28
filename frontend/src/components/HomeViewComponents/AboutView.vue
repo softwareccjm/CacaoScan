@@ -5,7 +5,7 @@
         <div class="mb-8 lg:mb-0">
           <h2 class="text-3xl font-bold text-gray-900 mb-6">Sobre el sistema</h2>
           <div class="prose text-gray-600 space-y-4">
-            <p>CacaoScan es una solución tecnológica desarrollada para revolucionar el proceso de clasificación y
+            <p><strong>{{ configStore.brandName }}</strong> es una solución tecnológica desarrollada para revolucionar el proceso de clasificación y
               análisis de granos de cacao mediante el uso de visión por computadora e inteligencia artificial.</p>
             <p>Nuestro sistema permite a los productores y procesadores de cacao evaluar la calidad de sus granos de
               manera objetiva, rápida y precisa, eliminando la subjetividad del análisis visual tradicional.</p>
@@ -20,3 +20,9 @@
     </div>
   </section>
 </template>
+
+<script setup>
+import { useConfigStore } from '@/stores/config'
+
+const configStore = useConfigStore()
+</script>

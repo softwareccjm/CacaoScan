@@ -1,9 +1,8 @@
 <template>
   <section class="bg-gradient-to-r from-emerald-600 to-emerald-800 text-white py-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <h1 class="text-4xl md:text-6xl font-bold mb-6">Análisis Inteligente de Granos de Cacao</h1>
-      <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Tecnología de vanguardia para la clasificación y análisis de
-        calidad de cacao mediante visión por computadora e IA</p>
+      <h1 class="text-4xl md:text-6xl font-bold mb-6">{{ configStore.general.lema || 'Análisis Inteligente de Granos de Cacao' }}</h1>
+      <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Sistema de clasificación y análisis de calidad de cacao mediante visión por computadora e inteligencia artificial</p>
       <div class="flex justify-center space-x-4">
         <button 
           @click="goToLogin"
@@ -24,8 +23,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { useConfigStore } from '@/stores/config';
 
 const router = useRouter();
+const configStore = useConfigStore();
 
 const goToLogin = () => {
   router.push('/login');

@@ -3,7 +3,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16 items-center">
         <div class="flex-shrink-0 flex items-center">
-          <h1 class="text-2xl font-bold text-emerald-700">CacaoScan</h1>
+          <h1 class="text-2xl font-bold text-emerald-700">{{ configStore.brandName }}</h1>
         </div>
         <nav class="hidden md:ml-6 md:flex space-x-8">
           <a href="#" class="text-gray-900 hover:text-emerald-600 px-3 py-2 text-sm font-medium">Inicio</a>
@@ -21,5 +21,7 @@
 </template>
 
 <script setup>
-// No se necesita funcionalidad de navegación en el header superior
+import { useConfigStore } from '@/stores/config'
+
+const configStore = useConfigStore()
 </script>

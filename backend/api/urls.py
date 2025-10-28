@@ -129,4 +129,11 @@ urlpatterns = [
     
     # Endpoints de análisis batch
     path('analysis/batch/', views.BatchAnalysisView.as_view(), name='batch-analysis'),
+    
+    # Endpoints de configuración del sistema
+    path('config/', views.SystemSettingsView.as_view(), name='system-settings'),
+    path('config/general/', views.SystemGeneralConfigView.as_view(), name='system-general-config'),
+    path('config/security/', views.SystemSecurityConfigView.as_view(), name='system-security-config'),
+    path('config/ml/', views.SystemMLConfigView.as_view(), name='system-ml-config'),
+    path('config/system/', views.SystemInfoView.as_view(), name='system-info'),
 ]
