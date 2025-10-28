@@ -126,4 +126,7 @@ urlpatterns = [
     path('model-metrics/compare/', views.ModelComparisonView.as_view(), name='model-metrics-compare'),
     path('model-metrics/best/', views.BestModelsView.as_view(), name='model-metrics-best'),
     path('model-metrics/production/', views.ProductionModelsView.as_view(), name='model-metrics-production'),
+    
+    # Endpoints de análisis batch
+    path('analysis/batch/', views.BatchAnalysisView.as_view(), name='batch-analysis'),
 ]

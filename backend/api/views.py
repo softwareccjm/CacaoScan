@@ -47,6 +47,10 @@ from .model_metrics_views import (
     BestModelsView,
     ProductionModelsView
 )
+
+# Importar vistas de análisis batch
+from .batch_analysis_views import BatchAnalysisView
+
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse
