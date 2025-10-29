@@ -11,8 +11,8 @@ import AdminUsuarios from '../views/Admin/AdminUsuarios.vue'
 
 import AdminDataset from '../views/AdminDataset.vue'
 import DetalleAnalisisView from '../views/DetalleAnalisisView.vue'
-import LoginView from '../views/LoginView.vue'
-import RegisterView from '../views/RegisterView.vue'
+import LoginView from '../views/Auth/LoginView.vue'
+import RegisterView from '../views/Auth/RegisterView.vue'
 import ChartDashboard from '../views/ChartDashboard.vue'
 import Reportes from '../views/Reportes.vue'
 import ReportsManagement from '../views/ReportsManagement.vue'
@@ -348,7 +348,7 @@ const router = createRouter({
     {
       path: '/reset-password',
       name: 'PasswordReset',
-      component: () => import('../views/PasswordReset.vue'),
+      component: () => import('../views/Auth/PasswordReset.vue'),
       meta: {
         title: 'Restablecer Contraseña | CacaoScan',
         requiresGuest: true,
@@ -374,7 +374,7 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
-      component: () => import('../views/NotFound.vue'),
+      component: () => import('../views/Pages/NotFound.vue'),
       meta: {
         title: 'Página no encontrada | CacaoScan',
       },
