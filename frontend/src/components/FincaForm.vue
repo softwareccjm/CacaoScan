@@ -59,7 +59,9 @@
                   placeholder="Ingresa el nombre de la finca"
                 />
                 <p v-if="errors.nombre" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                  <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                   {{ errors.nombre }}
                 </p>
               </div>
@@ -80,7 +82,9 @@
                   placeholder="0.00"
                 />
                 <p v-if="errors.hectareas" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                  <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                   {{ errors.hectareas }}
                 </p>
               </div>
@@ -113,7 +117,9 @@
                   placeholder="Ingresa la dirección completa de la finca"
                 />
                 <p v-if="errors.ubicacion" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                  <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                   {{ errors.ubicacion }}
                 </p>
               </div>
@@ -137,7 +143,9 @@
                     </option>
                   </select>
                   <p v-if="errors.departamento" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                    <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                     {{ errors.departamento }}
                   </p>
                 </div>
@@ -159,7 +167,9 @@
                     </option>
                   </select>
                   <p v-if="errors.municipio" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                    <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                     {{ errors.municipio }}
                   </p>
                 </div>
@@ -194,7 +204,9 @@
                   placeholder="-90.000000 a 90.000000"
                 />
                 <p v-if="errors.coordenadas_lat" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                  <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                   {{ errors.coordenadas_lat }}
                 </p>
               </div>
@@ -249,7 +261,9 @@
                 placeholder="Agrega una descripción detallada de la finca..."
               ></textarea>
               <p v-if="errors.descripcion" class="text-red-500 text-xs mt-2 flex items-center gap-1">
-                <ion-icon name="alert-circle" class="w-3 h-3"></ion-icon>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
                 {{ errors.descripcion }}
               </p>
             </div>

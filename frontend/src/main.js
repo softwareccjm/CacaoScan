@@ -3,17 +3,6 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
-// Importar Ionicons y registrar el web component
-import 'ionicons'
-import { addIcons } from 'ionicons'
-import { location, alertCircle } from 'ionicons/icons'
-
-// Registrar iconos utilizados en la aplicación
-addIcons({
-  'location': location,
-  'alert-circle': alertCircle
-})
-
 import App from './App.vue'
 import router from './router'
 
@@ -40,13 +29,13 @@ const initApp = async () => {
     // Inicializar autenticación completa
     await authStore.initializeAuth()
     
-    // Cargar configuración del sistema
-    console.log('🔄 Cargando configuración del sistema...')
-    const configLoaded = await configStore.loadAll()
-    if (configLoaded) {
+    // Cargar configuración del sistema (silenciar errores esperados)
+    try {
+      await configStore.loadAll()
       console.log('✅ Configuración del sistema cargada:', configStore.brandName)
-    } else {
-      console.warn('⚠️ No se pudo cargar la configuración del sistema, usando valores por defecto')
+    } catch (err) {
+      // Ignorar errores de configuración - usar valores por defecto
+      console.log('ℹ️ Usando configuración por defecto')
     }
     
   } catch (error) {

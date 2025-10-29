@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-100">
     <!-- Sidebar -->
     <Sidebar
       :brand-name="'CacaoScan'"
@@ -14,9 +14,9 @@
     />
 
     <!-- Main Content -->
-    <div :class="isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'">
+    <div :class="isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'" class="w-full relative">
       <!-- Page Content -->
-      <main class="py-8 px-4 sm:px-6 lg:px-8">
+      <main class="py-8 px-4 sm:px-6 lg:px-8 min-h-screen bg-white relative z-0">
         <div class="max-w-7xl mx-auto space-y-8">
           <!-- Header -->
           <FincasHeader @create="openCreateModal" />
@@ -31,7 +31,7 @@
 
           <!-- Lista de fincas -->
           <FincaList
-            :fincas="fincas"
+            :fincas="Array.isArray(fincas) ? fincas : []"
             :loading="loading"
             :error="error"
             :user-role="userRole"
@@ -286,4 +286,10 @@ onMounted(() => {
 
 <style scoped>
 /* Estilos específicos si son necesarios */
+* {
+  outline: 0 !important;
+}
+
+/* Debug: resaltar elementos problemáticos */
+/* .bg-green { outline: 2px solid red !important; } */
 </style>

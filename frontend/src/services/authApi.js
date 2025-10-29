@@ -146,7 +146,7 @@ const authApi = {
   },
 
   /**
-   * Refrescar token de acceso
+   * Refrescar token de acceso usando refresh token
    */
   async refreshToken(refreshToken) {
     try {
@@ -158,6 +158,13 @@ const authApi = {
       console.error('Error refrescando token:', error)
       throw error
     }
+  },
+
+  /**
+   * Alias para refreshToken (mantiene compatibilidad)
+   */
+  async refreshAccessToken(refreshToken) {
+    return this.refreshToken(refreshToken)
   },
 
   /**
