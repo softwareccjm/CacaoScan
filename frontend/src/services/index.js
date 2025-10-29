@@ -11,6 +11,7 @@
 // Servicios principales
 export { default as api } from './api'
 export { default as authApi } from './authApi'
+export { default as catalogosApi } from './catalogosApi'
 export { default as predictionApi } from './predictionApi'
 export { default as fincasApi } from './fincasApi'
 export { default as lotesApi } from './lotesApi'

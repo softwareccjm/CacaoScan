@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     # Feature apps
     'fincas_app',
     'images_app',
+    'catalogos',
     'notifications',
     'audit',
     'training',

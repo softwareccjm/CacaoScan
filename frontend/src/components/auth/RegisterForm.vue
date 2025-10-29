@@ -103,10 +103,13 @@
             <label for="genero" class="block text-sm font-semibold text-gray-700 mb-2">
               Género *
             </label>
-            <select id="genero" v-model="form.genero" required :disabled="isLoading"
+            <select id="genero" v-model="form.genero" required :disabled="isLoading || isLoadingCatalogos"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
-              <option value="M">Masculino</option>
-              <option value="F">Femenino</option>
+              <option v-if="isLoadingCatalogos" value="">Cargando...</option>
+              <option v-else-if="generos.length === 0" value="">No hay opciones disponibles</option>
+              <option v-for="genero in generos" :key="genero.codigo" :value="genero.codigo">
+                {{ genero.nombre }}
+              </option>
             </select>
           </div>
 
@@ -140,13 +143,13 @@
             <label for="tipoDocumento" class="block text-sm font-semibold text-gray-700 mb-2">
               Tipo Documento *
             </label>
-            <select id="tipoDocumento" v-model="form.tipoDocumento" required :disabled="isLoading"
+            <select id="tipoDocumento" v-model="form.tipoDocumento" required :disabled="isLoading || isLoadingCatalogos"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
-              <option value="CC">CC - Cédula de Ciudadanía</option>
-              <option value="CE">CE - Cédula de Extranjería</option>
-              <option value="PA">PA - Pasaporte</option>
-              <option value="TI">TI - Tarjeta de Identidad</option>
-              <option value="RC">RC - Registro Civil</option>
+              <option v-if="isLoadingCatalogos" value="">Cargando...</option>
+              <option v-else-if="tiposDocumento.length === 0" value="">No hay opciones disponibles</option>
+              <option v-for="tipo in tiposDocumento" :key="tipo.codigo" :value="tipo.codigo">
+                {{ tipo.codigo }} - {{ tipo.nombre }}
+              </option>
             </select>
           </div>
 
@@ -177,24 +180,37 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Municipio -->
-          <div>
-            <label for="municipio" class="block text-sm font-semibold text-gray-700 mb-2">
-              Municipio *
-            </label>
-            <input id="municipio" v-model="form.municipio" type="text" required :disabled="isLoading"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              placeholder="San José del Guaviare" />
-          </div>
-
           <!-- Departamento -->
           <div>
             <label for="departamento" class="block text-sm font-semibold text-gray-700 mb-2">
               Departamento *
             </label>
-            <input id="departamento" v-model="form.departamento" type="text" required :disabled="isLoading"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              placeholder="Guaviare" />
+            <select id="departamento" v-model="form.departamento" @change="onDepartamentoChange" required 
+              :disabled="isLoading || isLoadingCatalogos"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
+              <option v-if="isLoadingCatalogos" value="">Cargando...</option>
+              <option v-else value="">Seleccione un departamento</option>
+              <option v-for="dept in departamentos" :key="dept.codigo" :value="dept.codigo">
+                {{ dept.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Municipio -->
+          <div>
+            <label for="municipio" class="block text-sm font-semibold text-gray-700 mb-2">
+              Municipio *
+            </label>
+            <select id="municipio" v-model="form.municipio" :required="!!form.departamento" 
+              :disabled="isLoading || !form.departamento || municipios.length === 0"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
+              <option v-if="!form.departamento" value="">Seleccione primero un departamento</option>
+              <option v-else-if="municipios.length === 0" value="">Cargando municipios...</option>
+              <option v-else value="">Seleccione un municipio</option>
+              <option v-for="mun in municipios" :key="mun.id" :value="mun.id">
+                {{ mun.nombre }}
+              </option>
+            </select>
           </div>
 
           <!-- Dirección -->
@@ -395,9 +411,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { catalogosApi } from '@/services'
 
 // Router y store
 const router = useRouter()
@@ -418,7 +435,7 @@ const form = ref({
   segundoNombre: '',
   segundoApellido: '',
   direccion: '',
-  genero: 'M',
+  genero: '',
   fechaNacimiento: '',
   municipio: '',
   departamento: ''
@@ -429,6 +446,13 @@ const isLoading = ref(false)
 const showPassword = ref(false)
 const statusMessage = ref('')
 const statusType = ref('info')
+
+// Datos dinámicos desde catálogos
+const tiposDocumento = ref([])
+const generos = ref([])
+const departamentos = ref([])
+const municipios = ref([])
+const isLoadingCatalogos = ref(true)
 
 // Computed
 const passwordChecks = computed(() => {
@@ -453,8 +477,8 @@ const isFormValid = computed(() => {
     form.value.tipoDocumento &&
     form.value.numeroDocumento.trim() &&
     form.value.genero &&
-    form.value.municipio.trim() &&
-    form.value.departamento.trim() &&
+    form.value.departamento &&
+    form.value.municipio &&
     isPasswordValid.value &&
     form.value.password === form.value.confirmPassword &&
     form.value.acceptTerms
@@ -517,6 +541,54 @@ const isValidPhone = (phone) => {
   return phoneRegex.test(phone.replace(/\s/g, ''))
 }
 
+// Funciones para cargar catálogos
+const cargarCatalogos = async () => {
+  try {
+    isLoadingCatalogos.value = true
+    
+    // Cargar tipos de documento
+    const tipoDocResponse = await catalogosApi.getParametrosPorTema('TIPO_DOC')
+    tiposDocumento.value = tipoDocResponse.parametros || []
+    
+    // Cargar géneros
+    const sexoResponse = await catalogosApi.getParametrosPorTema('SEXO')
+    generos.value = sexoResponse.parametros || []
+    
+    // Cargar departamentos
+    const departamentosResponse = await catalogosApi.getDepartamentos()
+    departamentos.value = departamentosResponse || []
+    
+  } catch (error) {
+    console.error('Error cargando catálogos:', error)
+    setStatusMessage('Error al cargar los catálogos. Intenta recargar la página.', 'error')
+  } finally {
+    isLoadingCatalogos.value = false
+  }
+}
+
+// Cargar municipios cuando se seleccione un departamento
+const cargarMunicipios = async (codigoDepartamento) => {
+  if (!codigoDepartamento) {
+    municipios.value = []
+    form.value.municipio = ''
+    return
+  }
+  
+  try {
+    const response = await catalogosApi.getMunicipiosPorDepartamento(codigoDepartamento)
+    municipios.value = response.municipios || []
+  } catch (error) {
+    console.error('Error cargando municipios:', error)
+    municipios.value = []
+  }
+}
+
+// Watcher para detectar cambios en el departamento
+const onDepartamentoChange = () => {
+  cargarMunicipios(form.value.departamento)
+  form.value.municipio = '' // Resetear municipio
+}
+
 const getValidationMessage = () => {
   if (!form.value.firstName.trim()) return 'Completa tu nombre'
   if (!form.value.lastName.trim()) return 'Completa tu apellido'
@@ -524,8 +596,8 @@ const getValidationMessage = () => {
   if (!form.value.tipoDocumento) return 'Selecciona el tipo de documento'
   if (!form.value.numeroDocumento.trim()) return 'Ingresa el número de documento'
   if (!form.value.genero) return 'Selecciona tu género'
-  if (!form.value.municipio.trim()) return 'Ingresa el municipio'
-  if (!form.value.departamento.trim()) return 'Ingresa el departamento'
+  if (!form.value.departamento) return 'Selecciona el departamento'
+  if (!form.value.municipio) return 'Selecciona el municipio'
   if (!isPasswordValid.value) return 'La contraseña no cumple con los requisitos'
   if (form.value.password !== form.value.confirmPassword) return 'Las contraseñas no coinciden'
   if (!form.value.acceptTerms) return 'Debes aceptar los términos y condiciones'
@@ -541,6 +613,11 @@ const setStatusMessage = (message, type = 'info') => {
   }, 5000)
 }
 
+// Inicializar catálogos al montar el componente
+onMounted(() => {
+  cargarCatalogos()
+})
+
 const handleSubmit = async () => {
   if (!validateForm()) {
     return
@@ -553,6 +630,10 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
+    // Convertir código de departamento a ID
+    const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.value.departamento)
+    const municipioSeleccionado = municipios.value.find(m => m.id == form.value.municipio)
+    
     const result = await authStore.register({
       email: form.value.email.trim(),
       password: form.value.password,
@@ -566,8 +647,8 @@ const handleSubmit = async () => {
       direccion: form.value.direccion.trim() || '',
       genero: form.value.genero,
       fecha_nacimiento: form.value.fechaNacimiento || '',
-      municipio: form.value.municipio.trim() || '',
-      departamento: form.value.departamento.trim() || ''
+      municipio: municipioSeleccionado?.id || null,
+      departamento: departamentoSeleccionado?.id || null
     })
 
     if (result.success) {
