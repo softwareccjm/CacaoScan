@@ -3,8 +3,16 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
-// Importar Ionicons
-import 'ionicons/components/ion-icon.js'
+// Importar Ionicons y registrar el web component
+import 'ionicons'
+import { addIcons } from 'ionicons'
+import { location, alertCircle } from 'ionicons/icons'
+
+// Registrar iconos utilizados en la aplicación
+addIcons({
+  'location': location,
+  'alert-circle': alertCircle
+})
 
 import App from './App.vue'
 import router from './router'
