@@ -401,6 +401,11 @@ export default {
     }
 
     const createActivityChart = () => {
+      if (!activityChart.value) {
+        console.warn('⚠️ Elemento canvas activityChart no encontrado')
+        return
+      }
+
       if (activityChartInstance) {
         activityChartInstance.destroy()
       }
@@ -436,6 +441,11 @@ export default {
     }
 
     const createQualityChart = () => {
+      if (!qualityChart.value) {
+        console.warn('⚠️ Elemento canvas qualityChart no encontrado')
+        return
+      }
+
       if (qualityChartInstance) {
         qualityChartInstance.destroy()
       }

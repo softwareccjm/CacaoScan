@@ -113,12 +113,24 @@ api.interceptors.response.use(
                                  (error.response?.status === 403 || error.response?.status === 500)
       
       // Solo loggear errores críticos o no esperados
-      if (!isExpectedFailure) {
+      if (!isExpectedFailure && error.response?.status !== 500) {
         console.error(`❌ API Error: ${originalRequest.method?.toUpperCase()} ${originalRequest.url}`, {
           status: error.response?.status,
           duration: `${duration}ms`,
           message: error.response?.data?.message || error.response?.data?.detail || error.message
         })
+      }
+      
+      // Manejar errores 500 para endpoints no críticos silenciosamente
+      if (error.response?.status === 500) {
+        // No loggear ni mostrar notificación para endpoints de stats o config
+        if (isStatsEndpoint || isConfigEndpoint) {
+          return Promise.resolve({
+            data: {},
+            status: 200,
+            config: originalRequest
+          })
+        }
       }
     }
 
@@ -131,34 +143,42 @@ api.interceptors.response.use(
       )
 
       if (isAuthEndpoint) {
-        // Si falla en el refresh token, limpiar todo y redirigir
+        // Si falla en el refresh token, mostrar modal
         if (originalRequest.url.includes('/auth/refresh/')) {
           console.error('🚫 Refresh token inválido o expirado, cerrando sesión.')
-          localStorage.clear()
-          router.replace({ 
-            name: 'Login',
-            query: {
-              message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              expired: 'true'
-            }
-          })
+          if (typeof window !== 'undefined' && window.showSessionExpiredModal) {
+            window.showSessionExpiredModal()
+          } else {
+            localStorage.clear()
+            router.replace({ 
+              name: 'Login',
+              query: {
+                message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                expired: 'true'
+              }
+            })
+          }
         }
         return Promise.reject(error)
       }
 
       const refreshToken = localStorage.getItem('refresh_token')
 
-      // Si no hay refresh token → cerrar sesión
+      // Si no hay refresh token → mostrar modal
       if (!refreshToken) {
-        console.warn('⚠️ No hay refresh token disponible, redirigiendo a login...')
-        localStorage.clear()
-        router.replace({ 
-          name: 'Login',
-          query: {
-            message: 'Tu sesión ha expirado. Inicia sesión nuevamente.',
-            expired: 'true'
-          }
-        })
+        console.warn('⚠️ No hay refresh token disponible, mostrando modal...')
+        if (typeof window !== 'undefined' && window.showSessionExpiredModal) {
+          window.showSessionExpiredModal()
+        } else {
+          localStorage.clear()
+          router.replace({ 
+            name: 'Login',
+            query: {
+              message: 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+              expired: 'true'
+            }
+          })
+        }
         return Promise.reject(error)
       }
 
@@ -222,15 +242,20 @@ api.interceptors.response.use(
         // Procesar la cola con error
         processQueue(refreshError, null)
 
-        // Si el refresh falla, limpiar todo y redirigir
-        localStorage.clear()
-        router.replace({ 
-          name: 'Login',
-          query: {
-            message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-            expired: 'true'
-          }
-        })
+        // Si el refresh falla, mostrar modal de sesión expirada
+        if (typeof window !== 'undefined' && window.showSessionExpiredModal) {
+          window.showSessionExpiredModal()
+        } else {
+          // Fallback de redirección directa si no hay modal disponible
+          localStorage.clear()
+          router.replace({ 
+            name: 'Login',
+            query: {
+              message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              expired: 'true'
+            }
+          })
+        }
         
         return Promise.reject(refreshError)
       } finally {

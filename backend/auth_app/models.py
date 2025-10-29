@@ -14,7 +14,7 @@ class EmailVerificationToken(models.Model):
     """
     Modelo para tokens de verificación de email.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_verification_token')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='auth_email_token')
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     verified_at = models.DateTimeField(null=True, blank=True)
@@ -81,7 +81,7 @@ class UserProfile(models.Model):
     """
     Perfil extendido del usuario con información específica de agricultores.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='auth_profile')
     
     # Información de contacto
     phone_number = models.CharField(max_length=20, blank=True, null=True)
@@ -133,6 +133,11 @@ class UserProfile(models.Model):
     def is_verified(self):
         """Verificar si el usuario está verificado."""
         try:
-            return self.user.email_verification_token.is_verified
+            # Intentar con api_email_token primero, luego con auth_email_token
+            if hasattr(self.user, 'api_email_token'):
+                return self.user.api_email_token.is_verified
+            elif hasattr(self.user, 'auth_email_token'):
+                return self.user.auth_email_token.is_verified
+            return False
         except:
             return False
