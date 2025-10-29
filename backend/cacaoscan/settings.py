@@ -29,7 +29,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-here'
 # SECURITY WARNING: don't run with someone turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '192.168.1.9', '*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -61,8 +61,8 @@ INSTALLED_APPS = [
     'audit',
     'training',
     
-    # Existing apps
-    # 'api',  # Desactivado temporalmente para evitar conflictos
+    # API principal de CacaoScan
+    'api',
     'reports',
 ]
 

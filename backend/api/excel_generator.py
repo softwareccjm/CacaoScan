@@ -61,7 +61,7 @@ class CacaoReportExcelGenerator:
                 cell.alignment = Alignment(horizontal='center', vertical='center')
             
             # Obtener todos los usuarios que no son superusuarios (agricultores y analistas)
-            farmers = User.objects.filter(is_superuser=False).prefetch_related('fincas', 'profile')
+            farmers = User.objects.filter(is_superuser=False).select_related('api_profile').prefetch_related('api_fincas')
             
             # Contador de filas
             row_num = 2
@@ -70,10 +70,10 @@ class CacaoReportExcelGenerator:
                 # Información del agricultor
                 name = f"{farmer.first_name} {farmer.last_name}".strip() or farmer.username
                 email = farmer.email
-                phone = getattr(farmer.profile, 'phone_number', '') if hasattr(farmer, 'profile') else ''
+                phone = getattr(farmer, 'api_profile', None) and getattr(farmer.api_profile, 'phone_number', '') or ''
                 
                 # Obtener fincas del agricultor
-                fincas = farmer.fincas.all()
+                fincas = farmer.api_fincas.all()
                 
                 if fincas.exists():
                     # Si tiene fincas, crear una fila por cada finca
@@ -138,8 +138,8 @@ class CacaoReportExcelGenerator:
     
     def generate_users_report(self):
         """
-        Generar reporte Excel de usuarios del sistema.
-        Valida que el archivo generado sea un Excel válido (.xlsx).
+        Generar reporte Excel profesional de usuarios con sus fincas asociadas.
+        Incluye formato visual profesional (colores, bordes, alineación).
         Si no hay usuarios, muestra mensaje "Sin registros disponibles".
         
         Returns:
@@ -147,98 +147,112 @@ class CacaoReportExcelGenerator:
         """
         try:
             from django.contrib.auth.models import User
+            from .models import Finca
+            from openpyxl.styles import Border, Side
             
             self.workbook = Workbook()
             self.ws = self.workbook.active
-            self.ws.title = "Usuarios"
+            self.ws.title = "Usuarios y Fincas"
             
-            # Configurar columnas
-            columns = [
-                'Nombre', 'Correo', 'Usuario', 'Rol', 'Estado', 'Último Login', 'Fecha Registro'
+            # === Estilos básicos ===
+            bold_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            align_center = Alignment(horizontal='center', vertical='center')
+            align_vertical = Alignment(vertical='center')
+            
+            # === Encabezados ===
+            headers = [
+                'ID Usuario', 'Nombre', 'Correo', 'Rol', 'Activo', 'Fecha Registro',
+                'Finca', 'Departamento', 'Municipio', 'Área (ha)', 'Latitud', 'Longitud'
             ]
-            self.ws.append(columns)
+            self.ws.append(headers)
             
-            # Estilo de encabezado
-            header_fill = PatternFill(start_color="2196F3", end_color="2196F3", fill_type="solid")
-            header_font = Font(bold=True, color="FFFFFF")
+            # Aplicar estilo a encabezados
+            for col in self.ws[1]:
+                col.font = bold_font
+                col.fill = header_fill
+                col.alignment = align_center
+                col.border = thin_border
             
-            for cell in self.ws[1]:
-                cell.fill = header_fill
-                cell.font = header_font
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-            
-            # Obtener todos los usuarios ordenados por fecha de registro
-            users = User.objects.all().order_by('-date_joined').prefetch_related('profile')
+            # Obtener todos los usuarios con prefetch de fincas
+            users = User.objects.all().order_by('-date_joined').select_related('api_profile', 'api_email_token').prefetch_related('api_fincas', 'groups')
             
             if users.exists():
-                # Si hay usuarios, agregar los registros
+                # Iterar usuarios y agregar información de fincas
                 for user in users:
-                    # Información del usuario
-                    name = f"{user.first_name} {user.last_name}".strip() or user.username
-                    email = user.email
-                    username = user.username
+                    fincas = user.api_fincas.all()
                     
-                    # Determinar rol
-                    if user.is_superuser:
-                        role = 'Admin'
+                    # Determinar rol del usuario
+                    if user.is_superuser or user.is_staff:
+                        rol = 'admin'
                     elif user.groups.filter(name='analyst').exists():
-                        role = 'Analyst'
+                        rol = 'analyst'
                     else:
-                        role = getattr(user, 'profile', None) and getattr(user.profile, 'role', 'Farmer') or 'Farmer'
+                        rol = 'farmer'
                     
-                    # Estado
-                    estado = "Activo" if user.is_active else "Inactivo"
-                    
-                    # Último login
-                    ultimo_login = user.last_login.strftime('%Y-%m-%d') if user.last_login else 'Nunca'
-                    
-                    # Fecha registro
-                    fecha_registro = user.date_joined.strftime('%Y-%m-%d') if user.date_joined else ''
-                    
-                    self.ws.append([
-                        name,
-                        email,
-                        username,
-                        role,
-                        estado,
-                        ultimo_login,
-                        fecha_registro
-                    ])
+                    if fincas.exists():
+                        # Si el usuario tiene fincas, crear una fila por cada finca
+                        for finca in fincas:
+                            self.ws.append([
+                                user.id,
+                                f"{user.first_name} {user.last_name}".strip() or user.username,
+                                user.email,
+                                rol,
+                                'Sí' if user.is_active else 'No',
+                                user.date_joined.strftime('%Y-%m-%d'),
+                                finca.nombre,
+                                finca.departamento or '—',
+                                finca.municipio or '—',
+                                float(finca.hectareas),
+                                float(finca.coordenadas_lat) if finca.coordenadas_lat is not None else '—',
+                                float(finca.coordenadas_lng) if finca.coordenadas_lng is not None else '—',
+                            ])
+                    else:
+                        # Si no tiene fincas, agregar fila con "Sin fincas"
+                        self.ws.append([
+                            user.id,
+                            f"{user.first_name} {user.last_name}".strip() or user.username,
+                            user.email,
+                            rol,
+                            'Sí' if user.is_active else 'No',
+                            user.date_joined.strftime('%Y-%m-%d'),
+                            'Sin fincas',
+                            '—', '—', '—', '—', '—'
+                        ])
                 
-                # Ajustar ancho de columnas solo si hay datos
-                column_widths = {
-                    'A': 25,  # Nombre
-                    'B': 35,  # Correo
-                    'C': 20,  # Usuario
-                    'D': 15,  # Rol
-                    'E': 12,  # Estado
-                    'F': 18,  # Último Login
-                    'G': 20,  # Fecha Registro
-                }
+                # Aplicar bordes a todas las celdas con datos
+                for row in self.ws.iter_rows(min_row=2, max_row=self.ws.max_row, max_col=len(headers)):
+                    for cell in row:
+                        cell.border = thin_border
+                        cell.alignment = align_vertical
                 
-                for col, width in column_widths.items():
-                    self.ws.column_dimensions[col].width = width
+                # Ajustar ancho de columnas automáticamente
+                for col in self.ws.columns:
+                    max_length = 0
+                    for cell in col:
+                        try:
+                            if cell.value:
+                                max_length = max(max_length, len(str(cell.value)))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)  # Máximo 50 caracteres
+                    self.ws.column_dimensions[col[0].column_letter].width = adjusted_width
+                
             else:
                 # Si no hay usuarios, mostrar mensaje amigable
-                # Combinar celdas A1:G2 para el mensaje
-                self.ws.merge_cells('A1:G2')
+                self.ws.merge_cells('A1:L2')
                 cell = self.ws['A1']
                 cell.value = "Sin registros disponibles"
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-                cell.font = Font(bold=True, size=14, color="000000")
+                cell.font = Font(bold=True, size=14, color="FF0000")
+                cell.alignment = align_center
                 cell.fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
-                
-                # Ajustar altura de la fila
                 self.ws.row_dimensions[1].height = 40
-                
-                # Limpiar la fila de encabezado que ya no es necesaria
-                # (el merge ya ocupa las celdas)
-            
-            # Centrar encabezados si hay datos
-            if users.exists():
-                for row in self.ws.iter_rows(min_row=1, max_row=1):
-                    for cell in row:
-                        cell.alignment = Alignment(horizontal='center', vertical='center')
             
             # Guardar en buffer de memoria (binario)
             buffer = io.BytesIO()
@@ -250,7 +264,7 @@ class CacaoReportExcelGenerator:
             if not content or len(content) < 100:
                 raise ValueError("El archivo Excel generado está vacío o corrupto")
             
-            logger.info(f"Reporte Excel de usuarios generado correctamente ({len(content)} bytes)")
+            logger.info(f"Reporte Excel de usuarios y fincas generado correctamente ({len(content)} bytes)")
             return content
             
         except Exception as e:

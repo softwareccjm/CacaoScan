@@ -22,7 +22,7 @@ class Finca(TimeStampedModel):
     agricultor = models.ForeignKey(
         User, 
         on_delete=models.CASCADE, 
-        related_name='fincas',
+        related_name='fincas_app_fincas',
         help_text="Agricultor propietario de la finca"
     )
     
@@ -58,7 +58,7 @@ class Finca(TimeStampedModel):
         constraints = [
             models.CheckConstraint(
                 check=models.Q(hectareas__gt=0),
-                name='finca_hectareas_positivas'
+                name='fincas_app_finca_hectareas_positivas'
             ),
         ]
     
@@ -123,7 +123,7 @@ class Lote(TimeStampedModel):
     finca = models.ForeignKey(
         Finca, 
         on_delete=models.CASCADE, 
-        related_name='lotes',
+        related_name='fincas_app_lotes',
         help_text="Finca a la que pertenece el lote"
     )
     identificador = models.CharField(
@@ -191,15 +191,15 @@ class Lote(TimeStampedModel):
         constraints = [
             models.CheckConstraint(
                 check=models.Q(area_hectareas__gt=0),
-                name='lote_area_positiva'
+                name='fincas_app_lote_area_positiva'
             ),
             models.CheckConstraint(
                 check=models.Q(fecha_cosecha__isnull=True) | models.Q(fecha_cosecha__gte=models.F('fecha_plantacion')),
-                name='lote_fecha_cosecha_valida'
+                name='fincas_app_lote_fecha_cosecha_valida'
             ),
             models.UniqueConstraint(
                 fields=['finca', 'identificador'],
-                name='lote_identificador_unico_por_finca'
+                name='fincas_app_lote_identificador_unico_por_finca'
             ),
         ]
     

@@ -242,8 +242,8 @@ class ResendVerificationSerializer(serializers.Serializer):
         """Validar que el email existe y no está verificado."""
         try:
             user = User.objects.get(email=value)
-            if user.is_active and hasattr(user, 'email_verification_token'):
-                if user.email_verification_token.is_verified:
+            if user.is_active and hasattr(user, 'api_email_token'):
+                if user.api_email_token.is_verified:
                     raise serializers.ValidationError("Este email ya ha sido verificado.")
             return value
         except User.DoesNotExist:
@@ -271,8 +271,8 @@ class UserSerializer(serializers.ModelSerializer):
     
     def get_is_verified(self, obj):
         """Obtener estado de verificación del email."""
-        if hasattr(obj, 'email_verification_token'):
-            return obj.email_verification_token.is_verified
+        if hasattr(obj, 'api_email_token'):
+            return obj.api_email_token.is_verified
         return obj.is_active  # Fallback para usuarios sin token de verificación
 
 

@@ -10,7 +10,7 @@ class CacaoImage(TimeStampedModel):
     """
     Modelo para almacenar imágenes de granos de cacao procesadas.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cacao_images')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images_app_cacao_images')
     
     # Archivo de imagen
     image = models.ImageField(upload_to='cacao_images/processed/%Y/%m/%d/')

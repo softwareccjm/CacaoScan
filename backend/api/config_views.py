@@ -288,8 +288,9 @@ class SystemMLConfigView(APIView):
 class SystemInfoView(APIView):
     """
     Vista para obtener información del sistema.
+    Accesible públicamente para verificar estado del servidor.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     
     def get(self, request):
         """
@@ -300,23 +301,31 @@ class SystemInfoView(APIView):
             from django.conf import settings
             
             data = {
+                'system': 'CacaoScan',
                 'version': '1.0.0',
+                'status': 'ok',
                 'server_status': 'online',
                 'backend_version': django.get_version(),
                 'frontend_version': '3.5.3',
                 'database': 'PostgreSQL 16',
                 'active_routes': [
-                    '/api/auth/',
-                    '/api/fincas/',
-                    '/api/analisis/',
-                    '/api/config/'
-                ]
+                    '/api/v1/auth/',
+                    '/api/v1/fincas/',
+                    '/api/v1/images/',
+                    '/api/v1/config/'
+                ],
+                'author': 'Equipo SENA Guaviare'
             }
             
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            # Retornar datos mínimos incluso si hay error
+            return Response({
+                'system': 'CacaoScan',
+                'version': '1.0.0',
+                'status': 'ok',
+                'server_status': 'online',
+                'author': 'Equipo SENA Guaviare',
+                'error': 'Error al obtener detalles completos'
+            }, status=status.HTTP_200_OK)
 

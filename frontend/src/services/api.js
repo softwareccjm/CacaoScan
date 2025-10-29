@@ -143,34 +143,42 @@ api.interceptors.response.use(
       )
 
       if (isAuthEndpoint) {
-        // Si falla en el refresh token, limpiar todo y redirigir
+        // Si falla en el refresh token, mostrar modal
         if (originalRequest.url.includes('/auth/refresh/')) {
           console.error('🚫 Refresh token inválido o expirado, cerrando sesión.')
-          localStorage.clear()
-          router.replace({ 
-            name: 'Login',
-            query: {
-              message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              expired: 'true'
-            }
-          })
+          if (typeof window !== 'undefined' && window.showSessionExpiredModal) {
+            window.showSessionExpiredModal()
+          } else {
+            localStorage.clear()
+            router.replace({ 
+              name: 'Login',
+              query: {
+                message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                expired: 'true'
+              }
+            })
+          }
         }
         return Promise.reject(error)
       }
 
       const refreshToken = localStorage.getItem('refresh_token')
 
-      // Si no hay refresh token → cerrar sesión
+      // Si no hay refresh token → mostrar modal
       if (!refreshToken) {
-        console.warn('⚠️ No hay refresh token disponible, redirigiendo a login...')
-        localStorage.clear()
-        router.replace({ 
-          name: 'Login',
-          query: {
-            message: 'Tu sesión ha expirado. Inicia sesión nuevamente.',
-            expired: 'true'
-          }
-        })
+        console.warn('⚠️ No hay refresh token disponible, mostrando modal...')
+        if (typeof window !== 'undefined' && window.showSessionExpiredModal) {
+          window.showSessionExpiredModal()
+        } else {
+          localStorage.clear()
+          router.replace({ 
+            name: 'Login',
+            query: {
+              message: 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+              expired: 'true'
+            }
+          })
+        }
         return Promise.reject(error)
       }
 
@@ -234,15 +242,20 @@ api.interceptors.response.use(
         // Procesar la cola con error
         processQueue(refreshError, null)
 
-        // Si el refresh falla, limpiar todo y redirigir
-        localStorage.clear()
-        router.replace({ 
-          name: 'Login',
-          query: {
-            message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-            expired: 'true'
-          }
-        })
+        // Si el refresh falla, mostrar modal de sesión expirada
+        if (typeof window !== 'undefined' && window.showSessionExpiredModal) {
+          window.showSessionExpiredModal()
+        } else {
+          // Fallback de redirección directa si no hay modal disponible
+          localStorage.clear()
+          router.replace({ 
+            name: 'Login',
+            query: {
+              message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              expired: 'true'
+            }
+          })
+        }
         
         return Promise.reject(refreshError)
       } finally {
