@@ -58,15 +58,36 @@ export const useConfigStore = defineStore('config', {
 
   actions: {
     // Cargar todas las configuraciones
-    async loadAll() {
+    async loadAll(onlyPublic = false) {
       this.loading = true
       try {
-        const [general, security, ml, system] = await Promise.all([
+        // Cargar configuraciones públicas (accesibles para todos)
+        const publicConfigs = await Promise.all([
           configApi.getGeneralConfig().catch(() => ({})),
-          configApi.getSecurityConfig().catch(() => ({})),
-          configApi.getMLConfig().catch(() => ({})),
           configApi.getSystemConfig().catch(() => ({}))
         ])
+        
+        // Solo cargar configuraciones administrativas si el usuario tiene permisos
+        let security = {}
+        let ml = {}
+        
+        if (!onlyPublic) {
+          try {
+            security = await configApi.getSecurityConfig()
+          } catch (error) {
+            // Si el usuario no tiene permisos, se mantiene la configuración por defecto
+            console.log('ℹ️ Configuración de seguridad no disponible para este usuario')
+          }
+          
+          try {
+            ml = await configApi.getMLConfig()
+          } catch (error) {
+            // Si el usuario no tiene permisos, se mantiene la configuración por defecto
+            console.log('ℹ️ Configuración ML no disponible para este usuario')
+          }
+        }
+        
+        const [general, system] = publicConfigs
         
         // Actualizar estado si hay datos
         if (general && Object.keys(general).length > 0) {
@@ -75,22 +96,6 @@ export const useConfigStore = defineStore('config', {
             email_contacto: general.email_contacto || 'contacto@cacaoscan.com',
             lema: general.lema || 'La mejor plataforma para el control de calidad del cacao',
             logo_url: general.logo_url
-          }
-        }
-        
-        if (security && Object.keys(security).length > 0) {
-          this.security = {
-            recaptcha_enabled: security.recaptcha_enabled ?? true,
-            session_timeout: security.session_timeout || 60,
-            login_attempts: security.login_attempts || 5,
-            two_factor_auth: security.two_factor_auth ?? false
-          }
-        }
-        
-        if (ml && Object.keys(ml).length > 0) {
-          this.ml = {
-            active_model: ml.active_model || 'yolov8',
-            last_training: ml.last_training || null
           }
         }
         

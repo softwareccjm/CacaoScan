@@ -29,6 +29,11 @@ const configApi = {
       const response = await api.get('/config/security/')
       return response.data
     } catch (error) {
+      // No lanzar error, solo retornar objeto vacío si no tiene permisos
+      if (error.response?.status === 403) {
+        console.log('ℹ️ Usuario sin permisos para configuración de seguridad')
+        return null
+      }
       console.error('Error obteniendo configuración de seguridad:', error)
       throw error
     }
@@ -51,6 +56,11 @@ const configApi = {
       const response = await api.get('/config/ml/')
       return response.data
     } catch (error) {
+      // No lanzar error, solo retornar null si no tiene permisos
+      if (error.response?.status === 403) {
+        console.log('ℹ️ Usuario sin permisos para configuración ML')
+        return null
+      }
       console.error('Error obteniendo configuración ML:', error)
       throw error
     }
