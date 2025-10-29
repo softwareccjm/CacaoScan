@@ -8,6 +8,9 @@ INTEGRACIÓN CON MÓDULOS:
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.utils import timezone
+from datetime import date
+import re
 from catalogos.models import Parametro, Departamento, Municipio
 from .models import Persona
 
@@ -104,15 +107,132 @@ class PersonaRegistroSerializer(serializers.Serializer):
     municipio = serializers.IntegerField(required=False, allow_null=True)
     
     def validate_email(self, value):
-        """Validar que el email no exista."""
+        """Validar que el email no exista y tenga formato válido."""
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Este email ya está registrado.")
+            raise serializers.ValidationError("Este correo ya está registrado.")
+        
+        # Validación adicional de formato de email
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, value):
+            raise serializers.ValidationError("El formato del correo electrónico no es válido.")
+        
         return value
     
     def validate_numero_documento(self, value):
-        """Validar que el número de documento sea único."""
+        """
+        Validar que el número de documento sea único y válido.
+        - Solo números
+        - Longitud entre 6 y 11 dígitos
+        """
+        # Eliminar espacios
+        value = value.strip()
+        
+        # Validar que solo contenga números
+        if not value.isdigit():
+            raise serializers.ValidationError("El número de documento solo puede contener números.")
+        
+        # Validar longitud
+        if len(value) < 6 or len(value) > 11:
+            raise serializers.ValidationError("El número de documento debe tener entre 6 y 11 dígitos.")
+        
+        # Validar unicidad
         if Persona.objects.filter(numero_documento=value).exists():
             raise serializers.ValidationError("Este número de documento ya está registrado.")
+        
+        return value
+    
+    def validate_password(self, value):
+        """
+        Validar que la contraseña cumpla con los requisitos de seguridad:
+        - Mínimo 8 caracteres
+        - Al menos una letra mayúscula
+        - Al menos una letra minúscula
+        - Al menos un número
+        """
+        if len(value) < 8:
+            raise serializers.ValidationError("La contraseña debe tener al menos 8 caracteres.")
+        
+        if not re.search(r"[A-Z]", value):
+            raise serializers.ValidationError("La contraseña debe contener al menos una letra mayúscula.")
+        
+        if not re.search(r"[a-z]", value):
+            raise serializers.ValidationError("La contraseña debe contener al menos una letra minúscula.")
+        
+        if not re.search(r"[0-9]", value):
+            raise serializers.ValidationError("La contraseña debe contener al menos un número.")
+        
+        return value
+    
+    def validate_telefono(self, value):
+        """
+        Validar que el teléfono sea válido:
+        - Solo números (se permiten espacios y guiones que serán eliminados)
+        - Longitud entre 7 y 15 dígitos
+        """
+        # Eliminar espacios, guiones y paréntesis
+        cleaned_value = re.sub(r'[\s\-\(\)]', '', value)
+        
+        # Validar que solo contenga números (puede tener + al inicio)
+        if cleaned_value.startswith('+'):
+            cleaned_value = cleaned_value[1:]
+        
+        if not cleaned_value.isdigit():
+            raise serializers.ValidationError("El teléfono solo puede contener números.")
+        
+        # Validar longitud
+        if len(cleaned_value) < 7 or len(cleaned_value) > 15:
+            raise serializers.ValidationError("El teléfono debe tener entre 7 y 15 dígitos.")
+        
+        return value
+    
+    def validate_fecha_nacimiento(self, value):
+        """
+        Validar que la fecha de nacimiento sea válida:
+        - No puede ser futura
+        - El usuario debe tener al menos 14 años
+        """
+        if not value:
+            return value
+        
+        hoy = timezone.now().date()
+        
+        # Validar que no sea futura
+        if value > hoy:
+            raise serializers.ValidationError("La fecha de nacimiento no puede ser futura.")
+        
+        # Calcular edad
+        edad = hoy.year - value.year - ((hoy.month, hoy.day) < (value.month, value.day))
+        
+        # Validar edad mínima de 14 años
+        if edad < 14:
+            raise serializers.ValidationError("El usuario debe tener al menos 14 años.")
+        
+        # Validar edad máxima razonable (opcional, ej: 120 años)
+        if edad > 120:
+            raise serializers.ValidationError("La fecha de nacimiento no es válida.")
+        
+        return value
+    
+    def validate_primer_nombre(self, value):
+        """Validar que el primer nombre solo contenga letras y espacios."""
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("El primer nombre es obligatorio.")
+        
+        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$', value):
+            raise serializers.ValidationError("El primer nombre solo puede contener letras.")
+        
+        return value
+    
+    def validate_primer_apellido(self, value):
+        """Validar que el primer apellido solo contenga letras y espacios."""
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("El primer apellido es obligatorio.")
+        
+        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$', value):
+            raise serializers.ValidationError("El primer apellido solo puede contener letras.")
+        
         return value
     
     def validate(self, data):
@@ -145,7 +265,7 @@ class PersonaRegistroSerializer(serializers.Serializer):
             })
         data['genero_obj'] = genero
         
-        # Validar municipio (debe existir y pertenecer al departamento)
+        # Validar municipio (debe existir y pertenecer al departamento) - OPCIONAL
         municipio_id = data.get('municipio')
         departamento_id = data.get('departamento')
         
@@ -233,8 +353,8 @@ class PersonaRegistroSerializer(serializers.Serializer):
             'segundo_apellido': instance.segundo_apellido,
             'numero_documento': instance.numero_documento,
             'telefono': instance.telefono,
-            'tipo_documento': instance.tipo_documento.codigo,
-            'genero': instance.genero.codigo,
+            'tipo_documento': instance.tipo_documento.codigo if instance.tipo_documento else None,
+            'genero': instance.genero.codigo if instance.genero else None,
             'departamento': instance.departamento.nombre if instance.departamento else None,
             'municipio': instance.municipio.nombre if instance.municipio else None,
         }

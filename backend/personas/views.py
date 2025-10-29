@@ -31,15 +31,29 @@ class PersonaRegistroView(APIView):
         - departamento: ID del departamento (opcional)
         - municipio: ID del municipio (opcional)
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"📝 Datos recibidos en registro: {request.data}")
+        
         serializer = PersonaRegistroSerializer(data=request.data)
         
         if serializer.is_valid():
-            persona = serializer.save()
-            return Response(
-                serializer.to_representation(persona),
-                status=status.HTTP_201_CREATED
-            )
+            try:
+                persona = serializer.save()
+                logger.info(f"✅ Persona creada exitosamente: {persona.id}")
+                return Response(
+                    serializer.to_representation(persona),
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                logger.error(f"❌ Error al crear persona: {str(e)}")
+                return Response(
+                    {'error': f'Error al crear el usuario: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
+        logger.warning(f"⚠️ Errores de validación: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

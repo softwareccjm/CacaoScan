@@ -90,7 +90,41 @@ from .serializers import (
     FincaStatsSerializer
 )
 from .utils import create_error_response, create_success_response
-from .models import EmailVerificationToken, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification, ActivityLog, LoginHistory, ReporteGenerado
+# Importar desde apps modulares
+try:
+    from auth_app.models import EmailVerificationToken
+except ImportError:
+    EmailVerificationToken = None
+
+try:
+    from images_app.models import CacaoImage, CacaoPrediction
+except ImportError:
+    CacaoImage = None
+    CacaoPrediction = None
+
+try:
+    from training.models import TrainingJob
+except ImportError:
+    TrainingJob = None
+
+try:
+    from fincas_app.models import Finca, Lote
+except ImportError:
+    Finca = None
+    Lote = None
+
+try:
+    from notifications.models import Notification
+except ImportError:
+    Notification = None
+
+try:
+    from audit.models import ActivityLog
+except ImportError:
+    ActivityLog = None
+
+# Modelos únicos de API
+from .models import LoginHistory, ReporteGenerado
 from django.db.models import Prefetch
 from .fincas_views import (
     FincaListCreateView,
@@ -886,35 +920,43 @@ class LoginView(APIView):
         """
         Autentica un usuario y devuelve tokens JWT.
         """
-        serializer = LoginSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            user = serializer.validated_data['user']
+        try:
+            serializer = LoginSerializer(data=request.data)
             
-            # Generar tokens JWT
-            refresh = RefreshToken.for_user(user)
-            access_token = refresh.access_token
+            if serializer.is_valid():
+                user = serializer.validated_data['user']
+                
+                # Generar tokens JWT
+                refresh = RefreshToken.for_user(user)
+                access_token = refresh.access_token
+                
+                # Login en la sesión
+                login(request, user)
+                
+                return create_success_response(
+                    message='Login exitoso',
+                    data={
+                        'access': str(access_token),
+                        'refresh': str(refresh),
+                        'user': UserSerializer(user).data,
+                        'access_expires_at': access_token['exp'],
+                        'refresh_expires_at': refresh['exp']
+                    }
+                )
             
-            # Login en la sesión
-            login(request, user)
-            
-            return create_success_response(
-                message='Login exitoso',
-                data={
-                    'access': str(access_token),
-                    'refresh': str(refresh),
-                    'user': UserSerializer(user).data,
-                    'access_expires_at': access_token['exp'],
-                    'refresh_expires_at': refresh['exp']
-                }
+            return create_error_response(
+                message='Credenciales inválidas',
+                error_type='invalid_credentials',
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                details=serializer.errors
             )
-        
-        return create_error_response(
-            message='Credenciales inválidas',
-            error_type='invalid_credentials',
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            details=serializer.errors
-        )
+        except Exception as e:
+            logger.error(f"Error en LoginView: {str(e)}", exc_info=True)
+            return create_error_response(
+                message='Error interno del servidor',
+                error_type='internal_server_error',
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class RegisterView(APIView):

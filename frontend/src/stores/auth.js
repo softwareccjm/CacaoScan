@@ -210,39 +210,45 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.register(userData)
       
-      // El nuevo backend devuelve token directamente en el registro
-      if (response.success && response.token && response.user) {
-        // Guardar tokens (access y refresh si están disponibles)
-        setTokens({
-          access: response.token,
-          refresh: response.refresh,
-          user: response.user
-        })
-        
-        updateLastActivity()
-        
-        // Redirigir automáticamente al dashboard de agricultor
-        await router.push({ name: 'AgricultorDashboard' })
-        
-        return { success: true }
-      } else {
-        // Fallback para formato anterior
-        if (response.access && response.refresh) {
-          setTokens(response)
-          await getCurrentUser()
+      // Si el registro fue exitoso
+      if (response.success) {
+        // Si el backend devuelve tokens, guardarlos automáticamente
+        if (response.token && response.user) {
+          setTokens({
+            access: response.token,
+            refresh: response.refresh,
+            user: response.user
+          })
           updateLastActivity()
-          
           await router.push({ name: 'AgricultorDashboard' })
-        } else {
-          // Redirigir a login con mensaje de éxito
+        } else if (response.redirectToLogin) {
+          // Si indica que debe redirigir a login
           await router.push({ 
             name: 'Login', 
-            query: { message: 'Registro exitoso. Por favor inicia sesión.' }
+            query: { message: response.message || 'Registro exitoso. Por favor inicia sesión.' }
           })
+        } else {
+          // Fallback: intentar login automático si hay credenciales
+          try {
+            const loginResult = await login({
+              email: userData.email,
+              password: userData.password
+            })
+            if (loginResult.success) {
+              return { success: true }
+            }
+          } catch (loginError) {
+            console.log('No se pudo hacer login automático, redirigiendo a login')
+            await router.push({ 
+              name: 'Login', 
+              query: { message: 'Registro exitoso. Por favor inicia sesión.' }
+            })
+          }
         }
         
-        return { success: true }
       }
+
+      return response
     } catch (err) {
       console.error('Error en registro:', err)
       setError(err.response?.data?.message || err.message || 'Error en el registro')

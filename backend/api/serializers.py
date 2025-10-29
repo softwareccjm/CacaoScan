@@ -4,7 +4,36 @@ Serializers para la API de CacaoScan.
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import UserProfile, CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, Notification, ModelMetrics, SystemSettings
+# Importar modelos desde apps modulares
+try:
+    from auth_app.models import UserProfile
+except ImportError:
+    UserProfile = None
+
+try:
+    from images_app.models import CacaoImage, CacaoPrediction
+except ImportError:
+    CacaoImage = None
+    CacaoPrediction = None
+
+try:
+    from training.models import TrainingJob
+except ImportError:
+    TrainingJob = None
+
+try:
+    from fincas_app.models import Finca, Lote
+except ImportError:
+    Finca = None
+    Lote = None
+
+try:
+    from notifications.models import Notification
+except ImportError:
+    Notification = None
+
+# Modelos únicos de API
+from .models import ModelMetrics, SystemSettings
 
 
 class ConfidenceSerializer(serializers.Serializer):
@@ -271,8 +300,11 @@ class UserSerializer(serializers.ModelSerializer):
     
     def get_is_verified(self, obj):
         """Obtener estado de verificación del email."""
-        if hasattr(obj, 'email_verification_token'):
-            return obj.email_verification_token.is_verified
+        try:
+            if hasattr(obj, 'email_verification_token'):
+                return obj.email_verification_token.is_verified
+        except Exception:
+            pass
         return obj.is_active  # Fallback para usuarios sin token de verificación
 
 

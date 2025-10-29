@@ -102,48 +102,41 @@ const authApi = {
       
       console.log('🔍 [authApi] Respuesta cruda del backend (registro):', response.data)
       
-      // La respuesta del endpoint personas/registrar/ devuelve la persona creada
-      // Necesitamos hacer login para obtener los tokens
-      let normalizedData;
-      
-      // Si la respuesta incluye información del usuario, intentar hacer login automático
-      if (response.data && response.data.user) {
-        // Login automático para obtener tokens
+      // Intentar iniciar sesión automáticamente después del registro
+      let normalizedData = {
+        success: true,
+        message: 'Registro exitoso. Por favor inicia sesión.',
+        user: response.data.user,
+        persona: response.data,
+        redirectToLogin: true
+      }
+
+      try {
         const loginResponse = await api.post('/api/v1/auth/login/', {
-          email: userData.email,
-          password: userData.password
+          email: payload.email,
+          username: payload.email,
+          password: payload.password
         })
-        
-        if (loginResponse.data && loginResponse.data.access) {
+
+        if (loginResponse.data && loginResponse.data.access && loginResponse.data.user) {
           normalizedData = {
+            success: true,
             token: loginResponse.data.access,
             refresh: loginResponse.data.refresh,
             user: loginResponse.data.user,
             access_expires_at: loginResponse.data.access_expires_at,
             refresh_expires_at: loginResponse.data.refresh_expires_at,
-            persona: response.data, // Incluir datos de persona
-            message: 'Registro exitoso. Bienvenido.'
+            persona: response.data,
+            message: 'Registro exitoso. Sesión iniciada automáticamente.',
+            redirectToLogin: false
           }
-        } else {
-          throw new Error('Error al obtener tokens de autenticación')
         }
-      } else {
-        // Fallback: esperar estructura con tokens directos
-        normalizedData = {
-          token: response.data.access,
-          refresh: response.data.refresh,
-          user: response.data.user,
-          persona: response.data,
-          message: response.data.message || 'Registro exitoso'
-        }
+      } catch (loginError) {
+        console.warn('⚠️ [authApi] No se pudo iniciar sesión automáticamente después del registro:', loginError)
       }
       
-      console.log('✅ [authApi] Datos normalizados para el store (registro):', normalizedData)
-      
-      return {
-        success: true,
-        ...normalizedData
-      }
+      console.log('✅ [authApi] Resultado de registro:', normalizedData)
+      return normalizedData
     } catch (error) {
       console.error('Error en registro API:', error)
       console.error('📋 [authApi] Respuesta completa del error:', {

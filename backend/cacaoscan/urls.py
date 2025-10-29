@@ -25,7 +25,7 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # path('api/v1/', include('api.urls')),  # Temporalmente deshabilitado
+    path('api/v1/', include('api.urls')),  # API principal habilitada
     # path('api/v1/reports/', include('reports.urls')),  # Temporalmente deshabilitado
     path('api/personas/', include('personas.urls')),
     path('api/', include('catalogos.urls')),
