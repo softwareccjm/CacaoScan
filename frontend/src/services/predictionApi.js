@@ -637,9 +637,7 @@ export function createImageFormData(file, metadata = {}) {
   return formData
 }
 
-// Exportar API client configurado para uso directo
-export const predictionApiClient = api
-
+// No exportar api directamente, solo las funciones
 export default {
   predictImage,
   predictImageYolo,

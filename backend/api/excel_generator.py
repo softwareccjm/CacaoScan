@@ -30,6 +30,247 @@ class CacaoReportExcelGenerator:
         self.workbook = None
         self.ws = None
     
+    def generate_farmers_report(self):
+        """
+        Generar reporte Excel de agricultores con sus fincas.
+        
+        Returns:
+            bytes: Contenido del archivo Excel
+        """
+        try:
+            from django.contrib.auth.models import User
+            
+            self.workbook = Workbook()
+            self.ws = self.workbook.active
+            self.ws.title = "Agricultores"
+            
+            # Configurar columnas
+            columns = [
+                'Agricultor', 'Email', 'Teléfono', 'Departamento', 'Municipio',
+                'Finca', 'Hectáreas', 'Estado Finca', 'Fecha Registro Finca'
+            ]
+            self.ws.append(columns)
+            
+            # Estilo de encabezado
+            header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
+            header_font = Font(bold=True, color="FFFFFF")
+            
+            for cell in self.ws[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Obtener todos los usuarios que no son superusuarios (agricultores y analistas)
+            farmers = User.objects.filter(is_superuser=False).select_related('api_profile').prefetch_related('api_fincas')
+            
+            # Contador de filas
+            row_num = 2
+            
+            for farmer in farmers:
+                # Información del agricultor
+                name = f"{farmer.first_name} {farmer.last_name}".strip() or farmer.username
+                email = farmer.email
+                phone = getattr(farmer, 'api_profile', None) and getattr(farmer.api_profile, 'phone_number', '') or ''
+                
+                # Obtener fincas del agricultor
+                fincas = farmer.api_fincas.all()
+                
+                if fincas.exists():
+                    # Si tiene fincas, crear una fila por cada finca
+                    for finca in fincas:
+                        self.ws.append([
+                            name,
+                            email,
+                            phone,
+                            finca.departamento,
+                            finca.municipio,
+                            finca.nombre,
+                            float(finca.hectareas),
+                            "Activa" if finca.activa else "Inactiva",
+                            finca.fecha_registro.strftime('%Y-%m-%d') if finca.fecha_registro else ''
+                        ])
+                        row_num += 1
+                else:
+                    # Si no tiene fincas, agregar fila con campos vacíos para finca
+                    self.ws.append([
+                        name,
+                        email,
+                        phone,
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        farmer.date_joined.strftime('%Y-%m-%d') if farmer.date_joined else ''
+                    ])
+                    row_num += 1
+            
+            # Ajustar ancho de columnas
+            column_widths = {
+                'A': 25,  # Agricultor
+                'B': 30,  # Email
+                'C': 15,  # Teléfono
+                'D': 20,  # Departamento
+                'E': 20,  # Municipio
+                'F': 20,  # Finca
+                'G': 12,  # Hectáreas
+                'H': 15,  # Estado
+                'I': 18,  # Fecha Registro
+            }
+            
+            for col, width in column_widths.items():
+                self.ws.column_dimensions[col].width = width
+            
+            # Centrar encabezados
+            for row in self.ws.iter_rows(min_row=1, max_row=1):
+                for cell in row:
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Guardar en buffer
+            buffer = io.BytesIO()
+            self.workbook.save(buffer)
+            buffer.seek(0)
+            return buffer.getvalue()
+            
+        except Exception as e:
+            logger.error(f"Error generando reporte Excel de agricultores: {e}", exc_info=True)
+            raise
+    
+    def generate_users_report(self):
+        """
+        Generar reporte Excel profesional de usuarios con sus fincas asociadas.
+        Incluye formato visual profesional (colores, bordes, alineación).
+        Si no hay usuarios, muestra mensaje "Sin registros disponibles".
+        
+        Returns:
+            bytes: Contenido del archivo Excel
+        """
+        try:
+            from django.contrib.auth.models import User
+            from .models import Finca
+            from openpyxl.styles import Border, Side
+            
+            self.workbook = Workbook()
+            self.ws = self.workbook.active
+            self.ws.title = "Usuarios y Fincas"
+            
+            # === Estilos básicos ===
+            bold_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            align_center = Alignment(horizontal='center', vertical='center')
+            align_vertical = Alignment(vertical='center')
+            
+            # === Encabezados ===
+            headers = [
+                'ID Usuario', 'Nombre', 'Correo', 'Rol', 'Activo', 'Fecha Registro',
+                'Finca', 'Departamento', 'Municipio', 'Área (ha)', 'Latitud', 'Longitud'
+            ]
+            self.ws.append(headers)
+            
+            # Aplicar estilo a encabezados
+            for col in self.ws[1]:
+                col.font = bold_font
+                col.fill = header_fill
+                col.alignment = align_center
+                col.border = thin_border
+            
+            # Obtener todos los usuarios con prefetch de fincas
+            users = User.objects.all().order_by('-date_joined').select_related('api_profile', 'api_email_token').prefetch_related('api_fincas', 'groups')
+            
+            if users.exists():
+                # Iterar usuarios y agregar información de fincas
+                for user in users:
+                    fincas = user.api_fincas.all()
+                    
+                    # Determinar rol del usuario
+                    if user.is_superuser or user.is_staff:
+                        rol = 'admin'
+                    elif user.groups.filter(name='analyst').exists():
+                        rol = 'analyst'
+                    else:
+                        rol = 'farmer'
+                    
+                    if fincas.exists():
+                        # Si el usuario tiene fincas, crear una fila por cada finca
+                        for finca in fincas:
+                            self.ws.append([
+                                user.id,
+                                f"{user.first_name} {user.last_name}".strip() or user.username,
+                                user.email,
+                                rol,
+                                'Sí' if user.is_active else 'No',
+                                user.date_joined.strftime('%Y-%m-%d'),
+                                finca.nombre,
+                                finca.departamento or '—',
+                                finca.municipio or '—',
+                                float(finca.hectareas),
+                                float(finca.coordenadas_lat) if finca.coordenadas_lat is not None else '—',
+                                float(finca.coordenadas_lng) if finca.coordenadas_lng is not None else '—',
+                            ])
+                    else:
+                        # Si no tiene fincas, agregar fila con "Sin fincas"
+                        self.ws.append([
+                            user.id,
+                            f"{user.first_name} {user.last_name}".strip() or user.username,
+                            user.email,
+                            rol,
+                            'Sí' if user.is_active else 'No',
+                            user.date_joined.strftime('%Y-%m-%d'),
+                            'Sin fincas',
+                            '—', '—', '—', '—', '—'
+                        ])
+                
+                # Aplicar bordes a todas las celdas con datos
+                for row in self.ws.iter_rows(min_row=2, max_row=self.ws.max_row, max_col=len(headers)):
+                    for cell in row:
+                        cell.border = thin_border
+                        cell.alignment = align_vertical
+                
+                # Ajustar ancho de columnas automáticamente
+                for col in self.ws.columns:
+                    max_length = 0
+                    for cell in col:
+                        try:
+                            if cell.value:
+                                max_length = max(max_length, len(str(cell.value)))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)  # Máximo 50 caracteres
+                    self.ws.column_dimensions[col[0].column_letter].width = adjusted_width
+                
+            else:
+                # Si no hay usuarios, mostrar mensaje amigable
+                self.ws.merge_cells('A1:L2')
+                cell = self.ws['A1']
+                cell.value = "Sin registros disponibles"
+                cell.font = Font(bold=True, size=14, color="FF0000")
+                cell.alignment = align_center
+                cell.fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
+                self.ws.row_dimensions[1].height = 40
+            
+            # Guardar en buffer de memoria (binario)
+            buffer = io.BytesIO()
+            self.workbook.save(buffer)
+            buffer.seek(0)
+            
+            # Validar que el buffer no esté vacío
+            content = buffer.getvalue()
+            if not content or len(content) < 100:
+                raise ValueError("El archivo Excel generado está vacío o corrupto")
+            
+            logger.info(f"Reporte Excel de usuarios y fincas generado correctamente ({len(content)} bytes)")
+            return content
+            
+        except Exception as e:
+            logger.error(f"Error generando reporte Excel de usuarios: {e}", exc_info=True)
+            raise
+    
     def generate_quality_report(self, user, filtros=None):
         """
         Generar reporte de calidad en Excel.

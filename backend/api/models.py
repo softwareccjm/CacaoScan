@@ -17,7 +17,7 @@ class EmailVerificationToken(models.Model):
     """
     Modelo para tokens de verificación de email.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_verification_token')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='api_email_token')
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     verified_at = models.DateTimeField(null=True, blank=True)
@@ -84,7 +84,7 @@ class UserProfile(models.Model):
     """
     Perfil extendido del usuario con información específica de agricultores.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='api_profile')
     
     # Información de contacto
     phone_number = models.CharField(max_length=20, blank=True, null=True)
@@ -137,7 +137,7 @@ class UserProfile(models.Model):
     def is_verified(self):
         """Verificar si el usuario está verificado."""
         try:
-            return self.user.email_verification_token.is_verified
+            return self.user.api_email_token.is_verified
         except:
             return False
 
@@ -146,7 +146,7 @@ class CacaoImage(models.Model):
     """
     Modelo para almacenar imágenes de granos de cacao procesadas.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cacao_images')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='api_cacao_images')
     
     # Archivo de imagen
     image = models.ImageField(upload_to='cacao_images/processed/%Y/%m/%d/')
@@ -429,7 +429,7 @@ class Finca(models.Model):
     agricultor = models.ForeignKey(
         User, 
         on_delete=models.CASCADE, 
-        related_name='fincas',
+        related_name='api_fincas',
         help_text="Agricultor propietario de la finca"
     )
     
@@ -469,7 +469,7 @@ class Finca(models.Model):
         constraints = [
             models.CheckConstraint(
                 check=models.Q(hectareas__gt=0),
-                name='finca_hectareas_positivas'
+                name='api_finca_hectareas_positivas'
             ),
         ]
     
@@ -1193,15 +1193,15 @@ class Lote(models.Model):
         constraints = [
             models.CheckConstraint(
                 check=models.Q(area_hectareas__gt=0),
-                name='lote_area_positiva'
+                name='api_lote_area_positiva'
             ),
             models.CheckConstraint(
                 check=models.Q(fecha_cosecha__isnull=True) | models.Q(fecha_cosecha__gte=models.F('fecha_plantacion')),
-                name='lote_fecha_cosecha_valida'
+                name='api_lote_fecha_cosecha_valida'
             ),
             models.UniqueConstraint(
                 fields=['finca', 'identificador'],
-                name='lote_identificador_unico_por_finca'
+                name='api_lote_identificador_unico_por_finca'
             ),
         ]
     
