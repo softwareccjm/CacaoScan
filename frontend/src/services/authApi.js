@@ -24,7 +24,7 @@ const authApi = {
         loginData.username = credentials.username
       }
       
-      const response = await api.post('/auth/login/', loginData)
+      const response = await api.post('/api/v1/auth/login/', loginData)
       
       console.log('🔍 [authApi] Respuesta cruda del backend:', response.data)
       
@@ -98,7 +98,7 @@ const authApi = {
       
       console.log('📤 [authApi] Payload enviado al backend (personas):', payload);
       
-      const response = await api.post('/personas/registrar/', payload)
+      const response = await api.post('/api/personas/registrar/', payload)
       
       console.log('🔍 [authApi] Respuesta cruda del backend (registro):', response.data)
       
@@ -109,7 +109,7 @@ const authApi = {
       // Si la respuesta incluye información del usuario, intentar hacer login automático
       if (response.data && response.data.user) {
         // Login automático para obtener tokens
-        const loginResponse = await api.post('/auth/login/', {
+        const loginResponse = await api.post('/api/v1/auth/login/', {
           email: userData.email,
           password: userData.password
         })
@@ -185,7 +185,7 @@ const authApi = {
    */
   async logout() {
     try {
-      const response = await api.post('/auth/logout/')
+      const response = await api.post('/api/v1/auth/logout/')
       return response.data
     } catch (error) {
       console.error('Error en logout API:', error)
@@ -198,7 +198,7 @@ const authApi = {
    */
   async refreshToken(refreshToken) {
     try {
-      const response = await api.post('/auth/refresh/', {
+      const response = await api.post('/api/v1/auth/refresh/', {
         refresh: refreshToken
       })
       return response.data
@@ -220,7 +220,7 @@ const authApi = {
    */
   async verifyToken(token) {
     try {
-      const response = await api.post('/auth/verify/', {
+      const response = await api.post('/api/v1/auth/verify/', {
         token: token
       })
       return response.data
@@ -235,7 +235,7 @@ const authApi = {
    */
   async getCurrentUser() {
     try {
-      const response = await api.get('/auth/profile/')
+      const response = await api.get('/api/v1/auth/profile/')
       return response.data
     } catch (error) {
       console.error('Error obteniendo usuario actual:', error)
@@ -258,7 +258,7 @@ const authApi = {
         payload.phone_number = profileData.phoneNumber || profileData.phone
       }
       
-      const response = await api.put('/auth/profile/', payload)
+      const response = await api.put('/api/v1/auth/profile/', payload)
       return response.data
     } catch (error) {
       console.error('Error actualizando perfil:', error)
@@ -271,7 +271,7 @@ const authApi = {
    */
   async getProfile() {
     try {
-      const response = await api.get('/auth/profile/')
+      const response = await api.get('/api/v1/auth/profile/')
       return response.data
     } catch (error) {
       console.error('Error obteniendo perfil:', error)
@@ -284,7 +284,7 @@ const authApi = {
    */
   async changePassword(passwordData) {
     try {
-      const response = await api.post('/auth/users/change-password/', {
+      const response = await api.post('/api/v1/auth/users/change-password/', {
         old_password: passwordData.oldPassword,
         new_password: passwordData.newPassword,
         confirm_password: passwordData.confirmPassword
@@ -301,7 +301,7 @@ const authApi = {
    */
   async requestPasswordReset(email) {
     try {
-      const response = await api.post('/auth/forgot-password/', {
+      const response = await api.post('/api/v1/auth/forgot-password/', {
         email: email
       })
       return response.data
@@ -316,7 +316,7 @@ const authApi = {
    */
   async confirmPasswordReset(resetData) {
     try {
-      const response = await api.post('/auth/reset-password/', {
+      const response = await api.post('/api/v1/auth/reset-password/', {
         uid: resetData.uid,
         token: resetData.token,
         new_password: resetData.newPassword,
@@ -334,7 +334,7 @@ const authApi = {
    */
   async verifyEmail(uid, token) {
     try {
-      const response = await api.post('/auth/verify-email/', {
+      const response = await api.post('/api/v1/auth/verify-email/', {
         uid: uid,
         token: token
       })
@@ -350,7 +350,7 @@ const authApi = {
    */
   async resendEmailVerification() {
     try {
-      const response = await api.post('/auth/resend-verification/')
+      const response = await api.post('/api/v1/auth/resend-verification/')
       return response.data
     } catch (error) {
       console.error('Error reenviando verificación:', error)
@@ -363,7 +363,7 @@ const authApi = {
    */
   async getUserStats() {
     try {
-      const response = await api.get('/auth/admin/stats/')
+      const response = await api.get('/api/v1/auth/admin/stats/')
       return response.data
     } catch (error) {
       console.error('Error obteniendo estadísticas:', error)
@@ -376,7 +376,7 @@ const authApi = {
    */
   async bulkUserActions(actionData) {
     try {
-      const response = await api.post('/auth/admin/bulk-actions/', {
+      const response = await api.post('/api/v1/auth/admin/bulk-actions/', {
         user_ids: actionData.userIds,
         action: actionData.action
       })
@@ -392,7 +392,7 @@ const authApi = {
    */
   async getUsers(params = {}) {
     try {
-      const response = await api.get('/auth/users/', { params })
+      const response = await api.get('/api/v1/auth/users/', { params })
       return response.data
     } catch (error) {
       console.error('Error obteniendo usuarios:', error)
@@ -459,7 +459,7 @@ const authApi = {
    */
   async getUserStats() {
     try {
-      const response = await api.get('/auth/users/stats/')
+      const response = await api.get('/api/v1/auth/users/stats/')
       return response.data
     } catch (error) {
       console.error('Error obteniendo estadísticas de usuarios:', error)
@@ -472,7 +472,7 @@ const authApi = {
    */
   async forgotPassword(email) {
     try {
-      const response = await api.post('/auth/forgot-password/', {
+      const response = await api.post('/api/v1/auth/forgot-password/', {
         email: email
       })
       return response.data
@@ -487,7 +487,7 @@ const authApi = {
    */
   async resetPassword(token, newPassword, confirmPassword) {
     try {
-      const response = await api.post('/auth/reset-password/', {
+      const response = await api.post('/api/v1/auth/reset-password/', {
         token: token,
         new_password: newPassword,
         confirm_password: confirmPassword
