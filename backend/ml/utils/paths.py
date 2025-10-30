@@ -41,6 +41,16 @@ def get_masks_dir():
     return get_cacao_images_dir() / "masks"
 
 
+def get_processed_images_dir():
+    """Directorio para imágenes procesadas (PNG con transparencia)."""
+    return get_cacao_images_dir() / "processed"
+
+
+def get_converted_jpg_dir():
+    """Directorio para JPG convertidos desde BMP (útil como paso intermedio)."""
+    return get_cacao_images_dir() / "converted_jpg"
+
+
 def get_artifacts_dir():
     """Obtiene la ruta del directorio de artefactos ML."""
     return get_project_root() / "ml" / "artifacts"
