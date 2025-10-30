@@ -12,8 +12,8 @@ class CacaoImage(TimeStampedModel):
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images_app_cacao_images')
     
-    # Archivo de imagen
-    image = models.ImageField(upload_to='cacao_images/processed/%Y/%m/%d/')
+    # Archivo de imagen (original) - guardar en carpeta raw
+    image = models.ImageField(upload_to='cacao_images/raw/%Y/%m/%d/')
     
     # Metadatos de procesamiento
     uploaded_at = models.DateTimeField(auto_now_add=True)

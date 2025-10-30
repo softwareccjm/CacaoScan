@@ -148,8 +148,8 @@ class CacaoImage(models.Model):
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='api_cacao_images')
     
-    # Archivo de imagen
-    image = models.ImageField(upload_to='cacao_images/processed/%Y/%m/%d/')
+    # Archivo de imagen (original) - guardar en carpeta raw
+    image = models.ImageField(upload_to='cacao_images/raw/%Y/%m/%d/')
     
     # Metadatos de procesamiento
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -174,6 +174,9 @@ class CacaoImage(models.Model):
     file_name = models.CharField(max_length=255, blank=True, null=True)
     file_size = models.PositiveIntegerField(blank=True, null=True)
     file_type = models.CharField(max_length=50, blank=True, null=True)
+
+    # Metadatos adicionales (siempre presente para evitar NOT NULL)
+    metadata = models.JSONField(default=dict, blank=True)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
