@@ -11,11 +11,6 @@ import logging
 from ..utils.paths import get_crops_dir, get_masks_dir, ensure_dir_exists
 from ..utils.io import save_image, get_file_timestamp
 from .infer_yolo_seg import YOLOSegmentationInference
-from ..data.transforms import (
-    create_transparent_crop,
-    resize_crop_to_square,
-    validate_crop_quality
-)
 from ..utils.logs import get_ml_logger
 
 
