@@ -389,19 +389,7 @@ const authApi = {
    */
   async getUsers(params = {}) {
     try {
-<<<<<<< HEAD
       const response = await api.get('/auth/users/', { params })
-=======
-      // Sanitizar parámetros para evitar errores 500 en backend
-      const safeParams = { ...params }
-      if (!safeParams.page) safeParams.page = 1
-      if (!safeParams.page_size) safeParams.page_size = 50
-      if (safeParams.role && !['admin', 'analyst', 'farmer'].includes(safeParams.role)) {
-        delete safeParams.role
-      }
-
-      const response = await api.get('/api/v1/auth/users/', { params: safeParams })
->>>>>>> 01bcb288a1a0096c940963b357693978331d2f0c
       return response.data
     } catch (error) {
       console.error('Error obteniendo usuarios:', error)

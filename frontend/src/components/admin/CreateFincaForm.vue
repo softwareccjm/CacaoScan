@@ -53,7 +53,7 @@
                 />
               </div>
 
-              <div v-if="auth.user?.role === 'admin'">
+              <div v-if="auth.user?.role === 'admin'" class="col-span-1 md:col-span-2">
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Agricultor asignado *
                 </label>
