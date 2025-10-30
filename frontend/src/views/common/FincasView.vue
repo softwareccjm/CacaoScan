@@ -45,6 +45,7 @@
           />
 
           <!-- Modal de formulario -->
+<<<<<<< HEAD
           <div v-if="showModal">
             <CreateFincaForm
               v-if="!isEditing && isAdmin"
@@ -53,12 +54,21 @@
             />
             <FincaForm
               v-else
+=======
+          <Teleport to="body">
+            <FincaForm
+              v-if="showModal"
+>>>>>>> 01bcb288a1a0096c940963b357693978331d2f0c
               :finca="selectedFinca"
               :is-editing="isEditing"
               @close="closeModal"
               @saved="handleFincaSaved"
             />
+<<<<<<< HEAD
           </div>
+=======
+          </Teleport>
+>>>>>>> 01bcb288a1a0096c940963b357693978331d2f0c
         </div>
       </main>
     </div>
@@ -66,6 +76,7 @@
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -78,6 +89,18 @@ import FincasFilters from '@/components/common/FincasFilters.vue'
 import FincaList from '@/components/common/FincaList.vue'
 import fincasApi from '@/services/fincasApi'
 import Swal from 'sweetalert2'
+=======
+import { ref, onMounted, computed }   from 'vue'
+import { useRouter }                  from 'vue-router'
+import { useAuthStore }               from '@/stores/auth'
+import { useFincasStore }             from '@/stores/fincas'
+import Sidebar                        from '@/components/layout/Common/Sidebar.vue'
+import FincaForm                      from '@/components/common/FincasViewComponents/FincaForm.vue'
+import FincasHeader                   from '@/components/common/FincasViewComponents/FincasHeader.vue'
+import FincasFilters                  from '@/components/common/FincasViewComponents/FincasFilters.vue'
+import FincaList                      from '@/components/common/FincasViewComponents/FincaList.vue'
+import Swal                           from 'sweetalert2'
+>>>>>>> 01bcb288a1a0096c940963b357693978331d2f0c
 
 const router = useRouter()
 const authStore = useAuthStore()
