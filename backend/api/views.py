@@ -66,12 +66,16 @@ from django.http import JsonResponse
 from PIL import Image
 import io
 import os
+from pathlib import Path
+import re
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ml.data.dataset_loader import CacaoDatasetLoader
 from ml.prediction.predict import get_predictor, load_artifacts
+from ml.segmentation.processor import segment_and_crop_cacao_bean
+from ml.utils.paths import get_processed_images_dir
 from .serializers import (
     ScanMeasureResponseSerializer, 
     ErrorResponseSerializer,
@@ -198,15 +202,18 @@ class ScanMeasureView(APIView):
     def _save_uploaded_image(self, image_file, user):
         """
         Guarda la imagen subida en el sistema de archivos y crea registro en BD.
+        Además, segmenta el grano给自己 y guarda el PNG transparente en processed/.
         
         Args:
             image_file: Archivo de imagen subido
             user: Usuario autenticado
             
         Returns:
-            tuple: (cacao_image_obj, success, error_message)
+            tuple: (cacao_image_obj, success, error_message, processed_png_path)
         """
         try:
+            # No leer bytes; segmentaremos usando la ruta en disco tras guardar
+            
             # Crear objeto CacaoImage
             cacao_image = CacaoImage(
                 user=user,
@@ -217,15 +224,29 @@ class ScanMeasureView(APIView):
                 processed=False
             )
             
-            # Guardar en BD
+            # Guardar en BD (esto guarda la imagen original con subcarpetas por fecha)
             cacao_image.save()
             
             logger.info(f"Imagen guardada con ID {cacao_image.id} para usuario {user.username}")
-            return cacao_image, True, None
+            
+            # Segmentar y guardar PNG transparente del grano en processed/
+            processed_png_path = None
+            try:
+                # Forzar método OpenCV para asegurar segmentación aunque falte el modelo IA
+                generated_path = segment_and_crop_cacao_bean(str(cacao_image.image.path), method="opencv")
+                if generated_path:
+                    processed_png_path = Path(generated_path)
+                    logger.info(f"✓ PNG segmentado guardado en: {processed_png_path.absolute()}")
+                else:
+                    logger.warning(f"No se pudo segmentar imagen {cacao_image.id}: retorno vacío")
+            except Exception as seg_error:
+                logger.error(f"Error en segmentación de imagen {cacao_image.id}: {seg_error}")
+            
+            return cacao_image, True, None, processed_png_path
             
         except Exception as e:
             logger.error(f"Error guardando imagen: {e}")
-            return None, False, str(e)
+            return None, False, str(e), None
     
     def _save_prediction(self, cacao_image, result, processing_time_ms):
         """
@@ -366,11 +387,13 @@ class ScanMeasureView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # 6. Guardar imagen en BD
-            cacao_image, save_success, save_error = self._save_uploaded_image(image_file, request.user)
+            # 6. Guardar imagen en BD y segmentar grano (guardar PNG transparente)
+            cacao_image, save_success, save_error, processed_png_path = self._save_uploaded_image(image_file, request.user)
             if not save_success:
                 logger.warning(f"Error guardando imagen en BD: {save_error}")
                 # Continuar con predicción aunque falle el guardado
+            elif processed_png_path:
+                logger.info(f"PNG segmentado disponible en: {processed_png_path}")
             
             # 7. Obtener predictor y hacer predicción
             try:
