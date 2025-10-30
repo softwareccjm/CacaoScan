@@ -16,7 +16,7 @@
       <!-- Acciones intuitivas -->
       <div class="flex items-center space-x-3">
         <button
-          @click="$emit('create')"
+          @click="handleCreate"
           class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all duration-200 flex items-center gap-2"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,7 +30,12 @@
 </template>
 
 <script setup>
-defineEmits(['create'])
+const emit = defineEmits(['create'])
+
+const handleCreate = () => {
+  console.debug('[Fincas] Click Nueva Finca')
+  emit('create')
+}
 </script>
 
 <style scoped>

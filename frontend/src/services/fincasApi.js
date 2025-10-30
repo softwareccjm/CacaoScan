@@ -133,6 +133,7 @@ export async function getLotesByFinca(fincaId, params = {}) {
 // Nuevas funciones no intrusivas para la administración/agricultor
 // Obtener lista de agricultores (usa endpoint existente de usuarios con role=farmer)
 export const getAgricultores = (params = {}) => {
+  // Usar solo role=farmer (rol='agricultor' no existe como parámetro)
   const query = { role: 'farmer', page_size: 100, ...params }
   return api.get('/auth/users/', { params: query })
 }

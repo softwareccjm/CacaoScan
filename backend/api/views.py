@@ -2388,8 +2388,8 @@ class UserListView(APIView):
             date_from = request.GET.get('date_from')
             date_to = request.GET.get('date_to')
             
-            # Construir queryset base
-            queryset = User.objects.all().select_related('api_profile', 'auth_email_token').prefetch_related('groups')
+            # Construir queryset base (evitar relaciones inexistentes)
+            queryset = User.objects.all().select_related('auth_email_token').prefetch_related('groups')
             
             # Aplicar filtros
             if role:
@@ -4887,7 +4887,7 @@ class UserDetailView(APIView):
             
             # Obtener usuario
             try:
-                user = User.objects.select_related('api_profile', 'auth_email_token').prefetch_related('groups', 'api_cacao_images', 'images_app_cacao_images').get(id=user_id)
+                user = User.objects.select_related('auth_email_token').prefetch_related('groups', 'api_cacao_images', 'images_app_cacao_images').get(id=user_id)
             except User.DoesNotExist:
                 return Response({
                     'error': 'Usuario no encontrado',

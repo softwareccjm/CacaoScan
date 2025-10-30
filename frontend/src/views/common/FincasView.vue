@@ -45,13 +45,20 @@
           />
 
           <!-- Modal de formulario -->
-          <FincaForm
-            v-if="showModal"
-            :finca="selectedFinca"
-            :is-editing="isEditing"
-            @close="closeModal"
-            @saved="handleFincaSaved"
-          />
+          <div v-if="showModal">
+            <CreateFincaForm
+              v-if="!isEditing && isAdmin"
+              @close="closeModal"
+              @saved="handleFincaSaved"
+            />
+            <FincaForm
+              v-else
+              :finca="selectedFinca"
+              :is-editing="isEditing"
+              @close="closeModal"
+              @saved="handleFincaSaved"
+            />
+          </div>
         </div>
       </main>
     </div>
@@ -65,6 +72,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useFincasStore } from '@/stores/fincas'
 import Sidebar from '@/components/layout/Common/Sidebar.vue'
 import FincaForm from '@/components/FincaForm.vue'
+import CreateFincaForm from '@/components/admin/CreateFincaForm.vue'
 import FincasHeader from '@/components/common/FincasHeader.vue'
 import FincasFilters from '@/components/common/FincasFilters.vue'
 import FincaList from '@/components/common/FincaList.vue'
@@ -106,6 +114,15 @@ const userRole = computed(() => {
   return 'agricultor' // Default to agricultor
 })
 
+// Flag de admin para decidir qué formulario mostrar en creación
+const isAdmin = computed(() => {
+  return (
+    authStore.user?.is_staff === true ||
+    authStore.user?.is_superuser === true ||
+    authStore.userRole === 'admin'
+  )
+})
+
 // Métodos
 const loadFincas = async () => {
   const params = {}
@@ -140,6 +157,7 @@ const clearFilters = () => {
 }
 
 const openCreateModal = () => {
+  console.debug('[Fincas] openCreateModal called, isAdmin:', isAdmin.value)
   selectedFinca.value = null
   isEditing.value = false
   showModal.value = true
