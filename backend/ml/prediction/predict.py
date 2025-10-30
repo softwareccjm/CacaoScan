@@ -88,9 +88,15 @@ class CacaoPredictor:
             scalers_exist = scalers_path.exists()
             
             if not models_exist or not scalers_exist:
-                logger.warning("Modelos o escaladores no encontrados. Iniciando entrenamiento automático...")
-                if not self._auto_train_models():
-                    logger.error("Error en entrenamiento automático")
+                import os
+                auto_train_enabled = os.getenv("AUTO_TRAIN_ENABLED", "0").lower() in ("1", "true", "yes")
+                if auto_train_enabled:
+                    logger.warning("Modelos o escaladores no encontrados. Iniciando entrenamiento automático...")
+                    if not self._auto_train_models():
+                        logger.error("Error en entrenamiento automático")
+                        return False
+                else:
+                    logger.warning("Modelos/escaladores no encontrados y AUTO_TRAIN_ENABLED=0. Omitiendo autoentrenamiento.")
                     return False
             
             # 3. Cargar escaladores
