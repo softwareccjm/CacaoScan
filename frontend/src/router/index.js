@@ -273,6 +273,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/upload-images',
+      name: 'UploadImages',
+      component: () => import('../views/UploadImagesView.vue'),
+      meta: {
+        title: 'Subir Imágenes de Cacao | CacaoScan',
+        requiresAuth: true,
+      },
+    },
+    {
       path: '/entrenamiento-incremental',
       name: 'SubirDatosEntrenamiento',
       component: SubirDatosEntrenamiento,

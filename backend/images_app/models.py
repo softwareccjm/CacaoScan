@@ -13,14 +13,22 @@ class CacaoImage(TimeStampedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images_app_cacao_images')
     
     # Archivo de imagen
-    image = models.ImageField(upload_to='cacao_images/processed/%Y/%m/%d/')
+    image = models.ImageField(upload_to='dataset/')
     
     # Metadatos de procesamiento
     uploaded_at = models.DateTimeField(auto_now_add=True)
     processed = models.BooleanField(default=False)
     
     # Metadatos del grano/finca
-    finca = models.CharField(max_length=200, blank=True, null=True)
+    finca = models.ForeignKey(
+        'fincas_app.Finca', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='cacao_images',
+        help_text="Finca a la que pertenece esta imagen"
+    )
+    finca_nombre = models.CharField(max_length=200, blank=True, null=True, help_text="Nombre de la finca (campo de respaldo)")
     region = models.CharField(max_length=100, blank=True, null=True)
     lote = models.ForeignKey(
         'fincas_app.Lote', 

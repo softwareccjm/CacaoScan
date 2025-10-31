@@ -31,6 +31,8 @@ urlpatterns = [
     path('api/v1/personas/', include('personas.urls')),
     # API de catÃ¡logos (incluida en v1 para consistencia)
     path('api/v1/', include('catalogos.urls')),
+    # API de imágenes (debe ir antes de api.urls para evitar conflictos)
+    path('api/v1/', include('images_app.urls')),
     # API principal de CacaoScan (debe ir después de rutas específicas)
     path('api/v1/', include('api.urls')),
     
