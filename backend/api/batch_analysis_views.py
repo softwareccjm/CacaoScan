@@ -1,5 +1,5 @@
-"""
-Vistas para análisis batch de lotes con ML.
+﻿"""
+Vistas para anÃ¡lisis batch de lotes con ML.
 """
 import logging
 import time
@@ -30,31 +30,31 @@ logger = logging.getLogger("cacaoscan.api")
 
 class BatchAnalysisView(APIView):
     """
-    Endpoint para análisis batch de lotes con múltiples imágenes.
+    Endpoint para anÃ¡lisis batch de lotes con mÃºltiples imÃ¡genes.
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
     @swagger_auto_schema(
-        operation_description="Procesa un lote con múltiples imágenes usando ML",
-        operation_summary="Análisis batch de lote",
+        operation_description="Procesa un lote con mÃºltiples imÃ¡genes usando ML",
+        operation_summary="AnÃ¡lisis batch de lote",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
                 'name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre del lote"),
                 'farm': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de la finca"),
                 'originPlace': openapi.Schema(type=openapi.TYPE_STRING, description="Lugar de origen"),
-                'genetics': openapi.Schema(type=openapi.TYPE_STRING, description="Genética/variedad"),
-                'collectionDate': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de recolección"),
-                'origin': openapi.Schema(type=openapi.TYPE_STRING, description="Origen geográfico"),
+                'genetics': openapi.Schema(type=openapi.TYPE_STRING, description="GenÃ©tica/variedad"),
+                'collectionDate': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de recolecciÃ³n"),
+                'origin': openapi.Schema(type=openapi.TYPE_STRING, description="Origen geogrÃ¡fico"),
                 'notes': openapi.Schema(type=openapi.TYPE_STRING, description="Notas adicionales"),
-                'images': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_FILE), description="Imágenes del lote"),
+                'images': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_FILE), description="ImÃ¡genes del lote"),
             },
             required=['name', 'farm', 'collectionDate', 'genetics', 'images']
         ),
         responses={
             201: openapi.Response(
-                description="Análisis batch completado",
+                description="AnÃ¡lisis batch completado",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -71,11 +71,11 @@ class BatchAnalysisView(APIView):
             401: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
-        tags=['Análisis']
+        tags=['AnÃ¡lisis']
     )
     def post(self, request):
         """
-        Procesa un lote con múltiples imágenes usando ML.
+        Procesa un lote con mÃºltiples imÃ¡genes usando ML.
         """
         start_time = time.time()
         
@@ -104,13 +104,13 @@ class BatchAnalysisView(APIView):
             
             if not genetics:
                 return Response({
-                    'error': 'La genética es requerida',
+                    'error': 'La genÃ©tica es requerida',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             if not collection_date:
                 return Response({
-                    'error': 'La fecha de recolección es requerida',
+                    'error': 'La fecha de recolecciÃ³n es requerida',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -132,25 +132,25 @@ class BatchAnalysisView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # 4. Procesar imágenes
+            # 4. Procesar imÃ¡genes
             images = request.FILES.getlist('images')
             if not images:
                 return Response({
-                    'error': 'No se enviaron imágenes',
+                    'error': 'No se enviaron imÃ¡genes',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # 5. Procesar cada imagen con ML
             results = self._process_images_batch(request, images, lote)
             
-            # 6. Calcular estadísticas
+            # 6. Calcular estadÃ­sticas
             stats = self._calculate_stats(results)
             
             # 7. Preparar respuesta
             total_time = time.time() - start_time
             logger.info(
-                f"Análisis batch completado en {total_time:.2f}s - "
-                f"Lote ID: {lote.id}, Imágenes procesadas: {stats['processed_images']}/{stats['total_images']}"
+                f"AnÃ¡lisis batch completado en {total_time:.2f}s - "
+                f"Lote ID: {lote.id}, ImÃ¡genes procesadas: {stats['processed_images']}/{stats['total_images']}"
             )
             
             return Response({
@@ -167,9 +167,9 @@ class BatchAnalysisView(APIView):
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            logger.error(f"Error en análisis batch: {e}", exc_info=True)
+            logger.error(f"Error en anÃ¡lisis batch: {e}", exc_info=True)
             return Response({
-                'error': f'Error procesando análisis batch: {str(e)}',
+                'error': f'Error procesando anÃ¡lisis batch: {str(e)}',
                 'status': 'error'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -226,7 +226,7 @@ class BatchAnalysisView(APIView):
             except:
                 fecha_recoleccion = date.today()
             
-            # Usar fecha de recolección como fecha de plantación (ya que es lo que tenemos)
+            # Usar fecha de recolecciÃ³n como fecha de plantaciÃ³n (ya que es lo que tenemos)
             fecha_plantacion = fecha_recoleccion
             
             lote = Lote.objects.create(
@@ -235,7 +235,7 @@ class BatchAnalysisView(APIView):
                 variedad=genetics,
                 fecha_plantacion=fecha_plantacion,
                 fecha_cosecha=fecha_recoleccion,
-                area_hectareas=0.1,  # Valor por defecto pequeño
+                area_hectareas=0.1,  # Valor por defecto pequeÃ±o
                 estado='activo',
                 descripcion=notes if notes else '',
                 activo=True
@@ -249,7 +249,7 @@ class BatchAnalysisView(APIView):
             return None
     
     def _process_images_batch(self, request, images, lote):
-        """Procesar múltiples imágenes con ML."""
+        """Procesar mÃºltiples imÃ¡genes con ML."""
         results = []
         predictor = None
         
@@ -260,7 +260,7 @@ class BatchAnalysisView(APIView):
             predictor = get_predictor()
             
             if not predictor.models_loaded:
-                logger.info("Modelos no cargados. Intentando carga automática...")
+                logger.info("Modelos no cargados. Intentando carga automÃ¡tica...")
                 success = load_artifacts()
                 
                 if success:
@@ -303,7 +303,7 @@ class BatchAnalysisView(APIView):
                         result = predictor.predict(pil_image)
                         prediction_time_ms = int((time.time() - prediction_start) * 1000)
                         
-                        # Guardar predicción
+                        # Guardar predicciÃ³n
                         cacao_prediction = CacaoPrediction(
                             image=cacao_image,
                             alto_mm=result['alto_mm'],
@@ -331,7 +331,7 @@ class BatchAnalysisView(APIView):
                         }
                         
                     except Exception as pred_error:
-                        logger.error(f"Error en predicción de imagen {idx + 1}: {pred_error}", exc_info=True)
+                        logger.error(f"Error en predicciÃ³n de imagen {idx + 1}: {pred_error}", exc_info=True)
                         prediction_result = {
                             'success': False,
                             'image_id': cacao_image.id,
@@ -356,7 +356,7 @@ class BatchAnalysisView(APIView):
         return results
     
     def _calculate_stats(self, results):
-        """Calcular estadísticas del batch."""
+        """Calcular estadÃ­sticas del batch."""
         total_images = len(results)
         processed_images = sum(1 for r in results if r.get('success', False))
         failed_images = total_images - processed_images
@@ -409,4 +409,6 @@ class BatchAnalysisView(APIView):
             'average_dimensions': avg_dimensions,
             'total_weight': round(total_weight, 2)
         }
+
+
 

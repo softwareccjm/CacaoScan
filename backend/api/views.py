@@ -1,4 +1,4 @@
-"""
+﻿"""
 Views para la API de CacaoScan.
 """
 import time
@@ -19,7 +19,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q, Count, Avg, Min, Max, Sum
 
-# Importar vistas de calibración
+# Importar vistas de calibraciÃ³n
 from .calibration_views import CalibrationStatusView, CalibrationView, CalibratedScanMeasureView
 
 # Importar vistas de emails
@@ -34,7 +34,7 @@ from .incremental_views import (
     IncrementalDataVersionsView
 )
 
-# Importar vistas de métricas de modelos
+# Importar vistas de mÃ©tricas de modelos
 from .model_metrics_views import (
     ModelMetricsListView,
     ModelMetricsDetailView,
@@ -48,10 +48,10 @@ from .model_metrics_views import (
     ProductionModelsView
 )
 
-# Importar vistas de análisis batch
+# Importar vistas de anÃ¡lisis batch
 from .batch_analysis_views import BatchAnalysisView
 
-# Importar vistas de configuración del sistema
+# Importar vistas de configuraciÃ³n del sistema
 from .config_views import (
     SystemSettingsView,
     SystemGeneralConfigView,
@@ -126,7 +126,7 @@ try:
 except ImportError:
     ActivityLog = None
 
-# Modelos únicos de API
+# Modelos Ãºnicos de API
 from .models import LoginHistory, ReporteGenerado
 from django.db.models import Prefetch
 from .fincas_views import (
@@ -176,7 +176,7 @@ logger = logging.getLogger("cacaoscan.api")
 
 class ImagePermissionMixin:
     """
-    Mixin para manejar permisos de acceso a imágenes.
+    Mixin para manejar permisos de acceso a imÃ¡genes.
     """
     
     def can_access_image(self, user, image):
@@ -198,7 +198,7 @@ class ImagePermissionMixin:
         if user.is_superuser or user.is_staff:
             return True
         
-        # Los analistas pueden acceder a imágenes de todos los usuarios
+        # Los analistas pueden acceder a imÃ¡genes de todos los usuarios
         if user.groups.filter(name='analyst').exists():
             return True
         
@@ -206,28 +206,28 @@ class ImagePermissionMixin:
     
     def get_user_images_queryset(self, user):
         """
-        Obtener queryset de imágenes según permisos del usuario.
+        Obtener queryset de imÃ¡genes segÃºn permisos del usuario.
         
         Args:
             user: Usuario autenticado
             
         Returns:
-            QuerySet: Queryset filtrado según permisos
+            QuerySet: Queryset filtrado segÃºn permisos
         """
         if user.is_superuser or user.is_staff:
-            # Admins pueden ver todas las imágenes
+            # Admins pueden ver todas las imÃ¡genes
             return CacaoImage.objects.all().select_related('user')
         elif user.groups.filter(name='analyst').exists():
-            # Analistas pueden ver todas las imágenes
+            # Analistas pueden ver todas las imÃ¡genes
             return CacaoImage.objects.all().select_related('user')
         else:
-            # Agricultores solo ven sus propias imágenes
+            # Agricultores solo ven sus propias imÃ¡genes
             return CacaoImage.objects.filter(user=user).select_related('user')
 
 
 class ScanMeasureView(APIView):
     """
-    Endpoint para medición de granos de cacao.
+    Endpoint para mediciÃ³n de granos de cacao.
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -266,11 +266,11 @@ class ScanMeasureView(APIView):
     
     def _save_prediction(self, cacao_image, result, processing_time_ms):
         """
-        Guarda los resultados de predicción en BD con transacción.
+        Guarda los resultados de predicciÃ³n en BD con transacciÃ³n.
         
         Args:
             cacao_image: Objeto CacaoImage asociado
-            result: Resultados de predicción del modelo
+            result: Resultados de predicciÃ³n del modelo
             processing_time_ms: Tiempo de procesamiento en milisegundos
             
         Returns:
@@ -278,9 +278,9 @@ class ScanMeasureView(APIView):
         """
         try:
             if not cacao_image:
-                return None, False, "No hay imagen asociada para guardar predicción"
+                return None, False, "No hay imagen asociada para guardar predicciÃ³n"
             
-            # Usar transacción para asegurar integridad
+            # Usar transacciÃ³n para asegurar integridad
             with transaction.atomic():
                 # Crear objeto CacaoPrediction
                 cacao_prediction = CacaoPrediction(
@@ -306,11 +306,11 @@ class ScanMeasureView(APIView):
                 cacao_image.processed = True
                 cacao_image.save()
             
-            logger.info(f"Predicción guardada con ID {cacao_prediction.id} para imagen {cacao_image.id}")
+            logger.info(f"PredicciÃ³n guardada con ID {cacao_prediction.id} para imagen {cacao_image.id}")
             return cacao_prediction, True, None
             
         except Exception as e:
-            logger.error(f"Error guardando predicción: {e}")
+            logger.error(f"Error guardando predicciÃ³n: {e}")
             return None, False, str(e)
     
     @swagger_auto_schema(
@@ -332,7 +332,7 @@ class ScanMeasureView(APIView):
             503: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
-        tags=['Medición']
+        tags=['MediciÃ³n']
     )
     def post(self, request):
         """
@@ -340,7 +340,7 @@ class ScanMeasureView(APIView):
         
         Request:
             - multipart/form-data con campo 'image' (jpg/png/bmp)
-            - Límite de tamaño: 8MB
+            - LÃ­mite de tamaÃ±o: 8MB
         
         Response:
             - JSON con predicciones de dimensiones y peso
@@ -357,11 +357,11 @@ class ScanMeasureView(APIView):
             
             image_file = request.FILES['image']
             
-            # 2. Validar tamaño (8MB máximo)
+            # 2. Validar tamaÃ±o (8MB mÃ¡ximo)
             max_size = 8 * 1024 * 1024  # 8MB en bytes
             if image_file.size > max_size:
                 return Response({
-                    'error': f'Imagen demasiado grande. Máximo permitido: 8MB',
+                    'error': f'Imagen demasiado grande. MÃ¡ximo permitido: 8MB',
                     'status': 'error'
                 }, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
             
@@ -369,7 +369,7 @@ class ScanMeasureView(APIView):
             allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp']
             if image_file.content_type not in allowed_types:
                 return Response({
-                    'error': f'Tipo de archivo no permitido. Tipos válidos: {", ".join(allowed_types)}',
+                    'error': f'Tipo de archivo no permitido. Tipos vÃ¡lidos: {", ".join(allowed_types)}',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -377,7 +377,7 @@ class ScanMeasureView(APIView):
             filename = image_file.name
             if not filename or len(filename) > 255:
                 return Response({
-                    'error': 'Nombre de archivo inválido',
+                    'error': 'Nombre de archivo invÃ¡lido',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -390,10 +390,10 @@ class ScanMeasureView(APIView):
                 if image.mode != 'RGB':
                     image = image.convert('RGB')
                 
-                # Validar dimensiones mínimas
+                # Validar dimensiones mÃ­nimas
                 if image.width < 50 or image.height < 50:
                     return Response({
-                        'error': 'Imagen demasiado pequeña. Mínimo: 50x50 píxeles',
+                        'error': 'Imagen demasiado pequeÃ±a. MÃ­nimo: 50x50 pÃ­xeles',
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -407,20 +407,20 @@ class ScanMeasureView(APIView):
             cacao_image, save_success, save_error = self._save_uploaded_image(image_file, request.user)
             if not save_success:
                 logger.warning(f"Error guardando imagen en BD: {save_error}")
-                # Continuar con predicción aunque falle el guardado
+                # Continuar con predicciÃ³n aunque falle el guardado
             
-            # 7. Obtener predictor y hacer predicción
+            # 7. Obtener predictor y hacer predicciÃ³n
             try:
                 predictor = get_predictor()
                 
                 if not predictor.models_loaded:
-                    # Intentar cargar modelos automáticamente
-                    logger.info("Modelos no cargados. Intentando carga automática...")
+                    # Intentar cargar modelos automÃ¡ticamente
+                    logger.info("Modelos no cargados. Intentando carga automÃ¡tica...")
                     success = load_artifacts()
                     
                     if not success:
                         return Response({
-                            'error': 'Modelos no disponibles. Ejecutar inicialización automática primero.',
+                            'error': 'Modelos no disponibles. Ejecutar inicializaciÃ³n automÃ¡tica primero.',
                             'status': 'error',
                             'suggestion': 'POST /api/v1/auto-initialize/ para inicializar el sistema'
                         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -430,21 +430,21 @@ class ScanMeasureView(APIView):
                     
                     if not predictor.models_loaded:
                         return Response({
-                            'error': 'Error cargando modelos después de intento automático.',
+                            'error': 'Error cargando modelos despuÃ©s de intento automÃ¡tico.',
                             'status': 'error'
                         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
                 
-                # Realizar predicción
+                # Realizar predicciÃ³n
                 prediction_start = time.time()
                 result = predictor.predict(image)
                 prediction_time_ms = int((time.time() - prediction_start) * 1000)
                 
-                # 8. Guardar predicción en BD
+                # 8. Guardar predicciÃ³n en BD
                 cacao_prediction, pred_success, pred_error = self._save_prediction(
                     cacao_image, result, prediction_time_ms
                 )
                 if not pred_success:
-                    logger.warning(f"Error guardando predicción en BD: {pred_error}")
+                    logger.warning(f"Error guardando predicciÃ³n en BD: {pred_error}")
                 
                 # 9. Preparar respuesta
                 response_data = {
@@ -460,7 +460,7 @@ class ScanMeasureView(APIView):
                     'saved_to_database': save_success and pred_success
                 }
                 
-                # 10. Enviar email de análisis completado
+                # 10. Enviar email de anÃ¡lisis completado
                 try:
                     from .email_service import send_email_notification
                     
@@ -493,7 +493,7 @@ class ScanMeasureView(APIView):
                         'model_version': result.get('debug', {}).get('model_version', 'v1.0'),
                         'analysis_date': timezone.now().strftime('%d/%m/%Y %H:%M'),
                         'crop_url': result['crop_url'],
-                        'defects_detected': []  # TODO: Implementar detección de defectos
+                        'defects_detected': []  # TODO: Implementar detecciÃ³n de defectos
                     }
                     
                     email_result = send_email_notification(
@@ -503,37 +503,37 @@ class ScanMeasureView(APIView):
                     )
                     
                     if email_result['success']:
-                        logger.info(f"Email de análisis completado enviado a {request.user.email}")
+                        logger.info(f"Email de anÃ¡lisis completado enviado a {request.user.email}")
                     else:
-                        logger.warning(f"Error enviando email de análisis: {email_result.get('error')}")
+                        logger.warning(f"Error enviando email de anÃ¡lisis: {email_result.get('error')}")
                         
                 except Exception as e:
-                    logger.error(f"Error en envío de email de análisis: {e}")
+                    logger.error(f"Error en envÃ­o de email de anÃ¡lisis: {e}")
                 
                 # Validar respuesta con serializer
                 serializer = ScanMeasureResponseSerializer(data=response_data)
                 if serializer.is_valid():
                     total_time = time.time() - start_time
-                    logger.info(f"Predicción completada en {total_time:.2f}s para imagen {filename}")
+                    logger.info(f"PredicciÃ³n completada en {total_time:.2f}s para imagen {filename}")
                     
-                    # Log información sobre guardado en BD
+                    # Log informaciÃ³n sobre guardado en BD
                     if save_success and pred_success:
-                        logger.info(f"Datos guardados correctamente en BD - Imagen ID: {cacao_image.id}, Predicción ID: {cacao_prediction.id}")
+                        logger.info(f"Datos guardados correctamente en BD - Imagen ID: {cacao_image.id}, PredicciÃ³n ID: {cacao_prediction.id}")
                     else:
-                        logger.warning(f"Problemas guardando en BD - Imagen: {save_success}, Predicción: {pred_success}")
+                        logger.warning(f"Problemas guardando en BD - Imagen: {save_success}, PredicciÃ³n: {pred_success}")
                     
                     return Response(serializer.validated_data, status=status.HTTP_200_OK)
                 else:
-                    logger.error(f"Error de serialización: {serializer.errors}")
+                    logger.error(f"Error de serializaciÃ³n: {serializer.errors}")
                     return Response({
-                        'error': 'Error interno de serialización',
+                        'error': 'Error interno de serializaciÃ³n',
                         'status': 'error'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
             except Exception as e:
-                logger.error(f"Error en predicción: {e}")
+                logger.error(f"Error en predicciÃ³n: {e}")
                 return Response({
-                    'error': f'Error en predicción: {str(e)}',
+                    'error': f'Error en predicciÃ³n: {str(e)}',
                     'status': 'error'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
@@ -606,11 +606,11 @@ class DatasetValidationView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Valida el dataset y devuelve estadísticas",
+        operation_description="Valida el dataset y devuelve estadÃ­sticas",
         operation_summary="Validar dataset",
         responses={
             200: openapi.Response(
-                description="Estadísticas del dataset",
+                description="EstadÃ­sticas del dataset",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -626,7 +626,7 @@ class DatasetValidationView(APIView):
     )
     def get(self, request):
         """
-        Valida el dataset y devuelve estadísticas.
+        Valida el dataset y devuelve estadÃ­sticas.
         """
         try:
             loader = CacaoDatasetLoader()
@@ -690,16 +690,16 @@ class LoadModelsView(APIView):
 
 class AutoInitializeView(APIView):
     """
-    Endpoint para inicialización automática completa del sistema.
+    Endpoint para inicializaciÃ³n automÃ¡tica completa del sistema.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Inicializa automáticamente todo el sistema: dataset → crops → entrenamiento → modelos listos",
-        operation_summary="Inicialización automática completa",
+        operation_description="Inicializa automÃ¡ticamente todo el sistema: dataset â†’ crops â†’ entrenamiento â†’ modelos listos",
+        operation_summary="InicializaciÃ³n automÃ¡tica completa",
         responses={
             200: openapi.Response(
-                description="Inicialización completada",
+                description="InicializaciÃ³n completada",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -712,7 +712,7 @@ class AutoInitializeView(APIView):
                 )
             ),
             202: openapi.Response(
-                description="Inicialización en progreso",
+                description="InicializaciÃ³n en progreso",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -724,11 +724,11 @@ class AutoInitializeView(APIView):
             ),
             500: ErrorResponseSerializer,
         },
-        tags=['Inicialización']
+        tags=['InicializaciÃ³n']
     )
     def post(self, request):
         """
-        Inicialización automática completa del sistema.
+        InicializaciÃ³n automÃ¡tica completa del sistema.
         
         Pasos:
         1. Validar dataset
@@ -741,7 +741,7 @@ class AutoInitializeView(APIView):
         steps_completed = []
         
         try:
-            logger.info("🚀 Iniciando inicialización automática completa del sistema")
+            logger.info("ðŸš€ Iniciando inicializaciÃ³n automÃ¡tica completa del sistema")
             
             # Paso 1: Validar dataset
             logger.info("Paso 1: Validando dataset...")
@@ -752,12 +752,12 @@ class AutoInitializeView(APIView):
                 
                 if stats['valid_records'] == 0:
                     return Response({
-                        'error': 'No hay registros válidos en el dataset. Verificar CSV e imágenes.',
+                        'error': 'No hay registros vÃ¡lidos en el dataset. Verificar CSV e imÃ¡genes.',
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                steps_completed.append("✅ Dataset validado")
-                logger.info(f"Dataset validado: {stats['valid_records']} registros válidos")
+                steps_completed.append("[OK] Dataset validado")
+                logger.info(f"Dataset validado: {stats['valid_records']} registros vÃ¡lidos")
                 
             except Exception as e:
                 logger.error(f"Error validando dataset: {e}")
@@ -773,7 +773,7 @@ class AutoInitializeView(APIView):
                 crops_dir = get_crops_dir()
                 
                 if not crops_dir.exists() or len(list(crops_dir.glob("*.png"))) == 0:
-                    logger.info("Generando crops automáticamente...")
+                    logger.info("Generando crops automÃ¡ticamente...")
                     from management.commands.make_cacao_crops import Command as CropCommand
                     
                     # Simular comando de crops
@@ -784,15 +784,15 @@ class AutoInitializeView(APIView):
                         overwrite=False
                     )
                     
-                    steps_completed.append("✅ Crops generados")
+                    steps_completed.append("[OK] Crops generados")
                     logger.info("Crops generados exitosamente")
                 else:
-                    steps_completed.append("✅ Crops ya existen")
-                    logger.info("Crops ya existen, saltando generación")
+                    steps_completed.append("[OK] Crops ya existen")
+                    logger.info("Crops ya existen, saltando generaciÃ³n")
                     
             except Exception as e:
-                logger.warning(f"Advertencia en generación de crops: {e}")
-                steps_completed.append("⚠️ Crops con advertencias")
+                logger.warning(f"Advertencia en generaciÃ³n de crops: {e}")
+                steps_completed.append("[WARN] Crops con advertencias")
             
             # Paso 3: Verificar/Entrenar modelos
             logger.info("Paso 3: Verificando modelos...")
@@ -806,12 +806,12 @@ class AutoInitializeView(APIView):
                 )
                 
                 if not models_exist:
-                    logger.info("Entrenando modelos automáticamente...")
+                    logger.info("Entrenando modelos automÃ¡ticamente...")
                     from ml.pipeline.train_all import run_training_pipeline
                     
-                    # Configuración de entrenamiento automático
+                    # ConfiguraciÃ³n de entrenamiento automÃ¡tico
                     success = run_training_pipeline(
-                        epochs=20,  # Menos epochs para inicialización rápida
+                        epochs=20,  # Menos epochs para inicializaciÃ³n rÃ¡pida
                         batch_size=16,
                         learning_rate=0.001,
                         multi_head=False,
@@ -822,7 +822,7 @@ class AutoInitializeView(APIView):
                     )
                     
                     if success:
-                        steps_completed.append("✅ Modelos entrenados")
+                        steps_completed.append("[OK] Modelos entrenados")
                         logger.info("Modelos entrenados exitosamente")
                     else:
                         return Response({
@@ -830,7 +830,7 @@ class AutoInitializeView(APIView):
                             'status': 'error'
                         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 else:
-                    steps_completed.append("✅ Modelos ya existen")
+                    steps_completed.append("[OK] Modelos ya existen")
                     logger.info("Modelos ya existen, saltando entrenamiento")
                     
             except Exception as e:
@@ -846,7 +846,7 @@ class AutoInitializeView(APIView):
                 success = load_artifacts()
                 
                 if success:
-                    steps_completed.append("✅ Modelos cargados")
+                    steps_completed.append("[OK] Modelos cargados")
                     logger.info("Modelos cargados exitosamente")
                 else:
                     return Response({
@@ -863,12 +863,12 @@ class AutoInitializeView(APIView):
             
             # Paso 5: Sistema listo
             total_time = time.time() - start_time
-            steps_completed.append("🎉 Sistema listo para predicciones")
+            steps_completed.append("[OK] Sistema listo para predicciones")
             
-            logger.info(f"✅ Inicialización automática completada en {total_time:.2f}s")
+            logger.info(f"[INFO] InicializaciÃ³n automÃ¡tica completada en {total_time:.2f}s")
             
             return Response({
-                'message': 'Sistema inicializado automáticamente y listo para predicciones',
+                'message': 'Sistema inicializado automÃ¡ticamente y listo para predicciones',
                 'status': 'success',
                 'steps_completed': steps_completed,
                 'total_time_seconds': round(total_time, 2),
@@ -876,22 +876,22 @@ class AutoInitializeView(APIView):
             })
             
         except Exception as e:
-            logger.error(f"Error en inicialización automática: {e}")
+            logger.error(f"Error en inicializaciÃ³n automÃ¡tica: {e}")
             return Response({
-                'error': f'Error en inicialización automática: {str(e)}',
+                'error': f'Error en inicializaciÃ³n automÃ¡tica: {str(e)}',
                 'status': 'error',
                 'steps_completed': steps_completed
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# Vistas de autenticación
+# Vistas de autenticaciÃ³n
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 
-# VISTAS PÚBLICAS (AllowAny): LoginView, RegisterView
-# VISTAS PRIVADAS (IsAuthenticated): Todas las demás
+# VISTAS PÃšBLICAS (AllowAny): LoginView, RegisterView
+# VISTAS PRIVADAS (IsAuthenticated): Todas las demÃ¡s
 
 
 class LoginView(APIView):
@@ -919,7 +919,7 @@ class LoginView(APIView):
             400: ErrorResponseSerializer,
             401: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
@@ -935,7 +935,7 @@ class LoginView(APIView):
                 refresh = RefreshToken.for_user(user)
                 access_token = refresh.access_token
                 
-                # Login en la sesión
+                # Login en la sesiÃ³n
                 login(request, user)
                 
                 return create_success_response(
@@ -950,7 +950,7 @@ class LoginView(APIView):
                 )
             
             return create_error_response(
-                message='Credenciales inválidas',
+                message='Credenciales invÃ¡lidas',
                 error_type='invalid_credentials',
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 details=serializer.errors
@@ -987,11 +987,11 @@ class RegisterView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Registra un nuevo usuario y genera tokens JWT automáticamente.
+        Registra un nuevo usuario y genera tokens JWT automÃ¡ticamente.
         """
         # Crear una copia de los datos y eliminar el campo 'role' si viene del frontend
         data = request.data.copy()
@@ -1002,10 +1002,10 @@ class RegisterView(APIView):
         if serializer.is_valid():
             user = serializer.save()
             
-            # Crear token de verificación de email
+            # Crear token de verificaciÃ³n de email
             verification_token = EmailVerificationToken.create_for_user(user)
             
-            # Enviar email de verificación
+            # Enviar email de verificaciÃ³n
             try:
                 from django.conf import settings
                 from .email_service import send_custom_email
@@ -1017,14 +1017,14 @@ class RegisterView(APIView):
                 <html>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <h2 style="color: #4CAF50;">¡Bienvenido a CacaoScan, {user.get_full_name() or user.username}!</h2>
-                        <p>Gracias por registrarte en nuestra plataforma. Para completar tu registro, por favor verifica tu dirección de correo electrónico haciendo clic en el siguiente enlace:</p>
+                        <h2 style="color: #4CAF50;">Â¡Bienvenido a CacaoScan, {user.get_full_name() or user.username}!</h2>
+                        <p>Gracias por registrarte en nuestra plataforma. Para completar tu registro, por favor verifica tu direcciÃ³n de correo electrÃ³nico haciendo clic en el siguiente enlace:</p>
                         <div style="text-align: center; margin: 30px 0;">
                             <a href="{verification_url}" style="background-color: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Verificar mi correo</a>
                         </div>
                         <p>O copia y pega este enlace en tu navegador:</p>
                         <p style="word-break: break-all; color: #666;">{verification_url}</p>
-                        <p style="margin-top: 30px; font-size: 12px; color: #999;">Este enlace expirará en 24 horas.</p>
+                        <p style="margin-top: 30px; font-size: 12px; color: #999;">Este enlace expirarÃ¡ en 24 horas.</p>
                         <p style="font-size: 12px; color: #999;">Si no creaste esta cuenta, puedes ignorar este correo.</p>
                     </div>
                 </body>
@@ -1035,30 +1035,30 @@ class RegisterView(APIView):
                 text_content = f"""
 Bienvenido a CacaoScan, {user.get_full_name() or user.username}!
 
-Gracias por registrarte en nuestra plataforma. Para completar tu registro, por favor verifica tu dirección de correo electrónico visitando el siguiente enlace:
+Gracias por registrarte en nuestra plataforma. Para completar tu registro, por favor verifica tu direcciÃ³n de correo electrÃ³nico visitando el siguiente enlace:
 
 {verification_url}
 
-Este enlace expirará en 24 horas.
+Este enlace expirarÃ¡ en 24 horas.
 
 Si no creaste esta cuenta, puedes ignorar este correo.
                 """
                 
                 send_custom_email(
                     to_emails=[user.email],
-                    subject="Verifica tu correo electrónico - CacaoScan",
+                    subject="Verifica tu correo electrÃ³nico - CacaoScan",
                     html_content=html_content,
                     text_content=text_content
                 )
                 
-                logger.info(f"Email de verificación enviado a {user.email}")
+                logger.info(f"Email de verificaciÃ³n enviado a {user.email}")
             except Exception as e:
-                logger.error(f"Error enviando email de verificación: {e}")
-                # No fallar el registro si falla el envío de email
+                logger.error(f"Error enviando email de verificaciÃ³n: {e}")
+                # No fallar el registro si falla el envÃ­o de email
             
             # NO hacer auto-login, el usuario debe verificar su email primero
             return create_success_response(
-                message='Usuario registrado exitosamente. Por favor verifica tu correo electrónico para activar tu cuenta.',
+                message='Usuario registrado exitosamente. Por favor verifica tu correo electrÃ³nico para activar tu cuenta.',
                 data={
                     'user': UserSerializer(user).data,
                     'verification_required': True,
@@ -1083,7 +1083,7 @@ class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Cierra la sesión del usuario y elimina el token",
+        operation_description="Cierra la sesiÃ³n del usuario y elimina el token",
         operation_summary="Logout de usuario",
         responses={
             200: openapi.Response(
@@ -1097,14 +1097,14 @@ class LogoutView(APIView):
             ),
             401: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Cierra la sesión del usuario y blacklistea el token de refresh.
+        Cierra la sesiÃ³n del usuario y blacklistea el token de refresh.
         """
         try:
-            # Obtener el token de refresh del cuerpo de la petición
+            # Obtener el token de refresh del cuerpo de la peticiÃ³n
             refresh_token = request.data.get('refresh')
             
             if refresh_token:
@@ -1112,7 +1112,7 @@ class LogoutView(APIView):
                 token = RefreshToken(refresh_token)
                 token.blacklist()
             
-            # Logout de la sesión
+            # Logout de la sesiÃ³n
             logout(request)
             
             return Response({
@@ -1120,7 +1120,7 @@ class LogoutView(APIView):
             })
         except TokenError:
             return Response({
-                'error': 'Token inválido',
+                'error': 'Token invÃ¡lido',
                 'status': 'error'
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -1137,13 +1137,13 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene la información del perfil del usuario autenticado",
+        operation_description="Obtiene la informaciÃ³n del perfil del usuario autenticado",
         operation_summary="Perfil de usuario",
         responses={
             200: UserSerializer,
             401: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def get(self, request):
         """
@@ -1182,7 +1182,7 @@ class RefreshTokenView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
@@ -1213,7 +1213,7 @@ class RefreshTokenView(APIView):
             
         except TokenError as e:
             return create_error_response(
-                message='Token de refresh inválido o expirado',
+                message='Token de refresh invÃ¡lido o expirado',
                 error_type='invalid_refresh_token',
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={'error': str(e)}
@@ -1229,19 +1229,19 @@ class RefreshTokenView(APIView):
 
 class ChangePasswordView(APIView):
     """
-    Endpoint para cambiar la contraseña del usuario autenticado.
-    Requiere autenticación y validación de la contraseña actual.
+    Endpoint para cambiar la contraseÃ±a del usuario autenticado.
+    Requiere autenticaciÃ³n y validaciÃ³n de la contraseÃ±a actual.
     """
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
         """
-        Cambiar la contraseña del usuario autenticado.
+        Cambiar la contraseÃ±a del usuario autenticado.
         
         Requiere:
-        - old_password: Contraseña actual
-        - new_password: Nueva contraseña (mínimo 8 caracteres, mayúscula, minúscula, número)
-        - confirm_password: Confirmación de la nueva contraseña
+        - old_password: ContraseÃ±a actual
+        - new_password: Nueva contraseÃ±a (mÃ­nimo 8 caracteres, mayÃºscula, minÃºscula, nÃºmero)
+        - confirm_password: ConfirmaciÃ³n de la nueva contraseÃ±a
         """
         from .serializers import ChangePasswordSerializer
         
@@ -1252,21 +1252,21 @@ class ChangePasswordView(APIView):
             old_password = serializer.validated_data['old_password']
             new_password = serializer.validated_data['new_password']
             
-            # Verificar que la contraseña actual sea correcta
+            # Verificar que la contraseÃ±a actual sea correcta
             if not user.check_password(old_password):
                 return create_error_response(
-                    message='La contraseña actual es incorrecta',
+                    message='La contraseÃ±a actual es incorrecta',
                     error_type='invalid_old_password',
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    details={'old_password': ['La contraseña actual no es correcta.']}
+                    details={'old_password': ['La contraseÃ±a actual no es correcta.']}
                 )
             
-            # Cambiar la contraseña
+            # Cambiar la contraseÃ±a
             try:
                 user.set_password(new_password)
                 user.save()
                 
-                # Log de auditoría si está disponible
+                # Log de auditorÃ­a si estÃ¡ disponible
                 try:
                     from audit.models import ActivityLog
                     ActivityLog.objects.create(
@@ -1278,24 +1278,24 @@ class ChangePasswordView(APIView):
                         timestamp=timezone.now()
                     )
                 except Exception:
-                    pass  # Si no hay módulo de auditoría, continuar
+                    pass  # Si no hay mÃ³dulo de auditorÃ­a, continuar
                 
                 return create_success_response(
-                    message='Contraseña cambiada exitosamente',
+                    message='ContraseÃ±a cambiada exitosamente',
                     data={'user_id': user.id}
                 )
                 
             except Exception as e:
-                logger.error(f"Error cambiando contraseña para usuario {user.id}: {str(e)}")
+                logger.error(f"Error cambiando contraseÃ±a para usuario {user.id}: {str(e)}")
                 return create_error_response(
-                    message='Error al cambiar la contraseña',
+                    message='Error al cambiar la contraseÃ±a',
                     error_type='password_change_error',
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         
-        # Si hay errores de validación, devolverlos
+        # Si hay errores de validaciÃ³n, devolverlos
         return create_error_response(
-            message='Errores de validación',
+            message='Errores de validaciÃ³n',
             error_type='validation_error',
             status_code=status.HTTP_400_BAD_REQUEST,
             details=serializer.errors
@@ -1304,17 +1304,17 @@ class ChangePasswordView(APIView):
 
 class ImagesListView(APIView, ImagePermissionMixin):
     """
-    Endpoint para listar imágenes procesadas con paginación y filtros.
+    Endpoint para listar imÃ¡genes procesadas con paginaciÃ³n y filtros.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene la lista de imágenes procesadas por el usuario con paginación y filtros",
-        operation_summary="Lista de imágenes",
+        operation_description="Obtiene la lista de imÃ¡genes procesadas por el usuario con paginaciÃ³n y filtros",
+        operation_summary="Lista de imÃ¡genes",
         manual_parameters=[
-            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página (máximo 100)", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('region', openapi.IN_QUERY, description="Filtrar por región", type=openapi.TYPE_STRING),
+            openapi.Parameter('page', openapi.IN_QUERY, description="NÃºmero de pÃ¡gina", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="TamaÃ±o de pÃ¡gina (mÃ¡ximo 100)", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('region', openapi.IN_QUERY, description="Filtrar por regiÃ³n", type=openapi.TYPE_STRING),
             openapi.Parameter('finca', openapi.IN_QUERY, description="Filtrar por finca", type=openapi.TYPE_STRING),
             openapi.Parameter('processed', openapi.IN_QUERY, description="Filtrar por estado de procesamiento", type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('search', openapi.IN_QUERY, description="Buscar en notas y metadatos", type=openapi.TYPE_STRING),
@@ -1323,7 +1323,7 @@ class ImagesListView(APIView, ImagePermissionMixin):
         ],
         responses={
             200: openapi.Response(
-                description="Lista de imágenes obtenida exitosamente",
+                description="Lista de imÃ¡genes obtenida exitosamente",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -1340,16 +1340,16 @@ class ImagesListView(APIView, ImagePermissionMixin):
             400: ErrorResponseSerializer,
             401: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def get(self, request):
         """
-        Obtiene la lista de imágenes procesadas con paginación y filtros.
+        Obtiene la lista de imÃ¡genes procesadas con paginaciÃ³n y filtros.
         """
         try:
-            # Obtener parámetros de consulta
+            # Obtener parÃ¡metros de consulta
             page = int(request.GET.get('page', 1))
-            page_size = min(int(request.GET.get('page_size', 20)), 100)  # Máximo 100 por página
+            page_size = min(int(request.GET.get('page_size', 20)), 100)  # MÃ¡ximo 100 por pÃ¡gina
             region = request.GET.get('region')
             finca = request.GET.get('finca')
             processed = request.GET.get('processed')
@@ -1357,7 +1357,7 @@ class ImagesListView(APIView, ImagePermissionMixin):
             date_from = request.GET.get('date_from')
             date_to = request.GET.get('date_to')
             
-            # Construir queryset base según permisos
+            # Construir queryset base segÃºn permisos
             queryset = self.get_user_images_queryset(request.user)
             
             # Aplicar filtros
@@ -1386,17 +1386,17 @@ class ImagesListView(APIView, ImagePermissionMixin):
             if date_to:
                 queryset = queryset.filter(created_at__date__lte=date_to)
             
-            # Ordenar por fecha de creación (más recientes primero)
+            # Ordenar por fecha de creaciÃ³n (mÃ¡s recientes primero)
             queryset = queryset.order_by('-created_at')
             
-            # Paginación
+            # PaginaciÃ³n
             paginator = Paginator(queryset, page_size)
             total_pages = paginator.num_pages
             
-            # Validar página
+            # Validar pÃ¡gina
             if page > total_pages and total_pages > 0:
                 return Response({
-                    'error': f'Página {page} no existe. Total de páginas: {total_pages}',
+                    'error': f'PÃ¡gina {page} no existe. Total de pÃ¡ginas: {total_pages}',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -1416,7 +1416,7 @@ class ImagesListView(APIView, ImagePermissionMixin):
                 'previous': None
             }
             
-            # URLs de paginación
+            # URLs de paginaciÃ³n
             if page_obj.has_next():
                 response_data['next'] = f"{request.build_absolute_uri()}?page={page + 1}&page_size={page_size}"
             
@@ -1427,13 +1427,13 @@ class ImagesListView(APIView, ImagePermissionMixin):
             
         except ValueError as e:
             return Response({
-                'error': 'Parámetros de consulta inválidos',
+                'error': 'ParÃ¡metros de consulta invÃ¡lidos',
                 'status': 'error',
                 'details': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
-            logger.error(f"Error obteniendo lista de imágenes: {e}")
+            logger.error(f"Error obteniendo lista de imÃ¡genes: {e}")
             return Response({
                 'error': 'Error interno del servidor',
                 'status': 'error'
@@ -1442,12 +1442,12 @@ class ImagesListView(APIView, ImagePermissionMixin):
 
 class ImageDetailView(APIView, ImagePermissionMixin):
     """
-    Endpoint para obtener detalles de una imagen específica con acceso por owner/admin.
+    Endpoint para obtener detalles de una imagen especÃ­fica con acceso por owner/admin.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene los detalles completos de una imagen específica incluyendo predicción",
+        operation_description="Obtiene los detalles completos de una imagen especÃ­fica incluyendo predicciÃ³n",
         operation_summary="Detalles de imagen",
         responses={
             200: openapi.Response(
@@ -1457,11 +1457,11 @@ class ImageDetailView(APIView, ImagePermissionMixin):
             403: ErrorResponseSerializer,
             404: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def get(self, request, image_id):
         """
-        Obtiene los detalles completos de una imagen específica.
+        Obtiene los detalles completos de una imagen especÃ­fica.
         Solo el propietario o un admin pueden acceder.
         """
         try:
@@ -1481,7 +1481,7 @@ class ImageDetailView(APIView, ImagePermissionMixin):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Serializar imagen con predicción
+            # Serializar imagen con predicciÃ³n
             serializer = CacaoImageDetailSerializer(image, context={'request': request})
             
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1496,36 +1496,36 @@ class ImageDetailView(APIView, ImagePermissionMixin):
 
 class ImagesStatsView(APIView, ImagePermissionMixin):
     """
-    Endpoint para obtener estadísticas detalladas de imágenes procesadas.
+    Endpoint para obtener estadÃ­sticas detalladas de imÃ¡genes procesadas.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene estadísticas detalladas de imágenes procesadas por el usuario",
-        operation_summary="Estadísticas de imágenes",
+        operation_description="Obtiene estadÃ­sticas detalladas de imÃ¡genes procesadas por el usuario",
+        operation_summary="EstadÃ­sticas de imÃ¡genes",
         responses={
             200: openapi.Response(
-                description="Estadísticas obtenidas exitosamente",
+                description="EstadÃ­sticas obtenidas exitosamente",
                 schema=openapi.Schema(type=openapi.TYPE_OBJECT)
             ),
             401: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def get(self, request):
         """
-        Obtiene estadísticas detalladas de imágenes procesadas.
+        Obtiene estadÃ­sticas detalladas de imÃ¡genes procesadas.
         """
         try:
-            # Obtener queryset base según permisos
+            # Obtener queryset base segÃºn permisos
             user_images = self.get_user_images_queryset(request.user)
             
-            # Estadísticas básicas
+            # EstadÃ­sticas bÃ¡sicas
             total_images = user_images.count()
             processed_images = user_images.filter(processed=True).count()
             unprocessed_images = total_images - processed_images
             
-            # Estadísticas por fecha
+            # EstadÃ­sticas por fecha
             from django.utils import timezone
             from datetime import timedelta
             
@@ -1548,7 +1548,7 @@ class ImagesStatsView(APIView, ImagePermissionMixin):
                 processed=True
             ).count()
             
-            # Estadísticas de predicciones
+            # EstadÃ­sticas de predicciones
             predictions = CacaoPrediction.objects.filter(image__user_id=request.user.id)
             
             # Calcular promedio de confidence manualmente ya que es una propiedad
@@ -1563,19 +1563,19 @@ class ImagesStatsView(APIView, ImagePermissionMixin):
                 avg_time=Avg('processing_time_ms')
             )['avg_time'] or 0
             
-            # Estadísticas por región
+            # EstadÃ­sticas por regiÃ³n
             region_stats = user_images.values('region').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True))
             ).order_by('-count')
             
-            # Estadísticas por finca
+            # EstadÃ­sticas por finca
             finca_stats = user_images.values('finca').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True))
             ).order_by('-count')[:10]  # Top 10 fincas
             
-            # Estadísticas de dimensiones promedio
+            # EstadÃ­sticas de dimensiones promedio
             avg_dimensions = predictions.aggregate(
                 avg_alto=Avg('alto_mm'),
                 avg_ancho=Avg('ancho_mm'),
@@ -1606,8 +1606,8 @@ class ImagesStatsView(APIView, ImagePermissionMixin):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo estadísticas de imágenes: {e}")
-            # Retornar datos vacíos en lugar de 500
+            logger.warning(f"[WARNING] Error obteniendo estadÃ­sticas de imÃ¡genes: {e}")
+            # Retornar datos vacÃ­os en lugar de 500
             return Response({
                 'total_images': 0,
                 'processed_images': 0,
@@ -1628,7 +1628,7 @@ class ImagesStatsView(APIView, ImagePermissionMixin):
             }, status=status.HTTP_200_OK)
 
 
-# Vistas de verificación de email
+# Vistas de verificaciÃ³n de email
 class EmailVerificationView(APIView):
     """
     Endpoint para verificar email con token.
@@ -1654,7 +1654,7 @@ class EmailVerificationView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
@@ -1667,7 +1667,7 @@ class EmailVerificationView(APIView):
             return self._verify_token(token_uuid)
         
         return create_error_response(
-            message='Datos de verificación inválidos',
+            message='Datos de verificaciÃ³n invÃ¡lidos',
             error_type='validation_error',
             status_code=status.HTTP_400_BAD_REQUEST,
             details=serializer.errors
@@ -1677,7 +1677,7 @@ class EmailVerificationView(APIView):
         operation_description="Verifica un email usando el token desde la URL (GET con token en path)",
         operation_summary="Verificar email (GET)",
         manual_parameters=[
-            openapi.Parameter('token', openapi.IN_PATH, description="Token de verificación", type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
+            openapi.Parameter('token', openapi.IN_PATH, description="Token de verificaciÃ³n", type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
         ],
         responses={
             200: openapi.Response(
@@ -1693,7 +1693,7 @@ class EmailVerificationView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def get(self, request, token=None):
         """
@@ -1701,7 +1701,7 @@ class EmailVerificationView(APIView):
         """
         if not token:
             return create_error_response(
-                message='Token de verificación requerido',
+                message='Token de verificaciÃ³n requerido',
                 error_type='missing_token',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -1709,13 +1709,13 @@ class EmailVerificationView(APIView):
         return self._verify_token(token)
     
     def _verify_token(self, token_uuid):
-        """Método helper para verificar el token."""
+        """MÃ©todo helper para verificar el token."""
         try:
             import uuid
             token_obj = EmailVerificationToken.get_valid_token(str(token_uuid))
         except (ValueError, TypeError):
             return create_error_response(
-                message='Formato de token inválido',
+                message='Formato de token invÃ¡lido',
                 error_type='invalid_token_format',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -1730,7 +1730,7 @@ class EmailVerificationView(APIView):
             
             if token_obj.is_expired:
                 return create_error_response(
-                    message='El enlace de verificación ha expirado',
+                    message='El enlace de verificaciÃ³n ha expirado',
                     error_type='token_expired',
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
@@ -1739,14 +1739,14 @@ class EmailVerificationView(APIView):
             token_obj.verify()
             
             return create_success_response(
-                message='Correo verificado correctamente. Ya puedes iniciar sesión.',
+                message='Correo verificado correctamente. Ya puedes iniciar sesiÃ³n.',
                 data={
                     'user': UserSerializer(token_obj.user).data
                 }
             )
         else:
             return create_error_response(
-                message='Token inválido o expirado',
+                message='Token invÃ¡lido o expirado',
                 error_type='invalid_token',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -1754,17 +1754,17 @@ class EmailVerificationView(APIView):
 
 class ResendVerificationView(APIView):
     """
-    Endpoint para reenviar verificación de email.
+    Endpoint para reenviar verificaciÃ³n de email.
     """
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        operation_description="Reenvía el token de verificación de email",
-        operation_summary="Reenviar verificación",
+        operation_description="ReenvÃ­a el token de verificaciÃ³n de email",
+        operation_summary="Reenviar verificaciÃ³n",
         request_body=ResendVerificationSerializer,
         responses={
             200: openapi.Response(
-                description="Token de verificación reenviado",
+                description="Token de verificaciÃ³n reenviado",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -1775,11 +1775,11 @@ class ResendVerificationView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Reenviar token de verificación de email.
+        Reenviar token de verificaciÃ³n de email.
         """
         serializer = ResendVerificationSerializer(data=request.data)
         
@@ -1787,10 +1787,10 @@ class ResendVerificationView(APIView):
             email = serializer.validated_data['email']
             user = User.objects.get(email=email)
             
-            # Crear nuevo token de verificación
+            # Crear nuevo token de verificaciÃ³n
             token_obj = EmailVerificationToken.create_for_user(user)
             
-            # Enviar email de verificación
+            # Enviar email de verificaciÃ³n
             try:
                 from django.conf import settings
                 from .email_service import send_custom_email
@@ -1801,59 +1801,59 @@ class ResendVerificationView(APIView):
                 <html>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <h2 style="color: #4CAF50;">Verifica tu correo electrónico - CacaoScan</h2>
+                        <h2 style="color: #4CAF50;">Verifica tu correo electrÃ³nico - CacaoScan</h2>
                         <p>Hola {user.get_full_name() or user.username},</p>
-                        <p>Has solicitado un nuevo enlace de verificación. Por favor verifica tu dirección de correo electrónico haciendo clic en el siguiente enlace:</p>
+                        <p>Has solicitado un nuevo enlace de verificaciÃ³n. Por favor verifica tu direcciÃ³n de correo electrÃ³nico haciendo clic en el siguiente enlace:</p>
                         <div style="text-align: center; margin: 30px 0;">
                             <a href="{verification_url}" style="background-color: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Verificar mi correo</a>
                         </div>
                         <p>O copia y pega este enlace en tu navegador:</p>
                         <p style="word-break: break-all; color: #666;">{verification_url}</p>
-                        <p style="margin-top: 30px; font-size: 12px; color: #999;">Este enlace expirará en 24 horas.</p>
+                        <p style="margin-top: 30px; font-size: 12px; color: #999;">Este enlace expirarÃ¡ en 24 horas.</p>
                     </div>
                 </body>
                 </html>
                 """
                 
                 text_content = f"""
-Verifica tu correo electrónico - CacaoScan
+Verifica tu correo electrÃ³nico - CacaoScan
 
 Hola {user.get_full_name() or user.username},
 
-Has solicitado un nuevo enlace de verificación. Por favor verifica tu dirección de correo electrónico visitando el siguiente enlace:
+Has solicitado un nuevo enlace de verificaciÃ³n. Por favor verifica tu direcciÃ³n de correo electrÃ³nico visitando el siguiente enlace:
 
 {verification_url}
 
-Este enlace expirará en 24 horas.
+Este enlace expirarÃ¡ en 24 horas.
                 """
                 
                 send_custom_email(
                     to_emails=[user.email],
-                    subject="Verifica tu correo electrónico - CacaoScan",
+                    subject="Verifica tu correo electrÃ³nico - CacaoScan",
                     html_content=html_content,
                     text_content=text_content
                 )
                 
-                logger.info(f"Email de verificación reenviado a {user.email}")
+                logger.info(f"Email de verificaciÃ³n reenviado a {user.email}")
             except Exception as e:
-                logger.error(f"Error reenviando email de verificación: {e}")
+                logger.error(f"Error reenviando email de verificaciÃ³n: {e}")
             
             return create_success_response(
-                message=f'Token de verificación enviado a {email}',
+                message=f'Token de verificaciÃ³n enviado a {email}',
                 data={
                     'expires_at': token_obj.expires_at.isoformat()
                 }
             )
         
         return create_error_response(
-            message='Email inválido',
+            message='Email invÃ¡lido',
             error_type='validation_error',
             status_code=status.HTTP_400_BAD_REQUEST,
             details=serializer.errors
         )
 
 
-# Vistas de pre-registro (verificación previa)
+# Vistas de pre-registro (verificaciÃ³n previa)
 class PreRegisterView(APIView):
     """
     Endpoint para pre-registro: guarda datos sin crear usuario hasta verificar correo.
@@ -1861,7 +1861,7 @@ class PreRegisterView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        operation_description="Guarda datos de registro pendientes de verificación de correo",
+        operation_description="Guarda datos de registro pendientes de verificaciÃ³n de correo",
         operation_summary="Pre-registro de usuario",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -1875,7 +1875,7 @@ class PreRegisterView(APIView):
         ),
         responses={
             201: openapi.Response(
-                description="Registro pendiente creado, email de verificación enviado",
+                description="Registro pendiente creado, email de verificaciÃ³n enviado",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -1887,11 +1887,11 @@ class PreRegisterView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Crea un registro pendiente y envía email de verificación.
+        Crea un registro pendiente y envÃ­a email de verificaciÃ³n.
         El usuario NO se crea hasta que verifique el correo.
         """
         from personas.models import PendingRegistration
@@ -1905,18 +1905,18 @@ class PreRegisterView(APIView):
         first_name = request.data.get('first_name', '')
         last_name = request.data.get('last_name', '')
         
-        # Validaciones básicas
+        # Validaciones bÃ¡sicas
         if not email or not password:
             return create_error_response(
-                message='Email y contraseña son requeridos',
+                message='Email y contraseÃ±a son requeridos',
                 error_type='validation_error',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        # Verificar que el email no esté registrado
+        # Verificar que el email no estÃ© registrado
         if User.objects.filter(email=email).exists():
             return create_error_response(
-                message='Este email ya está registrado',
+                message='Este email ya estÃ¡ registrado',
                 error_type='email_exists',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -1926,7 +1926,7 @@ class PreRegisterView(APIView):
         if existing_pending:
             # Si el token no ha expirado, reenviar el email
             if not existing_pending.is_expired():
-                # Reenviar email de verificación
+                # Reenviar email de verificaciÃ³n
                 verification_url = f"{settings.FRONTEND_URL}/verify-email/{existing_pending.verification_token}"
                 
                 html_content = render_to_string('emails/verify_email.html', {
@@ -1941,13 +1941,13 @@ Bienvenido a CacaoScan, {first_name or email.split('@')[0]}!
 Gracias por registrarte. Para completar tu registro, verifica tu correo visitando:
 {verification_url}
 
-Este enlace expirará en 24 horas.
+Este enlace expirarÃ¡ en 24 horas.
                 """
                 
                 try:
                     send_custom_email(
                         to_emails=[email],
-                        subject="Verifica tu correo electrónico - CacaoScan",
+                        subject="Verifica tu correo electrÃ³nico - CacaoScan",
                         html_content=html_content,
                         text_content=text_content
                     )
@@ -1955,7 +1955,7 @@ Este enlace expirará en 24 horas.
                     logger.error(f"Error reenviando email: {e}")
                 
                 return create_success_response(
-                    message='Se ha reenviado el enlace de verificación a tu correo electrónico.',
+                    message='Se ha reenviado el enlace de verificaciÃ³n a tu correo electrÃ³nico.',
                     data={'email': email},
                     status_code=status.HTTP_200_OK
                 )
@@ -1975,7 +1975,7 @@ Este enlace expirará en 24 horas.
             }
         )
         
-        # Enviar email de verificación
+        # Enviar email de verificaciÃ³n
         verification_url = f"{settings.FRONTEND_URL}/verify-email/{pending_reg.verification_token}"
         
         html_content = render_to_string('emails/verify_email.html', {
@@ -1987,37 +1987,37 @@ Este enlace expirará en 24 horas.
         text_content = f"""
 Bienvenido a CacaoScan, {first_name or email.split('@')[0]}!
 
-Gracias por registrarte en nuestra plataforma. Para completar tu registro, verifica tu dirección de correo electrónico visitando el siguiente enlace:
+Gracias por registrarte en nuestra plataforma. Para completar tu registro, verifica tu direcciÃ³n de correo electrÃ³nico visitando el siguiente enlace:
 
 {verification_url}
 
-Este enlace expirará en 24 horas.
+Este enlace expirarÃ¡ en 24 horas.
 
 Si no creaste esta cuenta, puedes ignorar este correo.
 
-Equipo CacaoScan · Proyecto SENNOVA · SENA Guaviare
+Equipo CacaoScan Â· Proyecto SENNOVA Â· SENA Guaviare
         """
         
         try:
             send_custom_email(
                 to_emails=[email],
-                subject="Verifica tu correo electrónico - CacaoScan",
+                subject="Verifica tu correo electrÃ³nico - CacaoScan",
                 html_content=html_content,
                 text_content=text_content
             )
-            logger.info(f"Email de verificación enviado a {email}")
+            logger.info(f"Email de verificaciÃ³n enviado a {email}")
         except Exception as e:
-            logger.error(f"Error enviando email de verificación: {e}")
-            # Eliminar registro pendiente si falla el envío
+            logger.error(f"Error enviando email de verificaciÃ³n: {e}")
+            # Eliminar registro pendiente si falla el envÃ­o
             pending_reg.delete()
             return create_error_response(
-                message='Error al enviar el email de verificación. Por favor intenta nuevamente.',
+                message='Error al enviar el email de verificaciÃ³n. Por favor intenta nuevamente.',
                 error_type='email_send_error',
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
         return create_success_response(
-            message='Se ha enviado un enlace de verificación a tu correo electrónico.',
+            message='Se ha enviado un enlace de verificaciÃ³n a tu correo electrÃ³nico.',
             data={'email': email},
             status_code=status.HTTP_201_CREATED
         )
@@ -2025,7 +2025,7 @@ Equipo CacaoScan · Proyecto SENNOVA · SENA Guaviare
 
 class VerifyEmailPreRegistrationView(APIView):
     """
-    Endpoint para verificar email y crear el usuario final después de pre-registro.
+    Endpoint para verificar email y crear el usuario final despuÃ©s de pre-registro.
     """
     permission_classes = [AllowAny]
     
@@ -2033,7 +2033,7 @@ class VerifyEmailPreRegistrationView(APIView):
         operation_description="Verifica el email y crea el usuario final a partir del registro pendiente",
         operation_summary="Verificar email y crear usuario",
         manual_parameters=[
-            openapi.Parameter('token', openapi.IN_PATH, description="Token de verificación", type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
+            openapi.Parameter('token', openapi.IN_PATH, description="Token de verificaciÃ³n", type=openapi.TYPE_STRING, format=openapi.FORMAT_UUID),
         ],
         responses={
             200: openapi.Response(
@@ -2049,7 +2049,7 @@ class VerifyEmailPreRegistrationView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def get(self, request, token=None):
         """
@@ -2061,7 +2061,7 @@ class VerifyEmailPreRegistrationView(APIView):
         
         if not token:
             return create_error_response(
-                message='Token de verificación requerido',
+                message='Token de verificaciÃ³n requerido',
                 error_type='missing_token',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -2071,7 +2071,7 @@ class VerifyEmailPreRegistrationView(APIView):
             token_uuid = uuid.UUID(str(token))
         except (ValueError, TypeError):
             return create_error_response(
-                message='Formato de token inválido',
+                message='Formato de token invÃ¡lido',
                 error_type='invalid_token_format',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -2080,7 +2080,7 @@ class VerifyEmailPreRegistrationView(APIView):
             pending_reg = PendingRegistration.objects.get(verification_token=token_uuid)
         except PendingRegistration.DoesNotExist:
             return create_error_response(
-                message='Token inválido o expirado',
+                message='Token invÃ¡lido o expirado',
                 error_type='invalid_token',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -2093,11 +2093,11 @@ class VerifyEmailPreRegistrationView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        # Verificar si expiró
+        # Verificar si expirÃ³
         if pending_reg.is_expired():
             pending_reg.delete()
             return create_error_response(
-                message='El enlace de verificación ha expirado. Por favor registrate nuevamente.',
+                message='El enlace de verificaciÃ³n ha expirado. Por favor registrate nuevamente.',
                 error_type='token_expired',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -2134,10 +2134,10 @@ class VerifyEmailPreRegistrationView(APIView):
             # Marcar registro pendiente como verificado
             pending_reg.verify()
             
-            logger.info(f"Usuario {user.email} creado exitosamente después de verificación")
+            logger.info(f"Usuario {user.email} creado exitosamente despuÃ©s de verificaciÃ³n")
             
             return create_success_response(
-                message='Correo verificado correctamente. Ya puedes iniciar sesión.',
+                message='Correo verificado correctamente. Ya puedes iniciar sesiÃ³n.',
                 data={
                     'user': UserSerializer(user).data
                 }
@@ -2150,16 +2150,16 @@ class VerifyEmailPreRegistrationView(APIView):
         )
 
 
-# Vistas de recuperación de contraseña
+# Vistas de recuperaciÃ³n de contraseÃ±a
 class ForgotPasswordView(APIView):
     """
-    Endpoint para solicitar recuperación de contraseña.
+    Endpoint para solicitar recuperaciÃ³n de contraseÃ±a.
     """
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        operation_description="Envía un email con token para recuperar contraseña",
-        operation_summary="Recuperar contraseña",
+        operation_description="EnvÃ­a un email con token para recuperar contraseÃ±a",
+        operation_summary="Recuperar contraseÃ±a",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
@@ -2169,7 +2169,7 @@ class ForgotPasswordView(APIView):
         ),
         responses={
             200: openapi.Response(
-                description="Email de recuperación enviado",
+                description="Email de recuperaciÃ³n enviado",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -2180,11 +2180,11 @@ class ForgotPasswordView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Solicitar recuperación de contraseña.
+        Solicitar recuperaciÃ³n de contraseÃ±a.
         """
         email = request.data.get('email')
         
@@ -2198,10 +2198,10 @@ class ForgotPasswordView(APIView):
         try:
             user = User.objects.get(email=email)
             
-            # Crear token de recuperación (usando el mismo modelo de verificación)
+            # Crear token de recuperaciÃ³n (usando el mismo modelo de verificaciÃ³n)
             reset_token = EmailVerificationToken.create_for_user(user)
             
-            # Enviar email de restablecimiento de contraseña
+            # Enviar email de restablecimiento de contraseÃ±a
             try:
                 from .email_service import send_email_notification
                 email_context = {
@@ -2209,7 +2209,7 @@ class ForgotPasswordView(APIView):
                     'user_email': user.email,
                     'token': str(reset_token.token),
                     'reset_url': f"{request.build_absolute_uri('/')}auth/reset-password/?token={reset_token.token}",
-                    'token_expiry_hours': 24  # Token válido por 24 horas
+                    'token_expiry_hours': 24  # Token vÃ¡lido por 24 horas
                 }
                 email_result = send_email_notification(
                     user_email=user.email,
@@ -2221,10 +2221,10 @@ class ForgotPasswordView(APIView):
                 else:
                     logger.error(f"Error enviando email de restablecimiento: {email_result.get('error')}")
             except Exception as e:
-                logger.error(f"Error en envío de email de restablecimiento: {e}")
+                logger.error(f"Error en envÃ­o de email de restablecimiento: {e}")
             
             return create_success_response(
-                message=f'Instrucciones de recuperación enviadas a {email}',
+                message=f'Instrucciones de recuperaciÃ³n enviadas a {email}',
                 data={
                     'token': str(reset_token.token),  # Solo para desarrollo
                     'expires_at': reset_token.expires_at.isoformat()
@@ -2234,19 +2234,19 @@ class ForgotPasswordView(APIView):
         except User.DoesNotExist:
             # Por seguridad, no revelar si el email existe o no
             return create_success_response(
-                message='Si el email existe, recibirás instrucciones de recuperación'
+                message='Si el email existe, recibirÃ¡s instrucciones de recuperaciÃ³n'
             )
 
 
 class ResetPasswordView(APIView):
     """
-    Endpoint para restablecer contraseña con token.
+    Endpoint para restablecer contraseÃ±a con token.
     """
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        operation_description="Restablece la contraseña usando el token de recuperación",
-        operation_summary="Restablecer contraseña",
+        operation_description="Restablece la contraseÃ±a usando el token de recuperaciÃ³n",
+        operation_summary="Restablecer contraseÃ±a",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
@@ -2258,7 +2258,7 @@ class ResetPasswordView(APIView):
         ),
         responses={
             200: openapi.Response(
-                description="Contraseña restablecida exitosamente",
+                description="ContraseÃ±a restablecida exitosamente",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -2269,11 +2269,11 @@ class ResetPasswordView(APIView):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Autenticación']
+        tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Restablecer contraseña con token.
+        Restablecer contraseÃ±a con token.
         """
         token_uuid = request.data.get('token')
         new_password = request.data.get('new_password')
@@ -2281,22 +2281,22 @@ class ResetPasswordView(APIView):
         
         if not all([token_uuid, new_password, confirm_password]):
             return create_error_response(
-                message='Token, nueva contraseña y confirmación son requeridos',
+                message='Token, nueva contraseÃ±a y confirmaciÃ³n son requeridos',
                 error_type='validation_error',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
         if new_password != confirm_password:
             return create_error_response(
-                message='Las contraseñas no coinciden',
+                message='Las contraseÃ±as no coinciden',
                 error_type='validation_error',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validar fortaleza de contraseña
+        # Validar fortaleza de contraseÃ±a
         if len(new_password) < 8:
             return create_error_response(
-                message='La contraseña debe tener al menos 8 caracteres',
+                message='La contraseÃ±a debe tener al menos 8 caracteres',
                 error_type='validation_error',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -2305,12 +2305,12 @@ class ResetPasswordView(APIView):
         token_obj = EmailVerificationToken.get_valid_token(token_uuid)
         if not token_obj:
             return create_error_response(
-                message='Token inválido o expirado',
+                message='Token invÃ¡lido o expirado',
                 error_type='invalid_token',
                 status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        # Restablecer contraseña
+        # Restablecer contraseÃ±a
         user = token_obj.user
         user.set_password(new_password)
         user.save()
@@ -2319,26 +2319,26 @@ class ResetPasswordView(APIView):
         token_obj.delete()
         
         return create_success_response(
-            message='Contraseña restablecida exitosamente'
+            message='ContraseÃ±a restablecida exitosamente'
         )
 
 
-# Vistas de gestión de usuarios (Admin)
+# Vistas de gestiÃ³n de usuarios (Admin)
 class UserListView(APIView):
     """
-    Endpoint para listar usuarios con filtros y paginación (Admin only).
+    Endpoint para listar usuarios con filtros y paginaciÃ³n (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene la lista de usuarios con filtros y paginación (solo admins)",
+        operation_description="Obtiene la lista de usuarios con filtros y paginaciÃ³n (solo admins)",
         operation_summary="Lista de usuarios",
         manual_parameters=[
-            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página (máximo 100)", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page', openapi.IN_QUERY, description="NÃºmero de pÃ¡gina", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="TamaÃ±o de pÃ¡gina (mÃ¡ximo 100)", type=openapi.TYPE_INTEGER),
             openapi.Parameter('role', openapi.IN_QUERY, description="Filtrar por rol (admin, analyst, farmer)", type=openapi.TYPE_STRING),
             openapi.Parameter('is_active', openapi.IN_QUERY, description="Filtrar por estado activo", type=openapi.TYPE_BOOLEAN),
-            openapi.Parameter('is_verified', openapi.IN_QUERY, description="Filtrar por estado de verificación", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('is_verified', openapi.IN_QUERY, description="Filtrar por estado de verificaciÃ³n", type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('search', openapi.IN_QUERY, description="Buscar en username, email, nombre", type=openapi.TYPE_STRING),
             openapi.Parameter('date_from', openapi.IN_QUERY, description="Fecha de registro desde (YYYY-MM-DD)", type=openapi.TYPE_STRING),
             openapi.Parameter('date_to', openapi.IN_QUERY, description="Fecha de registro hasta (YYYY-MM-DD)", type=openapi.TYPE_STRING),
@@ -2367,7 +2367,7 @@ class UserListView(APIView):
     )
     def get(self, request):
         """
-        Obtiene la lista de usuarios con filtros y paginación.
+        Obtiene la lista de usuarios con filtros y paginaciÃ³n.
         Solo accesible para administradores.
         """
         try:
@@ -2378,9 +2378,9 @@ class UserListView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener parámetros de consulta
+            # Obtener parÃ¡metros de consulta
             page = int(request.GET.get('page', 1))
-            page_size = min(int(request.GET.get('page_size', 20)), 100)  # Máximo 100 por página
+            page_size = min(int(request.GET.get('page_size', 20)), 100)  # MÃ¡ximo 100 por pÃ¡gina
             role = request.GET.get('role')
             is_active = request.GET.get('is_active')
             is_verified = request.GET.get('is_verified')
@@ -2432,17 +2432,17 @@ class UserListView(APIView):
             if date_to:
                 queryset = queryset.filter(date_joined__date__lte=date_to)
             
-            # Ordenar por fecha de registro (más recientes primero)
+            # Ordenar por fecha de registro (mÃ¡s recientes primero)
             queryset = queryset.order_by('-date_joined')
             
-            # Paginación
+            # PaginaciÃ³n
             paginator = Paginator(queryset, page_size)
             total_pages = paginator.num_pages
             
-            # Validar página
+            # Validar pÃ¡gina
             if page > total_pages and total_pages > 0:
                 return Response({
-                    'error': f'Página {page} no existe. Total de páginas: {total_pages}',
+                    'error': f'PÃ¡gina {page} no existe. Total de pÃ¡ginas: {total_pages}',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -2462,7 +2462,7 @@ class UserListView(APIView):
                 'previous': None
             }
             
-            # URLs de paginación
+            # URLs de paginaciÃ³n
             if page_obj.has_next():
                 response_data['next'] = f"{request.build_absolute_uri()}?page={page + 1}&page_size={page_size}"
             
@@ -2473,7 +2473,7 @@ class UserListView(APIView):
             
         except ValueError as e:
             return Response({
-                'error': 'Parámetros de consulta inválidos',
+                'error': 'ParÃ¡metros de consulta invÃ¡lidos',
                 'status': 'error',
                 'details': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -2500,12 +2500,12 @@ class UserListView(APIView):
 
 class UserUpdateView(APIView):
     """
-    Endpoint para actualizar información de un usuario (Admin only).
+    Endpoint para actualizar informaciÃ³n de un usuario (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Actualiza la información de un usuario específico (solo admins)",
+        operation_description="Actualiza la informaciÃ³n de un usuario especÃ­fico (solo admins)",
         operation_summary="Actualizar usuario",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -2531,7 +2531,7 @@ class UserUpdateView(APIView):
     )
     def patch(self, request, user_id):
         """
-        Actualiza la información de un usuario específico.
+        Actualiza la informaciÃ³n de un usuario especÃ­fico.
         Solo accesible para administradores.
         """
         try:
@@ -2551,14 +2551,14 @@ class UserUpdateView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Validar que no se puede desactivar a sí mismo
+            # Validar que no se puede desactivar a sÃ­ mismo
             if user == request.user and request.data.get('is_active') is False:
                 return Response({
                     'error': 'No puedes desactivar tu propia cuenta',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Actualizar campos básicos
+            # Actualizar campos bÃ¡sicos
             if 'first_name' in request.data:
                 user.first_name = request.data['first_name']
             
@@ -2566,10 +2566,10 @@ class UserUpdateView(APIView):
                 user.last_name = request.data['last_name']
             
             if 'email' in request.data:
-                # Verificar que el email no esté en uso por otro usuario
+                # Verificar que el email no estÃ© en uso por otro usuario
                 if User.objects.filter(email=request.data['email']).exclude(id=user_id).exists():
                     return Response({
-                        'error': 'Este email ya está en uso por otro usuario',
+                        'error': 'Este email ya estÃ¡ en uso por otro usuario',
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 user.email = request.data['email']
@@ -2689,7 +2689,7 @@ class UserDeleteView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Guardar información del usuario antes de eliminarlo
+            # Guardar informaciÃ³n del usuario antes de eliminarlo
             user_data = {
                 'id': user.id,
                 'username': user.username,
@@ -2702,7 +2702,7 @@ class UserDeleteView(APIView):
                 'is_superuser': user.is_superuser
             }
             
-            # Eliminar usuario (esto también eliminará el perfil y tokens relacionados)
+            # Eliminar usuario (esto tambiÃ©n eliminarÃ¡ el perfil y tokens relacionados)
             user.delete()
             
             logger.info(f"Usuario {user_data['username']} eliminado por admin {request.user.username}")
@@ -2734,16 +2734,16 @@ class UserDeleteView(APIView):
 
 class UserStatsView(APIView):
     """
-    Endpoint para obtener estadísticas de usuarios (Admin only).
+    Endpoint para obtener estadÃ­sticas de usuarios (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene estadísticas de usuarios del sistema (solo admins)",
-        operation_summary="Estadísticas de usuarios",
+        operation_description="Obtiene estadÃ­sticas de usuarios del sistema (solo admins)",
+        operation_summary="EstadÃ­sticas de usuarios",
         responses={
             200: openapi.Response(
-                description="Estadísticas obtenidas exitosamente",
+                description="EstadÃ­sticas obtenidas exitosamente",
                 schema=openapi.Schema(type=openapi.TYPE_OBJECT)
             ),
             403: ErrorResponseSerializer,
@@ -2752,7 +2752,7 @@ class UserStatsView(APIView):
     )
     def get(self, request):
         """
-        Obtiene estadísticas de usuarios.
+        Obtiene estadÃ­sticas de usuarios.
         Solo accesible para administradores.
         """
         try:
@@ -2767,7 +2767,7 @@ class UserStatsView(APIView):
             from django.utils import timezone
             from django.db.models import Count, Q
             
-            # Estadísticas generales
+            # EstadÃ­sticas generales
             total_users = User.objects.count()
             active_users = User.objects.filter(is_active=True).count()
             inactive_users = total_users - active_users
@@ -2776,7 +2776,7 @@ class UserStatsView(APIView):
             today = timezone.now().date()
             users_today = User.objects.filter(date_joined__date=today).count()
             
-            # Usuarios en línea (últimos 5 minutos)
+            # Usuarios en lÃ­nea (Ãºltimos 5 minutos)
             five_minutes_ago = timezone.now() - timedelta(minutes=5)
             online_users = User.objects.filter(last_login__gte=five_minutes_ago).count()
             
@@ -2789,7 +2789,7 @@ class UserStatsView(APIView):
                 ~Q(groups__name='analyst')
             ).count()
             
-            # Usuarios por estado de verificación
+            # Usuarios por estado de verificaciÃ³n
             verified_users = User.objects.filter(
                 auth_email_token__is_verified=True
             ).count()
@@ -2823,7 +2823,7 @@ class UserStatsView(APIView):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.error(f"Error obteniendo estadísticas de usuarios: {e}")
+            logger.error(f"Error obteniendo estadÃ­sticas de usuarios: {e}")
             return Response({
                 'error': 'Error interno del servidor',
                 'status': 'error'
@@ -2844,16 +2844,16 @@ class UserStatsView(APIView):
 
 class AdminStatsView(APIView):
     """
-    Endpoint para obtener estadísticas globales del sistema (Admin only).
+    Endpoint para obtener estadÃ­sticas globales del sistema (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene estadísticas globales del sistema (solo admins)",
-        operation_summary="Estadísticas del sistema",
+        operation_description="Obtiene estadÃ­sticas globales del sistema (solo admins)",
+        operation_summary="EstadÃ­sticas del sistema",
         responses={
             200: openapi.Response(
-                description="Estadísticas obtenidas exitosamente",
+                description="EstadÃ­sticas obtenidas exitosamente",
                 schema=openapi.Schema(type=openapi.TYPE_OBJECT)
             ),
             403: ErrorResponseSerializer,
@@ -2862,7 +2862,7 @@ class AdminStatsView(APIView):
     )
     def get(self, request):
         """
-        Obtiene estadísticas globales del sistema.
+        Obtiene estadÃ­sticas globales del sistema.
         Solo accesible para administradores.
         """
         try:
@@ -2873,13 +2873,13 @@ class AdminStatsView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Estadísticas de usuarios
+            # EstadÃ­sticas de usuarios
             total_users = User.objects.count()
             active_users = User.objects.filter(is_active=True).count()
             staff_users = User.objects.filter(is_staff=True).count()
             superusers = User.objects.filter(is_superuser=True).count()
             
-            logger.info(f"📊 [AdminStatsView] Usuarios - Total: {total_users}, Activos: {active_users}, Staff: {staff_users}, Superusers: {superusers}")
+            logger.info(f"[AdminStatsView] Usuarios - Total: {total_users}, Activos: {active_users}, Staff: {staff_users}, Superusers: {superusers}")
             
             # Usuarios por rol
             analyst_users = User.objects.filter(groups__name='analyst').distinct().count()
@@ -2898,13 +2898,13 @@ class AdminStatsView(APIView):
                 # Si no existe el campo, contar solo usuarios activos
                 verified_users = User.objects.filter(is_active=True).count()
             
-            # Estadísticas de imágenes
+            # EstadÃ­sticas de imÃ¡genes
             total_images = CacaoImage.objects.count()
             processed_images = CacaoImage.objects.filter(processed=True).count()
             unprocessed_images = total_images - processed_images
-            logger.info(f"🖼️ [AdminStatsView] Imágenes - Total: {total_images}, Procesadas: {processed_images}, Sin procesar: {unprocessed_images}")
+            logger.info(f"[AdminStatsView] ImÃ¡genes - Total: {total_images}, Procesadas: {processed_images}, Sin procesar: {unprocessed_images}")
             
-            # Estadísticas por fecha
+            # EstadÃ­sticas por fecha
             from datetime import timedelta
             today = timezone.now().date()
             this_week = today - timedelta(days=7)
@@ -2916,15 +2916,15 @@ class AdminStatsView(APIView):
             images_this_week = CacaoImage.objects.filter(created_at__date__gte=this_week).count()
             images_this_month = CacaoImage.objects.filter(created_at__date__gte=this_month).count()
             
-            # Datos de actividad por día para gráficos
-            # Optimizado: usar agregaciones de Django para obtener datos de todos los días de una vez
+            # Datos de actividad por dÃ­a para grÃ¡ficos
+            # Optimizado: usar agregaciones de Django para obtener datos de todos los dÃ­as de una vez
             max_days_to_check = 30
             
-            # Obtener conteos de imágenes por fecha usando agregación (más eficiente)
+            # Obtener conteos de imÃ¡genes por fecha usando agregaciÃ³n (mÃ¡s eficiente)
             from django.db.models import Count
             from django.db.models.functions import TruncDate
             
-            # Imágenes por día (últimos 30 días)
+            # ImÃ¡genes por dÃ­a (Ãºltimos 30 dÃ­as)
             images_by_date = dict(
                 CacaoImage.objects
                 .filter(created_at__date__gte=today - timedelta(days=max_days_to_check))
@@ -2934,7 +2934,7 @@ class AdminStatsView(APIView):
                 .values_list('date', 'count')
             )
             
-            # Usuarios por día (últimos 30 días)
+            # Usuarios por dÃ­a (Ãºltimos 30 dÃ­as)
             users_by_date = dict(
                 User.objects
                 .filter(date_joined__date__gte=today - timedelta(days=max_days_to_check))
@@ -2944,7 +2944,7 @@ class AdminStatsView(APIView):
                 .values_list('date', 'count')
             )
             
-            # Predicciones por día (últimos 30 días)
+            # Predicciones por dÃ­a (Ãºltimos 30 dÃ­as)
             predictions_by_date = {}
             if CacaoPrediction is not None:
                 predictions_by_date = dict(
@@ -2956,7 +2956,7 @@ class AdminStatsView(APIView):
                     .values_list('date', 'count')
                 )
             
-            # Contar días únicos con actividad
+            # Contar dÃ­as Ãºnicos con actividad
             all_dates_with_activity = set()
             all_dates_with_activity.update(images_by_date.keys())
             all_dates_with_activity.update(users_by_date.keys())
@@ -2964,23 +2964,23 @@ class AdminStatsView(APIView):
             
             days_with_activity_count = len(all_dates_with_activity)
             
-            # Determinar cuántos días mostrar
-            # Si hay más de 10 días con actividad, mostrar hasta 30 días
-            # Si hay 10 o menos, mostrar solo los últimos 7 días
+            # Determinar cuÃ¡ntos dÃ­as mostrar
+            # Si hay mÃ¡s de 10 dÃ­as con actividad, mostrar hasta 30 dÃ­as
+            # Si hay 10 o menos, mostrar solo los Ãºltimos 7 dÃ­as
             if days_with_activity_count > 10:
-                days_to_show = max_days_to_check  # Mostrar últimos 30 días
-                logger.info(f"📊 [AdminStatsView] Más de 10 días con actividad ({days_with_activity_count}), mostrando últimos {days_to_show} días")
+                days_to_show = max_days_to_check  # Mostrar Ãºltimos 30 dÃ­as
+                logger.info(f"[AdminStatsView] MÃ¡s de 10 dÃ­as con actividad ({days_with_activity_count}), mostrando Ãºltimos {days_to_show} dÃ­as")
             else:
                 days_to_show = 7
-                logger.info(f"📊 [AdminStatsView] {days_with_activity_count} días con actividad, mostrando últimos 7 días")
+                logger.info(f"[AdminStatsView] {days_with_activity_count} dÃ­as con actividad, mostrando Ãºltimos 7 dÃ­as")
             
             activity_by_day = []
             activity_labels = []
             
-            for i in range(days_to_show - 1, -1, -1):  # Desde hace N días hasta hoy
+            for i in range(days_to_show - 1, -1, -1):  # Desde hace N dÃ­as hasta hoy
                 date = today - timedelta(days=i)
                 
-                # Obtener conteos del diccionario (más eficiente que queries individuales)
+                # Obtener conteos del diccionario (mÃ¡s eficiente que queries individuales)
                 images_count = images_by_date.get(date, 0)
                 users_count = users_by_date.get(date, 0)
                 predictions_count = predictions_by_date.get(date, 0)
@@ -2995,18 +2995,18 @@ class AdminStatsView(APIView):
                 elif i == 1:
                     activity_labels.append('Ayer')
                 else:
-                    # Para muchos días, usar formato más compacto
+                    # Para muchos dÃ­as, usar formato mÃ¡s compacto
                     if days_to_show > 14:
                         activity_labels.append(date.strftime('%d/%m'))
                     else:
-                        # Para pocos días, incluir día de la semana
-                        day_names = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+                        # Para pocos dÃ­as, incluir dÃ­a de la semana
+                        day_names = ['Dom', 'Lun', 'Mar', 'MiÃ©', 'Jue', 'Vie', 'SÃ¡b']
                         day_name = day_names[date.weekday()]
                         activity_labels.append(f"{day_name} {date.strftime('%d/%m')}")
             
-            logger.info(f"📊 [AdminStatsView] Actividad por día: {activity_by_day} ({len(activity_by_day)} días mostrados)")
+            logger.info(f"[AdminStatsView] Actividad por dÃ­a: {activity_by_day} ({len(activity_by_day)} dÃ­as mostrados)")
             
-            # Estadísticas de fincas
+            # EstadÃ­sticas de fincas
             total_fincas = 0
             fincas_this_week = 0
             fincas_this_month = 0
@@ -3016,26 +3016,26 @@ class AdminStatsView(APIView):
                 total_activas = Finca.objects.filter(activa=True).count()
                 fincas_this_week = Finca.objects.filter(fecha_registro__date__gte=this_week).count()
                 fincas_this_month = Finca.objects.filter(fecha_registro__date__gte=this_month).count()
-                logger.info(f"🏡 [AdminStatsView] Fincas - Total: {total_fincas}, Activas: {total_activas}, Esta semana: {fincas_this_week}, Este mes: {fincas_this_month}")
+                logger.info(f"[AdminStatsView] Fincas - Total: {total_fincas}, Activas: {total_activas}, Esta semana: {fincas_this_week}, Este mes: {fincas_this_month}")
             else:
-                logger.warning("⚠️ [AdminStatsView] Finca model no está disponible")
+                logger.warning("[WARNING] [AdminStatsView] Finca model no estÃ¡ disponible")
             
-            # Estadísticas de predicciones
+            # EstadÃ­sticas de predicciones
             total_predictions = CacaoPrediction.objects.count()
             
-            # Estadísticas por región
+            # EstadÃ­sticas por regiÃ³n
             region_stats = CacaoImage.objects.values('region').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True))
             ).order_by('-count')[:10]
             
-            # Estadísticas por finca
+            # EstadÃ­sticas por finca
             finca_stats = CacaoImage.objects.values('finca').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True))
             ).order_by('-count')[:10]
             
-            # Estadísticas de dimensiones promedio
+            # EstadÃ­sticas de dimensiones promedio
             avg_dimensions = CacaoPrediction.objects.aggregate(
                 avg_alto=Avg('alto_mm'),
                 avg_ancho=Avg('ancho_mm'),
@@ -3052,7 +3052,7 @@ class AdminStatsView(APIView):
                     confidences.append(float(pred.average_confidence))
                 avg_confidence = sum(confidences) / len(confidences) if confidences else 0
             
-            # Distribución de calidad para gráfico de dona
+            # DistribuciÃ³n de calidad para grÃ¡fico de dona
             # Basado en average_confidence de predicciones
             quality_distribution = {
                 'excelente': 0,  # >= 0.8
@@ -3073,7 +3073,7 @@ class AdminStatsView(APIView):
                     else:
                         quality_distribution['baja'] += 1
             
-            logger.info(f"📊 [AdminStatsView] Distribución de calidad: {quality_distribution}")
+            logger.info(f"[AdminStatsView] DistribuciÃ³n de calidad: {quality_distribution}")
             
             # Preparar respuesta
             stats = {
@@ -3122,13 +3122,13 @@ class AdminStatsView(APIView):
                 'generated_at': timezone.now().isoformat()
             }
             
-            logger.info(f"✅ [AdminStatsView] Estadísticas generadas - Users: {stats['users']['total']}, Fincas: {stats['fincas']['total']}, Images: {stats['images']['total']}, Quality: {stats['predictions']['average_confidence']}")
+            logger.info(f"[INFO] [AdminStatsView] EstadÃ­sticas generadas - Users: {stats['users']['total']}, Fincas: {stats['fincas']['total']}, Images: {stats['images']['total']}, Quality: {stats['predictions']['average_confidence']}")
             
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo estadísticas del sistema: {e}")
-            # Retornar datos vacíos en lugar de 500
+            logger.warning(f"[WARNING] Error obteniendo estadÃ­sticas del sistema: {e}")
+            # Retornar datos vacÃ­os en lugar de 500
             return Response({
                 'users': {
                     'total': 0,
@@ -3180,12 +3180,12 @@ class AdminStatsView(APIView):
 
 class ImageUpdateView(APIView, ImagePermissionMixin):
     """
-    Endpoint para actualizar metadatos de una imagen específica.
+    Endpoint para actualizar metadatos de una imagen especÃ­fica.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Actualiza los metadatos de una imagen específica",
+        operation_description="Actualiza los metadatos de una imagen especÃ­fica",
         operation_summary="Actualizar imagen",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -3207,11 +3207,11 @@ class ImageUpdateView(APIView, ImagePermissionMixin):
             403: ErrorResponseSerializer,
             404: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def patch(self, request, image_id):
         """
-        Actualiza los metadatos de una imagen específica.
+        Actualiza los metadatos de una imagen especÃ­fica.
         Solo el propietario o un admin pueden actualizar.
         """
         try:
@@ -3248,7 +3248,7 @@ class ImageUpdateView(APIView, ImagePermissionMixin):
                     image.fecha_cosecha = fecha_cosecha
                 except ValueError:
                     return Response({
-                        'error': 'Formato de fecha inválido. Use YYYY-MM-DD',
+                        'error': 'Formato de fecha invÃ¡lido. Use YYYY-MM-DD',
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -3276,12 +3276,12 @@ class ImageUpdateView(APIView, ImagePermissionMixin):
 
 class ImageDeleteView(APIView, ImagePermissionMixin):
     """
-    Endpoint para eliminar una imagen y su predicción asociada.
+    Endpoint para eliminar una imagen y su predicciÃ³n asociada.
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Elimina una imagen y su predicción asociada del sistema",
+        operation_description="Elimina una imagen y su predicciÃ³n asociada del sistema",
         operation_summary="Eliminar imagen",
         responses={
             200: openapi.Response(
@@ -3297,15 +3297,15 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
             403: ErrorResponseSerializer,
             404: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def delete(self, request, image_id):
         """
-        Elimina una imagen y su predicción asociada.
+        Elimina una imagen y su predicciÃ³n asociada.
         Solo el propietario o un admin pueden eliminar.
         """
         try:
-            # Obtener imagen con predicción
+            # Obtener imagen con predicciÃ³n
             try:
                 image = CacaoImage.objects.select_related('prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
@@ -3321,7 +3321,7 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Guardar información de la imagen antes de eliminarla
+            # Guardar informaciÃ³n de la imagen antes de eliminarla
             image_data = {
                 'id': image.id,
                 'file_name': image.file_name,
@@ -3336,7 +3336,7 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
                 'user': image.user.username
             }
             
-            # Información de la predicción si existe
+            # InformaciÃ³n de la predicciÃ³n si existe
             prediction_data = None
             if hasattr(image, 'prediction') and image.prediction:
                 prediction_data = {
@@ -3350,7 +3350,7 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
                     'created_at': image.prediction.created_at.isoformat()
                 }
             
-            # Eliminar imagen (esto también eliminará la predicción por CASCADE)
+            # Eliminar imagen (esto tambiÃ©n eliminarÃ¡ la predicciÃ³n por CASCADE)
             image.delete()
             
             logger.info(f"Imagen {image_id} eliminada por usuario {request.user.username}")
@@ -3371,7 +3371,7 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
 
 class ImageDownloadView(APIView, ImagePermissionMixin):
     """
-    Endpoint para descargar imágenes originales o procesadas.
+    Endpoint para descargar imÃ¡genes originales o procesadas.
     """
     permission_classes = [IsAuthenticated]
     
@@ -3390,7 +3390,7 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
             403: ErrorResponseSerializer,
             404: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def get(self, request, image_id):
         """
@@ -3443,13 +3443,13 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
                         'status': 'error'
                     }, status=status.HTTP_404_NOT_FOUND)
                 
-                # Para imágenes procesadas, redirigir a la URL del crop
+                # Para imÃ¡genes procesadas, redirigir a la URL del crop
                 from django.http import HttpResponseRedirect
                 return HttpResponseRedirect(crop_url)
                 
             else:
                 return Response({
-                    'error': 'Tipo de descarga inválido. Use "original" o "processed"',
+                    'error': 'Tipo de descarga invÃ¡lido. Use "original" o "processed"',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -3511,14 +3511,14 @@ class ImagesExportView(APIView, ImagePermissionMixin):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'format': openapi.Schema(type=openapi.TYPE_STRING, description="Formato de exportación: 'csv'"),
-                'include_images': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Incluir información de imágenes"),
+                'format': openapi.Schema(type=openapi.TYPE_STRING, description="Formato de exportaciÃ³n: 'csv'"),
+                'include_images': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Incluir informaciÃ³n de imÃ¡genes"),
                 'include_predictions': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Incluir predicciones"),
                 'date_from': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha desde"),
                 'date_to': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha hasta"),
-                'region': openapi.Schema(type=openapi.TYPE_STRING, description="Filtrar por región"),
+                'region': openapi.Schema(type=openapi.TYPE_STRING, description="Filtrar por regiÃ³n"),
                 'finca': openapi.Schema(type=openapi.TYPE_STRING, description="Filtrar por finca"),
-                'processed_only': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Solo imágenes procesadas")
+                'processed_only': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Solo imÃ¡genes procesadas")
             }
         ),
         responses={
@@ -3528,14 +3528,14 @@ class ImagesExportView(APIView, ImagePermissionMixin):
             ),
             400: ErrorResponseSerializer,
         },
-        tags=['Imágenes']
+        tags=['ImÃ¡genes']
     )
     def post(self, request):
         """
         Exporta los resultados de predicciones a CSV.
         """
         try:
-            # Obtener parámetros de exportación
+            # Obtener parÃ¡metros de exportaciÃ³n
             export_format = request.data.get('format', 'csv').lower()
             include_images = request.data.get('include_images', True)
             include_predictions = request.data.get('include_predictions', True)
@@ -3547,11 +3547,11 @@ class ImagesExportView(APIView, ImagePermissionMixin):
             
             if export_format != 'csv':
                 return Response({
-                    'error': 'Formato de exportación no soportado. Solo se admite CSV',
+                    'error': 'Formato de exportaciÃ³n no soportado. Solo se admite CSV',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Construir queryset base según permisos
+            # Construir queryset base segÃºn permisos
             queryset = self.get_user_images_queryset(request.user)
             
             # Aplicar filtros
@@ -3570,11 +3570,11 @@ class ImagesExportView(APIView, ImagePermissionMixin):
             if processed_only:
                 queryset = queryset.filter(processed=True)
             
-            # Solo incluir imágenes con predicciones si se solicitan predicciones
+            # Solo incluir imÃ¡genes con predicciones si se solicitan predicciones
             if include_predictions:
                 queryset = queryset.filter(prediction__isnull=False)
             
-            # Ordenar por fecha de creación
+            # Ordenar por fecha de creaciÃ³n
             queryset = queryset.order_by('-created_at')
             
             # Generar CSV
@@ -3646,7 +3646,7 @@ class ImagesExportView(APIView, ImagePermissionMixin):
                         prediction.created_at.isoformat()
                     ])
                 elif include_predictions:
-                    # Si se incluyen predicciones pero no hay predicción, llenar con vacíos
+                    # Si se incluyen predicciones pero no hay predicciÃ³n, llenar con vacÃ­os
                     row.extend([''] * 16)
                 
                 writer.writerow(row)
@@ -3662,12 +3662,12 @@ class ImagesExportView(APIView, ImagePermissionMixin):
             
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
-            logger.info(f"Exportación CSV generada por usuario {request.user.username}. Registros: {queryset.count()}")
+            logger.info(f"ExportaciÃ³n CSV generada por usuario {request.user.username}. Registros: {queryset.count()}")
             
             return response
             
         except Exception as e:
-            logger.error(f"Error generando exportación CSV: {e}")
+            logger.error(f"Error generando exportaciÃ³n CSV: {e}")
             return Response({
                 'error': 'Error interno del servidor',
                 'status': 'error'
@@ -3676,32 +3676,32 @@ class ImagesExportView(APIView, ImagePermissionMixin):
 
 class AdminImagesListView(APIView):
     """
-    Endpoint para listar todas las imágenes del sistema con filtros avanzados (Admin only).
+    Endpoint para listar todas las imÃ¡genes del sistema con filtros avanzados (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene la lista completa de imágenes del sistema con filtros avanzados (solo admins)",
-        operation_summary="Lista global de imágenes",
+        operation_description="Obtiene la lista completa de imÃ¡genes del sistema con filtros avanzados (solo admins)",
+        operation_summary="Lista global de imÃ¡genes",
         manual_parameters=[
-            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página (máximo 100)", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page', openapi.IN_QUERY, description="NÃºmero de pÃ¡gina", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="TamaÃ±o de pÃ¡gina (mÃ¡ximo 100)", type=openapi.TYPE_INTEGER),
             openapi.Parameter('user_id', openapi.IN_QUERY, description="Filtrar por ID de usuario", type=openapi.TYPE_INTEGER),
             openapi.Parameter('username', openapi.IN_QUERY, description="Filtrar por nombre de usuario", type=openapi.TYPE_STRING),
-            openapi.Parameter('region', openapi.IN_QUERY, description="Filtrar por región", type=openapi.TYPE_STRING),
+            openapi.Parameter('region', openapi.IN_QUERY, description="Filtrar por regiÃ³n", type=openapi.TYPE_STRING),
             openapi.Parameter('finca', openapi.IN_QUERY, description="Filtrar por finca", type=openapi.TYPE_STRING),
             openapi.Parameter('processed', openapi.IN_QUERY, description="Filtrar por estado de procesamiento", type=openapi.TYPE_BOOLEAN),
-            openapi.Parameter('has_prediction', openapi.IN_QUERY, description="Filtrar por existencia de predicción", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('has_prediction', openapi.IN_QUERY, description="Filtrar por existencia de predicciÃ³n", type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('search', openapi.IN_QUERY, description="Buscar en notas y metadatos", type=openapi.TYPE_STRING),
             openapi.Parameter('date_from', openapi.IN_QUERY, description="Fecha desde (YYYY-MM-DD)", type=openapi.TYPE_STRING),
             openapi.Parameter('date_to', openapi.IN_QUERY, description="Fecha hasta (YYYY-MM-DD)", type=openapi.TYPE_STRING),
-            openapi.Parameter('model_version', openapi.IN_QUERY, description="Filtrar por versión del modelo", type=openapi.TYPE_STRING),
-            openapi.Parameter('min_confidence', openapi.IN_QUERY, description="Confianza mínima", type=openapi.TYPE_NUMBER),
-            openapi.Parameter('max_confidence', openapi.IN_QUERY, description="Confianza máxima", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('model_version', openapi.IN_QUERY, description="Filtrar por versiÃ³n del modelo", type=openapi.TYPE_STRING),
+            openapi.Parameter('min_confidence', openapi.IN_QUERY, description="Confianza mÃ­nima", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('max_confidence', openapi.IN_QUERY, description="Confianza mÃ¡xima", type=openapi.TYPE_NUMBER),
         ],
         responses={
             200: openapi.Response(
-                description="Lista global de imágenes obtenida exitosamente",
+                description="Lista global de imÃ¡genes obtenida exitosamente",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -3724,7 +3724,7 @@ class AdminImagesListView(APIView):
     )
     def get(self, request):
         """
-        Obtiene la lista completa de imágenes del sistema con filtros avanzados.
+        Obtiene la lista completa de imÃ¡genes del sistema con filtros avanzados.
         Solo accesible para administradores.
         """
         try:
@@ -3735,9 +3735,9 @@ class AdminImagesListView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener parámetros de consulta
+            # Obtener parÃ¡metros de consulta
             page = int(request.GET.get('page', 1))
-            page_size = min(int(request.GET.get('page_size', 20)), 100)  # Máximo 100 por página
+            page_size = min(int(request.GET.get('page_size', 20)), 100)  # MÃ¡ximo 100 por pÃ¡gina
             user_id = request.GET.get('user_id')
             username = request.GET.get('username')
             region = request.GET.get('region')
@@ -3751,7 +3751,7 @@ class AdminImagesListView(APIView):
             min_confidence = request.GET.get('min_confidence')
             max_confidence = request.GET.get('max_confidence')
             
-            # Construir queryset base con todas las imágenes
+            # Construir queryset base con todas las imÃ¡genes
             queryset = CacaoImage.objects.all().select_related('user', 'prediction')
             
             # Aplicar filtros
@@ -3817,23 +3817,23 @@ class AdminImagesListView(APIView):
                 queryset = queryset.filter(prediction__average_confidence__lte=max_confidence)
                 filters_applied['max_confidence'] = float(max_confidence)
             
-            # Ordenar por fecha de creación (más recientes primero)
+            # Ordenar por fecha de creaciÃ³n (mÃ¡s recientes primero)
             queryset = queryset.order_by('-created_at')
             
-            # Paginación
+            # PaginaciÃ³n
             paginator = Paginator(queryset, page_size)
             total_pages = paginator.num_pages
             
-            # Validar página
+            # Validar pÃ¡gina
             if page > total_pages and total_pages > 0:
                 return Response({
-                    'error': f'Página {page} no existe. Total de páginas: {total_pages}',
+                    'error': f'PÃ¡gina {page} no existe. Total de pÃ¡ginas: {total_pages}',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             page_obj = paginator.get_page(page)
             
-            # Serializar resultados con información extendida
+            # Serializar resultados con informaciÃ³n extendida
             serializer = CacaoImageDetailSerializer(page_obj.object_list, many=True, context={'request': request})
             
             # Preparar respuesta
@@ -3848,7 +3848,7 @@ class AdminImagesListView(APIView):
                 'filters_applied': filters_applied
             }
             
-            # URLs de paginación
+            # URLs de paginaciÃ³n
             if page_obj.has_next():
                 response_data['next'] = f"{request.build_absolute_uri()}?page={page + 1}&page_size={page_size}"
             
@@ -3859,13 +3859,13 @@ class AdminImagesListView(APIView):
             
         except ValueError as e:
             return Response({
-                'error': 'Parámetros de consulta inválidos',
+                'error': 'ParÃ¡metros de consulta invÃ¡lidos',
                 'status': 'error',
                 'details': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
-            logger.error(f"Error obteniendo lista global de imágenes: {e}")
+            logger.error(f"Error obteniendo lista global de imÃ¡genes: {e}")
             return Response({
                 'error': 'Error interno del servidor',
                 'status': 'error'
@@ -3916,7 +3916,7 @@ class AdminImageDetailView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener imagen con información completa
+            # Obtener imagen con informaciÃ³n completa
             try:
                 image = CacaoImage.objects.select_related(
                     'user', 'prediction'
@@ -3929,11 +3929,11 @@ class AdminImageDetailView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Serializar imagen con predicción
+            # Serializar imagen con predicciÃ³n
             serializer = CacaoImageDetailSerializer(image, context={'request': request})
             image_data = serializer.data
             
-            # Agregar información administrativa adicional
+            # Agregar informaciÃ³n administrativa adicional
             image_data['admin_info'] = {
                 'owner_info': {
                     'id': image.user.id,
@@ -4065,7 +4065,7 @@ class AdminImageUpdateView(APIView):
                     image.fecha_cosecha = fecha_cosecha
                 except ValueError:
                     return Response({
-                        'error': 'Formato de fecha inválido. Use YYYY-MM-DD',
+                        'error': 'Formato de fecha invÃ¡lido. Use YYYY-MM-DD',
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -4156,7 +4156,7 @@ class AdminImageDeleteView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener imagen con predicción
+            # Obtener imagen con predicciÃ³n
             try:
                 image = CacaoImage.objects.select_related('user', 'prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
@@ -4165,7 +4165,7 @@ class AdminImageDeleteView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Guardar información completa antes de eliminar
+            # Guardar informaciÃ³n completa antes de eliminar
             image_data = {
                 'id': image.id,
                 'file_name': image.file_name,
@@ -4187,7 +4187,7 @@ class AdminImageDeleteView(APIView):
                 }
             }
             
-            # Información de la predicción si existe
+            # InformaciÃ³n de la predicciÃ³n si existe
             prediction_data = None
             if hasattr(image, 'prediction') and image.prediction:
                 prediction_data = {
@@ -4203,7 +4203,7 @@ class AdminImageDeleteView(APIView):
                     'created_at': image.prediction.created_at.isoformat()
                 }
             
-            # Eliminar imagen (esto también eliminará la predicción por CASCADE)
+            # Eliminar imagen (esto tambiÃ©n eliminarÃ¡ la predicciÃ³n por CASCADE)
             image.delete()
             
             logger.info(f"Imagen {image_id} eliminada por admin {request.user.username}. Propietario: {image_data['owner']['username']}")
@@ -4238,18 +4238,18 @@ class AdminImageDeleteView(APIView):
 
 class AdminBulkUpdateView(APIView):
     """
-    Endpoint para actualizaciones masivas de imágenes (Admin only).
+    Endpoint para actualizaciones masivas de imÃ¡genes (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Realiza actualizaciones masivas en múltiples imágenes (solo admins)",
-        operation_summary="Actualización masiva",
+        operation_description="Realiza actualizaciones masivas en mÃºltiples imÃ¡genes (solo admins)",
+        operation_summary="ActualizaciÃ³n masiva",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'image_ids': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_INTEGER), description="IDs de imágenes a actualizar"),
-                'filters': openapi.Schema(type=openapi.TYPE_OBJECT, description="Filtros para seleccionar imágenes automáticamente"),
+                'image_ids': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_INTEGER), description="IDs de imÃ¡genes a actualizar"),
+                'filters': openapi.Schema(type=openapi.TYPE_OBJECT, description="Filtros para seleccionar imÃ¡genes automÃ¡ticamente"),
                 'updates': openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -4262,12 +4262,12 @@ class AdminBulkUpdateView(APIView):
                         'processed': openapi.Schema(type=openapi.TYPE_BOOLEAN)
                     }
                 ),
-                'admin_notes': openapi.Schema(type=openapi.TYPE_STRING, description="Notas administrativas para la operación masiva")
+                'admin_notes': openapi.Schema(type=openapi.TYPE_STRING, description="Notas administrativas para la operaciÃ³n masiva")
             }
         ),
         responses={
             200: openapi.Response(
-                description="Actualización masiva completada",
+                description="ActualizaciÃ³n masiva completada",
                 schema=openapi.Schema(type=openapi.TYPE_OBJECT)
             ),
             400: ErrorResponseSerializer,
@@ -4277,7 +4277,7 @@ class AdminBulkUpdateView(APIView):
     )
     def post(self, request):
         """
-        Realiza actualizaciones masivas en múltiples imágenes.
+        Realiza actualizaciones masivas en mÃºltiples imÃ¡genes.
         Solo accesible para administradores.
         """
         try:
@@ -4288,7 +4288,7 @@ class AdminBulkUpdateView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener parámetros
+            # Obtener parÃ¡metros
             image_ids = request.data.get('image_ids', [])
             filters = request.data.get('filters', {})
             updates = request.data.get('updates', {})
@@ -4321,15 +4321,15 @@ class AdminBulkUpdateView(APIView):
                 if 'date_to' in filters:
                     queryset = queryset.filter(created_at__date__lte=filters['date_to'])
             
-            # Si se proporcionan IDs específicos, filtrar por ellos
+            # Si se proporcionan IDs especÃ­ficos, filtrar por ellos
             if image_ids:
                 queryset = queryset.filter(id__in=image_ids)
             
-            # Validar que hay imágenes para actualizar
+            # Validar que hay imÃ¡genes para actualizar
             total_images = queryset.count()
             if total_images == 0:
                 return Response({
-                    'error': 'No se encontraron imágenes que coincidan con los criterios',
+                    'error': 'No se encontraron imÃ¡genes que coincidan con los criterios',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -4341,11 +4341,11 @@ class AdminBulkUpdateView(APIView):
                     updates['fecha_cosecha'] = fecha_cosecha
                 except ValueError:
                     return Response({
-                        'error': 'Formato de fecha inválido. Use YYYY-MM-DD',
+                        'error': 'Formato de fecha invÃ¡lido. Use YYYY-MM-DD',
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Campos permitidos para actualización masiva
+            # Campos permitidos para actualizaciÃ³n masiva
             allowed_fields = ['finca', 'region', 'lote_id', 'variedad', 'fecha_cosecha', 'notas', 'processed']
             filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
             
@@ -4357,16 +4357,16 @@ class AdminBulkUpdateView(APIView):
                 else:
                     filtered_updates['notas'] = admin_entry.strip()
             
-            # Realizar actualización masiva
+            # Realizar actualizaciÃ³n masiva
             updated_count = queryset.update(**filtered_updates)
             
-            # Obtener información de las imágenes actualizadas
+            # Obtener informaciÃ³n de las imÃ¡genes actualizadas
             updated_images = queryset.values('id', 'file_name', 'user__username', 'finca', 'region')
             
-            logger.info(f"Actualización masiva realizada por admin {request.user.username}. Imágenes actualizadas: {updated_count}")
+            logger.info(f"ActualizaciÃ³n masiva realizada por admin {request.user.username}. ImÃ¡genes actualizadas: {updated_count}")
             
             return Response({
-                'message': 'Actualización masiva completada exitosamente',
+                'message': 'ActualizaciÃ³n masiva completada exitosamente',
                 'updated_count': updated_count,
                 'total_images_found': total_images,
                 'updated_fields': list(filtered_updates.keys()),
@@ -4378,7 +4378,7 @@ class AdminBulkUpdateView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.error(f"Error en actualización masiva por admin: {e}")
+            logger.error(f"Error en actualizaciÃ³n masiva por admin: {e}")
             return Response({
                 'error': 'Error interno del servidor',
                 'status': 'error'
@@ -4399,16 +4399,16 @@ class AdminBulkUpdateView(APIView):
 
 class AdminDatasetStatsView(APIView):
     """
-    Endpoint para obtener estadísticas globales del dataset (Admin only).
+    Endpoint para obtener estadÃ­sticas globales del dataset (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene estadísticas globales detalladas del dataset (solo admins)",
-        operation_summary="Estadísticas globales del dataset",
+        operation_description="Obtiene estadÃ­sticas globales detalladas del dataset (solo admins)",
+        operation_summary="EstadÃ­sticas globales del dataset",
         responses={
             200: openapi.Response(
-                description="Estadísticas globales obtenidas exitosamente",
+                description="EstadÃ­sticas globales obtenidas exitosamente",
                 schema=openapi.Schema(type=openapi.TYPE_OBJECT)
             ),
             403: ErrorResponseSerializer,
@@ -4417,7 +4417,7 @@ class AdminDatasetStatsView(APIView):
     )
     def get(self, request):
         """
-        Obtiene estadísticas globales detalladas del dataset.
+        Obtiene estadÃ­sticas globales detalladas del dataset.
         Solo accesible para administradores.
         """
         try:
@@ -4428,20 +4428,20 @@ class AdminDatasetStatsView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Estadísticas generales del dataset
+            # EstadÃ­sticas generales del dataset
             total_images = CacaoImage.objects.count()
             processed_images = CacaoImage.objects.filter(processed=True).count()
             unprocessed_images = total_images - processed_images
             
-            # Estadísticas por usuarios
+            # EstadÃ­sticas por usuarios
             total_users = User.objects.count()
             active_users = User.objects.filter(is_active=True).count()
             users_with_images = User.objects.filter(cacao_images__isnull=False).distinct().count()
             
-            # Estadísticas de predicciones
+            # EstadÃ­sticas de predicciones
             total_predictions = CacaoPrediction.objects.count()
             
-            # Estadísticas por fechas
+            # EstadÃ­sticas por fechas
             from datetime import timedelta
             today = timezone.now().date()
             this_week = today - timedelta(days=7)
@@ -4452,27 +4452,27 @@ class AdminDatasetStatsView(APIView):
             images_this_month = CacaoImage.objects.filter(created_at__date__gte=this_month).count()
             images_this_year = CacaoImage.objects.filter(created_at__date__gte=this_year).count()
             
-            # Estadísticas por región
+            # EstadÃ­sticas por regiÃ³n
             region_stats = CacaoImage.objects.values('region').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True)),
                 unique_users=Count('user', distinct=True)
             ).order_by('-count')[:20]
             
-            # Estadísticas por finca
+            # EstadÃ­sticas por finca
             finca_stats = CacaoImage.objects.values('finca').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True)),
                 unique_users=Count('user', distinct=True)
             ).order_by('-count')[:20]
             
-            # Estadísticas por variedad
+            # EstadÃ­sticas por variedad
             variedad_stats = CacaoImage.objects.values('variedad').annotate(
                 count=Count('id'),
                 processed_count=Count('id', filter=Q(processed=True))
             ).order_by('-count')[:15]
             
-            # Estadísticas de dimensiones y confianza
+            # EstadÃ­sticas de dimensiones y confianza
             avg_dimensions = CacaoPrediction.objects.aggregate(
                 avg_alto=Avg('alto_mm'),
                 avg_ancho=Avg('ancho_mm'),
@@ -4495,7 +4495,7 @@ class AdminDatasetStatsView(APIView):
                     min_confidence = min(confidences)
                     max_confidence = max(confidences)
             
-            # Estadísticas por modelo
+            # EstadÃ­sticas por modelo
             model_stats = []
             for model in CacaoPrediction.objects.values_list('model_version', flat=True).distinct():
                 predictions = CacaoPrediction.objects.filter(model_version=model)
@@ -4509,7 +4509,7 @@ class AdminDatasetStatsView(APIView):
                 })
             model_stats.sort(key=lambda x: x['count'], reverse=True)
             
-            # Estadísticas por dispositivo
+            # EstadÃ­sticas por dispositivo
             device_stats = CacaoPrediction.objects.values('device_used').annotate(
                 count=Count('id'),
                 avg_processing_time=Avg('processing_time_ms')
@@ -4521,7 +4521,7 @@ class AdminDatasetStatsView(APIView):
                 processed_count=Count('api_cacao_images', filter=Q(api_cacao_images__processed=True))
             ).order_by('-image_count')[:10]
             
-            # Estadísticas de archivos
+            # EstadÃ­sticas de archivos
             total_file_size = CacaoImage.objects.aggregate(
                 total_size=Sum('file_size')
             )['total_size'] or 0
@@ -4530,7 +4530,7 @@ class AdminDatasetStatsView(APIView):
                 avg_size=Avg('file_size')
             )['avg_size'] or 0
             
-            # Estadísticas de calidad de datos
+            # EstadÃ­sticas de calidad de datos
             images_with_metadata = CacaoImage.objects.filter(
                 Q(finca__isnull=False) & ~Q(finca='') |
                 Q(region__isnull=False) & ~Q(region='') |
@@ -4612,7 +4612,7 @@ class AdminDatasetStatsView(APIView):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.error(f"Error obteniendo estadísticas globales del dataset: {e}")
+            logger.error(f"Error obteniendo estadÃ­sticas globales del dataset: {e}")
             return Response({
                 'error': 'Error interno del servidor',
                 'status': 'error'
@@ -4641,8 +4641,8 @@ class TrainingJobListView(APIView):
         operation_description="Obtiene la lista de trabajos de entrenamiento (solo admins)",
         operation_summary="Lista de trabajos de entrenamiento",
         manual_parameters=[
-            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page', openapi.IN_QUERY, description="NÃºmero de pÃ¡gina", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="TamaÃ±o de pÃ¡gina", type=openapi.TYPE_INTEGER),
             openapi.Parameter('status', openapi.IN_QUERY, description="Filtrar por estado", type=openapi.TYPE_STRING),
             openapi.Parameter('job_type', openapi.IN_QUERY, description="Filtrar por tipo", type=openapi.TYPE_STRING),
             openapi.Parameter('created_by', openapi.IN_QUERY, description="Filtrar por creador", type=openapi.TYPE_INTEGER),
@@ -4669,7 +4669,7 @@ class TrainingJobListView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener parámetros de consulta
+            # Obtener parÃ¡metros de consulta
             page = int(request.GET.get('page', 1))
             page_size = min(int(request.GET.get('page_size', 20)), 100)
             status_filter = request.GET.get('status')
@@ -4689,17 +4689,17 @@ class TrainingJobListView(APIView):
             if created_by_filter:
                 queryset = queryset.filter(created_by_id=created_by_filter)
             
-            # Ordenar por fecha de creación (más recientes primero)
+            # Ordenar por fecha de creaciÃ³n (mÃ¡s recientes primero)
             queryset = queryset.order_by('-created_at')
             
-            # Paginación
+            # PaginaciÃ³n
             paginator = Paginator(queryset, page_size)
             total_pages = paginator.num_pages
             
-            # Validar página
+            # Validar pÃ¡gina
             if page > total_pages and total_pages > 0:
                 return Response({
-                    'error': f'Página {page} no existe. Total de páginas: {total_pages}',
+                    'error': f'PÃ¡gina {page} no existe. Total de pÃ¡ginas: {total_pages}',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -4720,7 +4720,7 @@ class TrainingJobListView(APIView):
                 'previous': None
             }
             
-            # URLs de paginación
+            # URLs de paginaciÃ³n
             if page_obj.has_next():
                 response_data['next'] = f"{request.build_absolute_uri()}?page={page + 1}&page_size={page_size}"
             
@@ -4731,7 +4731,7 @@ class TrainingJobListView(APIView):
             
         except ValueError as e:
             return Response({
-                'error': 'Parámetros de consulta inválidos',
+                'error': 'ParÃ¡metros de consulta invÃ¡lidos',
                 'status': 'error',
                 'details': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -4770,11 +4770,11 @@ class TrainingJobCreateView(APIView):
             properties={
                 'job_type': openapi.Schema(type=openapi.TYPE_STRING, description="Tipo: regression, vision, incremental"),
                 'model_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre del modelo"),
-                'dataset_size': openapi.Schema(type=openapi.TYPE_INTEGER, description="Tamaño del dataset"),
-                'epochs': openapi.Schema(type=openapi.TYPE_INTEGER, description="Número de epochs"),
-                'batch_size': openapi.Schema(type=openapi.TYPE_INTEGER, description="Tamaño del batch"),
+                'dataset_size': openapi.Schema(type=openapi.TYPE_INTEGER, description="TamaÃ±o del dataset"),
+                'epochs': openapi.Schema(type=openapi.TYPE_INTEGER, description="NÃºmero de epochs"),
+                'batch_size': openapi.Schema(type=openapi.TYPE_INTEGER, description="TamaÃ±o del batch"),
                 'learning_rate': openapi.Schema(type=openapi.TYPE_NUMBER, description="Learning rate"),
-                'config_params': openapi.Schema(type=openapi.TYPE_OBJECT, description="Parámetros adicionales")
+                'config_params': openapi.Schema(type=openapi.TYPE_OBJECT, description="ParÃ¡metros adicionales")
             }
         ),
         responses={
@@ -4806,12 +4806,12 @@ class TrainingJobCreateView(APIView):
             
             if not serializer.is_valid():
                 return Response({
-                    'error': 'Datos de entrada inválidos',
+                    'error': 'Datos de entrada invÃ¡lidos',
                     'status': 'error',
                     'details': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Generar ID único para el trabajo
+            # Generar ID Ãºnico para el trabajo
             import uuid
             job_id = f"job_{uuid.uuid4().hex[:12]}"
             
@@ -4822,7 +4822,7 @@ class TrainingJobCreateView(APIView):
                 **serializer.validated_data
             )
             
-            # Simular inicio del entrenamiento (en producción esto sería una tarea asíncrona)
+            # Simular inicio del entrenamiento (en producciÃ³n esto serÃ­a una tarea asÃ­ncrona)
             self._simulate_training_start(training_job)
             
             # Serializar respuesta
@@ -4846,13 +4846,13 @@ class TrainingJobCreateView(APIView):
     def _simulate_training_start(self, training_job):
         """
         Simular inicio del entrenamiento.
-        En producción, esto sería una tarea asíncrona con Celery.
+        En producciÃ³n, esto serÃ­a una tarea asÃ­ncrona con Celery.
         """
         try:
             # Marcar como iniciado
             training_job.mark_started()
             
-            # Simular progreso (en producción esto sería manejado por la tarea de entrenamiento)
+            # Simular progreso (en producciÃ³n esto serÃ­a manejado por la tarea de entrenamiento)
             import threading
             import time
             
@@ -4861,7 +4861,7 @@ class TrainingJobCreateView(APIView):
                     time.sleep(0.1)  # Simular tiempo de entrenamiento
                     training_job.update_progress(i, f"Epoch {i}/{training_job.epochs}")
                 
-                # Simular finalización exitosa
+                # Simular finalizaciÃ³n exitosa
                 mock_metrics = {
                     'final_loss': 0.123,
                     'accuracy': 0.95,
@@ -4873,13 +4873,13 @@ class TrainingJobCreateView(APIView):
                 
                 training_job.mark_completed(mock_metrics, mock_model_path)
             
-            # Ejecutar simulación en hilo separado
+            # Ejecutar simulaciÃ³n en hilo separado
             thread = threading.Thread(target=simulate_progress)
             thread.daemon = True
             thread.start()
             
         except Exception as e:
-            logger.error(f"Error iniciando simulación de entrenamiento: {e}")
+            logger.error(f"Error iniciando simulaciÃ³n de entrenamiento: {e}")
             training_job.mark_failed(f"Error iniciando entrenamiento: {str(e)}")
     
     def _is_admin_user(self, user):
@@ -4897,7 +4897,7 @@ class TrainingJobCreateView(APIView):
 
 class TrainingJobStatusView(APIView):
     """
-    Endpoint para obtener el estado de un trabajo de entrenamiento específico.
+    Endpoint para obtener el estado de un trabajo de entrenamiento especÃ­fico.
     """
     permission_classes = [IsAuthenticated]
     
@@ -4939,7 +4939,7 @@ class TrainingJobStatusView(APIView):
             from .serializers import TrainingJobStatusSerializer
             serializer = TrainingJobStatusSerializer(training_job)
             
-            # Información adicional del estado
+            # InformaciÃ³n adicional del estado
             status_info = {
                 'job': serializer.data,
                 'status_details': {
@@ -4961,7 +4961,7 @@ class TrainingJobStatusView(APIView):
     
     def _estimate_completion(self, training_job):
         """
-        Estimar tiempo de finalización basado en el progreso actual.
+        Estimar tiempo de finalizaciÃ³n basado en el progreso actual.
         """
         if training_job.status == 'completed':
             return "Completado"
@@ -5001,12 +5001,12 @@ class TrainingJobStatusView(APIView):
 
 class UserDetailView(APIView):
     """
-    Endpoint para obtener detalles de un usuario específico (Admin only).
+    Endpoint para obtener detalles de un usuario especÃ­fico (Admin only).
     """
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_description="Obtiene los detalles completos de un usuario específico (solo admins)",
+        operation_description="Obtiene los detalles completos de un usuario especÃ­fico (solo admins)",
         operation_summary="Detalles de usuario",
         responses={
             200: openapi.Response(
@@ -5020,7 +5020,7 @@ class UserDetailView(APIView):
     )
     def get(self, request, user_id):
         """
-        Obtiene los detalles completos de un usuario específico.
+        Obtiene los detalles completos de un usuario especÃ­fico.
         Solo accesible para administradores.
         """
         try:
@@ -5040,11 +5040,11 @@ class UserDetailView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Serializar usuario con información extendida
+            # Serializar usuario con informaciÃ³n extendida
             serializer = UserSerializer(user)
             user_data = serializer.data
             
-            # Agregar estadísticas adicionales
+            # Agregar estadÃ­sticas adicionales
             try:
                 cacao_images_manager = getattr(user, 'cacao_images', None) or getattr(user, 'api_cacao_images', None) or getattr(user, 'images_app_cacao_images', None)
                 total_images = cacao_images_manager.count() if cacao_images_manager is not None else 0
@@ -5091,3 +5091,5 @@ class UserDetailView(APIView):
             bool: True si es admin, False en caso contrario
         """
         return user.is_superuser or user.is_staff
+
+

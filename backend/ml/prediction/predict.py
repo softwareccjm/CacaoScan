@@ -1,6 +1,6 @@
-"""
-Módulo de predicción unificada para CacaoScan.
-Integra segmentación YOLOv8-seg con modelos de regresión.
+﻿"""
+MÃ³dulo de predicciÃ³n unificada para CacaoScan.
+Integra segmentaciÃ³n YOLOv8-seg con modelos de regresiÃ³n.
 """
 import time
 import uuid
@@ -60,8 +60,8 @@ class CacaoPredictor:
     
     def load_artifacts(self) -> bool:
         """
-        Carga todos los artefactos necesarios para la predicción.
-        Si no existen, entrena automáticamente los modelos.
+        Carga todos los artefactos necesarios para la predicciÃ³n.
+        Si no existen, entrena automÃ¡ticamente los modelos.
         
         Returns:
             True si se cargaron exitosamente, False en caso contrario
@@ -88,9 +88,9 @@ class CacaoPredictor:
             scalers_exist = scalers_path.exists()
             
             if not models_exist or not scalers_exist:
-                logger.warning("Modelos o escaladores no encontrados. Iniciando entrenamiento automático...")
+                logger.warning("Modelos o escaladores no encontrados. Iniciando entrenamiento automÃ¡tico...")
                 if not self._auto_train_models():
-                    logger.error("Error en entrenamiento automático")
+                    logger.error("Error en entrenamiento automÃ¡tico")
                     return False
             
             # 3. Cargar escaladores
@@ -101,7 +101,7 @@ class CacaoPredictor:
                 logger.error(f"Error cargando escaladores: {e}")
                 return False
             
-            # 4. Cargar modelos de regresión
+            # 4. Cargar modelos de regresiÃ³n
             self.regression_models = {}
             
             for target in TARGETS:
@@ -146,21 +146,21 @@ class CacaoPredictor:
     
     def _auto_train_models(self) -> bool:
         """
-        Entrena automáticamente los modelos si no existen.
+        Entrena automÃ¡ticamente los modelos si no existen.
         
         Returns:
             True si el entrenamiento fue exitoso, False en caso contrario
         """
         try:
-            logger.info("🚀 Iniciando entrenamiento automático de modelos...")
+            logger.info("ðŸš€ Iniciando entrenamiento automÃ¡tico de modelos...")
             
             # Importar funciones de entrenamiento
             from ..pipeline.train_all import run_training_pipeline
             
-            # Configuración de entrenamiento automático
+            # ConfiguraciÃ³n de entrenamiento automÃ¡tico
             config = {
-                'epochs': 30,  # Menos epochs para entrenamiento rápido
-                'batch_size': 16,  # Batch size más pequeño para memoria
+                'epochs': 30,  # Menos epochs para entrenamiento rÃ¡pido
+                'batch_size': 16,  # Batch size mÃ¡s pequeÃ±o para memoria
                 'learning_rate': 0.001,
                 'multi_head': False,  # 4 modelos independientes
                 'model_type': 'resnet18',
@@ -169,7 +169,7 @@ class CacaoPredictor:
                 'save_best_only': True
             }
             
-            logger.info(f"Configuración de entrenamiento automático: {config}")
+            logger.info(f"ConfiguraciÃ³n de entrenamiento automÃ¡tico: {config}")
             
             # Ejecutar pipeline de entrenamiento
             success = run_training_pipeline(
@@ -184,19 +184,19 @@ class CacaoPredictor:
             )
             
             if success:
-                logger.info("✅ Entrenamiento automático completado exitosamente")
+                logger.info("âœ… Entrenamiento automÃ¡tico completado exitosamente")
                 return True
             else:
-                logger.error("❌ Error en entrenamiento automático")
+                logger.error("âŒ Error en entrenamiento automÃ¡tico")
                 return False
                 
         except Exception as e:
-            logger.error(f"Error en entrenamiento automático: {e}")
+            logger.error(f"Error en entrenamiento automÃ¡tico: {e}")
             return False
     
     def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
         """
-        Preprocesa una imagen para los modelos de regresión.
+        Preprocesa una imagen para los modelos de regresiÃ³n.
         
         Args:
             image: Imagen PIL
@@ -206,7 +206,7 @@ class CacaoPredictor:
         """
         import torchvision.transforms as transforms
         
-        # Transformaciones estándar para ImageNet
+        # Transformaciones estÃ¡ndar para ImageNet
         transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -216,14 +216,14 @@ class CacaoPredictor:
         # Aplicar transformaciones
         tensor = transform(image)
         
-        # Añadir dimensión de batch
+        # AÃ±adir dimensiÃ³n de batch
         tensor = tensor.unsqueeze(0)
         
         return tensor.to(self.device)
     
     def _predict_single_target(self, image_tensor: torch.Tensor, target: str) -> Tuple[float, float]:
         """
-        Predice un target específico.
+        Predice un target especÃ­fico.
         
         Args:
             image_tensor: Imagen preprocesada
@@ -235,7 +235,7 @@ class CacaoPredictor:
         model = self.regression_models[target]
         
         with torch.no_grad():
-            # Predicción
+            # PredicciÃ³n
             prediction = model(image_tensor)
             prediction_value = prediction.cpu().numpy().flatten()[0]
             
@@ -248,17 +248,17 @@ class CacaoPredictor:
                     logger.warning(f"Error desnormalizando {target}: {e}")
             
             # Calcular confianza (proxy basado en varianza del modelo)
-            # Usar dropout para estimar incertidumbre si está disponible
+            # Usar dropout para estimar incertidumbre si estÃ¡ disponible
             confidence = self._estimate_confidence(model, image_tensor, target)
             
             return float(prediction_value), float(confidence)
     
     def _estimate_confidence(self, model: torch.nn.Module, image_tensor: torch.Tensor, target: str) -> float:
         """
-        Estima la confianza de la predicción.
+        Estima la confianza de la predicciÃ³n.
         
         Args:
-            model: Modelo de regresión
+            model: Modelo de regresiÃ³n
             image_tensor: Imagen preprocesada
             target: Target predicho
             
@@ -270,7 +270,7 @@ class CacaoPredictor:
             model.train()  # Activar dropout
             
             predictions = []
-            n_samples = 5  # Número de muestras para estimar varianza
+            n_samples = 5  # NÃºmero de muestras para estimar varianza
             
             for _ in range(n_samples):
                 with torch.no_grad():
@@ -284,19 +284,19 @@ class CacaoPredictor:
             variance = np.var(predictions)
             
             # Convertir varianza a confianza (menor varianza = mayor confianza)
-            # Usar función sigmoide para mapear a [0, 1]
+            # Usar funciÃ³n sigmoide para mapear a [0, 1]
             confidence = 1.0 / (1.0 + variance * 10)  # Factor de escala ajustable
             
             return min(max(confidence, 0.0), 1.0)  # Clamp a [0, 1]
             
         except Exception as e:
             logger.warning(f"Error estimando confianza para {target}: {e}")
-            # Fallback: confianza basada en rangos típicos
+            # Fallback: confianza basada en rangos tÃ­picos
             return self._get_proxy_confidence(target)
     
     def _get_proxy_confidence(self, target: str) -> float:
         """
-        Obtiene una confianza proxy basada en estadísticas del target.
+        Obtiene una confianza proxy basada en estadÃ­sticas del target.
         
         Args:
             target: Target predicho
@@ -304,7 +304,7 @@ class CacaoPredictor:
         Returns:
             Confianza proxy (0-1)
         """
-        # Confianzas proxy basadas en la dificultad típica de cada target
+        # Confianzas proxy basadas en la dificultad tÃ­pica de cada target
         proxy_confidences = {
             'alto': 0.85,
             'ancho': 0.80,
@@ -330,8 +330,8 @@ class CacaoPredictor:
         start_time = time.time()
         
         try:
-            # 1. Segmentación y recorte
-            logger.debug("Iniciando segmentación...")
+            # 1. SegmentaciÃ³n y recorte
+            logger.debug("Iniciando segmentaciÃ³n...")
             
             # Guardar imagen temporalmente para el cropper
             temp_image_path = self.runtime_crops_dir / f"temp_{uuid.uuid4()}.jpg"
@@ -346,7 +346,7 @@ class CacaoPredictor:
                 )
                 
                 if not crop_result['success']:
-                    raise ValueError(f"Error en segmentación: {crop_result.get('error', 'Error desconocido')}")
+                    raise ValueError(f"Error en segmentaciÃ³n: {crop_result.get('error', 'Error desconocido')}")
                 
                 # Cargar el crop generado
                 crop_path = crop_result['crop_path']
@@ -364,7 +364,7 @@ class CacaoPredictor:
                 if temp_image_path.exists():
                     temp_image_path.unlink()
             
-            # 2. Preprocesar imagen para regresión
+            # 2. Preprocesar imagen para regresiÃ³n
             image_tensor = self._preprocess_image(crop_image)
             
             # 3. Predecir cada target
@@ -397,12 +397,12 @@ class CacaoPredictor:
                 }
             }
             
-            logger.info(f"Predicción completada en {total_time:.2f}s")
+            logger.info(f"PredicciÃ³n completada en {total_time:.2f}s")
             
             return result
             
         except Exception as e:
-            logger.error(f"Error en predicción: {e}")
+            logger.error(f"Error en predicciÃ³n: {e}")
             raise
     
     def predict_from_bytes(self, image_bytes: bytes) -> Dict[str, Any]:
@@ -431,10 +431,10 @@ class CacaoPredictor:
     
     def get_model_info(self) -> Dict[str, Any]:
         """
-        Obtiene información sobre los modelos cargados.
+        Obtiene informaciÃ³n sobre los modelos cargados.
         
         Returns:
-            Diccionario con información de los modelos
+            Diccionario con informaciÃ³n de los modelos
         """
         if not self.models_loaded:
             return {'status': 'not_loaded'}
@@ -472,16 +472,16 @@ def get_predictor() -> CacaoPredictor:
     if _predictor_instance is None:
         _predictor_instance = CacaoPredictor()
         
-        # Intentar cargar artefactos automáticamente
+        # Intentar cargar artefactos automÃ¡ticamente
         if not _predictor_instance.load_artifacts():
-            logger.warning("No se pudieron cargar todos los artefactos automáticamente")
+            logger.warning("No se pudieron cargar todos los artefactos automÃ¡ticamente")
     
     return _predictor_instance
 
 
 def load_artifacts() -> bool:
     """
-    Función de conveniencia para cargar artefactos.
+    FunciÃ³n de conveniencia para cargar artefactos.
     
     Returns:
         True si se cargaron exitosamente
@@ -492,7 +492,7 @@ def load_artifacts() -> bool:
 
 def predict_image(image: Image.Image) -> Dict[str, Any]:
     """
-    Función de conveniencia para predecir una imagen.
+    FunciÃ³n de conveniencia para predecir una imagen.
     
     Args:
         image: Imagen PIL
@@ -506,7 +506,7 @@ def predict_image(image: Image.Image) -> Dict[str, Any]:
 
 def predict_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
     """
-    Función de conveniencia para predecir desde bytes.
+    FunciÃ³n de conveniencia para predecir desde bytes.
     
     Args:
         image_bytes: Bytes de la imagen
@@ -516,3 +516,5 @@ def predict_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
     """
     predictor = get_predictor()
     return predictor.predict_from_bytes(image_bytes)
+
+

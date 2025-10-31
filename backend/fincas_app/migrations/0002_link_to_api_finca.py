@@ -1,4 +1,4 @@
-from django.db import migrations
+﻿from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -12,5 +12,7 @@ class Migration(migrations.Migration):
             reverse_sql='-- Unlink note only; no schema change to reverse.'
         ),
     ]
+
+
 
 

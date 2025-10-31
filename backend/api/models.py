@@ -1,4 +1,4 @@
-"""
+﻿"""
 Modelos de la API - Importar desde apps modulares.
 
 Este archivo actúa como un punto de acceso para evitar conflictos de importación.
@@ -148,7 +148,7 @@ class ReporteGenerado(models.Model):
     
     archivo = models.FileField(upload_to='reportes/%Y/%m/%d/', null=True, blank=True)
     nombre_archivo = models.CharField(max_length=255, null=True, blank=True)
-    tamaño_archivo = models.PositiveIntegerField(null=True, blank=True)
+    tamano_archivo = models.PositiveIntegerField(null=True, blank=True)
     
     parametros = models.JSONField(default=dict, blank=True)
     filtros_aplicados = models.JSONField(default=dict, blank=True)
@@ -167,6 +167,35 @@ class ReporteGenerado(models.Model):
         verbose_name = 'Reporte Generado'
         verbose_name_plural = 'Reportes Generados'
         ordering = ['-fecha_solicitud']
+    
+    @property
+    def tamano_archivo_mb(self):
+        """Obtener tamaño del archivo en MB."""
+        if self.tamano_archivo:
+            return round(self.tamano_archivo / (1024 * 1024), 2)
+        return None
+    
+    @property
+    def archivo_url(self):
+        """Obtener URL del archivo."""
+        if self.archivo:
+            return self.archivo.url
+        return None
+    
+    @property
+    def tiempo_generacion_segundos(self):
+        """Obtener tiempo de generación en segundos."""
+        if self.tiempo_generacion:
+            return self.tiempo_generacion.total_seconds()
+        return None
+    
+    @property
+    def esta_expirado(self):
+        """Verificar si el reporte ha expirado."""
+        if self.fecha_expiracion:
+            from django.utils import timezone
+            return timezone.now() > self.fecha_expiracion
+        return False
 
 
 class ModelMetrics(models.Model):
@@ -242,3 +271,5 @@ class ModelMetrics(models.Model):
         verbose_name = 'Métricas de Modelo'
         verbose_name_plural = 'Métricas de Modelos'
         ordering = ['-created_at']
+
+
