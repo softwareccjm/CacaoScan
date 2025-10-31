@@ -75,7 +75,7 @@ class CacaoDataset(Dataset):
                 if not os.path.exists(mask_path):
                     mask = self._auto_mask(os.path.join(img_dir, img))
                     cv2.imwrite(mask_path, mask)
-                    print(f"✅ Máscara creada: {mask_path}")
+                    print(f"[OK] Máscara creada: {mask_path}")
 
     def _auto_mask(self, image_path):
         """Usa OpenCV (grabCut) para generar máscara base automática."""
@@ -133,7 +133,7 @@ def train_background_ai(image_dir="ml/data/dataset/images", mask_dir="ml/data/da
 
     os.makedirs("ml/segmentation", exist_ok=True)
     torch.save(model.state_dict(), "ml/segmentation/cacao_unet.pth")
-    print("✅ Modelo entrenado y guardado en ml/segmentation/cacao_unet.pth")
+    print("[OK] Modelo entrenado y guardado en ml/segmentation/cacao_unet.pth")
 
 
 # ======================================================
@@ -143,7 +143,7 @@ def remove_background_ai(image_path: str) -> Image.Image:
     """Quita el fondo usando el modelo IA entrenado (U-Net)."""
     model_path = "ml/segmentation/cacao_unet.pth"
     if not os.path.exists(model_path):
-        raise FileNotFoundError("❌ No se encontró el modelo entrenado. Ejecuta train_background_ai() primero.")
+        raise FileNotFoundError("[ERROR] No se encontró el modelo entrenado. Ejecuta train_background_ai() primero.")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = UNet().to(device)
@@ -257,3 +257,158 @@ def denormalize_image(image: np.ndarray) -> np.ndarray:
         raise ValueError("image cannot be None")
     img = np.clip(image, 0.0, 1.0)
     return (img * 255.0).astype(np.uint8)
+
+
+def validate_crop_quality(image_rgb: np.ndarray, mask: np.ndarray, min_aspect_ratio: float = 0.1, max_aspect_ratio: float = 10.0, min_area: int = 100) -> bool:
+    """
+    Valida que el recorte tenga proporciones razonables.
+    
+    Args:
+        image_rgb: Imagen RGB (H, W, 3)
+        mask: Máscara binaria (H, W) con valores 0-255
+        min_aspect_ratio: Ratio mínimo permitido (ancho/alto) - más permisivo para granos variados
+        max_aspect_ratio: Ratio máximo permitido (ancho/alto) - más permisivo para granos variados
+        min_area: Área mínima en píxeles del objeto detectado
+        
+    Returns:
+        True si el recorte es válido, False en caso contrario
+    """
+    if image_rgb is None or mask is None:
+        return False
+    
+    # Convertir máscara a binaria si es necesario
+    if mask.dtype != np.uint8 or mask.max() > 1:
+        mask_binary = (mask > 128).astype(np.uint8)
+    else:
+        mask_binary = mask
+    
+    # Encontrar bounding box del objeto
+    contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return False
+    
+    # Usar el contorno más grande
+    largest_contour = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    
+    # Validar que el recorte tenga un área mínima (más flexible)
+    area = w * h
+    if area < min_area:
+        return False
+    
+    # Validar dimensiones mínimas (más flexible)
+    if w < 5 or h < 5:
+        return False
+    
+    # Calcular aspect ratio
+    aspect_ratio = w / h if h > 0 else 0
+    
+    # Validar aspect ratio con rangos más permisivos para granos de cacao
+    # Los granos pueden ser redondos (ratio ~1.0) o más alargados
+    if aspect_ratio < min_aspect_ratio or aspect_ratio > max_aspect_ratio:
+        # Log para debug (opcional, solo si hay problemas)
+        return False
+    
+    return True
+
+
+def create_transparent_crop(image_rgb: np.ndarray, mask: np.ndarray, padding: int = 10, crop_only: bool = False) -> np.ndarray:
+    """
+    Crea una imagen con fondo transparente usando una máscara.
+    
+    Args:
+        image_rgb: Imagen RGB (H, W, 3)
+        mask: Máscara binaria (H, W) con valores 0-255
+        padding: Padding en píxeles alrededor del objeto (si crop_only=True)
+        crop_only: Si True, recorta solo el bounding box. Si False, usa toda la imagen.
+    
+    Returns:
+        Imagen RGBA con fondo transparente (H, W, 4)
+    """
+    if image_rgb is None or mask is None:
+        raise ValueError("image_rgb y mask no pueden ser None")
+    
+    # Asegurar que la máscara tenga el mismo tamaño que la imagen
+    if mask.shape[:2] != image_rgb.shape[:2]:
+        mask = cv2.resize(mask, (image_rgb.shape[1], image_rgb.shape[0]), interpolation=cv2.INTER_LINEAR)
+    
+    # Convertir máscara a binaria si es necesario
+    if mask.dtype != np.uint8:
+        if mask.max() <= 1.0:
+            mask_binary = (mask * 255).astype(np.uint8)
+        else:
+            mask_binary = mask.astype(np.uint8)
+    else:
+        mask_binary = mask
+    
+    # Normalizar a 0-255 si es necesario
+    if mask_binary.max() <= 1:
+        mask_binary = (mask_binary * 255).astype(np.uint8)
+    else:
+        mask_binary = np.clip(mask_binary, 0, 255).astype(np.uint8)
+    
+    # Normalizar máscara a [0, 1] para alpha
+    alpha = (mask_binary / 255.0).astype(np.float32)
+    
+    if crop_only:
+        # Recortar solo el bounding box del grano - método preciso que elimina bordes blancos
+        # 1. Usar la máscara para encontrar píxeles visibles
+        _, mask_thresh = cv2.threshold(mask_binary, 127, 255, cv2.THRESH_BINARY)
+        
+        # 2. Encontrar coordenadas de todos los píxeles visibles (no transparentes)
+        coords = np.where(mask_thresh > 0)
+        
+        if len(coords[0]) == 0:
+            # Si no hay píxeles visibles, usar toda la imagen
+            bbox = (0, 0, image_rgb.shape[1], image_rgb.shape[0])
+        else:
+            # 3. Calcular bounding box exacto desde los píxeles visibles (SIN padding para eliminar bordes)
+            y_min, y_max = coords[0].min(), coords[0].max()
+            x_min, x_max = coords[1].min(), coords[1].max()
+            
+            # 4. Calcular dimensiones exactas
+            w = x_max - x_min + 1
+            h = y_max - y_min + 1
+            
+            # 5. Asegurar que no salimos de los límites de la imagen
+            x = max(0, x_min)
+            y = max(0, y_min)
+            w = min(image_rgb.shape[1] - x, w)
+            h = min(image_rgb.shape[0] - y, h)
+            
+            bbox = (x, y, w, h)
+        
+        x, y, w, h = bbox
+        
+        # 6. Recortar imagen y máscara con precisión (mantener calidad original)
+        crop_image = image_rgb[y:y+h, x:x+w].copy()  # .copy() para evitar problemas de referencia
+        crop_alpha = alpha[y:y+h, x:x+w].copy()
+        
+        # 7. Crear imagen RGBA recortada con alta calidad
+        rgba = np.zeros((h, w, 4), dtype=np.uint8)
+        rgba[:, :, :3] = crop_image
+        
+        # 8. Aplicar máscara alpha con umbral para eliminar ruido de fondo
+        alpha_uint8 = (crop_alpha * 255).astype(np.uint8)
+        # Eliminar píxeles con alpha muy bajo (ruido)
+        alpha_uint8[alpha_uint8 < 30] = 0
+        rgba[:, :, 3] = alpha_uint8
+        
+        # 9. Limpieza final: eliminar bordes completamente transparentes
+        # Encontrar área real después de aplicar alpha
+        final_coords = np.where(alpha_uint8 > 0)
+        if len(final_coords[0]) > 0:
+            final_y_min, final_y_max = final_coords[0].min(), final_coords[0].max()
+            final_x_min, final_x_max = final_coords[1].min(), final_coords[1].max()
+            
+            # Solo recortar si hay bordes transparentes significativos (>3px)
+            if (final_y_min > 3 or final_y_max < h - 3 or final_x_min > 3 or final_x_max < w - 3):
+                rgba = rgba[final_y_min:final_y_max+1, final_x_min:final_x_max+1]
+    else:
+        # Modo nuevo: usar toda la imagen con fondo transparente
+        h, w = image_rgb.shape[:2]
+        rgba = np.zeros((h, w, 4), dtype=np.uint8)
+        rgba[:, :, :3] = image_rgb
+        rgba[:, :, 3] = (alpha * 255).astype(np.uint8)
+    
+    return rgba
