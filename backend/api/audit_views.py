@@ -62,7 +62,19 @@ class ActivityLogListView(APIView):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            queryset = ActivityLog.objects.all().select_related('usuario')
+            if ActivityLog is None:
+                # Si el modelo no está disponible, retornar vacío
+                return Response({
+                    'results': [],
+                    'count': 0,
+                    'page': 1,
+                    'page_size': 50,
+                    'total_pages': 0,
+                    'next': None,
+                    'previous': None,
+                }, status=status.HTTP_200_OK)
+            
+            queryset = ActivityLog.objects.all().select_related('usuario').order_by('-timestamp')
             
             # Aplicar filtros
             usuario = request.GET.get('usuario', '').strip()

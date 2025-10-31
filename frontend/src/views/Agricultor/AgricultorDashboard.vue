@@ -27,7 +27,10 @@
         />
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RecentActivity :recent-analyses="recentAnalyses" />
+          <RecentActivity 
+            :recent-analyses="recentAnalyses" 
+            @select-analysis="handleSelectAnalysis"
+          />
           <QuickActions 
             @nuevo-analisis="handleNuevoAnalisis"
             @gestionar-fincas="handleGestionarFincas"
@@ -106,18 +109,27 @@ export default {
     async function loadRecentAnalyses() {
       imagesLoading.value = true;
       try {
-        const data = await fetchImages(1, { page_size: '5' });
-        recentAnalyses.value = data.results.map(image => ({
-          id: `CAC-${image.id}`,
-          status: image.processed ? 'completed' : 'pending',
-          statusLabel: image.processed ? 'Completado' : 'Pendiente',
-          quality: image.prediction ? Math.round(image.prediction.average_confidence * 100) : 0,
-          defects: image.prediction ? Math.round((1 - image.prediction.average_confidence) * 100 * 10) / 10 : 0,
-          avgSize: image.prediction ? Math.round((image.prediction.alto_mm + image.prediction.ancho_mm + image.prediction.grosor_mm) / 3 * 10) / 10 : 0,
-          date: new Date(image.created_at).toLocaleDateString('es-ES')
-        }));
+        const data = await fetchImages(1, { page_size: 5 });
+        if (data && data.results && Array.isArray(data.results)) {
+          recentAnalyses.value = data.results.map(image => ({
+            id: `CAC-${image.id}`,
+            status: image.processed ? 'completed' : 'pending',
+            statusLabel: image.processed ? 'Completado' : 'Pendiente',
+            quality: image.prediction ? Math.round(image.prediction.average_confidence * 100) : 0,
+            defects: image.prediction ? Math.round((1 - image.prediction.average_confidence) * 100 * 10) / 10 : 0,
+            avgSize: image.prediction ? Math.round((image.prediction.alto_mm + image.prediction.ancho_mm + image.prediction.grosor_mm) / 3 * 10) / 10 : 0,
+            date: new Date(image.created_at).toLocaleDateString('es-ES', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })
+          }));
+        } else {
+          recentAnalyses.value = [];
+        }
       } catch (err) {
         console.error('Error loading recent analyses:', err);
+        recentAnalyses.value = [];
       } finally {
         imagesLoading.value = false;
       }
@@ -146,13 +158,25 @@ export default {
       // Aquí se puede agregar lógica adicional si es necesario
     }
 
+    // Función para manejar selección de análisis reciente
+    function handleSelectAnalysis(analysis) {
+      // Extraer el ID del formato CAC-{id}
+      const imageId = analysis.id.replace('CAC-', '');
+      // Navegar a la vista de detalle del análisis
+      router.push({ 
+        name: 'DetalleAnalisis', 
+        params: { id: imageId } 
+      });
+    }
+
     const handleNuevoAnalisis = () => {
-      // Navegar a la vista de nuevo análisis (se debe crear como vista separada)
-      alert('Redirigiendo a Nuevo Análisis...');
+      // Navegar a la vista de análisis de predicción
+      router.push({ name: 'Prediction' });
     };
 
     const handleGestionarFincas = () => {
-      router.push({ name: 'AgricultorFincas' });
+      // Navegar a la vista de gestión de fincas
+      router.push({ name: 'Fincas' });
     };
     
     // Computed para estadísticas formateadas
@@ -229,6 +253,7 @@ export default {
       refreshData,
       loadRecentAnalyses,
       handleImageSelected,
+      handleSelectAnalysis,
       handleNuevoAnalisis,
       handleGestionarFincas
     };

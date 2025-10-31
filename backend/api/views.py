@@ -2879,6 +2879,8 @@ class AdminStatsView(APIView):
             staff_users = User.objects.filter(is_staff=True).count()
             superusers = User.objects.filter(is_superuser=True).count()
             
+            logger.info(f"📊 [AdminStatsView] Usuarios - Total: {total_users}, Activos: {active_users}, Staff: {staff_users}, Superusers: {superusers}")
+            
             # Usuarios por rol
             analyst_users = User.objects.filter(groups__name='analyst').distinct().count()
             farmer_users = User.objects.filter(
@@ -2887,18 +2889,20 @@ class AdminStatsView(APIView):
                 ~Q(groups__name='analyst')
             ).count()
             
-            # Usuarios verificados
-            verified_users = User.objects.filter(
-                api_email_token__is_verified=True
-            ).count()
+            # Usuarios verificados - usar auth_email_token (related_name correcto)
+            try:
+                verified_users = User.objects.filter(
+                    auth_email_token__is_verified=True
+                ).count()
+            except Exception:
+                # Si no existe el campo, contar solo usuarios activos
+                verified_users = User.objects.filter(is_active=True).count()
             
             # Estadísticas de imágenes
             total_images = CacaoImage.objects.count()
             processed_images = CacaoImage.objects.filter(processed=True).count()
             unprocessed_images = total_images - processed_images
-            
-            # Estadísticas de predicciones
-            total_predictions = CacaoPrediction.objects.count()
+            logger.info(f"🖼️ [AdminStatsView] Imágenes - Total: {total_images}, Procesadas: {processed_images}, Sin procesar: {unprocessed_images}")
             
             # Estadísticas por fecha
             from datetime import timedelta
@@ -2911,6 +2915,113 @@ class AdminStatsView(APIView):
             
             images_this_week = CacaoImage.objects.filter(created_at__date__gte=this_week).count()
             images_this_month = CacaoImage.objects.filter(created_at__date__gte=this_month).count()
+            
+            # Datos de actividad por día para gráficos
+            # Optimizado: usar agregaciones de Django para obtener datos de todos los días de una vez
+            max_days_to_check = 30
+            
+            # Obtener conteos de imágenes por fecha usando agregación (más eficiente)
+            from django.db.models import Count
+            from django.db.models.functions import TruncDate
+            
+            # Imágenes por día (últimos 30 días)
+            images_by_date = dict(
+                CacaoImage.objects
+                .filter(created_at__date__gte=today - timedelta(days=max_days_to_check))
+                .annotate(date=TruncDate('created_at'))
+                .values('date')
+                .annotate(count=Count('id'))
+                .values_list('date', 'count')
+            )
+            
+            # Usuarios por día (últimos 30 días)
+            users_by_date = dict(
+                User.objects
+                .filter(date_joined__date__gte=today - timedelta(days=max_days_to_check))
+                .annotate(date=TruncDate('date_joined'))
+                .values('date')
+                .annotate(count=Count('id'))
+                .values_list('date', 'count')
+            )
+            
+            # Predicciones por día (últimos 30 días)
+            predictions_by_date = {}
+            if CacaoPrediction is not None:
+                predictions_by_date = dict(
+                    CacaoPrediction.objects
+                    .filter(created_at__date__gte=today - timedelta(days=max_days_to_check))
+                    .annotate(date=TruncDate('created_at'))
+                    .values('date')
+                    .annotate(count=Count('id'))
+                    .values_list('date', 'count')
+                )
+            
+            # Contar días únicos con actividad
+            all_dates_with_activity = set()
+            all_dates_with_activity.update(images_by_date.keys())
+            all_dates_with_activity.update(users_by_date.keys())
+            all_dates_with_activity.update(predictions_by_date.keys())
+            
+            days_with_activity_count = len(all_dates_with_activity)
+            
+            # Determinar cuántos días mostrar
+            # Si hay más de 10 días con actividad, mostrar hasta 30 días
+            # Si hay 10 o menos, mostrar solo los últimos 7 días
+            if days_with_activity_count > 10:
+                days_to_show = max_days_to_check  # Mostrar últimos 30 días
+                logger.info(f"📊 [AdminStatsView] Más de 10 días con actividad ({days_with_activity_count}), mostrando últimos {days_to_show} días")
+            else:
+                days_to_show = 7
+                logger.info(f"📊 [AdminStatsView] {days_with_activity_count} días con actividad, mostrando últimos 7 días")
+            
+            activity_by_day = []
+            activity_labels = []
+            
+            for i in range(days_to_show - 1, -1, -1):  # Desde hace N días hasta hoy
+                date = today - timedelta(days=i)
+                
+                # Obtener conteos del diccionario (más eficiente que queries individuales)
+                images_count = images_by_date.get(date, 0)
+                users_count = users_by_date.get(date, 0)
+                predictions_count = predictions_by_date.get(date, 0)
+                
+                total_activity = images_count + users_count + predictions_count
+                
+                activity_by_day.append(total_activity)
+                
+                # Formato de labels: "Hoy", "Ayer", o fecha
+                if i == 0:
+                    activity_labels.append('Hoy')
+                elif i == 1:
+                    activity_labels.append('Ayer')
+                else:
+                    # Para muchos días, usar formato más compacto
+                    if days_to_show > 14:
+                        activity_labels.append(date.strftime('%d/%m'))
+                    else:
+                        # Para pocos días, incluir día de la semana
+                        day_names = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+                        day_name = day_names[date.weekday()]
+                        activity_labels.append(f"{day_name} {date.strftime('%d/%m')}")
+            
+            logger.info(f"📊 [AdminStatsView] Actividad por día: {activity_by_day} ({len(activity_by_day)} días mostrados)")
+            
+            # Estadísticas de fincas
+            total_fincas = 0
+            fincas_this_week = 0
+            fincas_this_month = 0
+            if Finca is not None:
+                # Contar todas las fincas (no solo activas)
+                total_fincas = Finca.objects.count()
+                total_activas = Finca.objects.filter(activa=True).count()
+                fincas_this_week = Finca.objects.filter(fecha_registro__date__gte=this_week).count()
+                fincas_this_month = Finca.objects.filter(fecha_registro__date__gte=this_month).count()
+                logger.info(f"🏡 [AdminStatsView] Fincas - Total: {total_fincas}, Activas: {total_activas}, Esta semana: {fincas_this_week}, Este mes: {fincas_this_month}")
+            else:
+                logger.warning("⚠️ [AdminStatsView] Finca model no está disponible")
+            
+            # Estadísticas de predicciones
+            total_predictions = CacaoPrediction.objects.count()
             
             # Estadísticas por región
             region_stats = CacaoImage.objects.values('region').annotate(
@@ -2941,6 +3052,29 @@ class AdminStatsView(APIView):
                     confidences.append(float(pred.average_confidence))
                 avg_confidence = sum(confidences) / len(confidences) if confidences else 0
             
+            # Distribución de calidad para gráfico de dona
+            # Basado en average_confidence de predicciones
+            quality_distribution = {
+                'excelente': 0,  # >= 0.8
+                'buena': 0,      # 0.6 - 0.79
+                'regular': 0,    # 0.4 - 0.59
+                'baja': 0        # < 0.4
+            }
+            
+            if CacaoPrediction.objects.exists():
+                for pred in CacaoPrediction.objects.all():
+                    conf = float(pred.average_confidence)
+                    if conf >= 0.8:
+                        quality_distribution['excelente'] += 1
+                    elif conf >= 0.6:
+                        quality_distribution['buena'] += 1
+                    elif conf >= 0.4:
+                        quality_distribution['regular'] += 1
+                    else:
+                        quality_distribution['baja'] += 1
+            
+            logger.info(f"📊 [AdminStatsView] Distribución de calidad: {quality_distribution}")
+            
             # Preparar respuesta
             stats = {
                 'users': {
@@ -2962,6 +3096,11 @@ class AdminStatsView(APIView):
                     'this_month': images_this_month,
                     'processing_rate': round((processed_images / total_images * 100), 2) if total_images > 0 else 0
                 },
+                'fincas': {
+                    'total': total_fincas,
+                    'this_week': fincas_this_week,
+                    'this_month': fincas_this_month
+                },
                 'predictions': {
                     'total': total_predictions,
                     'average_dimensions': {
@@ -2975,8 +3114,15 @@ class AdminStatsView(APIView):
                 },
                 'top_regions': list(region_stats),
                 'top_fincas': list(finca_stats),
+                'activity_by_day': {
+                    'labels': activity_labels,
+                    'data': activity_by_day
+                },
+                'quality_distribution': quality_distribution,
                 'generated_at': timezone.now().isoformat()
             }
+            
+            logger.info(f"✅ [AdminStatsView] Estadísticas generadas - Users: {stats['users']['total']}, Fincas: {stats['fincas']['total']}, Images: {stats['images']['total']}, Quality: {stats['predictions']['average_confidence']}")
             
             return Response(stats, status=status.HTTP_200_OK)
             

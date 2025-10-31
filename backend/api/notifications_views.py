@@ -52,7 +52,19 @@ class NotificationListCreateView(APIView):
     def get(self, request):
         """Listar notificaciones con filtros."""
         try:
-            queryset = Notification.objects.filter(user=request.user)
+            if Notification is None:
+                # Si el modelo no está disponible, retornar vacío
+                return Response({
+                    'results': [],
+                    'count': 0,
+                    'page': 1,
+                    'page_size': 20,
+                    'total_pages': 0,
+                    'next': None,
+                    'previous': None,
+                }, status=status.HTTP_200_OK)
+            
+            queryset = Notification.objects.filter(user=request.user).order_by('-fecha_creacion')
             
             # Aplicar filtros
             tipo = request.GET.get('tipo', '').strip()

@@ -156,10 +156,23 @@ export default {
     }
 
     const formatValue = (value) => {
+      // Manejar diferentes tipos de valores
+      if (value === null || value === undefined) {
+        return '0'
+      }
       if (typeof value === 'number') {
+        // Si es NaN, retornar 0
+        if (isNaN(value)) {
+          return '0'
+        }
         return value.toLocaleString('es-ES')
       }
-      return value
+      // Si es string, intentar convertir a número
+      const numValue = parseFloat(value)
+      if (!isNaN(numValue)) {
+        return numValue.toLocaleString('es-ES')
+      }
+      return value || '0'
     }
 
     const getChangeBgClass = (change) => {

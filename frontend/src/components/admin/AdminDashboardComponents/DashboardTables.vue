@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="grid grid-cols-1 gap-6">
     <!-- Recent Users Table mejorado -->
     <div class="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden hover:shadow-xl hover:border-green-300 transition-all duration-300">
       <div class="px-6 py-4 border-b-2 border-gray-200 bg-gray-50 flex items-center justify-between">
@@ -29,7 +29,6 @@
               <th scope="col" class="px-6 py-3">Email</th>
               <th scope="col" class="px-6 py-3">Rol</th>
               <th scope="col" class="px-6 py-3">Estado</th>
-              <th scope="col" class="px-6 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -57,9 +56,9 @@
               <td class="px-6 py-4">
                 <span 
                   class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
-                  :class="getRoleBadgeClass(user.role)"
+                  :class="getRoleBadgeClass(user.role || 'user')"
                 >
-                  {{ user.role }}
+                  {{ getRoleDisplayName(user.role || 'user') }}
                 </span>
               </td>
               <td class="px-6 py-4">
@@ -69,29 +68,6 @@
                 >
                   {{ user.is_active ? 'Activo' : 'Inactivo' }}
                 </span>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center space-x-2">
-                  <button 
-                    @click="handleViewUser(user.id)" 
-                    class="text-green-600 hover:text-green-700 p-2 rounded-lg hover:bg-green-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    :title="`Ver usuario ${user.username}`"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                    </svg>
-                  </button>
-                  <button 
-                    @click="handleEditUser(user.id)" 
-                    class="text-amber-600 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    :title="`Editar usuario ${user.username}`"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
-                  </button>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -131,9 +107,14 @@
             </tr>
           </thead>
           <tbody>
+            <tr v-if="recentActivities.length === 0">
+              <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                No hay actividades recientes para mostrar
+              </td>
+            </tr>
             <tr 
               v-for="activity in recentActivities" 
-              :key="activity.id" 
+              :key="activity.id || activity.timestamp" 
               class="bg-white border-b hover:bg-gray-50"
             >
               <td class="px-6 py-4 text-sm text-gray-900">
@@ -144,10 +125,10 @@
                   class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
                   :class="getActionBadgeClass(activity.accion)"
                 >
-                  {{ activity.accion_display }}
+                  {{ activity.accion_display || activity.accion || 'Desconocida' }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-sm text-gray-900">{{ activity.modelo }}</td>
+              <td class="px-6 py-4 text-sm text-gray-900">{{ activity.modelo || 'N/A' }}</td>
               <td class="px-6 py-4 text-sm text-gray-500">
                 {{ formatDateTime(activity.timestamp) }}
               </td>
@@ -209,11 +190,25 @@ export default {
     getRoleBadgeClass(role) {
       const roleClasses = {
         'admin': 'bg-green-100 text-green-800',
-        'staff': 'bg-green-100 text-green-800',
+        'staff': 'bg-blue-100 text-blue-800',
+        'analyst': 'bg-purple-100 text-purple-800',
+        'farmer': 'bg-amber-100 text-amber-800',
         'user': 'bg-gray-100 text-gray-800',
-        'superuser': 'bg-green-100 text-green-800'
+        'superuser': 'bg-emerald-100 text-emerald-800'
       }
       return roleClasses[role?.toLowerCase()] || 'bg-gray-100 text-gray-800'
+    },
+    
+    getRoleDisplayName(role) {
+      const roleNames = {
+        'admin': 'Administrador',
+        'staff': 'Personal',
+        'analyst': 'Analista',
+        'farmer': 'Agricultor',
+        'user': 'Usuario',
+        'superuser': 'Super Admin'
+      }
+      return roleNames[role?.toLowerCase()] || role || 'Usuario'
     },
     
     getActionBadgeClass(action) {

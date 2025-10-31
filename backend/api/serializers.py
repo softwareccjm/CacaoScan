@@ -935,7 +935,7 @@ class NotificationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = (
-            'id', 'tipo', 'tipo_display', 'titulo', 'leida', 
+            'id', 'tipo', 'tipo_display', 'titulo', 'mensaje', 'leida', 
             'fecha_creacion', 'tiempo_transcurrido'
         )
 
