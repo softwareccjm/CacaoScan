@@ -59,6 +59,11 @@ urlpatterns = [
     path('train/jobs/create/', views.TrainingJobCreateView.as_view(), name='training-job-create'),
     path('train/jobs/<str:job_id>/status/', views.TrainingJobStatusView.as_view(), name='training-job-status'),
     
+    # Endpoints ML (alias más simples)
+    path('ml/train/', views.TrainingJobCreateView.as_view(), name='ml-train'),
+    path('ml/metrics/latest/', views.LatestMetricsView.as_view(), name='ml-metrics-latest'),
+    path('ml/promote/<str:version>/', views.PromoteModelView.as_view(), name='ml-promote'),
+    
     # Endpoints de gestión de fincas
     path('fincas/', views.FincaListCreateView.as_view(), name='fincas-list-create'),
     path('fincas/<int:finca_id>/', views.FincaDetailView.as_view(), name='finca-detail'),
