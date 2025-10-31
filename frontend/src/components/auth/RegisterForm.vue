@@ -15,8 +15,7 @@
 
     <form @submit.prevent="handleSubmit" class="space-y-6">
       <!-- SECCIÓN 1: Información Personal -->
-      <div
-        class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
+      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
         <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
           <div class="p-2 bg-green-100 rounded-lg">
             <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,11 +32,17 @@
             <label for="firstName" class="block text-sm font-semibold text-gray-700 mb-2">
               Nombre *
             </label>
-            <input id="firstName" v-model="form.firstName" type="text" autocomplete="given-name" required
+            <input 
+              id="firstName" 
+              v-model="form.firstName" 
+              type="text" 
+              autocomplete="given-name" 
+              required
               :disabled="isLoading"
               class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
               :class="errors.firstName ? 'border-red-500' : 'border-gray-300'"
-              placeholder="Juan" />
+              placeholder="Juan" 
+            />
             <p v-if="errors.firstName" class="text-red-600 text-xs mt-1">{{ errors.firstName }}</p>
           </div>
 
@@ -46,9 +51,14 @@
             <label for="segundoNombre" class="block text-sm font-semibold text-gray-700 mb-2">
               Segundo Nombre
             </label>
-            <input id="segundoNombre" v-model="form.segundoNombre" type="text" :disabled="isLoading"
+            <input 
+              id="segundoNombre" 
+              v-model="form.segundoNombre" 
+              type="text" 
+              :disabled="isLoading"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              placeholder="Carlos" />
+              placeholder="Carlos" 
+            />
           </div>
 
           <!-- Apellido -->
@@ -56,11 +66,17 @@
             <label for="lastName" class="block text-sm font-semibold text-gray-700 mb-2">
               Apellido *
             </label>
-            <input id="lastName" v-model="form.lastName" type="text" autocomplete="family-name" required
+            <input 
+              id="lastName" 
+              v-model="form.lastName" 
+              type="text" 
+              autocomplete="family-name" 
+              required
               :disabled="isLoading"
               class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
               :class="errors.lastName ? 'border-red-500' : 'border-gray-300'"
-              placeholder="Pérez" />
+              placeholder="Pérez" 
+            />
             <p v-if="errors.lastName" class="text-red-600 text-xs mt-1">{{ errors.lastName }}</p>
           </div>
 
@@ -69,9 +85,14 @@
             <label for="segundoApellido" class="block text-sm font-semibold text-gray-700 mb-2">
               Segundo Apellido
             </label>
-            <input id="segundoApellido" v-model="form.segundoApellido" type="text" :disabled="isLoading"
+            <input 
+              id="segundoApellido" 
+              v-model="form.segundoApellido" 
+              type="text" 
+              :disabled="isLoading"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              placeholder="Gómez" />
+              placeholder="Gómez" 
+            />
           </div>
 
           <!-- Teléfono -->
@@ -79,10 +100,16 @@
             <label for="phoneNumber" class="block text-sm font-semibold text-gray-700 mb-2">
               Teléfono
             </label>
-            <input id="phoneNumber" v-model="form.phoneNumber" type="tel" autocomplete="tel" :disabled="isLoading"
+            <input 
+              id="phoneNumber" 
+              v-model="form.phoneNumber" 
+              type="tel" 
+              autocomplete="tel" 
+              :disabled="isLoading"
               class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
               :class="errors.phoneNumber ? 'border-red-500' : 'border-gray-300'"
-              placeholder="+57 300 123 4567" />
+              placeholder="+57 300 123 4567" 
+            />
             <p v-if="errors.phoneNumber" class="text-red-600 text-xs mt-1">{{ errors.phoneNumber }}</p>
           </div>
 
@@ -91,8 +118,13 @@
             <label for="genero" class="block text-sm font-semibold text-gray-700 mb-2">
               Género *
             </label>
-            <select id="genero" v-model="form.genero" required :disabled="isLoading || isLoadingCatalogos"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
+            <select 
+              id="genero" 
+              v-model="form.genero" 
+              required 
+              :disabled="isLoading || isLoadingCatalogos"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+            >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else-if="generos.length === 0" value="">No hay opciones disponibles</option>
               <option v-for="genero in generos" :key="genero.codigo" :value="genero.codigo">
@@ -106,9 +138,15 @@
             <label for="fechaNacimiento" class="block text-sm font-semibold text-gray-700 mb-2">
               Fecha de Nacimiento
             </label>
-            <input id="fechaNacimiento" v-model="form.fechaNacimiento" type="date" :disabled="isLoading"
-              :max="maxBirthdate" :min="minBirthdate"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200" />
+            <input 
+              id="fechaNacimiento" 
+              v-model="form.fechaNacimiento" 
+              type="date" 
+              :disabled="isLoading"
+              :max="maxBirthdate" 
+              :min="minBirthdate"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200" 
+            />
             <p v-if="errors.fechaNacimiento" class="text-red-600 text-xs mt-1">{{ errors.fechaNacimiento }}</p>
             <p class="text-gray-500 text-xs mt-1">Debes tener al menos 14 años</p>
           </div>
@@ -116,8 +154,7 @@
       </div>
 
       <!-- SECCIÓN 2: Documentación -->
-      <div
-        class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
+      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
         <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
           <div class="p-2 bg-green-100 rounded-lg">
             <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -134,8 +171,13 @@
             <label for="tipoDocumento" class="block text-sm font-semibold text-gray-700 mb-2">
               Tipo Documento *
             </label>
-            <select id="tipoDocumento" v-model="form.tipoDocumento" required :disabled="isLoading || isLoadingCatalogos"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
+            <select 
+              id="tipoDocumento" 
+              v-model="form.tipoDocumento" 
+              required 
+              :disabled="isLoading || isLoadingCatalogos"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+            >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else-if="tiposDocumento.length === 0" value="">No hay opciones disponibles</option>
               <option v-for="tipo in tiposDocumento" :key="tipo.codigo" :value="tipo.codigo">
@@ -149,10 +191,16 @@
             <label for="numeroDocumento" class="block text-sm font-semibold text-gray-700 mb-2">
               Número de Documento *
             </label>
-            <input id="numeroDocumento" v-model="form.numeroDocumento" type="text" required :disabled="isLoading"
+            <input 
+              id="numeroDocumento" 
+              v-model="form.numeroDocumento" 
+              type="text" 
+              required 
+              :disabled="isLoading"
               class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
               :class="errors.numeroDocumento ? 'border-red-500' : 'border-gray-300'"
-              placeholder="1234567890" />
+              placeholder="1234567890" 
+            />
             <p v-if="errors.numeroDocumento" class="text-red-600 text-xs mt-1">{{ errors.numeroDocumento }}</p>
             <p class="text-gray-500 text-xs mt-1">Solo números, entre 6 y 11 dígitos</p>
           </div>
@@ -160,8 +208,7 @@
       </div>
 
       <!-- SECCIÓN 3: Ubicación -->
-      <div
-        class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
+      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
         <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
           <div class="p-2 bg-green-100 rounded-lg">
             <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,9 +226,14 @@
             <label for="departamento" class="block text-sm font-semibold text-gray-700 mb-2">
               Departamento *
             </label>
-            <select id="departamento" v-model="form.departamento" @change="onDepartamentoChange" required 
+            <select 
+              id="departamento" 
+              v-model="form.departamento" 
+              @change="onDepartamentoChange" 
+              required 
               :disabled="isLoading || isLoadingCatalogos"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+            >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else value="">Seleccione un departamento</option>
               <option v-for="dept in departamentos" :key="dept.codigo" :value="dept.codigo">
@@ -195,9 +247,13 @@
             <label for="municipio" class="block text-sm font-semibold text-gray-700 mb-2">
               Municipio *
             </label>
-            <select id="municipio" v-model="form.municipio" :required="!!form.departamento" 
+            <select 
+              id="municipio" 
+              v-model="form.municipio" 
+              :required="!!form.departamento" 
               :disabled="isLoading || !form.departamento || municipios.length === 0"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200">
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+            >
               <option v-if="!form.departamento" value="">Seleccione primero un departamento</option>
               <option v-else-if="municipios.length === 0" value="">Cargando municipios...</option>
               <option v-else value="">Seleccione un municipio</option>
@@ -212,16 +268,20 @@
             <label for="direccion" class="block text-sm font-semibold text-gray-700 mb-2">
               Dirección
             </label>
-            <input id="direccion" v-model="form.direccion" type="text" :disabled="isLoading"
+            <input 
+              id="direccion" 
+              v-model="form.direccion" 
+              type="text" 
+              :disabled="isLoading"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              placeholder="Calle 10 #5-20" />
+              placeholder="Calle 10 #5-20" 
+            />
           </div>
         </div>
       </div>
 
       <!-- SECCIÓN 4: Credenciales -->
-      <div
-        class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
+      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
         <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
           <div class="p-2 bg-green-100 rounded-lg">
             <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,10 +298,17 @@
             <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
               Email *
             </label>
-            <input id="email" v-model="form.email" type="email" autocomplete="email" required :disabled="isLoading"
+            <input 
+              id="email" 
+              v-model="form.email" 
+              type="email" 
+              autocomplete="email" 
+              required 
+              :disabled="isLoading"
               class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
               :class="errors.email ? 'border-red-500' : 'border-gray-300'"
-              placeholder="juan@ejemplo.com" />
+              placeholder="juan@ejemplo.com" 
+            />
             <p v-if="errors.email" class="text-red-600 text-xs mt-1">{{ errors.email }}</p>
           </div>
 
@@ -251,12 +318,21 @@
               Contraseña *
             </label>
             <div class="relative">
-              <input id="password" v-model="form.password" :type="showPassword ? 'text' : 'password'"
-                autocomplete="new-password" required :disabled="isLoading"
+              <input 
+                id="password" 
+                v-model="form.password" 
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="new-password" 
+                required 
+                :disabled="isLoading"
                 class="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-                placeholder="••••••••••••" />
-              <button type="button" @click="showPassword = !showPassword"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-green-600 transition-colors">
+                placeholder="••••••••••••" 
+              />
+              <button 
+                type="button" 
+                @click="showPassword = !showPassword"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-green-600 transition-colors"
+              >
                 <svg v-if="showPassword" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -271,11 +347,15 @@
             </div>
 
             <!-- Validación de contraseña -->
-            <Transition enter-active-class="transform ease-out duration-300" enter-from-class="opacity-0 scale-95"
-              enter-to-class="opacity-100 scale-100" leave-active-class="transition ease-in duration-200"
-              leave-from-class="opacity-100" leave-to-class="opacity-0">
-              <div v-if="form.password"
-                class="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg text-sm">
+            <Transition 
+              enter-active-class="transform ease-out duration-300" 
+              enter-from-class="opacity-0 scale-95"
+              enter-to-class="opacity-100 scale-100" 
+              leave-active-class="transition ease-in duration-200"
+              leave-from-class="opacity-100" 
+              leave-to-class="opacity-0"
+            >
+              <div v-if="form.password" class="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg text-sm">
                 <h4 class="font-semibold text-gray-900 mb-2">Requisitos de la contraseña:</h4>
                 <ul class="space-y-1">
                   <li class="flex items-center gap-2" :class="passwordChecks.length ? 'text-green-700' : 'text-gray-600'">
@@ -286,8 +366,7 @@
                     </svg>
                     Al menos 8 caracteres
                   </li>
-                  <li class="flex items-center gap-2"
-                    :class="passwordChecks.uppercase ? 'text-green-700' : 'text-gray-600'">
+                  <li class="flex items-center gap-2" :class="passwordChecks.uppercase ? 'text-green-700' : 'text-gray-600'">
                     <svg class="h-4 w-4" :class="passwordChecks.uppercase ? 'text-green-600' : 'text-gray-400'"
                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -295,8 +374,7 @@
                     </svg>
                     Una letra mayúscula
                   </li>
-                  <li class="flex items-center gap-2"
-                    :class="passwordChecks.lowercase ? 'text-green-700' : 'text-gray-600'">
+                  <li class="flex items-center gap-2" :class="passwordChecks.lowercase ? 'text-green-700' : 'text-gray-600'">
                     <svg class="h-4 w-4" :class="passwordChecks.lowercase ? 'text-green-600' : 'text-gray-400'"
                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -323,11 +401,17 @@
               Confirmar Contraseña *
             </label>
             <div class="relative">
-              <input id="confirmPassword" v-model="form.confirmPassword" :type="showPassword ? 'text' : 'password'"
-                autocomplete="new-password" required :disabled="isLoading"
+              <input 
+                id="confirmPassword" 
+                v-model="form.confirmPassword" 
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="new-password" 
+                required 
+                :disabled="isLoading"
                 class="w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
                 :class="errors.confirmPassword ? 'border-red-500' : 'border-gray-300'"
-                placeholder="••••••••••••" />
+                placeholder="••••••••••••" 
+              />
               <div v-if="form.confirmPassword && form.password === form.confirmPassword"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center">
                 <svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,12 +425,17 @@
       </div>
 
       <!-- SECCIÓN 5: Términos y Condiciones -->
-      <div
-        class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
+      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
         <div class="space-y-3">
           <div class="flex items-start gap-3 cursor-pointer group">
-            <input id="acceptTerms" v-model="form.acceptTerms" type="checkbox" required :disabled="isLoading"
-              class="mt-1 h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded cursor-pointer" />
+            <input 
+              id="acceptTerms" 
+              v-model="form.acceptTerms" 
+              type="checkbox" 
+              required 
+              :disabled="isLoading"
+              class="mt-1 h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded cursor-pointer" 
+            />
             <label for="acceptTerms"
               class="text-sm text-gray-700 cursor-pointer group-hover:text-gray-900 transition-colors">
               Acepto los
@@ -359,8 +448,13 @@
           </div>
 
           <div class="flex items-start gap-3 cursor-pointer group">
-            <input id="emailNotifications" v-model="form.emailNotifications" type="checkbox" :disabled="isLoading"
-              class="mt-1 h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded cursor-pointer" />
+            <input 
+              id="emailNotifications" 
+              v-model="form.emailNotifications" 
+              type="checkbox" 
+              :disabled="isLoading"
+              class="mt-1 h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded cursor-pointer" 
+            />
             <label for="emailNotifications"
               class="text-sm text-gray-700 cursor-pointer group-hover:text-gray-900 transition-colors">
               Quiero recibir notificaciones por email sobre mi cuenta
@@ -369,28 +463,36 @@
         </div>
       </div>
 
-          <!-- Mensaje de estado global -->
-    <Transition enter-active-class="transform ease-out duration-300 transition"
-      enter-from-class="opacity-0 translate-y-2" enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0">
-      <div v-if="statusMessage" class="p-4 rounded-xl flex items-start gap-3 shadow-md" :class="statusMessageClass">
-        <svg v-if="statusType === 'success'" class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
-          viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <svg v-else class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p class="text-sm font-medium">{{ statusMessage }}</p>
-      </div>
-    </Transition>
+      <!-- Mensaje de estado global -->
+      <Transition 
+        enter-active-class="transform ease-out duration-300 transition"
+        enter-from-class="opacity-0 translate-y-2" 
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition ease-in duration-200" 
+        leave-from-class="opacity-100" 
+        leave-to-class="opacity-0"
+      >
+        <div v-if="statusMessage" class="p-4 rounded-xl flex items-start gap-3 shadow-md" :class="statusMessageClass">
+          <svg v-if="statusType === 'success'" class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <svg v-else class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-sm font-medium">{{ statusMessage }}</p>
+        </div>
+      </Transition>
 
       <!-- Botón de envío -->
       <div>
-        <button type="submit" :disabled="isLoading || !isFormValid" @click="console.log('🖱️ Botón clickeado')"
-          class="w-full py-3 px-6 rounded-xl shadow-lg text-base font-semibold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500/50 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2">
+        <button 
+          type="submit" 
+          :disabled="isLoading || !isFormValid"
+          class="w-full py-3 px-6 rounded-xl shadow-lg text-base font-semibold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500/50 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2"
+        >
           <svg v-if="isLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor"
@@ -405,9 +507,14 @@
         </button>
 
         <!-- Mensaje de validación -->
-        <Transition enter-active-class="transform ease-out duration-200" enter-from-class="opacity-0 -translate-y-2"
-          enter-to-class="opacity-100 translate-y-0" leave-active-class="transition ease-in duration-150"
-          leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <Transition 
+          enter-active-class="transform ease-out duration-200" 
+          enter-from-class="opacity-0 -translate-y-2"
+          enter-to-class="opacity-100 translate-y-0" 
+          leave-active-class="transition ease-in duration-150"
+          leave-from-class="opacity-100" 
+          leave-to-class="opacity-0"
+        >
           <div v-if="!isFormValid && !isLoading" class="mt-4 text-center">
             <div class="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-300 rounded-xl">
               <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -427,15 +534,50 @@
 </template>
 
 <script setup>
+// 1. Vue core
 import { ref, computed, onMounted } from 'vue'
+
+// 2. Vue router
 import { useRouter } from 'vue-router'
+
+// 3. Stores
 import { useAuthStore } from '@/stores/auth'
+
+// 4. Services
 import authApi from '@/services/authApi'
-import { catalogosApi } from '@/services'
+
+// 5. Composables
+import { useCatalogos } from '@/composables/useCatalogos'
+import { useFormValidation } from '@/composables/useFormValidation'
+import { useBirthdateRange } from '@/composables/useBirthdateRange'
 
 // Router y store
 const router = useRouter()
 const authStore = useAuthStore()
+
+// Composables
+const { 
+  tiposDocumento, 
+  generos, 
+  departamentos, 
+  municipios, 
+  isLoadingCatalogos,
+  cargarCatalogos,
+  cargarMunicipios,
+  limpiarMunicipios
+} = useCatalogos()
+
+const { 
+  errors, 
+  isValidEmail, 
+  isValidPhone, 
+  isValidDocument, 
+  isValidBirthdate,
+  validatePassword,
+  clearErrors 
+} = useFormValidation()
+
+const { maxBirthdate, minBirthdate } = useBirthdateRange()
 
 // Estado del formulario
 const form = ref({
@@ -458,70 +600,34 @@ const form = ref({
   departamento: ''
 })
 
-const errors = ref({})
 const isLoading = ref(false)
 const showPassword = ref(false)
 const statusMessage = ref('')
 const statusType = ref('info')
 
-// Datos dinámicos desde catálogos
-const tiposDocumento = ref([])
-const generos = ref([])
-const departamentos = ref([])
-const municipios = ref([])
-const isLoadingCatalogos = ref(true)
-
 // Computed
 const passwordChecks = computed(() => {
-  const password = form.value.password
-  return {
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /\d/.test(password)
-  }
+  return validatePassword(form.value.password || '')
 })
 
 const isPasswordValid = computed(() => {
-  return Object.values(passwordChecks.value).every(check => check)
-})
-
-// Computed para fechas: máximo hoy, mínimo 14 años atrás
-const maxBirthdate = computed(() => {
-  const today = new Date()
-  const maxDate = new Date(today.getFullYear() - 14, today.getMonth(), today.getDate())
-  return maxDate.toISOString().split('T')[0]
-})
-
-const minBirthdate = computed(() => {
-  const today = new Date()
-  const minDate = new Date(today.getFullYear() - 120, today.getMonth(), today.getDate())
-  return minDate.toISOString().split('T')[0]
+  return passwordChecks.value.isValid || false
 })
 
 const isFormValid = computed(() => {
   const checks = {
     firstName: !!form.value.firstName.trim(),
     lastName: !!form.value.lastName.trim(),
-    email: !!form.value.email.trim(),
+    email: !!form.value.email.trim() && isValidEmail(form.value.email),
     tipoDocumento: !!form.value.tipoDocumento,
-    numeroDocumento: !!form.value.numeroDocumento.trim(),
+    numeroDocumento: !!form.value.numeroDocumento.trim() && isValidDocument(form.value.numeroDocumento),
     genero: !!form.value.genero,
     departamento: !!form.value.departamento,
     municipio: !!form.value.municipio,
     passwordValid: isPasswordValid.value,
-    passwordMatch: form.value.password === form.value.confirmPassword,
+    passwordMatch: form.value.password === form.value.confirmPassword && form.value.password.length > 0,
     acceptTerms: form.value.acceptTerms
   }
-  
-  console.log('🔍 Validación del formulario:', checks)
-  console.log('📋 Estado del formulario:', {
-    tipoDocumento: form.value.tipoDocumento,
-    genero: form.value.genero,
-    departamento: form.value.departamento,
-    municipio: form.value.municipio,
-    acceptTerms: form.value.acceptTerms
-  })
   
   return Object.values(checks).every(check => check === true)
 })
@@ -532,140 +638,68 @@ const statusMessageClass = computed(() => {
     : 'bg-red-50 border border-red-200 text-red-800'
 })
 
+// Functions
 const validateForm = () => {
-  errors.value = {}
+  clearErrors()
 
-  // Validar primer nombre
   if (!form.value.firstName.trim()) {
-    errors.value.firstName = 'El nombre es requerido'
+    errors.firstName = 'El nombre es requerido'
   } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(form.value.firstName)) {
-    errors.value.firstName = 'El nombre solo puede contener letras'
+    errors.firstName = 'El nombre solo puede contener letras'
   }
 
-  // Validar primer apellido
   if (!form.value.lastName.trim()) {
-    errors.value.lastName = 'El apellido es requerido'
+    errors.lastName = 'El apellido es requerido'
   } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(form.value.lastName)) {
-    errors.value.lastName = 'El apellido solo puede contener letras'
+    errors.lastName = 'El apellido solo puede contener letras'
   }
 
-  // Validar número de documento
   if (!form.value.numeroDocumento.trim()) {
-    errors.value.numeroDocumento = 'El número de documento es requerido'
-  } else if (!/^\d+$/.test(form.value.numeroDocumento.trim())) {
-    errors.value.numeroDocumento = 'El documento solo puede contener números'
-  } else if (form.value.numeroDocumento.trim().length < 6 || form.value.numeroDocumento.trim().length > 11) {
-    errors.value.numeroDocumento = 'El documento debe tener entre 6 y 11 dígitos'
+    errors.numeroDocumento = 'El número de documento es requerido'
+  } else if (!isValidDocument(form.value.numeroDocumento)) {
+    errors.numeroDocumento = 'El documento debe tener entre 6 y 11 dígitos'
   }
 
-  // Validar teléfono
   const cleanPhone = form.value.phoneNumber.replace(/[\s\-\(\)]/g, '')
-  if (cleanPhone && !/^\+?\d{7,15}$/.test(cleanPhone)) {
-    errors.value.phoneNumber = 'El teléfono debe tener entre 7 y 15 dígitos'
+  if (cleanPhone && !isValidPhone(form.value.phoneNumber)) {
+    errors.phoneNumber = 'El teléfono debe tener entre 7 y 15 dígitos'
   }
 
-  // Validar fecha de nacimiento
-  if (form.value.fechaNacimiento) {
-    const birthDate = new Date(form.value.fechaNacimiento)
-    const today = new Date()
-    const age = today.getFullYear() - birthDate.getFullYear() - 
-                ((today.getMonth() < birthDate.getMonth()) || 
-                 (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0)
-    
-    if (age < 14) {
-      errors.value.fechaNacimiento = 'Debes tener al menos 14 años'
-    }
-    if (birthDate > today) {
-      errors.value.fechaNacimiento = 'La fecha no puede ser futura'
-    }
+  if (form.value.fechaNacimiento && !isValidBirthdate(form.value.fechaNacimiento)) {
+    errors.fechaNacimiento = 'Debes tener al menos 14 años'
   }
 
-  // Validar email
   if (!form.value.email.trim()) {
-    errors.value.email = 'El email es requerido'
+    errors.email = 'El email es requerido'
   } else if (!isValidEmail(form.value.email)) {
-    errors.value.email = 'Ingresa un email válido'
-  }
-
-  if (form.value.phoneNumber && !isValidPhone(form.value.phoneNumber)) {
-    errors.value.phoneNumber = 'Ingresa un número de teléfono válido'
+    errors.email = 'Ingresa un email válido'
   }
 
   if (!form.value.password) {
-    errors.value.password = 'La contraseña es requerida'
-  } else if (form.value.password.length < 6) {
-    errors.value.password = 'La contraseña debe tener al menos 6 caracteres'
+    errors.password = 'La contraseña es requerida'
+  } else if (!isPasswordValid.value) {
+    errors.password = 'La contraseña debe cumplir todos los requisitos'
   }
 
   if (!form.value.confirmPassword) {
-    errors.value.confirmPassword = 'Confirma tu contraseña'
+    errors.confirmPassword = 'Confirma tu contraseña'
   } else if (form.value.password !== form.value.confirmPassword) {
-    errors.value.confirmPassword = 'Las contraseñas no coinciden'
+    errors.confirmPassword = 'Las contraseñas no coinciden'
   }
 
   if (!form.value.acceptTerms) {
-    errors.value.acceptTerms = 'Debes aceptar los términos y condiciones'
+    errors.acceptTerms = 'Debes aceptar los términos y condiciones'
   }
 
-  return Object.keys(errors.value).length === 0
+  return Object.keys(errors).length === 0
 }
 
-const isValidEmail = (email) => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return re.test(email)
-}
-
-const isValidPhone = (phone) => {
-  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/
-  return phoneRegex.test(phone.replace(/\s/g, ''))
-}
-
-// Funciones para cargar catálogos
-const cargarCatalogos = async () => {
-  try {
-    isLoadingCatalogos.value = true
-    
-    // Cargar tipos de documento
-    const tipoDocResponse = await catalogosApi.getParametrosPorTema('TIPO_DOC')
-    tiposDocumento.value = tipoDocResponse || []
-    
-    // Cargar géneros
-    const sexoResponse = await catalogosApi.getParametrosPorTema('SEXO')
-    generos.value = sexoResponse || []
-    
-    // Cargar departamentos
-    const departamentosResponse = await catalogosApi.getDepartamentos()
-    departamentos.value = departamentosResponse || []
-    
-  } catch (error) {
-    console.error('Error cargando catálogos:', error)
-    setStatusMessage('Error al cargar los catálogos. Intenta recargar la página.', 'error')
-  } finally {
-    isLoadingCatalogos.value = false
+const onDepartamentoChange = async () => {
+  form.value.municipio = ''
+  limpiarMunicipios()
+  if (form.value.departamento) {
+    await cargarMunicipios(form.value.departamento)
   }
-}
-
-// Cargar municipios cuando se seleccione un departamento
-const cargarMunicipios = async (codigoDepartamento) => {
-  if (!codigoDepartamento) {
-    municipios.value = []
-    form.value.municipio = ''
-    return
-  }
-  
-  try {
-    const response = await catalogosApi.getMunicipiosPorDepartamento(codigoDepartamento)
-    municipios.value = response || []
-  } catch (error) {
-    console.error('Error cargando municipios:', error)
-    municipios.value = []
-  }
-}
-
-// Watcher para detectar cambios en el departamento
-const onDepartamentoChange = () => {
-  cargarMunicipios(form.value.departamento)
-  form.value.municipio = '' // Resetear municipio
 }
 
 const getValidationMessage = () => {
@@ -692,22 +726,10 @@ const setStatusMessage = (message, type = 'info') => {
   }, 5000)
 }
 
-// Inicializar catálogos al montar el componente
-onMounted(() => {
-  cargarCatalogos()
-})
-
 const handleSubmit = async () => {
-  console.log('🚀 handleSubmit llamado')
-  console.log('📋 isFormValid:', isFormValid.value)
-  console.log('📋 Datos del formulario:', form.value)
-  
   if (!validateForm()) {
-    console.log('❌ Validación falló')
     return
   }
-  
-  console.log('✅ Validación exitosa, continuando con el registro...')
 
   window.dispatchEvent(new CustomEvent('api-loading-start', {
     detail: { type: 'register', message: 'Creando tu cuenta...' }
@@ -716,13 +738,8 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    // Convertir código de departamento a ID
     const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.value.departamento)
     const municipioSeleccionado = municipios.value.find(m => m.id == form.value.municipio)
-    
-    console.log('🔍 Departamento seleccionado:', departamentoSeleccionado)
-    console.log('🔍 Municipio seleccionado:', municipioSeleccionado)
-    console.log('🔍 Datos del formulario:', form.value)
     
     const payload = {
       email: form.value.email.trim(),
@@ -741,19 +758,15 @@ const handleSubmit = async () => {
       departamento: departamentoSeleccionado?.id || null
     }
     
-    console.log('📤 Payload a enviar:', payload)
     const result = await authStore.register(payload)
 
     if (result.success) {
-      // Redirigir a la página de verificación OTP
       const email = result.data?.email || form.value.email.trim()
       
-      // Enviar código OTP automáticamente
       try {
         await authApi.sendOtp(email)
       } catch (error) {
         console.error('Error enviando código OTP:', error)
-        // Continuar aunque falle el envío automático
       }
       
       router.push({ 
@@ -767,12 +780,9 @@ const handleSubmit = async () => {
     console.error('Error en registro:', error)
 
     let errorMessage = 'Error inesperado. Intenta nuevamente.'
-    
-    // Limpiar errores previos
-    errors.value = {}
+    clearErrors()
     
     if (error.response?.data) {
-      // Si hay errores de validación por campo, mostrarlos en cada input
       const responseData = error.response.data
       
       if (responseData.detail) {
@@ -784,39 +794,31 @@ const handleSubmit = async () => {
       } else if (responseData.non_field_errors) {
         errorMessage = responseData.non_field_errors[0]
       } else {
-        // Mapear errores de campo del backend al formulario
-        const errorKeys = Object.keys(responseData)
-        if (errorKeys.length > 0) {
-          // Mapeo de campos del backend al frontend
-          const fieldMapping = {
-            'email': 'email',
-            'password': 'password',
-            'primer_nombre': 'firstName',
-            'primer_apellido': 'lastName',
-            'numero_documento': 'numeroDocumento',
-            'telefono': 'phoneNumber',
-            'phone_number': 'phoneNumber',
-            'fecha_nacimiento': 'fechaNacimiento',
-            'tipo_documento': 'tipoDocumento',
-            'genero': 'genero',
-            'departamento': 'departamento',
-            'municipio': 'municipio'
-          }
-          
-          errorKeys.forEach(key => {
-            const fieldError = responseData[key]
-            const errorText = Array.isArray(fieldError) ? fieldError[0] : fieldError
-            
-            // Asignar error al campo correspondiente
-            const frontendField = fieldMapping[key] || key
-            errors.value[frontendField] = errorText
-          })
-          
-          // Mensaje general con el primer error
-          const firstKey = errorKeys[0]
-          const firstError = responseData[firstKey]
-          errorMessage = Array.isArray(firstError) ? firstError[0] : firstError
+        const fieldMapping = {
+          'email': 'email',
+          'password': 'password',
+          'primer_nombre': 'firstName',
+          'primer_apellido': 'lastName',
+          'numero_documento': 'numeroDocumento',
+          'telefono': 'phoneNumber',
+          'phone_number': 'phoneNumber',
+          'fecha_nacimiento': 'fechaNacimiento',
+          'tipo_documento': 'tipoDocumento',
+          'genero': 'genero',
+          'departamento': 'departamento',
+          'municipio': 'municipio'
         }
+        
+        Object.keys(responseData).forEach(key => {
+          const fieldError = responseData[key]
+          const errorText = Array.isArray(fieldError) ? fieldError[0] : fieldError
+          const frontendField = fieldMapping[key] || key
+          errors[frontendField] = errorText
+        })
+        
+        const firstKey = Object.keys(responseData)[0]
+        const firstError = responseData[firstKey]
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError
       }
     } else if (error.message) {
       errorMessage = error.message
@@ -828,18 +830,18 @@ const handleSubmit = async () => {
     window.dispatchEvent(new CustomEvent('api-loading-end'))
   }
 }
+
+// Lifecycle
+onMounted(() => {
+  cargarCatalogos()
+})
 </script>
 
 <style scoped>
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
-
   to {
     transform: rotate(360deg);
   }
@@ -850,11 +852,14 @@ const handleSubmit = async () => {
     opacity: 0;
     transform: translateY(-10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
 .animate-fade-in {
