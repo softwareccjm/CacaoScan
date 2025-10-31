@@ -72,22 +72,68 @@ class RegressionTrainer:
         self.device = device
         self.config = config
         
-        # Configurar optimizador
+        # Configurar optimizador con mejor configuración
         self.optimizer = optim.AdamW(
             self.model.parameters(),
             lr=config.get('learning_rate', 1e-4),
-            weight_decay=config.get('weight_decay', 1e-4)
+            weight_decay=config.get('weight_decay', 1e-4),
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            amsgrad=False
         )
         
-        # Configurar scheduler
-        self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer,
-            T_max=config.get('epochs', 50),
-            eta_min=config.get('min_lr', 1e-6)
-        )
+        # Configurar scheduler avanzado (OneCycleLR o CosineAnnealingWarmRestarts)
+        scheduler_type = config.get('scheduler_type', 'cosine_warmup')
+        epochs = config.get('epochs', 50)
         
-        # Criterio de pérdida
-        self.criterion = nn.MSELoss()
+        if scheduler_type == 'onecycle':
+            # OneCycleLR: muy efectivo para entrenamiento rápido
+            self.scheduler = optim.lr_scheduler.OneCycleLR(
+                self.optimizer,
+                max_lr=config.get('learning_rate', 1e-4) * 10,
+                epochs=epochs,
+                steps_per_epoch=len(train_loader),
+                pct_start=0.3,
+                anneal_strategy='cos',
+                div_factor=25.0,
+                final_div_factor=10000.0
+            )
+        elif scheduler_type == 'cosine_warmup':
+            # CosineAnnealingWarmRestarts: permite restarts para exploración
+            self.scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                self.optimizer,
+                T_0=epochs // 4,  # Restart cada 1/4 de épocas
+                T_mult=2,
+                eta_min=config.get('min_lr', 1e-7)
+            )
+        else:
+            # CosineAnnealingLR con warmup manual
+            self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer,
+                T_max=epochs,
+                eta_min=config.get('min_lr', 1e-6)
+            )
+            self.warmup_epochs = config.get('warmup_epochs', 5)
+        
+        # Criterio de pérdida mejorado (Huber Loss es más robusto que MSE)
+        loss_type = config.get('loss_type', 'mse')
+        if loss_type == 'huber':
+            self.criterion = nn.HuberLoss(delta=1.0)
+        elif loss_type == 'smooth_l1':
+            self.criterion = nn.SmoothL1Loss()
+        elif loss_type == 'mse':
+            self.criterion = nn.MSELoss()
+        else:
+            self.criterion = nn.MSELoss()
+        
+        # Gradient clipping para estabilidad
+        self.max_grad_norm = config.get('max_grad_norm', 1.0)
+        
+        # Mixed precision training si está disponible
+        self.use_amp = config.get('use_amp', False) and hasattr(torch.cuda, 'amp')
+        if self.use_amp:
+            self.scaler = torch.cuda.amp.GradScaler()
+            logger.info("Mixed precision training habilitado")
         
         # Early stopping
         self.early_stopping_patience = config.get('early_stopping_patience', 10)
@@ -109,32 +155,62 @@ class RegressionTrainer:
         logger.info(f"Modelo: {get_model_info(self.model)}")
     
     def train_epoch(self) -> float:
-        """Entrena el modelo por una época."""
+        """Entrena el modelo por una época con mejoras avanzadas."""
         self.model.train()
         total_loss = 0.0
         num_batches = 0
         
         for batch_idx, (images, targets) in enumerate(self.train_loader):
-            images = images.to(self.device)
-            targets = targets.to(self.device)
+            images = images.to(self.device, non_blocking=True)
+            targets = targets.to(self.device, non_blocking=True)
             
-            # Forward pass
+            # Zero gradients
             self.optimizer.zero_grad()
-            outputs = self.model(images)
             
-            # Calcular pérdida
-            loss = self.criterion(outputs, targets)
+            # Forward pass con mixed precision si está habilitado
+            if self.use_amp:
+                with torch.cuda.amp.autocast():
+                    outputs = self.model(images)
+                    loss = self.criterion(outputs, targets)
+                
+                # Backward pass con scaling
+                self.scaler.scale(loss).backward()
+                
+                # Gradient clipping
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                
+                # Optimizer step
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                # Forward pass normal
+                outputs = self.model(images)
+                loss = self.criterion(outputs, targets)
+                
+                # Backward pass
+                loss.backward()
+                
+                # Gradient clipping
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                
+                # Optimizer step
+                self.optimizer.step()
             
-            # Backward pass
-            loss.backward()
-            self.optimizer.step()
+            # Update scheduler si es OneCycleLR (se actualiza por step)
+            if isinstance(self.scheduler, optim.lr_scheduler.OneCycleLR):
+                self.scheduler.step()
             
             total_loss += loss.item()
             num_batches += 1
             
-            # Log periódico
-            if batch_idx % 10 == 0:
-                logger.debug(f"Epoch batch {batch_idx}/{len(self.train_loader)}, Loss: {loss.item():.4f}")
+            # Log periódico más detallado
+            if batch_idx % max(1, len(self.train_loader) // 10) == 0:
+                current_lr = self.scheduler.get_last_lr()[0] if not isinstance(self.scheduler, optim.lr_scheduler.OneCycleLR) else self.scheduler.get_last_lr()[0]
+                logger.debug(
+                    f"Batch {batch_idx}/{len(self.train_loader)} - "
+                    f"Loss: {loss.item():.4f}, LR: {current_lr:.2e}"
+                )
         
         avg_loss = total_loss / num_batches
         return avg_loss
@@ -206,9 +282,20 @@ class RegressionTrainer:
             # Validar
             val_loss, val_mae, val_rmse, val_r2 = self.validate_epoch()
             
-            # Actualizar scheduler
-            self.scheduler.step()
-            current_lr = self.scheduler.get_last_lr()[0]
+            # Actualizar scheduler (excepto OneCycleLR que se actualiza por step)
+            if not isinstance(self.scheduler, optim.lr_scheduler.OneCycleLR):
+                # Warmup manual si no es OneCycleLR
+                if hasattr(self, 'warmup_epochs') and epoch < self.warmup_epochs:
+                    # Linear warmup
+                    warmup_lr = self.config.get('learning_rate', 1e-4) * (epoch + 1) / self.warmup_epochs
+                    for param_group in self.optimizer.param_groups:
+                        param_group['lr'] = warmup_lr
+                    current_lr = warmup_lr
+                else:
+                    self.scheduler.step()
+                    current_lr = self.scheduler.get_last_lr()[0]
+            else:
+                current_lr = self.scheduler.get_last_lr()[0]
             
             # Guardar en historial
             self.history['train_loss'].append(train_loss)
@@ -218,11 +305,16 @@ class RegressionTrainer:
             self.history['val_r2'].append(val_r2)
             self.history['learning_rate'].append(current_lr)
             
-            # Early stopping check
-            if val_loss < self.best_val_loss:
+            # Early stopping mejorado: considerar múltiples métricas
+            improvement_threshold = self.config.get('improvement_threshold', 1e-4)
+            
+            # Calcular mejora relativa
+            if val_loss < self.best_val_loss * (1 - improvement_threshold):
+                improvement = (self.best_val_loss - val_loss) / self.best_val_loss
                 self.best_val_loss = val_loss
                 self.patience_counter = 0
                 self.best_model_state = self.model.state_dict().copy()
+                logger.info(f"Mejora detectada: {improvement*100:.2f}% (Val Loss: {val_loss:.4f})")
             else:
                 self.patience_counter += 1
             
@@ -236,9 +328,10 @@ class RegressionTrainer:
                 f"Time: {epoch_time:.2f}s"
             )
             
-            # Early stopping
-            if self.patience_counter >= self.early_stopping_patience:
-                logger.info(f"Early stopping en época {epoch+1}")
+            # Early stopping mejorado: solo después de épocas mínimas
+            min_epochs = self.config.get('min_epochs', 50)
+            if epoch + 1 >= min_epochs and self.patience_counter >= self.early_stopping_patience:
+                logger.info(f"Early stopping en época {epoch+1} (después de {min_epochs} épocas mínimas)")
                 break
         
         # Cargar mejor modelo
@@ -250,6 +343,34 @@ class RegressionTrainer:
         logger.info(f"Entrenamiento completado en {total_time:.2f}s")
         
         return self.history
+    
+    def _convert_to_native_types(self, obj):
+        """
+        Convierte valores de NumPy/PyTorch a tipos nativos de Python para serialización JSON.
+        
+        Args:
+            obj: Objeto a convertir (puede ser dict, list, float32, etc.)
+            
+        Returns:
+            Objeto con tipos nativos de Python
+        """
+        import numpy as np
+        import torch
+        
+        if isinstance(obj, (np.integer, np.floating)):
+            return float(obj)
+        elif isinstance(obj, torch.Tensor):
+            return float(obj.item())
+        elif isinstance(obj, dict):
+            return {key: self._convert_to_native_types(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._convert_to_native_types(item) for item in obj]
+        elif isinstance(obj, float):
+            return float(obj)
+        elif isinstance(obj, int):
+            return int(obj)
+        else:
+            return obj
     
     def save_metrics_to_db(
         self, 
@@ -269,16 +390,20 @@ class RegressionTrainer:
             Instancia de ModelMetrics creada
         """
         try:
-            # Obtener métricas finales del historial
-            final_val_loss = self.history['val_loss'][-1] if self.history['val_loss'] else 0.0
-            final_val_mae = self.history['val_mae'][-1] if self.history['val_mae'] else 0.0
-            final_val_rmse = self.history['val_rmse'][-1] if self.history['val_rmse'] else 0.0
-            final_val_r2 = self.history['val_r2'][-1] if self.history['val_r2'] else 0.0
+            # Obtener métricas finales del historial y convertir a tipos nativos
+            final_val_loss = float(self.history['val_loss'][-1]) if self.history['val_loss'] else 0.0
+            final_val_mae = float(self.history['val_mae'][-1]) if self.history['val_mae'] else 0.0
+            final_val_rmse = float(self.history['val_rmse'][-1]) if self.history['val_rmse'] else 0.0
+            final_val_r2 = float(self.history['val_r2'][-1]) if self.history['val_r2'] else 0.0
             
-            # Calcular MAPE si es posible
+            # Convertir best_val_loss a float nativo
+            best_val_loss = float(self.best_val_loss) if self.best_val_loss is not None else None
+            
+            # Calcular MAPE si es posible y convertir a tipo nativo
             mape = None
             if additional_metrics and 'mape' in additional_metrics:
-                mape = additional_metrics['mape']
+                mape_value = additional_metrics['mape']
+                mape = float(mape_value) if mape_value is not None else None
             
             # Obtener información del dataset
             train_size = dataset_info.get('train_size', 0) if dataset_info else 0
@@ -311,29 +436,29 @@ class RegressionTrainer:
                 r2_score=final_val_r2,
                 mape=mape,
                 
-                # Métricas adicionales
-                additional_metrics=additional_metrics or {},
+                # Métricas adicionales (convertir a tipos nativos)
+                additional_metrics=self._convert_to_native_types(additional_metrics) if additional_metrics else {},
                 
                 # Información del dataset
-                dataset_size=total_size,
-                train_size=train_size,
-                validation_size=val_size,
-                test_size=test_size,
+                dataset_size=int(total_size),
+                train_size=int(train_size),
+                validation_size=int(val_size),
+                test_size=int(test_size),
                 
                 # Configuración del modelo
-                epochs=self.config.get('epochs', 50),
-                batch_size=self.config.get('batch_size', 32),
-                learning_rate=self.config.get('learning_rate', 1e-4),
+                epochs=int(self.config.get('epochs', 50)),
+                batch_size=int(self.config.get('batch_size', 32)),
+                learning_rate=float(self.config.get('learning_rate', 1e-4)),
                 
-                # Parámetros específicos del modelo
-                model_params={
+                # Parámetros específicos del modelo (convertir a tipos nativos)
+                model_params=self._convert_to_native_types({
                     'model_type': self.config.get('model_type', 'resnet18'),
-                    'pretrained': self.config.get('pretrained', True),
-                    'dropout_rate': self.config.get('dropout_rate', 0.2),
-                    'weight_decay': self.config.get('weight_decay', 1e-4),
-                    'early_stopping_patience': self.config.get('early_stopping_patience', 10),
-                    'best_val_loss': self.best_val_loss,
-                },
+                    'pretrained': bool(self.config.get('pretrained', True)),
+                    'dropout_rate': float(self.config.get('dropout_rate', 0.2)),
+                    'weight_decay': float(self.config.get('weight_decay', 1e-4)),
+                    'early_stopping_patience': int(self.config.get('early_stopping_patience', 10)),
+                    'best_val_loss': best_val_loss,
+                }),
                 
                 # Información de rendimiento
                 training_time_seconds=None,  # Se puede calcular después
@@ -345,11 +470,11 @@ class RegressionTrainer:
                 is_production_model=False
             )
             
-            logger.info(f"✅ Métricas guardadas en DB para {self.target}: MAE={final_val_mae:.4f}, RMSE={final_val_rmse:.4f}, R²={final_val_r2:.4f}")
+            logger.info(f"[OK] Métricas guardadas en DB para {self.target}: MAE={final_val_mae:.4f}, RMSE={final_val_rmse:.4f}, R²={final_val_r2:.4f}")
             return model_metrics
             
         except Exception as e:
-            logger.error(f"❌ Error guardando métricas en DB para {self.target}: {e}")
+            logger.error(f"[ERROR] Error guardando métricas en DB para {self.target}: {e}")
             raise
     
     def save_model(self, file_path: Path) -> None:
@@ -377,13 +502,13 @@ class RegressionTrainer:
             
             # Verificar que el archivo se guardó correctamente
             if file_path.exists() and file_path.stat().st_size > 0:
-                logger.info(f"✅ Modelo guardado exitosamente en {file_path} ({file_path.stat().st_size} bytes)")
+                logger.info(f"[OK] Modelo guardado exitosamente en {file_path} ({file_path.stat().st_size} bytes)")
             else:
-                logger.error(f"❌ Error: El archivo no se guardó correctamente: {file_path}")
+                logger.error(f"[ERROR] Error: El archivo no se guardó correctamente: {file_path}")
                 raise IOError(f"No se pudo guardar el modelo en {file_path}")
                 
         except Exception as e:
-            logger.error(f"❌ Error guardando modelo para {self.target}: {e}")
+            logger.error(f"[ERROR] Error guardando modelo para {self.target}: {e}")
             raise
 
 
@@ -444,14 +569,14 @@ def train_single_model(
             if history['val_loss'] and history['val_mae']:
                 # MAPE aproximado basado en MAE y valores promedio
                 try:
-                    # Esto es una aproximación, el MAPE real requiere los valores reales
-                    additional_metrics['final_train_loss'] = history['train_loss'][-1] if history['train_loss'] else 0.0
-                    additional_metrics['final_val_loss'] = history['val_loss'][-1]
-                    additional_metrics['final_val_mae'] = history['val_mae'][-1]
-                    additional_metrics['final_val_rmse'] = history['val_rmse'][-1]
-                    additional_metrics['final_val_r2'] = history['val_r2'][-1]
-                    additional_metrics['epochs_completed'] = len(history['train_loss'])
-                    additional_metrics['early_stopping_triggered'] = len(history['train_loss']) < config.get('epochs', 50)
+                    # Convertir todos los valores a tipos nativos de Python
+                    additional_metrics['final_train_loss'] = float(history['train_loss'][-1]) if history['train_loss'] else 0.0
+                    additional_metrics['final_val_loss'] = float(history['val_loss'][-1])
+                    additional_metrics['final_val_mae'] = float(history['val_mae'][-1])
+                    additional_metrics['final_val_rmse'] = float(history['val_rmse'][-1])
+                    additional_metrics['final_val_r2'] = float(history['val_r2'][-1])
+                    additional_metrics['epochs_completed'] = int(len(history['train_loss']))
+                    additional_metrics['early_stopping_triggered'] = bool(len(history['train_loss']) < config.get('epochs', 50))
                 except Exception as e:
                     logger.warning(f"No se pudieron calcular métricas adicionales: {e}")
             
@@ -462,10 +587,10 @@ def train_single_model(
                 additional_metrics=additional_metrics
             )
             
-            logger.info(f"✅ Métricas del modelo {target} guardadas con ID: {model_metrics.id}")
+            logger.info(f"[OK] Métricas del modelo {target} guardadas con ID: {model_metrics.id}")
             
         except Exception as e:
-            logger.error(f"❌ Error guardando métricas para {target}: {e}")
+            logger.error(f"[ERROR] Error guardando métricas para {target}: {e}")
             # No interrumpir el entrenamiento si falla el guardado de métricas
     
     return history
@@ -671,18 +796,22 @@ def train_multi_head_model(
             # Guardar métricas para cada target
             for target in TARGETS:
                 if target in history['val_mae'] and history['val_mae'][target]:
-                    final_val_mae = history['val_mae'][target][-1]
-                    final_val_rmse = history['val_rmse'][target][-1]
-                    final_val_r2 = history['val_r2'][target][-1]
+                    # Convertir métricas a tipos nativos
+                    final_val_mae = float(history['val_mae'][target][-1])
+                    final_val_rmse = float(history['val_rmse'][target][-1])
+                    final_val_r2 = float(history['val_r2'][target][-1])
+                    final_val_loss = float(history['val_loss'][-1]) if history['val_loss'] else 0.0
+                    final_train_loss = float(history['train_loss'][-1]) if history['train_loss'] else 0.0
+                    best_val_loss_native = float(best_val_loss) if best_val_loss is not None else None
                     
-                    # Métricas adicionales específicas del multi-head
+                    # Métricas adicionales específicas del multi-head (convertir a tipos nativos)
                     additional_metrics = {
                         'model_type': 'multi_head',
-                        'final_train_loss': history['train_loss'][-1] if history['train_loss'] else 0.0,
-                        'final_val_loss': history['val_loss'][-1] if history['val_loss'] else 0.0,
-                        'epochs_completed': len(history['train_loss']),
-                        'early_stopping_triggered': len(history['train_loss']) < config.get('epochs', 50),
-                        'best_val_loss': best_val_loss,
+                        'final_train_loss': final_train_loss,
+                        'final_val_loss': final_val_loss,
+                        'epochs_completed': int(len(history['train_loss'])),
+                        'early_stopping_triggered': bool(len(history['train_loss']) < config.get('epochs', 50)),
+                        'best_val_loss': best_val_loss_native,
                     }
                     
                     # Crear métricas para este target
@@ -697,33 +826,33 @@ def train_multi_head_model(
                         
                         # Métricas principales
                         mae=final_val_mae,
-                        mse=history['val_loss'][-1] if history['val_loss'] else 0.0,
+                        mse=final_val_loss,
                         rmse=final_val_rmse,
                         r2_score=final_val_r2,
                         mape=None,
                         
-                        # Métricas adicionales
+                        # Métricas adicionales (ya convertidas)
                         additional_metrics=additional_metrics,
                         
                         # Información del dataset
-                        dataset_size=total_size,
-                        train_size=train_size,
-                        validation_size=val_size,
-                        test_size=test_size,
+                        dataset_size=int(total_size),
+                        train_size=int(train_size),
+                        validation_size=int(val_size),
+                        test_size=int(test_size),
                         
                         # Configuración del modelo
-                        epochs=config.get('epochs', 50),
-                        batch_size=config.get('batch_size', 32),
-                        learning_rate=config.get('learning_rate', 1e-4),
+                        epochs=int(config.get('epochs', 50)),
+                        batch_size=int(config.get('batch_size', 32)),
+                        learning_rate=float(config.get('learning_rate', 1e-4)),
                         
-                        # Parámetros específicos del modelo
+                        # Parámetros específicos del modelo (convertir a tipos nativos)
                         model_params={
-                            'model_type': config.get('model_type', 'resnet18'),
-                            'pretrained': config.get('pretrained', True),
-                            'dropout_rate': config.get('dropout_rate', 0.2),
-                            'weight_decay': config.get('weight_decay', 1e-4),
-                            'early_stopping_patience': config.get('early_stopping_patience', 10),
-                            'best_val_loss': best_val_loss,
+                            'model_type': str(config.get('model_type', 'resnet18')),
+                            'pretrained': bool(config.get('pretrained', True)),
+                            'dropout_rate': float(config.get('dropout_rate', 0.2)),
+                            'weight_decay': float(config.get('weight_decay', 1e-4)),
+                            'early_stopping_patience': int(config.get('early_stopping_patience', 10)),
+                            'best_val_loss': best_val_loss_native,
                         },
                         
                         # Información de rendimiento
@@ -736,10 +865,10 @@ def train_multi_head_model(
                         is_production_model=False
                     )
                     
-                    logger.info(f"✅ Métricas del modelo multi-head para {target} guardadas con ID: {model_metrics.id}")
+                    logger.info(f"[OK] Métricas del modelo multi-head para {target} guardadas con ID: {model_metrics.id}")
             
         except Exception as e:
-            logger.error(f"❌ Error guardando métricas del modelo multi-head: {e}")
+            logger.error(f"[ERROR] Error guardando métricas del modelo multi-head: {e}")
             # No interrumpir el entrenamiento si falla el guardado de métricas
     
     return history
@@ -802,11 +931,11 @@ def create_training_job(
             status='running'
         )
         
-        logger.info(f"✅ TrainingJob creado con ID: {job_id}")
+        logger.info(f"[OK] TrainingJob creado con ID: {job_id}")
         return training_job
         
     except Exception as e:
-        logger.error(f"❌ Error creando TrainingJob: {e}")
+        logger.error(f"[ERROR] Error creando TrainingJob: {e}")
         return None
 
 
@@ -829,6 +958,6 @@ def update_training_job_metrics(
                 metrics=metrics,
                 model_path=model_path
             )
-            logger.info(f"✅ TrainingJob {training_job.job_id} actualizado con métricas")
+            logger.info(f"[OK] TrainingJob {training_job.job_id} actualizado con métricas")
     except Exception as e:
-        logger.error(f"❌ Error actualizando TrainingJob: {e}")
+        logger.error(f"[ERROR] Error actualizando TrainingJob: {e}")
