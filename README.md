@@ -53,9 +53,21 @@ cd cacaoscan
 
 ### 2️⃣ Configurar el Backend (Django)
 
+⚠️ **Asegúrate de tener instalado Python 3.12** (no versiones anteriores ni posteriores, para evitar incompatibilidades con dependencias del proyecto).
+
+Si tienes varias versiones instaladas, usa siempre el comando `python3.12`.  
+Puedes verificar tu versión con:
+
+```bash
+python3.12 --version
+```
+
+Si necesitas instalar Python 3.12, revisa la documentación oficial según tu sistema operativo: https://www.python.org/downloads/release/python-3120/
+
+
 ```bash
 cd backend
-python -m venv venv
+python -3.12 -m venv venv
 
 # En Windows
 venv\Scripts\activate
@@ -84,6 +96,13 @@ Aplica las migraciones:
 ```bash
 python manage.py makemigrations
 python manage.py migrate
+```
+
+Aplica los seeders
+
+```bash
+python manage.py init_catalogos
+python manage.py seed_colombia
 ```
 
 Crea el superusuario:

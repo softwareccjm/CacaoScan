@@ -25,12 +25,14 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # API de documentos legales (debe ir antes de api.urls para evitar conflictos)
-    path('api/v1/legal/', include('legal.urls')),
+    # API de documentos legales - COMENTADA: el contenido ahora está en el frontend
+    # path('api/v1/legal/', include('legal.urls')),
     # API de personas (incluida en v1 con prefijo personas/)
     path('api/v1/personas/', include('personas.urls')),
     # API de catÃ¡logos (incluida en v1 para consistencia)
     path('api/v1/', include('catalogos.urls')),
+    # API de imágenes (debe ir antes de api.urls para evitar conflictos)
+    path('api/v1/', include('images_app.urls')),
     # API principal de CacaoScan (debe ir después de rutas específicas)
     path('api/v1/', include('api.urls')),
     
