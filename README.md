@@ -179,9 +179,9 @@ cacaoscan/
 
 Proyecto desarrollado por aprendices de **Análisis y Desarrollo de Software (ADSO)** — Ficha 2923560, SENA Regional Guaviare
 
-- 👨‍💻 **Camilo Hernández**
-- 👨‍💻 **Jeferson Álvarez Rodríguez**
-- 👨‍💻 **Mario Alexander Cañola**
+- 👨‍💻 **Camilo Andres Hernández Gonzales**
+- 👨‍💻 **Jeferson Alexander Alvarez Rodríguez**
+- 👨‍💻 **Cristian Camilo Camacho Morales**
 
 ---
 
