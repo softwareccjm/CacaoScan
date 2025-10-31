@@ -1,4 +1,4 @@
-"""
+﻿"""
 Django settings for cacaoscan project.
 """
 
@@ -12,7 +12,7 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_path = os.path.join(BASE_DIR, ".env")
 load_dotenv(dotenv_path)
-print(f"📂 .env cargado desde: {dotenv_path}")
+print(f"ðŸ“‚ .env cargado desde: {dotenv_path}")
 
 
 # Suprimir warnings molestos
@@ -81,8 +81,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.error_handler.StandardErrorMiddleware',  # Middleware de errores
-    'api.middleware.TokenCleanupMiddleware',  # Limpieza automática de tokens
-    'api.realtime_middleware.RealtimeAuditMiddleware',  # Auditoría en tiempo real
+    'api.middleware.TokenCleanupMiddleware',  # Limpieza automÃ¡tica de tokens
+    'api.realtime_middleware.RealtimeAuditMiddleware',  # AuditorÃ­a en tiempo real
     'api.realtime_middleware.RealtimeLoginMiddleware',  # Registro de logins
 ]
 
@@ -177,7 +177,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# Configuración adicional de CORS para desarrollo
+# ConfiguraciÃ³n adicional de CORS para desarrollo
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_HEADERS = [
     'accept',
@@ -297,7 +297,7 @@ LOGGING = {
     },
 }
 
-# Configuración de Email con fallback TLS/SSL
+# ConfiguraciÃ³n de Email con fallback TLS/SSL
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
@@ -307,14 +307,14 @@ EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ch4130949@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'scdtfcpicnqjmiyo')  # Nueva App Password sin espacios
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '30'))
-# Configuración de fallback para SSL
+# ConfiguraciÃ³n de fallback para SSL
 EMAIL_USE_SSL_FALLBACK = os.environ.get('EMAIL_USE_SSL_FALLBACK', 'True').lower() == 'true'
 
-# Configuración de SendGrid (alternativa)
+# ConfiguraciÃ³n de SendGrid (alternativa)
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
 SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@cacaoscan.com')
 
-# Configuración de emails del sistema
+# ConfiguraciÃ³n de emails del sistema
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER if EMAIL_HOST_USER else 'CacaoScan <noreply@cacaoscan.com>')
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
@@ -323,15 +323,15 @@ ADMINS = [
 ]
 MANAGERS = ADMINS
 
-# Configuración de templates de email
+# ConfiguraciÃ³n de templates de email
 EMAIL_TEMPLATES_DIR = BASE_DIR / 'api' / 'templates' / 'emails'
 
-# Configuración de notificaciones por email
+# ConfiguraciÃ³n de notificaciones por email
 EMAIL_NOTIFICATIONS_ENABLED = os.environ.get('EMAIL_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
 EMAIL_NOTIFICATION_TYPES = [
     'welcome',           # Email de bienvenida
-    'password_reset',    # Restablecimiento de contraseña
-    'analysis_complete', # Análisis completado
+    'password_reset',    # Restablecimiento de contraseÃ±a
+    'analysis_complete', # AnÃ¡lisis completado
     'report_ready',      # Reporte listo
     'training_complete', # Entrenamiento completado
     'defect_alert',      # Alerta de defectos
@@ -339,27 +339,27 @@ EMAIL_NOTIFICATION_TYPES = [
     'weekly_summary',    # Resumen semanal
 ]
 
-# Configuración de cola de emails (para producción)
+# ConfiguraciÃ³n de cola de emails (para producciÃ³n)
 EMAIL_QUEUE_ENABLED = os.environ.get('EMAIL_QUEUE_ENABLED', 'False').lower() == 'true'
 EMAIL_BATCH_SIZE = int(os.environ.get('EMAIL_BATCH_SIZE', '50'))
 EMAIL_RETRY_ATTEMPTS = int(os.environ.get('EMAIL_RETRY_ATTEMPTS', '3'))
 
-# Configuración de JWT
+# ConfiguraciÃ³n de JWT
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Token de acceso válido por 1 hora
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Token de refresh válido por 7 días
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Token de acceso vÃ¡lido por 1 hora
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Token de refresh vÃ¡lido por 7 dÃ­as
     'ROTATE_REFRESH_TOKENS': True,                   # Rotar tokens de refresh
     'BLACKLIST_AFTER_ROTATION': True,                # Blacklistear tokens antiguos
-    'UPDATE_LAST_LOGIN': True,                       # Actualizar último login
+    'UPDATE_LAST_LOGIN': True,                       # Actualizar Ãºltimo login
     
     'ALGORITHM': 'HS256',                            # Algoritmo de firma
     'SIGNING_KEY': SECRET_KEY,                       # Clave de firma
-    'VERIFYING_KEY': None,                           # Clave de verificación
+    'VERIFYING_KEY': None,                           # Clave de verificaciÃ³n
     'AUDIENCE': None,                                # Audiencia
     'ISSUER': None,                                  # Emisor
     
-    'AUTH_HEADER_TYPES': ('Bearer',),               # Tipo de header de autorización
+    'AUTH_HEADER_TYPES': ('Bearer',),               # Tipo de header de autorizaciÃ³n
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',        # Nombre del header
     'USER_ID_FIELD': 'id',                           # Campo de ID de usuario
     'USER_ID_CLAIM': 'user_id',                     # Claim de ID de usuario
@@ -376,12 +376,12 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-# Configuración de Django Channels
+# ConfiguraciÃ³n de Django Channels
 ASGI_APPLICATION = 'cacaoscan.asgi.application'
 
-# Configuración de Channels
+# ConfiguraciÃ³n de Channels
 # Para desarrollo sin Redis, usa InMemoryChannelLayer
-# Para producción, usa Redis: 'channels_redis.core.RedisChannelLayer'
+# Para producciÃ³n, usa Redis: 'channels_redis.core.RedisChannelLayer'
 USE_REDIS = os.environ.get('USE_REDIS', 'False').lower() == 'true'
 
 if USE_REDIS:
@@ -403,12 +403,14 @@ else:
         },
     }
 
-# Configuración de WebSockets
+# ConfiguraciÃ³n de WebSockets
 WEBSOCKET_URL = os.environ.get('WEBSOCKET_URL', 'ws://localhost:8000/ws/')
 WEBSOCKET_HEARTBEAT_INTERVAL = int(os.environ.get('WEBSOCKET_HEARTBEAT_INTERVAL', '30'))
 WEBSOCKET_MAX_CONNECTIONS = int(os.environ.get('WEBSOCKET_MAX_CONNECTIONS', '1000'))
 
-# Configuración de notificaciones en tiempo real
+# ConfiguraciÃ³n de notificaciones en tiempo real
 REALTIME_NOTIFICATIONS_ENABLED = os.environ.get('REALTIME_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
 NOTIFICATION_BROADCAST_ENABLED = os.environ.get('NOTIFICATION_BROADCAST_ENABLED', 'True').lower() == 'true'
 NOTIFICATION_PERSISTENCE_ENABLED = os.environ.get('NOTIFICATION_PERSISTENCE_ENABLED', 'True').lower() == 'true'
+
+

@@ -1,5 +1,5 @@
-"""
-Procesador de recortes con máscaras para granos de cacao.
+﻿"""
+Procesador de recortes con mÃ¡scaras para granos de cacao.
 """
 import numpy as np
 import cv2
@@ -38,9 +38,9 @@ class CacaoCropper:
         
         Args:
             yolo_inference: Instancia de inferencia YOLO
-            crop_size: Tamaño del recorte cuadrado
+            crop_size: TamaÃ±o del recorte cuadrado
             padding: Padding adicional para el recorte
-            save_masks: Si guardar máscaras para debug
+            save_masks: Si guardar mÃ¡scaras para debug
             overwrite: Si sobrescribir archivos existentes
         """
         self.yolo_inference = yolo_inference
@@ -69,14 +69,14 @@ class CacaoCropper:
             force_process: Forzar procesamiento aunque el crop ya exista
             
         Returns:
-            Diccionario con información del procesamiento
+            Diccionario con informaciÃ³n del procesamiento
         """
         crop_path = get_crops_dir() / f"{image_id}.png"
         mask_path = get_masks_dir() / f"{image_id}.png" if self.save_masks else None
         
         # Verificar si ya existe el crop y no se debe sobrescribir
         if not force_process and not self.overwrite and crop_path.exists():
-            # Verificar si la imagen original es más nueva
+            # Verificar si la imagen original es mÃ¡s nueva
             if not self._should_reprocess(image_path, crop_path):
                 logger.debug(f"Crop ya existe para ID {image_id}, saltando")
                 return {
@@ -90,7 +90,7 @@ class CacaoCropper:
         try:
             # Realizar inferencia YOLO
             if self.yolo_inference is None:
-                raise ValueError("YOLO inference no está inicializado")
+                raise ValueError("YOLO inference no estÃ¡ inicializado")
             
             prediction = self.yolo_inference.get_best_prediction(image_path)
             
@@ -102,11 +102,11 @@ class CacaoCropper:
                     'mask_path': None
                 }
             
-            # Validar calidad de la predicción
+            # Validar calidad de la predicciÃ³n
             if not self.yolo_inference.validate_prediction_quality(prediction):
                 return {
                     'success': False,
-                    'error': 'Predicción de baja calidad',
+                    'error': 'PredicciÃ³n de baja calidad',
                     'crop_path': None,
                     'mask_path': None
                 }
@@ -119,7 +119,7 @@ class CacaoCropper:
             # Convertir de BGR a RGB
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             
-            # Obtener máscara de la predicción
+            # Obtener mÃ¡scara de la predicciÃ³n
             mask = prediction['mask']
             
             # Validar calidad del recorte
@@ -147,7 +147,7 @@ class CacaoCropper:
             # Guardar recorte
             save_image(pil_crop, crop_path)
             
-            # Guardar máscara si se solicita
+            # Guardar mÃ¡scara si se solicita
             if self.save_masks and mask_path:
                 mask_normalized = (mask * 255).astype(np.uint8)
                 pil_mask = Image.fromarray(mask_normalized, 'L')
@@ -200,22 +200,22 @@ class CacaoCropper:
         progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
-        Procesa un lote de imágenes.
+        Procesa un lote de imÃ¡genes.
         
         Args:
-            image_records: Lista de registros de imágenes
-            limit: Límite de imágenes a procesar (0 = todas)
-            progress_callback: Función de callback para progreso
+            image_records: Lista de registros de imÃ¡genes
+            limit: LÃ­mite de imÃ¡genes a procesar (0 = todas)
+            progress_callback: FunciÃ³n de callback para progreso
             
         Returns:
-            Diccionario con estadísticas del procesamiento
+            Diccionario con estadÃ­sticas del procesamiento
         """
         total_images = len(image_records)
         if limit > 0:
             image_records = image_records[:limit]
             total_images = min(total_images, limit)
         
-        logger.info(f"Iniciando procesamiento de {total_images} imágenes")
+        logger.info(f"Iniciando procesamiento de {total_images} imÃ¡genes")
         
         stats = {
             'total': total_images,
@@ -251,9 +251,9 @@ class CacaoCropper:
                 if progress_callback:
                     progress_callback(i + 1, total_images, result)
                 
-                # Log periódico
+                # Log periÃ³dico
                 if (i + 1) % 10 == 0:
-                    logger.info(f"Procesadas {i + 1}/{total_images} imágenes")
+                    logger.info(f"Procesadas {i + 1}/{total_images} imÃ¡genes")
                 
             except Exception as e:
                 logger.error(f"Error procesando registro {record['id']}: {e}")
@@ -266,7 +266,7 @@ class CacaoCropper:
         # Log final
         success_rate = (stats['successful'] / stats['processed'] * 100) if stats['processed'] > 0 else 0
         logger.info(f"Procesamiento completado: {stats['successful']} exitosos, {stats['failed']} fallidos, {stats['skipped']} saltados")
-        logger.info(f"Tasa de éxito: {success_rate:.2f}%")
+        logger.info(f"Tasa de Ã©xito: {success_rate:.2f}%")
         
         return stats
 
@@ -279,13 +279,13 @@ def create_cacao_cropper(
     overwrite: bool = False
 ) -> CacaoCropper:
     """
-    Función de conveniencia para crear un procesador de recortes.
+    FunciÃ³n de conveniencia para crear un procesador de recortes.
     
     Args:
         confidence_threshold: Umbral de confianza para YOLO
-        crop_size: Tamaño del recorte cuadrado
+        crop_size: TamaÃ±o del recorte cuadrado
         padding: Padding adicional
-        save_masks: Si guardar máscaras
+        save_masks: Si guardar mÃ¡scaras
         overwrite: Si sobrescribir archivos
         
     Returns:
@@ -302,3 +302,5 @@ def create_cacao_cropper(
         save_masks=save_masks,
         overwrite=overwrite
     )
+
+
