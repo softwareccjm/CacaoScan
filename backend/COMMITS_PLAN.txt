@@ -1,0 +1,112 @@
+Plan de commits atómicos (SRP) para conversión y segmentación
+Ejecuta cada bloque en orden desde la raíz del repo
+
+1) chore(ml): crear módulo base de procesador de segmentación
+- git add backend/ml/segmentation/processor.py
+- git commit -m "chore(ml): crear archivo base processor.py con logger y runtime dir"
+
+2) feat(ml/processor): agregar importaciones necesarias
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): agregar importaciones (cv2, PIL, numpy, paths, logs, cropper, transforms)"
+
+3) feat(ml/processor): función _ensure_runtime_dir
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): añadir _ensure_runtime_dir para carpeta temporal"
+
+4) feat(ml/processor): función convert_bmp_to_jpg
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): convertir BMP->JPG en memoria (PIL RGB)"
+
+5) feat(ml/processor): función convert_to_png
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): convertir PIL Image a PNG RGBA"
+
+6) feat(ml/processor): función segment_and_crop_cacao_bean
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): segmentar y recortar grano a PNG transparente cuadrado"
+
+7) feat(ml/processor): función save_processed_png
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): guardar PNG procesado en processed/"
+
+8) feat(ml/utils/paths): agregar get_processed_images_dir
+- git add backend/ml/utils/paths.py
+- git commit -m "feat(ml/paths): añadir get_processed_images_dir()"
+
+9) feat(ml/utils/paths): agregar get_converted_jpg_dir
+- git add backend/ml/utils/paths.py
+- git commit -m "feat(ml/paths): añadir get_converted_jpg_dir() para BMP->JPG"
+
+10) chore(mgmt): crear comando convert_cacao_images (estructura base)
+- git add backend/management/commands/convert_cacao_images.py
+- git commit -m "chore(mgmt): crear comando convert_cacao_images (scaffold)"
+
+11) feat(mgmt/convert): parseo de argumentos --limit y --only
+- git add backend/management/commands/convert_cacao_images.py
+- git commit -m "feat(mgmt/convert): soportar --limit y --only (bmp|png|all)"
+
+12) feat(mgmt/convert): etapa BMP->JPG a converted_jpg/
+- git add backend/management/commands/convert_cacao_images.py
+- git commit -m "feat(mgmt/convert): implementar conversión BMP->JPG"
+
+13) feat(mgmt/convert): etapa JPG->PNG segmentado a processed/
+- git add backend/management/commands/convert_cacao_images.py
+- git commit -m "feat(mgmt/convert): implementar segmentación JPG->PNG transparente"
+
+14) docs(mgmt/convert): logs de progreso y resumen
+- git add backend/management/commands/convert_cacao_images.py
+- git commit -m "docs(mgmt/convert): agregar mensajes de progreso y resumen final"
+
+15) fix(frontend/services): servicioAnalisis reexporta predictionApi
+- git add frontend/src/services/servicioAnalisis.js
+- git commit -m "fix(services): servicioAnalisis reexporta predictionApi para compatibilidad"
+
+16) fix(frontend/services): export default consistente
+- git add frontend/src/services/servicioAnalisis.js
+- git commit -m "fix(services): añadir export default en servicioAnalisis"
+
+17) feat(api/views): agregar importaciones para segmentación
+- git add backend/api/views.py
+- git commit -m "feat(api/views): importar segment_and_crop_cacao_bean y save_processed_png"
+
+18) feat(api/views): agregar imports Path y re
+- git add backend/api/views.py
+- git commit -m "feat(api/views): agregar imports Path y re para manejo de nombres de archivo"
+
+19) feat(api/views): modificar _save_uploaded_image para segmentar grano
+- git add backend/api/views.py
+- git commit -m "feat(api/views): segmentar grano y guardar PNG transparente en processed/"
+
+20) feat(api/views): actualizar post() para recibir processed_png_path
+- git add backend/api/views.py
+- git commit -m "feat(api/views): recibir ruta del PNG segmentado desde _save_uploaded_image"
+
+21) feat(mgmt/convert): mejorar logs de guardado de PNG
+- git add backend/management/commands/convert_cacao_images.py
+- git commit -m "feat(mgmt/convert): agregar logs de ruta y archivos guardados"
+
+22) feat(ml/transforms): función refine_mask_with_opencv
+- git add backend/ml/data/transforms.py
+- git commit -m "feat(ml/transforms): añadir refine_mask_with_opencv con morfología (opening/closing)"
+
+23) feat(ml/transforms): función smooth_mask_edges
+- git add backend/ml/data/transforms.py
+- git commit -m "feat(ml/transforms): añadir smooth_mask_edges con desenfoque Gaussiano"
+
+24) feat(ml/transforms): función remove_background_advanced
+- git add backend/ml/data/transforms.py
+- git commit -m "feat(ml/transforms): añadir remove_background_advanced con opción GrabCut"
+
+25) feat(ml/transforms): función create_transparent_background_opencv
+- git add backend/ml/data/transforms.py
+- git commit -m "feat(ml/transforms): añadir create_transparent_background_opencv para eliminar fondo con OpenCV"
+
+26) feat(ml/processor): importar create_transparent_background_opencv
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): importar create_transparent_background_opencv"
+
+27) feat(ml/processor): usar OpenCV avanzado para eliminar fondo
+- git add backend/ml/segmentation/processor.py
+- git commit -m "feat(ml/processor): usar create_transparent_background_opencv en segment_and_crop_cacao_bean"
+
+Nota: continúa agregando aquí nuevas acciones/commits atómicos conforme avancemos
