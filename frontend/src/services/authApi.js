@@ -98,7 +98,7 @@ const authApi = {
       
       console.log('📤 [authApi] Payload enviado al backend (personas):', payload);
       
-      const response = await api.post('/api/v1/personas/registrar/', payload)
+      const response = await api.post('/personas/registrar/', payload)
       
       console.log('🔍 [authApi] Respuesta cruda del backend (registro):', response.data)
       
@@ -406,7 +406,7 @@ const authApi = {
    */
   async getUser(userId) {
     try {
-      const response = await api.get(`/api/v1/auth/users/${userId}/`)
+      const response = await api.get(`/auth/users/${userId}/`)
       return response.data
     } catch (error) {
       console.error('Error obteniendo usuario:', error)
@@ -419,7 +419,7 @@ const authApi = {
    */
   async updateUser(userId, userData) {
     try {
-      const response = await api.patch(`/api/v1/auth/users/${userId}/update/`, userData)
+      const response = await api.patch(`/auth/users/${userId}/update/`, userData)
       return response.data
     } catch (error) {
       console.error('Error actualizando usuario:', error)
@@ -432,7 +432,7 @@ const authApi = {
    */
   async deleteUser(userId) {
     try {
-      const response = await api.delete(`/api/v1/auth/users/${userId}/delete/`)
+      const response = await api.delete(`/auth/users/${userId}/delete/`)
       return response.data
     } catch (error) {
       console.error('Error eliminando usuario:', error)
@@ -445,7 +445,7 @@ const authApi = {
    */
   async toggleUserStatus(userId, isActive) {
     try {
-      const response = await api.patch(`/api/v1/auth/users/${userId}/update/`, {
+      const response = await api.patch(`/auth/users/${userId}/update/`, {
         is_active: isActive
       })
       return response.data

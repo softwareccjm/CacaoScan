@@ -113,7 +113,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter }                from 'vue-router';
 import AdminSidebar                 from '@/components/layout/Common/Sidebar.vue';
 import FarmersStatsCards            from '@/components/admin/AdminAgricultorComponents/FarmersStatsCards.vue';
@@ -477,9 +477,12 @@ export default {
       }
     };
 
-    const handleNewFarmer = () => {
-      if (createFarmerModalRef.value) {
+    const handleNewFarmer = async () => {
+      await nextTick();
+      if (createFarmerModalRef.value && typeof createFarmerModalRef.value.openModal === 'function') {
         createFarmerModalRef.value.openModal();
+      } else {
+        console.error('createFarmerModalRef no está disponible o openModal no es una función', createFarmerModalRef.value);
       }
     };
 
@@ -497,17 +500,23 @@ export default {
       });
     };
 
-    const handleViewFarmer = (farmer) => {
+    const handleViewFarmer = async (farmer) => {
       selectedFarmer.value = farmer;
-      if (farmerDetailModalRef.value) {
+      await nextTick();
+      if (farmerDetailModalRef.value && typeof farmerDetailModalRef.value.openModal === 'function') {
         farmerDetailModalRef.value.openModal();
+      } else {
+        console.error('farmerDetailModalRef no está disponible o openModal no es una función', farmerDetailModalRef.value);
       }
     };
 
-    const handleEditFarmer = (farmer) => {
+    const handleEditFarmer = async (farmer) => {
       selectedFarmerForEdit.value = farmer;
-      if (editFarmerModalRef.value) {
+      await nextTick();
+      if (editFarmerModalRef.value && typeof editFarmerModalRef.value.openModal === 'function') {
         editFarmerModalRef.value.openModal();
+      } else {
+        console.error('editFarmerModalRef no está disponible o openModal no es una función', editFarmerModalRef.value);
       }
     };
 
