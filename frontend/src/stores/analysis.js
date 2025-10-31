@@ -89,10 +89,12 @@ export const useAnalysisStore = defineStore('analysis', {
         });
 
         // Upload with progress tracking
+        // Timeout aumentado a 120 segundos para análisis batch con múltiples imágenes
         const response = await api.post('/analysis/batch/', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
+          timeout: 120000, // 120 segundos (2 minutos) para procesamiento de múltiples imágenes
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
               this.uploadProgress = Math.round(
@@ -102,21 +104,8 @@ export const useAnalysisStore = defineStore('analysis', {
           },
         });
 
-        // Tras crear el lote, disparar la medición para cada imagen subida
-        // Esto garantiza que también se guarden los recortes PNG en processed/
-        for (const file of this.images) {
-          try {
-            const fd = new FormData();
-            fd.append('image', file);
-            await api.post('/scan/measure/', fd, {
-              headers: { 'Content-Type': 'multipart/form-data' },
-              timeout: 60000,
-            });
-          } catch (e) {
-            // No romper el flujo si una imagen falla; continuar con las demás
-            console.warn('Medición fallida para una imagen:', e?.message || e);
-          }
-        }
+        // NOTA: Ya no llamamos a /scan/measure/ porque el batch endpoint ya hace todo el procesamiento
+        // Esto evita errores duplicados y mejora el rendimiento
 
         return response.data;
 
