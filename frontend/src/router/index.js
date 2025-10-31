@@ -91,6 +91,24 @@ const router = createRouter({
         requiresGuest: true,
       },
     },
+    {
+      path: '/auth/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('../views/Auth/PasswordReset.vue'),
+      meta: {
+        title: 'Recuperar Contraseña | CacaoScan',
+        requiresGuest: true,
+      },
+    },
+    {
+      path: '/auth/reset-password',
+      name: 'ResetPassword',
+      component: () => import('../views/Auth/ResetPassword.vue'),
+      meta: {
+        title: 'Restablecer Contraseña | CacaoScan',
+        requiresGuest: true,
+      },
+    },
 
     // DOCUMENTOS LEGALES
     {

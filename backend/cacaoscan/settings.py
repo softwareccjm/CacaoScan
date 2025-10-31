@@ -316,8 +316,14 @@ SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
 SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@cacaoscan.com')
 
 # ConfiguraciÃ³n de emails del sistema
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER if EMAIL_HOST_USER else 'CacaoScan <noreply@cacaoscan.com>')
+# Usar el mismo email que el usuario autenticado en SMTP para evitar bloqueos de Gmail
+# Gmail requiere que el remitente coincida con EMAIL_HOST_USER para entregar a otros correos
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL', 
+    f"CacaoScan <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else 'CacaoScan <noreply@cacaoscan.com>'
+)
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+EMAIL_SUBJECT_PREFIX = os.environ.get('EMAIL_SUBJECT_PREFIX', '[CacaoScan] ')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 ADMINS = [
     ('Admin CacaoScan', os.environ.get('ADMIN_EMAIL', 'admin@cacaoscan.com')),

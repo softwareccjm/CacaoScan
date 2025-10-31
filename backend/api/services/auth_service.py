@@ -428,6 +428,34 @@ class AuthenticationService(BaseService):
                 # Crear token de recuperaciÃ³n
                 reset_token = EmailVerificationToken.create_for_user(user)
                 
+                # Enviar email de restablecimiento de contraseÃ±a
+                try:
+                    from django.conf import settings
+                    from django.utils import timezone
+                    from ..email_service import send_email_notification
+                    
+                    email_context = {
+                        'user_name': user.get_full_name() or user.username,
+                        'user_email': user.email,
+                        'token': str(reset_token.token),
+                        'reset_url': f"{settings.FRONTEND_URL}/auth/reset-password/?token={reset_token.token}",
+                        'token_expiry_hours': 24,
+                        'current_year': timezone.now().year,
+                    }
+                    
+                    email_result = send_email_notification(
+                        user_email=user.email,
+                        notification_type='password_reset',
+                        context=email_context
+                    )
+                    
+                    if email_result.get("success"):
+                        self.log_info(f"[SUCCESS] Email de restablecimiento enviado a {user.email}")
+                    else:
+                        self.log_error(f"[ERROR] Fallo envio de email: {email_result.get('error')}")
+                except Exception as e:
+                    self.log_error(f"[EXCEPCION] Error enviando email: {e}", exc_info=True)
+                
                 # Registrar solicitud en historial
                 self._log_password_reset_request(user, request)
                 

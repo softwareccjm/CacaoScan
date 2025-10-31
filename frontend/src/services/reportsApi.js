@@ -48,7 +48,7 @@ const reportsApi = {
       // Esperar un momento antes de remover y limpiar
       setTimeout(() => {
         document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
+      window.URL.revokeObjectURL(url)
       }, 100)
       
       return { success: true }

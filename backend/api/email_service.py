@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.utils import timezone
 from django.core.mail.backends.smtp import EmailBackend
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content, Attachment, FileContent, FileName, FileType, Disposition
@@ -407,6 +408,7 @@ class EmailNotificationService:
         subjects = {
             'welcome': f"Â¡Bienvenido a CacaoScan, {context.get('user_name', 'Usuario')}!",
             'password_reset': "Restablecimiento de contraseÃ±a - CacaoScan",
+            'password_reset_success': "Contraseña restablecida exitosamente - CacaoScan",
             'analysis_complete': "AnÃ¡lisis completado - CacaoScan",
             'report_ready': "Reporte listo - CacaoScan",
             'training_complete': "Entrenamiento completado - CacaoScan",
@@ -486,11 +488,112 @@ def send_email_notification(
     subject_override: str = None
 ) -> Dict[str, Any]:
     """
-    FunciÃ³n helper para enviar notificaciones por email.
+    Envía notificaciones por correo (recuperación, verificación, etc.) usando Gmail SMTP.
+    Mejorada para evitar bloqueos y filtrado en SPAM.
+    
+    Args:
+        user_email: Email del destinatario
+        notification_type: Tipo de notificación (password_reset, welcome, etc.)
+        context: Contexto para renderizar templates
+        subject_override: Asunto personalizado (opcional)
+        
+    Returns:
+        Dict con 'success': True/False y detalles del envío
     """
-    return email_notification_service.send_notification_email(
-        user_email, notification_type, context, subject_override
-    )
+    try:
+        # === Seguridad: validar campos mínimos ===
+        if not user_email or '@' not in user_email:
+            logger.error(f"[EMAIL] Dirección inválida: {user_email}")
+            return {"success": False, "error": "Correo inválido"}
+
+        # === Configurar asunto y plantillas ===
+        subject_prefix = getattr(settings, "EMAIL_SUBJECT_PREFIX", "[CacaoScan] ")
+        
+        # Usar subject_override si se proporciona, sino usar el predeterminado del servicio
+        if subject_override:
+            subject = subject_override
+        else:
+            # Intentar obtener asunto del servicio de notificaciones
+            try:
+                subject = email_notification_service._get_default_subject(notification_type, context)
+            except:
+                subject = f"{subject_prefix} Notificación de CacaoScan"
+
+        # Selección automática de template
+        html_template = f"emails/{notification_type}.html"
+        text_template = f"emails/{notification_type}.txt"
+
+        try:
+            html_content = render_to_string(html_template, context)
+            text_content = render_to_string(text_template, context)
+        except Exception as e:
+            logger.error(f"[EMAIL] Error renderizando templates: {e}")
+            return {"success": False, "error": f"Error renderizando templates: {str(e)}"}
+
+        # === Configurar remitente profesional ===
+        # Usar el mismo email que el usuario autenticado en SMTP para evitar bloqueos de Gmail
+        from_email = getattr(
+            settings, "DEFAULT_FROM_EMAIL",
+            f"CacaoScan <{settings.EMAIL_HOST_USER}>"
+        )
+
+        # === Conexión SMTP segura ===
+        connection = get_connection(
+            backend='django.core.mail.backends.smtp.EmailBackend',
+            host=settings.EMAIL_HOST,
+            port=settings.EMAIL_PORT,
+            username=settings.EMAIL_HOST_USER,
+            password=settings.EMAIL_HOST_PASSWORD,
+            use_tls=settings.EMAIL_USE_TLS,
+            timeout=30,
+        )
+
+        # === Construir correo ===
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[user_email],
+            connection=connection,
+            headers={
+                "Reply-To": "cacaoscan.soporte@gmail.com",
+                "X-Mailer": "CacaoScanMailer",
+                "X-Priority": "3",
+            },
+        )
+
+        email.attach_alternative(html_content, "text/html")
+
+        # === Enviar correo ===
+        sent_count = email.send(fail_silently=False)
+
+        if sent_count:
+            logger.info(f"[EMAIL] ✅ Correo '{notification_type}' enviado a {user_email}")
+            return {
+                "success": True,
+                "sent_to": user_email,
+                "timestamp": timezone.now().isoformat()
+            }
+        else:
+            logger.warning(f"[EMAIL] ❌ Correo no enviado a {user_email}")
+            return {"success": False, "error": "No se envió el correo"}
+
+    except Exception as e:
+        logger.error(f"[EMAIL] ⚠️ Error al enviar correo a {user_email}: {e}", exc_info=True)
+
+        # === Fallback de emergencia ===
+        try:
+            # Si Gmail falla, imprimir en consola para debugging
+            subject_fallback = subject if 'subject' in locals() else "Notificación de CacaoScan"
+            text_fallback = text_content if 'text_content' in locals() else "Error al renderizar contenido"
+            print(f"\n[EMAIL Fallback] --- Envío simulado ---\n"
+                  f"Para: {user_email}\n"
+                  f"Asunto: {subject_fallback}\n"
+                  f"Contenido:\n{text_fallback}\n")
+        except Exception:
+            pass
+
+        return {"success": False, "error": str(e)}
 
 
 def send_bulk_email_notification(

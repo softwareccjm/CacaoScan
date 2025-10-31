@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, get_user_model
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -93,6 +93,9 @@ from .serializers import (
     FincaStatsSerializer
 )
 from .utils import create_error_response, create_success_response
+from .email_service import send_email_notification
+
+User = get_user_model()
 # Importar desde apps modulares
 try:
     from auth_app.models import EmailVerificationToken
@@ -886,7 +889,6 @@ class AutoInitializeView(APIView):
 
 # Vistas de autenticaciÃ³n
 from django.contrib.auth import login, logout
-from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 
@@ -2153,7 +2155,8 @@ class VerifyEmailPreRegistrationView(APIView):
 # Vistas de recuperaciÃ³n de contraseÃ±a
 class ForgotPasswordView(APIView):
     """
-    Endpoint para solicitar recuperaciÃ³n de contraseÃ±a.
+    Paso 1: Solicitud de recuperación.
+    Verifica si el correo existe, genera token y envía email.
     """
     permission_classes = [AllowAny]
     
@@ -2169,7 +2172,7 @@ class ForgotPasswordView(APIView):
         ),
         responses={
             200: openapi.Response(
-                description="Email de recuperaciÃ³n enviado",
+                description="Email de recuperaciÃ³n enviado exitosamente",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -2179,68 +2182,102 @@ class ForgotPasswordView(APIView):
                 )
             ),
             400: ErrorResponseSerializer,
+            404: openapi.Response(
+                description="Correo no registrado en el sistema",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            ),
+            500: ErrorResponseSerializer,
         },
         tags=['AutenticaciÃ³n']
     )
     def post(self, request):
         """
-        Solicitar recuperaciÃ³n de contraseÃ±a.
+        Solicitar recuperación de contraseña.
+        Valida que el correo exista antes de generar token o enviar correo.
         """
-        email = request.data.get('email')
-        
-        if not email:
-            return create_error_response(
-                message='Email es requerido',
-                error_type='validation_error',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        
         try:
-            user = User.objects.get(email=email)
-            
-            # Crear token de recuperaciÃ³n (usando el mismo modelo de verificaciÃ³n)
-            reset_token = EmailVerificationToken.create_for_user(user)
-            
-            # Enviar email de restablecimiento de contraseÃ±a
-            try:
-                from .email_service import send_email_notification
-                email_context = {
-                    'user_name': user.get_full_name() or user.username,
-                    'user_email': user.email,
-                    'token': str(reset_token.token),
-                    'reset_url': f"{request.build_absolute_uri('/')}auth/reset-password/?token={reset_token.token}",
-                    'token_expiry_hours': 24  # Token vÃ¡lido por 24 horas
-                }
-                email_result = send_email_notification(
-                    user_email=user.email,
-                    notification_type='password_reset',
-                    context=email_context
+            email = request.data.get("email", "").strip().lower()
+
+            if not email:
+                return Response(
+                    {"success": False, "message": "Debe proporcionar un correo electrónico."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-                if email_result['success']:
-                    logger.info(f"Email de restablecimiento enviado a {user.email}")
-                else:
-                    logger.error(f"Error enviando email de restablecimiento: {email_result.get('error')}")
-            except Exception as e:
-                logger.error(f"Error en envÃ­o de email de restablecimiento: {e}")
-            
-            return create_success_response(
-                message=f'Instrucciones de recuperaciÃ³n enviadas a {email}',
-                data={
-                    'token': str(reset_token.token),  # Solo para desarrollo
-                    'expires_at': reset_token.expires_at.isoformat()
-                }
+
+            # 🔍 Verificar si el correo existe en la base de datos
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                logger.warning(f"[FORGOT_PASSWORD] Intento con correo inexistente: {email}")
+                return Response(
+                    {
+                        "success": False,
+                        "message": "El correo ingresado no está registrado en el sistema."
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # ✅ Crear token de recuperación
+            reset_token = EmailVerificationToken.create_for_user(user)
+
+            reset_url = f"{settings.FRONTEND_URL}/auth/reset-password/?token={reset_token.token}"
+
+            # Contexto para el template del email
+            email_context = {
+                "user_name": user.get_full_name() or user.username,
+                "user_email": user.email,
+                "token": str(reset_token.token),
+                "reset_url": reset_url,
+                "token_expiry_hours": 24,
+                "current_year": timezone.now().year,
+            }
+
+            # Enviar correo
+            email_result = send_email_notification(
+                user_email=user.email,
+                notification_type="password_reset",
+                context=email_context,
             )
-            
-        except User.DoesNotExist:
-            # Por seguridad, no revelar si el email existe o no
-            return create_success_response(
-                message='Si el email existe, recibirÃ¡s instrucciones de recuperaciÃ³n'
+
+            if email_result.get("success"):
+                logger.info(f"[FORGOT_PASSWORD] Email de recuperación enviado a {email}")
+                return Response(
+                    {
+                        "success": True,
+                        "message": f"Se enviaron instrucciones de recuperación a {email}."
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                logger.error(f"[FORGOT_PASSWORD] Fallo envío a {email}: {email_result.get('error')}")
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Error al enviar el correo. Intente nuevamente más tarde."
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        except Exception as e:
+            logger.error(f"[FORGOT_PASSWORD] Error interno: {e}", exc_info=True)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error interno del servidor."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
 class ResetPasswordView(APIView):
     """
-    Endpoint para restablecer contraseÃ±a con token.
+    Paso 2: Restablecer la contraseña con el token recibido.
     """
     permission_classes = [AllowAny]
     
@@ -2273,54 +2310,51 @@ class ResetPasswordView(APIView):
     )
     def post(self, request):
         """
-        Restablecer contraseÃ±a con token.
+        Restablecer contraseña con token.
         """
-        token_uuid = request.data.get('token')
-        new_password = request.data.get('new_password')
-        confirm_password = request.data.get('confirm_password')
-        
-        if not all([token_uuid, new_password, confirm_password]):
-            return create_error_response(
-                message='Token, nueva contraseÃ±a y confirmaciÃ³n son requeridos',
-                error_type='validation_error',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+
+        if not all([token, new_password, confirm_password]):
+            return Response({"success": False, "message": "Datos incompletos."}, status=400)
+
         if new_password != confirm_password:
-            return create_error_response(
-                message='Las contraseÃ±as no coinciden',
-                error_type='validation_error',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Validar fortaleza de contraseÃ±a
+            return Response({"success": False, "message": "Las contraseñas no coinciden."}, status=400)
+
         if len(new_password) < 8:
-            return create_error_response(
-                message='La contraseÃ±a debe tener al menos 8 caracteres',
-                error_type='validation_error',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verificar token
-        token_obj = EmailVerificationToken.get_valid_token(token_uuid)
+            return Response({"success": False, "message": "La contraseña debe tener al menos 8 caracteres."}, status=400)
+
+        # Validar token
+        token_obj = EmailVerificationToken.get_valid_token(token)
         if not token_obj:
-            return create_error_response(
-                message='Token invÃ¡lido o expirado',
-                error_type='invalid_token',
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Restablecer contraseÃ±a
+            return Response({"success": False, "message": "El enlace no es válido o ha expirado."}, status=400)
+
         user = token_obj.user
         user.set_password(new_password)
         user.save()
-        
-        # Eliminar token usado
+
+        # Eliminar token para evitar reutilización
         token_obj.delete()
+
+        # Enviar correo de confirmación
+        ctx = {
+            "user_name": user.get_full_name() or user.username,
+            "user_email": user.email,
+            "reset_url": f"{settings.FRONTEND_URL}/auth/login",
+            "current_year": timezone.now().year,
+        }
         
-        return create_success_response(
-            message='ContraseÃ±a restablecida exitosamente'
-        )
+        # Enviar email de confirmación (no bloquea si falla)
+        try:
+            send_email_notification(user.email, "password_reset_success", ctx)
+        except Exception as e:
+            logger.error(f"[ERROR] No se pudo enviar email de confirmación: {e}")
+
+        return Response({
+            "success": True,
+            "message": "Contraseña restablecida correctamente."
+        }, status=200)
 
 
 # Vistas de gestiÃ³n de usuarios (Admin)
