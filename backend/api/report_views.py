@@ -498,7 +498,7 @@ class ReporteStatsView(APIView):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo estadísticas de reportes: {e}")
+            logger.warning(f"[WARNING] Error obteniendo estadísticas de reportes: {e}")
             # Retornar datos vacíos en lugar de 500
             return Response({
                 'total_reportes': 0,
