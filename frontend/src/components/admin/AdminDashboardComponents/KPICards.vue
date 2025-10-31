@@ -4,9 +4,8 @@
     <div 
       v-for="(card, index) in cards" 
       :key="card.id"
-      class="relative bg-white rounded-2xl border-2 border-gray-200 p-6 hover:shadow-xl hover:border-green-300 transition-all duration-300 cursor-pointer group animate-slide-up"
+      class="relative bg-white rounded-2xl border-2 border-gray-200 p-6 hover:shadow-xl hover:border-green-300 transition-all duration-300 group animate-slide-up"
       :style="{ animationDelay: `${index * 50}ms` }"
-      @click="handleCardClick(card)"
     >
       <!-- Indicador decorativo superior -->
       <div class="absolute top-0 right-0 w-20 h-1 bg-gradient-to-l from-green-500 to-transparent rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -60,12 +59,6 @@
         </div>
       </div>
       
-      <!-- Flecha de navegación en hover -->
-      <div class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-        </svg>
-      </div>
     </div>
   </div>
 </template>
@@ -80,13 +73,7 @@ export default {
       default: () => []
     }
   },
-  emits: ['card-click'],
-  setup(props, { emit }) {
-    // Methods
-    const handleCardClick = (card) => {
-      emit('card-click', card)
-    }
-
+  setup(props) {
     const getChangeColorClass = (change) => {
       if (change > 0) return 'text-green-600'
       if (change < 0) return 'text-red-600'
@@ -191,7 +178,6 @@ export default {
     }
 
     return {
-      handleCardClick,
       getChangeColorClass,
       getChangeIconPath,
       formatChangeText,

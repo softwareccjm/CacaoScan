@@ -24,13 +24,24 @@
                 <p class="text-gray-600 text-base">Panel de control completo del sistema CacaoScan</p>
               </div>
             </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <div v-if="isRefreshing" class="flex items-center gap-2 text-sm text-green-600">
+                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span>Actualizando...</span>
+              </div>
+              <div v-else-if="lastUpdateTime" class="text-xs text-gray-500">
+                Última actualización: {{ formatLastUpdate(lastUpdateTime) }}
+              </div>
+            </div>
             </div>
           </div>
           </div>
       </div>
       <!-- KPI Cards Component -->
       <div class="mb-8">
-        <KPICards :cards="kpiCards" @card-click="handleKPICardClick" />
+        <KPICards :cards="kpiCards" />
       </div>
 
       <!-- Charts Component -->
@@ -80,6 +91,9 @@ import DashboardTables from '@/components/admin/AdminDashboardComponents/Dashboa
 import DashboardAlerts from '@/components/admin/AdminDashboardComponents/DashboardAlerts.vue'
 import LoadingSpinner from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
+// Intentar importar WebSocket composable
+import { useWebSocket } from '@/composables/useWebSocket'
+
 export default {
   name: 'AdminDashboard',
   components: {
@@ -96,8 +110,18 @@ export default {
     const adminStore = useAdminStore()
     const configStore = useConfigStore()
 
+    // Intentar usar WebSocket si está disponible
+    let websocket = null
+    try {
+      websocket = useWebSocket()
+    } catch (e) {
+      console.warn('⚠️ WebSocket no disponible, usando solo polling:', e.message)
+    }
+
     // Reactive data
     const loading = ref(false)
+    const isRefreshing = ref(false)
+    const lastUpdateTime = ref(null)
     const stats = ref({})
     const recentUsers = ref([])
     const recentActivities = ref([])
@@ -341,14 +365,11 @@ export default {
 
     const loadStats = async () => {
       try {
+        isRefreshing.value = true
         const response = await adminStore.getGeneralStats()
         // response.data ya contiene los datos directamente del backend
         const data = response.data || {}
         console.log('📊 Stats cargadas (raw):', data)
-        console.log('👥 Usuarios total:', data?.users?.total)
-        console.log('🏡 Fincas total:', data?.fincas?.total)
-        console.log('🖼️ Imágenes total:', data?.images?.total)
-        console.log('⭐ Calidad promedio:', data?.predictions?.average_confidence)
         
         // Asegurar que la estructura esté completa antes de asignar
         const statsData = {
@@ -363,7 +384,8 @@ export default {
         
         // Asignar usando Object.assign para mantener reactividad
         Object.assign(stats.value, statsData)
-        console.log('✅ Stats asignadas a stats.value:', stats.value)
+        lastUpdateTime.value = new Date()
+        console.log('✅ Stats asignadas a stats.value')
         
         // Actualizar gráficos con datos reales
         updateActivityChartFromStats()
@@ -376,6 +398,8 @@ export default {
           images: { total: 0 },
           predictions: { average_confidence: 0 }
         }
+      } finally {
+        isRefreshing.value = false
       }
     }
 
@@ -396,6 +420,7 @@ export default {
 
     const loadRecentUsers = async () => {
       try {
+        isRefreshing.value = true
         const response = await adminStore.getRecentUsers(5)
         const data = response.data
         
@@ -411,10 +436,13 @@ export default {
         
         // Procesar cada usuario para asegurar formato consistente
         recentUsers.value = usersArray.map(processUserData)
-        console.log('👥 Recent users loaded:', recentUsers.value.length, 'items', recentUsers.value)
+        lastUpdateTime.value = new Date()
+        console.log('👥 Recent users loaded:', recentUsers.value.length, 'items')
       } catch (error) {
         console.error('Error loading recent users:', error)
         recentUsers.value = []
+      } finally {
+        isRefreshing.value = false
       }
     }
 
@@ -448,10 +476,9 @@ export default {
 
     const loadRecentActivities = async () => {
       try {
+        isRefreshing.value = true
         const response = await adminStore.getRecentActivities(20)
         const data = response.data || {}
-        
-        console.log('📊 [AdminDashboard] Activity response data:', data)
         
         // Procesar datos según el formato de respuesta del backend
         let activitiesArray = []
@@ -463,19 +490,15 @@ export default {
           activitiesArray = data.data
         }
         
-        console.log('📊 [AdminDashboard] Activities array (raw):', activitiesArray)
-        
         // Procesar cada actividad para asegurar formato consistente
         recentActivities.value = activitiesArray.map(processActivityData)
+        lastUpdateTime.value = new Date()
         console.log('📊 [AdminDashboard] Recent activities loaded:', recentActivities.value.length, 'items')
-        if (recentActivities.value.length > 0) {
-          console.log('📊 [AdminDashboard] First activity:', recentActivities.value[0])
-        } else {
-          console.warn('⚠️ [AdminDashboard] No activities found in response')
-        }
       } catch (error) {
         console.error('❌ [AdminDashboard] Error loading recent activities:', error)
         recentActivities.value = []
+      } finally {
+        isRefreshing.value = false
       }
     }
 
@@ -505,10 +528,9 @@ export default {
 
     const loadAlerts = async () => {
       try {
+        isRefreshing.value = true
         const response = await adminStore.getSystemAlerts()
         const data = response.data || {}
-        
-        console.log('🚨 [AdminDashboard] Alerts response data:', data)
         
         // Procesar datos según el formato de respuesta
         let notificationsArray = []
@@ -520,28 +542,23 @@ export default {
           notificationsArray = data.data
         }
         
-        console.log('🚨 [AdminDashboard] Notifications array (raw):', notificationsArray)
-        
         // Procesar cada notificación para asegurar formato consistente
         alerts.value = notificationsArray.map(processAlertData)
+        lastUpdateTime.value = new Date()
         console.log('🚨 [AdminDashboard] Alerts loaded:', alerts.value.length, 'items')
-        if (alerts.value.length > 0) {
-          console.log('🚨 [AdminDashboard] First alert:', alerts.value[0])
-        } else {
-          console.log('ℹ️ [AdminDashboard] No alerts found (this is normal if there are no unread notifications)')
-        }
       } catch (error) {
         console.error('❌ [AdminDashboard] Error loading alerts:', error)
         alerts.value = []
+      } finally {
+        isRefreshing.value = false
       }
     }
 
     const loadReportStats = async () => {
       try {
+        isRefreshing.value = true
         const response = await adminStore.getReportStats()
         const data = response.data || {}
-        
-        console.log('📊 [AdminDashboard] Report stats response:', data)
         
         // Mapear datos del backend al formato esperado por el componente
         reportStats.value = {
@@ -552,7 +569,8 @@ export default {
           ...data
         }
         
-        console.log('📊 [AdminDashboard] Report stats processed:', reportStats.value)
+        lastUpdateTime.value = new Date()
+        console.log('📊 [AdminDashboard] Report stats processed')
       } catch (error) {
         console.error('❌ [AdminDashboard] Error loading report stats:', error)
         reportStats.value = {
@@ -561,6 +579,8 @@ export default {
           reportes_generando: 0,
           reportes_fallidos: 0
         }
+      } finally {
+        isRefreshing.value = false
       }
     }
 
@@ -701,6 +721,20 @@ export default {
 
     const formatDateTime = (date) => {
       return new Date(date).toLocaleString('es-ES')
+    }
+
+    const formatLastUpdate = (date) => {
+      if (!date) return 'Nunca'
+      const now = new Date()
+      const updateDate = new Date(date)
+      const diffMs = now - updateDate
+      const diffSecs = Math.floor(diffMs / 1000)
+      const diffMins = Math.floor(diffSecs / 60)
+      
+      if (diffSecs < 5) return 'Ahora'
+      if (diffSecs < 60) return `Hace ${diffSecs}s`
+      if (diffMins < 60) return `Hace ${diffMins}m`
+      return updateDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
     }
 
     const getRoleBadgeClass = (role) => {
@@ -849,26 +883,10 @@ export default {
       refreshData()
     }
 
-    // KPI Cards event handler
+    // KPI Cards event handler - deshabilitado (sin navegación)
     const handleKPICardClick = (card) => {
-      console.log('KPI Card clicked:', card)
-      // Implementar navegación según la tarjeta
-      switch (card.id) {
-        case 'users':
-          router.push('/admin/users')
-          break
-        case 'fincas':
-          router.push('/admin/fincas')
-          break
-        case 'analyses':
-          router.push('/admin/analysis')
-          break
-        case 'quality':
-          router.push('/admin/reports')
-          break
-        default:
-          console.log('Unknown card clicked:', card.id)
-      }
+      // Las cards ya no redirigen, esto es solo para compatibilidad
+      console.log('KPI Card clicked (navigation disabled):', card.id)
     }
 
     // Charts event handlers
@@ -938,37 +956,129 @@ export default {
     // Lifecycle
     // Auto-refresh para datos en tiempo real
     let refreshInterval = null
-    const REFRESH_INTERVAL = 30000 // 30 segundos
+    let statsInterval = null
+    let quickRefreshInterval = null
+    
+    // Intervalos optimizados para tiempo real sin recargar página
+    const QUICK_REFRESH_INTERVAL = 3000 // 3 segundos para datos críticos (alertas y actividades)
+    const REFRESH_INTERVAL = 8000 // 8 segundos para datos dinámicos (usuarios, reportes)
+    const STATS_INTERVAL = 25000 // 25 segundos para estadísticas completas (stats y gráficos)
 
-    const startAutoRefresh = () => {
-      // Limpiar intervalo anterior si existe
-      if (refreshInterval) {
-        clearInterval(refreshInterval)
+    const setupRealtimeUpdates = () => {
+      // Si WebSockets están disponibles, usarlos como principal
+      if (websocket && websocket.hasAnyConnection?.value) {
+        setupWebSocketListeners()
+        // Usar polling como backup
+        startPollingUpdates()
+      } else {
+        // Solo usar polling mejorado
+        startPollingUpdates()
       }
-      
-      // Configurar actualización automática cada 30 segundos
-      refreshInterval = setInterval(() => {
-        console.log('🔄 Auto-refreshing dashboard data...')
-        loadRecentUsers()
-        loadRecentActivities()
-        loadAlerts()
-        // Actualizar stats cada 2 minutos (menos frecuente)
-        const now = Math.floor(Date.now() / 1000)
-        if (now % 120 === 0) {
-          loadStats()
+    }
+
+    const setupWebSocketListeners = () => {
+      if (!websocket) return
+
+      console.log('🔌 Configurando listeners de WebSocket para tiempo real...')
+
+      // Escuchar actualizaciones de estadísticas de auditoría
+      websocket.on?.('audit-stats-update', (data) => {
+        console.log('📊 Stats actualizadas via WebSocket:', data)
+        if (data) {
+          if (data.users) stats.value.users = { ...stats.value.users, ...data.users }
+          if (data.images) stats.value.images = { ...stats.value.images, ...data.images }
+          if (data.fincas) stats.value.fincas = { ...stats.value.fincas, ...data.fincas }
+          updateActivityChartFromStats()
+          updateQualityChartFromStats()
         }
+      })
+
+      // Escuchar nuevas actividades en tiempo real
+      websocket.on?.('audit-activity', (data) => {
+        console.log('🆕 Nueva actividad recibida en tiempo real:', data)
+        const processed = processActivityData(data)
+        recentActivities.value = [processed, ...recentActivities.value].slice(0, 20)
+      })
+
+      // Escuchar nuevas notificaciones/alertas en tiempo real
+      websocket.on?.('notification-received', (data) => {
+        console.log('🚨 Nueva alerta recibida en tiempo real:', data)
+        const processed = processAlertData(data)
+        alerts.value = [processed, ...alerts.value].slice(0, 10)
+      })
+
+      // Escuchar actualizaciones de estadísticas de usuarios
+      websocket.on?.('user-stats-update', (data) => {
+        console.log('👥 Stats de usuarios actualizadas en tiempo real:', data)
+        if (data?.users) {
+          stats.value.users = { ...stats.value.users, ...data.users }
+        }
+      })
+    }
+
+    const startPollingUpdates = () => {
+      console.log('🔄 Iniciando sistema de polling optimizado para tiempo real...')
+
+      // Quick refresh cada 3 segundos para datos críticos
+      quickRefreshInterval = setInterval(() => {
+        Promise.all([
+          loadAlerts(),
+          loadRecentActivities()
+        ]).catch(err => {
+          console.error('Error en quick refresh:', err)
+        })
+      }, QUICK_REFRESH_INTERVAL)
+
+      // Refresh normal cada 8 segundos para datos dinámicos
+      refreshInterval = setInterval(() => {
+        Promise.all([
+          loadRecentUsers(),
+          loadReportStats()
+        ]).catch(err => {
+          console.error('Error en refresh normal:', err)
+        })
       }, REFRESH_INTERVAL)
-      
-      console.log('✅ Auto-refresh iniciado (cada 30 segundos)')
+
+      // Stats refresh cada 25 segundos (más costoso)
+      statsInterval = setInterval(() => {
+        Promise.all([
+          loadStats(),
+          loadQualityData(),
+          updateActivityChart()
+        ]).catch(err => {
+          console.error('Error en refresh de stats:', err)
+        })
+      }, STATS_INTERVAL)
+
+      console.log('✅ Sistema de polling iniciado (quick: 3s, normal: 8s, stats: 25s)')
     }
 
     const stopAutoRefresh = () => {
+      if (quickRefreshInterval) {
+        clearInterval(quickRefreshInterval)
+        quickRefreshInterval = null
+      }
       if (refreshInterval) {
         clearInterval(refreshInterval)
         refreshInterval = null
-        console.log('⏹️ Auto-refresh detenido')
       }
+      if (statsInterval) {
+        clearInterval(statsInterval)
+        statsInterval = null
+      }
+
+      // Limpiar listeners de WebSocket
+      if (websocket) {
+        websocket.off?.('audit-stats-update')
+        websocket.off?.('audit-activity')
+        websocket.off?.('notification-received')
+        websocket.off?.('user-stats-update')
+      }
+
+      console.log('⏹️ Sistema de actualización en tiempo real detenido')
     }
+
+    const startAutoRefresh = setupRealtimeUpdates
 
     onMounted(async () => {
       // Verificar permisos de administrador usando el sistema de roles
@@ -982,7 +1092,20 @@ export default {
         return
       }
 
+      // Cargar datos iniciales
       await loadDashboardData()
+      
+      // Intentar conectar WebSocket para tiempo real
+      if (websocket && authStore.user?.id) {
+        try {
+          await websocket.connect()
+          console.log('✅ WebSocket conectado para actualizaciones en tiempo real')
+        } catch (error) {
+          console.warn('⚠️ No se pudo conectar WebSocket, usando polling:', error)
+        }
+      }
+      
+      // Iniciar sistema de actualización (WebSocket o polling)
       startAutoRefresh()
       
       // Los gráficos se crean automáticamente en DashboardCharts cuando los datos están listos
@@ -1004,6 +1127,8 @@ export default {
       reportStats,
       selectedPeriod,
       activityChartType,
+      isRefreshing,
+      lastUpdateTime,
       brandName,
       userName,
       userRole,
@@ -1045,7 +1170,7 @@ export default {
       handleSearch,
       handlePeriodChange,
       handleRefresh,
-      handleKPICardClick,
+      handleKPICardClick: () => {}, // Removed navigation
       handleActivityChartTypeChange,
       handleActivityRefresh,
       handleQualityRefresh,
@@ -1056,6 +1181,7 @@ export default {
       handleDismissAlert,
       formatDate,
       formatDateTime,
+      formatLastUpdate,
       getRoleBadgeClass,
       getActionBadgeClass,
       getAlertBorderClass,
