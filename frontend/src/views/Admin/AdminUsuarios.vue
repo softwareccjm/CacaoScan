@@ -784,17 +784,49 @@ export default {
       setupWebSocketConnection()
       
       // Configurar polling para actualizaciones periódicas (fallback si WebSockets fallan)
-      const statsPollingInterval = setInterval(() => {
-        loadUserStats()
-        // Solo recargar usuarios si están en la primera página
-        if (currentPage.value === 1) {
-          loadUsers()
+      // Aumentar intervalo a 60 segundos para reducir carga
+      let statsPollingInterval = null
+      
+      // Solo iniciar polling si no hay error activo
+      const startPolling = () => {
+        if (statsPollingInterval) return
+        
+        statsPollingInterval = setInterval(() => {
+          try {
+            loadUserStats().catch(err => {
+              console.error('Error en polling de estadísticas:', err)
+              // Detener polling si hay errores persistentes
+              stopPolling()
+            })
+            
+            // Solo recargar usuarios si están en la primera página
+            if (currentPage.value === 1) {
+              loadUsers().catch(err => {
+                console.error('Error en polling de usuarios:', err)
+              })
+            }
+          } catch (error) {
+            console.error('Error en polling:', error)
+            stopPolling()
+          }
+        }, 60000) // Actualizar cada 60 segundos (reducido de 30)
+      }
+      
+      const stopPolling = () => {
+        if (statsPollingInterval) {
+          clearInterval(statsPollingInterval)
+          statsPollingInterval = null
         }
-      }, 30000) // Actualizar cada 30 segundos
+      }
+      
+      // Iniciar polling después de cargar datos iniciales
+      setTimeout(() => {
+        startPolling()
+      }, 5000)
       
       // Limpiar intervalo y listeners de WebSocket al desmontar
       onUnmounted(() => {
-        clearInterval(statsPollingInterval)
+        stopPolling()
         // Limpiar listeners de WebSocket si es necesario
         if (websocket && websocket.off) {
           websocket.off('user-stats-updated', handleStatsUpdate)
