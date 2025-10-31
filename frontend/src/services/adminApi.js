@@ -17,20 +17,38 @@ import {
 } from './datasetApi.js';
 
 // Reutilizar utilidades del archivo base (DRY)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1';
 
 // Funciones utilitarias simples para este módulo (KISS)
 const makeRequest = async (url, options = {}) => {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  });
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  try {
+    // Obtener token de autenticación
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error en petición a ${url}:`, error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 // ==========================================
@@ -174,25 +192,39 @@ const startAdvancedTraining = async (modelType, config, dataFilters = {}, experi
  */
 const getTrainingHistory = async (filters = {}) => {
   try {
+    // Obtener token de autenticación
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
     // Construir parámetros de consulta
     const queryParams = new URLSearchParams();
     if (filters.model_type) queryParams.append('job_type', filters.model_type);
     if (filters.status) queryParams.append('status', filters.status);
     
-    const url = `${API_BASE_URL}/api/train/jobs/?${queryParams}`;
+    // API_BASE_URL ya incluye /api/v1, no duplicar
+    const url = `${API_BASE_URL}/train/jobs/?${queryParams}`;
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(url, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
     
     const data = await response.json();
     
     // Retornar los resultados (el backend ya aplica filtros)
-    return data.results || [];
+    return data.results || data || [];
     
   } catch (error) {
     console.error('Error obteniendo historial de entrenamiento:', error);
@@ -230,9 +262,30 @@ const getMultipleJobStatus = async (jobIds) => {
  */
 const cancelTrainingJob = async (jobId) => {
   try {
-    return await makeRequest(`${API_BASE_URL}/api/train/jobs/${jobId}/cancel/`, {
-      method: 'POST'
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // API_BASE_URL ya incluye /api/v1
+    const url = `${API_BASE_URL}/train/jobs/${jobId}/cancel/`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('Error cancelando job:', error);
     throw error;
@@ -246,7 +299,30 @@ const cancelTrainingJob = async (jobId) => {
  */
 const getModelMetrics = async (jobId) => {
   try {
-    return await makeRequest(`${API_BASE_URL}/api/train/jobs/${jobId}/metrics/`);
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // API_BASE_URL ya incluye /api/v1
+    const url = `${API_BASE_URL}/train/jobs/${jobId}/metrics/`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('Error obteniendo métricas:', error);
     throw error;
@@ -260,10 +336,31 @@ const getModelMetrics = async (jobId) => {
  */
 const compareModels = async (jobIds) => {
   try {
-    return await makeRequest(`${API_BASE_URL}/api/train/jobs/compare/`, {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // API_BASE_URL ya incluye /api/v1
+    const url = `${API_BASE_URL}/train/jobs/compare/`;
+    
+    const response = await fetch(url, {
       method: 'POST',
+      headers,
       body: JSON.stringify({ job_ids: jobIds })
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('Error comparando modelos:', error);
     throw error;
@@ -281,10 +378,30 @@ const compareModels = async (jobIds) => {
  */
 const createExperiment = async (experimentData) => {
   try {
-    return await makeRequest(`${API_BASE_URL}/api/images/admin/experiments/`, {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const url = `${API_BASE_URL}/images/admin/experiments/`;
+    
+    const response = await fetch(url, {
       method: 'POST',
+      headers,
       body: JSON.stringify(experimentData)
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('Error creando experimento:', error);
     throw error;
@@ -298,6 +415,16 @@ const createExperiment = async (experimentData) => {
  */
 const getExperiments = async (filters = {}) => {
   try {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -305,8 +432,19 @@ const getExperiments = async (filters = {}) => {
       }
     });
     
-    const url = `${API_BASE_URL}/api/images/admin/experiments/?${params}`;
-    return await makeRequest(url);
+    const url = `${API_BASE_URL}/images/admin/experiments/?${params}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('Error obteniendo experimentos:', error);
     throw error;
@@ -449,6 +587,84 @@ const ADMIN_TRAINING_CONFIG = {
   }
 };
 
+/**
+ * Inicia entrenamiento ML usando el endpoint simplificado /api/v1/ml/train/
+ * Esta función usa la configuración mejorada (150 épocas, validación de crops, etc.)
+ * @param {Object} config - Configuración opcional del entrenamiento
+ * @returns {Promise<Object>} Job de entrenamiento iniciado
+ */
+const startMLTraining = async (config = {}) => {
+  try {
+    // Obtener token de autenticación del localStorage
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Configuración por defecto con las mejoras implementadas
+    const defaultConfig = {
+      job_type: 'regression',
+      model_name: 'cacao_regression_models',
+      dataset_size: 0, // Se calculará automáticamente
+      epochs: 150, // 150 épocas para mejor aprendizaje
+      batch_size: 16,
+      learning_rate: 0.001,
+      config_params: {
+        multi_head: false,
+        model_type: 'resnet18',
+        img_size: 224,
+        early_stopping_patience: 25,
+        // Mejoras avanzadas
+        scheduler_type: 'cosine_warmup',
+        warmup_epochs: 10,
+        loss_type: 'huber',
+        max_grad_norm: 1.0,
+        use_advanced_augmentation: true,
+        validate_crops_quality: true,
+        regenerate_bad_crops: true,
+        improvement_threshold: 1e-5,
+        min_epochs: 50
+      }
+    };
+    
+    // Combinar con configuración proporcionada
+    const trainingConfig = {
+      ...defaultConfig,
+      ...config,
+      config_params: {
+        ...defaultConfig.config_params,
+        ...(config.config_params || {})
+      }
+    };
+    
+    console.log('Iniciando entrenamiento ML con configuración mejorada:', trainingConfig);
+    
+    const response = await fetch(`${API_BASE_URL}/ml/train/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(trainingConfig)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Entrenamiento iniciado exitosamente:', data);
+    return data;
+    
+  } catch (error) {
+    console.error('Error iniciando entrenamiento ML:', error);
+    throw error;
+  }
+};
+
 // Re-exportar funciones base necesarias para compatibilidad (DRY)
 export { 
   baseTrainRegression as trainRegressionModel,
@@ -460,6 +676,7 @@ export {
 // Exportar funciones avanzadas
 export {
   startAdvancedTraining,
+  startMLTraining,
   getTrainingHistory,
   getMultipleJobStatus,
   cancelTrainingJob,
@@ -483,6 +700,7 @@ export {
 export default {
   // Entrenamiento avanzado
   startAdvancedTraining,
+  startMLTraining,
   getTrainingHistory,
   getMultipleJobStatus,
   cancelTrainingJob,
