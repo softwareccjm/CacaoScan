@@ -12,19 +12,19 @@ const catalogosApi = {
   async getParametrosPorTema(codigoTema) {
     try {
       // Ruta principal: query por tema
-      const response = await api.get('/api/v1/parametros/', { params: { tema: codigoTema } })
+      const response = await api.get('/parametros/', { params: { tema: codigoTema } })
       return response.data
     } catch (errorPrimario) {
       console.warn(`[catalogosApi] Fallback 1 para tema ${codigoTema} tras error:`, errorPrimario?.response?.status)
       try {
         // Fallback 1: endpoint REST por tema
-        const respAlt1 = await api.get(`/api/v1/parametros/tema/${codigoTema}/`)
+        const respAlt1 = await api.get(`/parametros/tema/${codigoTema}/`)
         return respAlt1.data
       } catch (errorSecundario) {
         console.warn(`[catalogosApi] Fallback 2 para tema ${codigoTema} tras error:`, errorSecundario?.response?.status)
         try {
           // Fallback 2: parámetros anidados bajo tema
-          const respAlt2 = await api.get(`/api/v1/temas/${codigoTema}/parametros/`)
+          const respAlt2 = await api.get(`/temas/${codigoTema}/parametros/`)
           return respAlt2.data
         } catch (errorTerciario) {
           console.error(`Error obteniendo parámetros del tema ${codigoTema}:`, errorTerciario)
@@ -40,7 +40,7 @@ const catalogosApi = {
    */
   async getTemas() {
     try {
-      const response = await api.get('/api/v1/temas/')
+      const response = await api.get('/temas/')
       return response.data
     } catch (error) {
       console.error('Error obteniendo temas:', error)
@@ -54,7 +54,7 @@ const catalogosApi = {
    */
   async getDepartamentos() {
     try {
-      const response = await api.get('/api/v1/departamentos/')
+      const response = await api.get('/departamentos/')
       return response.data
     } catch (error) {
       console.error('Error obteniendo departamentos:', error)
@@ -69,7 +69,7 @@ const catalogosApi = {
    */
   async getMunicipiosPorDepartamento(codigoDepartamento) {
     try {
-      const response = await api.get(`/api/v1/municipios/`, { params: { departamento: codigoDepartamento } })
+      const response = await api.get(`/municipios/`, { params: { departamento: codigoDepartamento } })
       return response.data
     } catch (error) {
       console.error(`Error obteniendo municipios del departamento ${codigoDepartamento}:`, error)
@@ -84,7 +84,7 @@ const catalogosApi = {
    */
   async getDepartamentoPorCodigo(codigo) {
     try {
-      const response = await api.get('/api/v1/departamentos/')
+      const response = await api.get('/departamentos/')
       return response.data.find(dept => dept.codigo === codigo)
     } catch (error) {
       console.error(`Error obteniendo departamento ${codigo}:`, error)
@@ -99,7 +99,7 @@ const catalogosApi = {
    */
   async getMunicipiosByDepartamento(idDepartamento) {
     try {
-      const response = await api.get('/api/v1/municipios/', { params: { departamento: idDepartamento } })
+      const response = await api.get('/municipios/', { params: { departamento: idDepartamento } })
       return response.data
     } catch (error) {
       console.error(`Error obteniendo municipios del departamento ${idDepartamento}:`, error)
