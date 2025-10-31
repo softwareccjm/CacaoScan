@@ -24,7 +24,7 @@ export const useAdminStore = defineStore('admin', () => {
       loading.value = true
       error.value = null
       
-      const response = await api.get('/api/v1/auth/admin/stats/')
+      const response = await api.get('/auth/admin/stats/')
       console.log('🔍 [admin store] Respuesta completa:', response)
       console.log('📊 [admin store] response.data:', response.data)
       stats.value = response.data
@@ -46,7 +46,7 @@ export const useAdminStore = defineStore('admin', () => {
       error.value = null
       
       // Usar el endpoint de usuarios con limit
-      const response = await api.get('/api/v1/auth/users/', { 
+      const response = await api.get('/auth/users/', { 
         params: { 
           page_size: limit, 
           ordering: '-date_joined' 
@@ -69,7 +69,7 @@ export const useAdminStore = defineStore('admin', () => {
       error.value = null
       
       // El backend usa page_size, no limit
-      const response = await api.get('/api/v1/audit/activity-logs/', {
+      const response = await api.get('/audit/activity-logs/', {
         params: {
           page_size: limit,
           page: 1,
@@ -106,7 +106,7 @@ export const useAdminStore = defineStore('admin', () => {
       
       // Las alertas se manejan a través de notificaciones
       // Obtener solo las no leídas y limitar a 10
-      const response = await api.get('/api/v1/notifications/', {
+      const response = await api.get('/notifications/', {
         params: {
           leida: false,
           page_size: 10,
@@ -146,7 +146,7 @@ export const useAdminStore = defineStore('admin', () => {
       loading.value = true
       error.value = null
       
-      const response = await api.get('/api/v1/reportes/stats/')
+      const response = await api.get('/reportes/stats/')
       reports.value = response.data
       
       return response
@@ -163,7 +163,7 @@ export const useAdminStore = defineStore('admin', () => {
       loading.value = true
       error.value = null
       
-      const response = await api.get('/api/v1/audit/activity-logs/')
+      const response = await api.get('/audit/activity-logs/')
       
       return response
     } catch (err) {
@@ -185,7 +185,7 @@ export const useAdminStore = defineStore('admin', () => {
       error.value = null
       
       // Usar endpoint de imágenes stats
-      const response = await api.get('/api/v1/images/stats/')
+      const response = await api.get('/images/stats/')
       
       return response
     } catch (err) {
@@ -202,7 +202,7 @@ export const useAdminStore = defineStore('admin', () => {
       error.value = null
       
       // Usar el endpoint correcto del backend
-      const response = await api.post(`/api/v1/notifications/${alertId}/read/`)
+      const response = await api.post(`/notifications/${alertId}/read/`)
       
       // Remove alert from local state
       alerts.value = alerts.value.filter(alert => alert.id !== alertId)
