@@ -289,7 +289,6 @@ const loadFinca = async () => {
     await loadLotesRecientes()
     
   } catch (err) {
-    console.error('Error cargando finca:', err)
     
     // Manejar diferentes tipos de errores
     if (err.response) {
@@ -322,7 +321,6 @@ const loadLotesRecientes = async () => {
     const response = await api.get(`/api/v1/fincas/${route.params.id}/lotes/`)
     lotesRecientes.value = response.data.results?.slice(0, 5) || []
   } catch (err) {
-    console.error('Error cargando lotes:', err)
     // Ignorar errores de lotes - no es crítico para mostrar la finca
   }
 }

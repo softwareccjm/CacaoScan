@@ -112,14 +112,7 @@ api.interceptors.response.use(
       const isExpectedFailure = (isConfigEndpoint || isStatsEndpoint) && 
                                  (error.response?.status === 403 || error.response?.status === 500)
       
-      // Solo loggear errores críticos o no esperados
-      if (!isExpectedFailure && error.response?.status !== 500) {
-        console.error(`❌ API Error: ${originalRequest.method?.toUpperCase()} ${originalRequest.url}`, {
-          status: error.response?.status,
-          duration: `${duration}ms`,
-          message: error.response?.data?.message || error.response?.data?.detail || error.message
-        })
-      }
+      // Solo loggear errores críticos o no esperados - silenciado
       
       // Manejar errores 500 para endpoints no críticos silenciosamente
       if (error.response?.status === 500) {
@@ -287,8 +280,6 @@ api.interceptors.response.use(
       const retryAfter = error.response.headers['retry-after']
       const errorMessage = error.response.data?.detail || 'Demasiadas solicitudes. Intenta más tarde.'
       
-      console.warn('🐌 Rate limited:', errorMessage, retryAfter ? `Reintentar en ${retryAfter}s` : '')
-      
       // Mostrar notificación específica para rate limiting
       if (typeof window !== 'undefined' && window.showNotification) {
         window.showNotification({
@@ -307,8 +298,6 @@ api.interceptors.response.use(
       
       // No mostrar notificación para endpoints de configuración o estadísticas
       if (!isConfigEndpoint && !isStatsEndpoint) {
-        console.error('🔥 Server Error:', error.response?.data)
-        
         if (typeof window !== 'undefined' && window.showNotification) {
           window.showNotification({
             type: 'error',
@@ -322,8 +311,6 @@ api.interceptors.response.use(
 
     // Manejar errores de red
     if (!error.response) {
-      console.error('🌐 Network Error:', error.message)
-      
       if (typeof window !== 'undefined' && window.showNotification) {
         window.showNotification({
           type: 'error',
@@ -433,13 +420,9 @@ export async function predictImage(formData) {
       timeout: 60000 // 60 segundos para procesamiento ML
     })
 
-    console.log('✅ Predicción completada:', response.data)
-
     return response.data
 
   } catch (error) {
-    console.error('❌ Error al predecir imagen:', error)
-    
     // Extraer mensaje de error más descriptivo
     let errorMessage = 'Error inesperado al procesar la imagen'
     

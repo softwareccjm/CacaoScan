@@ -181,7 +181,6 @@ const clearFilters = () => {
 }
 
 const openCreateModal = () => {
-  console.debug('[Fincas] openCreateModal called, isAdmin:', isAdmin.value)
   selectedFinca.value = null
   isEditing.value = false
   showModal.value = true
@@ -248,7 +247,6 @@ const confirmDelete = async (finca) => {
         showConfirmButton: false
       })
     } catch (error) {
-      console.error('Error desactivando finca:', error)
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -283,7 +281,6 @@ const confirmActivate = async (finca) => {
         showConfirmButton: false
       })
     } catch (error) {
-      console.error('Error activando finca:', error)
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -328,7 +325,7 @@ const handleLogout = async () => {
   try {
     await authStore.logout()
   } catch (error) {
-    console.error('Error during logout:', error)
+    // Error durante logout - silenciar
   }
 }
 

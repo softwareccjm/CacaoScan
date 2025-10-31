@@ -460,10 +460,6 @@ router.beforeEach(async (to, from) => {
     // Actualizar el título de la página
     document.title = to.meta?.title || 'CacaoScan'
 
-    // Log de navegación en desarrollo
-    if (import.meta.env.DEV) {
-      console.log(`🧭 Navigating: ${from.name || from.path} → ${to.name || to.path}`)
-    }
 
     // Mostrar loading SOLO para carga de datos, NO para cambios de vista
     // COMENTADO: loading durante navegación entre vistas
@@ -482,33 +478,18 @@ router.beforeEach(async (to, from) => {
     // PRIMERO: Verificar rutas públicas que requieren que el usuario NO esté autenticado
     // Esto debe ir ANTES de verificar requiresAuth para evitar conflictos
     if (to.meta.requiresGuest || to.matched.some((record) => record.meta.requiresGuest)) {
-      console.log('🔍 Verificando ruta requiresGuest:', to.path)
-      console.log('🔍 Estado de autenticación:', {
-        isAuthenticated: authStore.isAuthenticated,
-        hasToken: !!authStore.accessToken,
-        hasUser: !!authStore.user,
-        userRole: authStore.userRole,
-      })
-
       if (authStore.isAuthenticated) {
-        console.log('👤 Usuario ya autenticado, redirigiendo desde ruta pública...')
-        console.log('📊 Rol del usuario:', authStore.userRole)
-
         // Redirigir según rol
         const redirectPath = getRedirectPathByRole(authStore.userRole)
-        console.log('🎯 Redirigiendo a:', redirectPath)
 
         // Evitar bucle infinito: si la ruta de redirección es la misma que la actual
         if (redirectPath === to.path) {
-          console.warn('⚠️ Bucle de redirección detectado, permitiendo navegación')
           return true
         }
 
         // Verificar que la ruta de redirección existe
         const routeExists = router.resolve(redirectPath)
         if (!routeExists.matched.length) {
-          console.error('❌ Ruta de redirección no existe:', redirectPath)
-          console.log('🔄 Redirigiendo a Home como fallback')
           return { path: '/', replace: true }
         }
 
@@ -520,7 +501,6 @@ router.beforeEach(async (to, from) => {
     if (to.meta.requiresAuth || to.matched.some((record) => record.meta.requiresAuth)) {
       // Si no hay token, redirigir al login
       if (!authStore.accessToken) {
-        console.warn('🚫 Intento de acceso a ruta protegida sin token')
         return {
           name: 'Login',
           replace: true,
@@ -534,10 +514,8 @@ router.beforeEach(async (to, from) => {
       // Si hay token pero no hay usuario, intentar obtenerlo
       if (!authStore.user) {
         try {
-          console.log('🔄 Verificando token y obteniendo datos de usuario...')
           await authStore.getCurrentUser()
         } catch (error) {
-          console.error('❌ Token inválido o expirado:', error)
           // Limpiar todo y redirigir
           authStore.clearAll()
           return {
@@ -554,7 +532,6 @@ router.beforeEach(async (to, from) => {
 
       // Verificar si la sesión ha expirado por inactividad
       if (authStore.checkSessionTimeout()) {
-        console.warn('⏰ Sesión expirada por inactividad')
         // La sesión ha expirado, abortar navegación
         return false
       }
@@ -565,13 +542,6 @@ router.beforeEach(async (to, from) => {
       if (requiredRole) {
         const userRole = authStore.userRole?.toLowerCase().trim()
         const normalizedRequiredRole = String(requiredRole).toLowerCase().trim()
-
-        console.log(
-          '🔐 Verificando rol requerido:',
-          normalizedRequiredRole,
-          '- Rol del usuario:',
-          userRole,
-        )
 
         // Función para normalizar roles del usuario
         const normalizeUserRole = (role) => {
@@ -599,11 +569,6 @@ router.beforeEach(async (to, from) => {
 
         // Verificar si el usuario tiene el rol requerido
         if (normalizedUserRole !== normalizedRequiredRole) {
-          console.warn('⛔ Acceso denegado: Rol insuficiente', {
-            userRole: userRole,
-            normalizedUserRole: normalizedUserRole,
-            requiredRole: normalizedRequiredRole,
-          })
           return {
             path: '/acceso-denegado',
             replace: true,
@@ -621,10 +586,8 @@ router.beforeEach(async (to, from) => {
     }
 
     // Permitir navegación (return undefined o true)
-    console.log('✅ Guard completado exitosamente, permitiendo navegación a:', to.path)
     return true
   } catch (error) {
-    console.error('Error en navigation guard:', error)
     return { path: '/acceso-denegado', replace: true }
   } finally {
     // Pequeño delay para mejor UX y resetear flag
@@ -639,7 +602,6 @@ router.beforeEach(async (to, from) => {
 
 // Función auxiliar para obtener ruta de redirección por rol
 const getRedirectPathByRole = (role) => {
-  console.log('🔍 getRedirectPathByRole llamado con rol:', role, 'tipo:', typeof role)
 
   // Función para normalizar roles (misma lógica que en el guard)
   const normalizeRole = (role) => {
@@ -673,7 +635,6 @@ const getRedirectPathByRole = (role) => {
     case 'farmer':
       return '/agricultor-dashboard'
     default:
-      console.warn('⚠️ Rol no reconocido:', role, '- Redirigiendo a /admin/dashboard por defecto')
       // Por defecto, redirigir a admin dashboard en lugar de home para evitar bucles
       return '/admin/dashboard'
   }
@@ -686,10 +647,6 @@ router.afterEach((to, from) => {
     window.scrollTo(0, 0)
   }
 
-  // Log de navegación completada en desarrollo
-  if (import.meta.env.DEV) {
-    console.log(`✅ Navigation completed: ${to.name || to.path}`)
-  }
 })
 
 export default router

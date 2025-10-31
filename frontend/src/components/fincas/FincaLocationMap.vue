@@ -47,7 +47,6 @@ const latitudNum = computed(() => {
   
   // Validar que sea un número válido y esté en el rango correcto
   if (isNaN(num) || num < -90 || num > 90) {
-    console.warn(`Latitud inválida: ${props.latitud}`)
     return null
   }
   
@@ -64,7 +63,6 @@ const longitudNum = computed(() => {
   
   // Validar que sea un número válido y esté en el rango correcto
   if (isNaN(num) || num < -180 || num > 180) {
-    console.warn(`Longitud inválida: ${props.longitud}`)
     return null
   }
   
@@ -92,7 +90,6 @@ const fixLeafletIcons = () => {
 // Inicializar mapa
 const initMap = () => {
   if (!mapContainer.value || latitudNum.value === null || longitudNum.value === null) {
-    console.warn('No se puede inicializar el mapa: coordenadas faltantes o inválidas')
     return
   }
   
@@ -101,7 +98,6 @@ const initMap = () => {
   const lng = Number(longitudNum.value)
   
   if (isNaN(lat) || isNaN(lng)) {
-    console.error('Coordenadas inválidas para el mapa:', { lat, lng })
     return
   }
   
@@ -141,10 +137,8 @@ const initMap = () => {
     
     // Abrir popup automáticamente
     marker.openPopup()
-    
-    console.log('Mapa inicializado correctamente en:', { lat, lng })
   } catch (error) {
-    console.error('Error al inicializar el mapa:', error)
+    // Error al inicializar el mapa - silenciar
   }
 }
 
