@@ -260,23 +260,41 @@ export default {
     // Methods
     const loadDashboardData = async () => {
       loading.value = true
+      
+      // Cargar datos de forma secuencial con timeouts individuales para evitar bloqueos
+      const loadWithTimeout = async (fn, timeout = 5000) => {
+        try {
+          await Promise.race([
+            fn(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+          ])
+        } catch (error) {
+          console.error('Error en carga de datos:', error)
+          // No bloquear la interfaz, continuar con las demás cargas
+        }
+      }
+      
       try {
-        await Promise.all([
-          loadStats(),
-          loadRecentUsers(),
-          loadRecentActivities(),
-          loadAlerts(),
-          loadReportStats(),
-          loadQualityData(),
-          updateActivityChart()
+        // Cargar datos críticos primero (secuencial para evitar sobrecarga)
+        await loadWithTimeout(() => loadStats(), 8000)
+        await loadWithTimeout(() => loadRecentUsers(), 5000)
+        await loadWithTimeout(() => loadRecentActivities(), 5000)
+        
+        // Cargar datos secundarios en paralelo (con catch individual)
+        await Promise.allSettled([
+          loadWithTimeout(() => loadAlerts(), 5000),
+          loadWithTimeout(() => loadReportStats(), 5000),
+          loadWithTimeout(() => loadQualityData(), 8000)
         ])
+        
+        // Actualizar gráficos después de un pequeño delay
+        setTimeout(() => {
+          updateActivityChart().catch(err => console.error('Error actualizando gráfico:', err))
+        }, 500)
+        
       } catch (error) {
-        console.error('Error loading dashboard data:', error)
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron cargar los datos del dashboard'
-        })
+        console.error('Error general cargando dashboard:', error)
+        // No mostrar alerta bloqueante, solo log
       } finally {
         loading.value = false
       }
