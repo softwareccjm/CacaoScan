@@ -60,6 +60,9 @@ from .config_views import (
     SystemInfoView
 )
 
+# Importar vistas ML
+from .ml_views import LatestMetricsView, PromoteModelView
+
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.http import JsonResponse
@@ -727,7 +730,7 @@ class AutoInitializeView(APIView):
         steps_completed = []
         
         try:
-            logger.info("🚀 Iniciando inicialización automática completa del sistema")
+            logger.info("[INICIO] Iniciando inicialización automática completa del sistema")
             
             # Paso 1: Validar dataset
             logger.info("Paso 1: Validando dataset...")
@@ -742,7 +745,7 @@ class AutoInitializeView(APIView):
                         'status': 'error'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                steps_completed.append("✅ Dataset validado")
+                steps_completed.append("[OK] Dataset validado")
                 logger.info(f"Dataset validado: {stats['valid_records']} registros válidos")
                 
             except Exception as e:
@@ -770,15 +773,15 @@ class AutoInitializeView(APIView):
                         overwrite=False
                     )
                     
-                    steps_completed.append("✅ Crops generados")
+                    steps_completed.append("[OK] Crops generados")
                     logger.info("Crops generados exitosamente")
                 else:
-                    steps_completed.append("✅ Crops ya existen")
+                    steps_completed.append("[OK] Crops ya existen")
                     logger.info("Crops ya existen, saltando generación")
                     
             except Exception as e:
                 logger.warning(f"Advertencia en generación de crops: {e}")
-                steps_completed.append("⚠️ Crops con advertencias")
+                steps_completed.append("[WARNING] Crops con advertencias")
             
             # Paso 3: Verificar/Entrenar modelos
             logger.info("Paso 3: Verificando modelos...")
@@ -808,7 +811,7 @@ class AutoInitializeView(APIView):
                     )
                     
                     if success:
-                        steps_completed.append("✅ Modelos entrenados")
+                        steps_completed.append("[OK] Modelos entrenados")
                         logger.info("Modelos entrenados exitosamente")
                     else:
                         return Response({
@@ -816,7 +819,7 @@ class AutoInitializeView(APIView):
                             'status': 'error'
                         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 else:
-                    steps_completed.append("✅ Modelos ya existen")
+                    steps_completed.append("[OK] Modelos ya existen")
                     logger.info("Modelos ya existen, saltando entrenamiento")
                     
             except Exception as e:
@@ -832,7 +835,7 @@ class AutoInitializeView(APIView):
                 success = load_artifacts()
                 
                 if success:
-                    steps_completed.append("✅ Modelos cargados")
+                    steps_completed.append("[OK] Modelos cargados")
                     logger.info("Modelos cargados exitosamente")
                 else:
                     return Response({
@@ -849,9 +852,9 @@ class AutoInitializeView(APIView):
             
             # Paso 5: Sistema listo
             total_time = time.time() - start_time
-            steps_completed.append("🎉 Sistema listo para predicciones")
+            steps_completed.append("[OK] Sistema listo para predicciones")
             
-            logger.info(f"✅ Inicialización automática completada en {total_time:.2f}s")
+            logger.info(f"[OK] Inicialización automática completada en {total_time:.2f}s")
             
             return Response({
                 'message': 'Sistema inicializado automáticamente y listo para predicciones',
@@ -1484,7 +1487,7 @@ class ImagesStatsView(APIView, ImagePermissionMixin):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo estadísticas de imágenes: {e}")
+            logger.warning(f"[WARNING] Error obteniendo estadísticas de imágenes: {e}")
             # Retornar datos vacíos en lugar de 500
             return Response({
                 'total_images': 0,
@@ -2455,7 +2458,7 @@ class AdminStatsView(APIView):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo estadísticas del sistema: {e}")
+            logger.warning(f"[WARNING] Error obteniendo estadísticas del sistema: {e}")
             # Retornar datos vacíos en lugar de 500
             return Response({
                 'users': {
@@ -4150,8 +4153,22 @@ class TrainingJobCreateView(APIView):
                 **serializer.validated_data
             )
             
-            # Simular inicio del entrenamiento (en producción esto sería una tarea asíncrona)
-            self._simulate_training_start(training_job)
+            # Iniciar entrenamiento asíncrono con Celery
+            from api.tasks import train_model_task
+            
+            config = {
+                'epochs': serializer.validated_data.get('epochs', 30),
+                'batch_size': serializer.validated_data.get('batch_size', 16),
+                'learning_rate': serializer.validated_data.get('learning_rate', 0.001),
+                'multi_head': serializer.validated_data.get('config_params', {}).get('multi_head', False),
+                'model_type': serializer.validated_data.get('config_params', {}).get('model_type', 'resnet18'),
+                'img_size': serializer.validated_data.get('config_params', {}).get('img_size', 224),
+                'early_stopping_patience': serializer.validated_data.get('config_params', {}).get('early_stopping_patience', 10),
+                'save_best_only': serializer.validated_data.get('config_params', {}).get('save_best_only', True)
+            }
+            
+            # Encolar tarea de Celery
+            train_model_task.delay(job_id, config)
             
             # Serializar respuesta
             from .serializers import TrainingJobSerializer
@@ -4161,7 +4178,9 @@ class TrainingJobCreateView(APIView):
             
             return Response({
                 'message': 'Trabajo de entrenamiento creado exitosamente',
-                'job': response_serializer.data
+                'job_id': job_id,  # Asegurar que job_id esté disponible directamente
+                'job': response_serializer.data,
+                'status': 'pending'
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
