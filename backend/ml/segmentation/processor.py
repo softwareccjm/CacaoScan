@@ -281,5 +281,5 @@ def segment_and_crop_cacao_bean(image_path: str, method: str = "ai") -> str:
     output_filename = f"cacao_{uuid.uuid4().hex}.png"
     out_path = save_processed_png(processed, output_filename)
 
-    logger.info(f"✅ Imagen procesada y guardada en: {out_path}")
+    logger.info(f"[OK] Imagen procesada y guardada en: {out_path}")
     return str(out_path)
