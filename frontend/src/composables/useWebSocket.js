@@ -2,6 +2,37 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 export function useWebSocket() {
+  // Deshabilitar WebSockets en modo desarrollo para evitar reconexiones infinitas
+  if (import.meta.env.MODE === 'development') {
+    console.log('🔌 WebSockets deshabilitados en modo desarrollo')
+    
+    // Retornar un objeto mock con la misma interfaz
+    return {
+      isConnected: ref(false),
+      isConnecting: ref(false),
+      connectionError: ref(null),
+      connectionStatus: computed(() => 'disabled'),
+      hasAnyConnection: computed(() => false),
+      lastMessage: ref(null),
+      messageHistory: ref([]),
+      reconnectAttempts: ref(0),
+      connect: () => {},
+      disconnect: () => {},
+      reconnect: () => {},
+      ping: () => {},
+      markNotificationRead: () => {},
+      markAllNotificationsRead: () => {},
+      getNotificationStats: () => {},
+      getAuditStats: () => {},
+      getRecentActivity: () => {},
+      getSystemStatus: () => {},
+      getUserStats: () => {},
+      on: () => {},
+      off: () => {},
+      emit: () => {}
+    }
+  }
+  
   const authStore = useAuthStore()
   
   // Estado reactivo
@@ -18,6 +49,7 @@ export function useWebSocket() {
   const notificationSocket = ref(null)
   const systemStatusSocket = ref(null)
   const auditSocket = ref(null)
+  const userStatsSocket = ref(null)
   
   // Configuración
   const wsConfig = {
@@ -38,7 +70,8 @@ export function useWebSocket() {
   const hasAnyConnection = computed(() => {
     return notificationSocket.value?.readyState === WebSocket.OPEN ||
            systemStatusSocket.value?.readyState === WebSocket.OPEN ||
-           auditSocket.value?.readyState === WebSocket.OPEN
+           auditSocket.value?.readyState === WebSocket.OPEN ||
+           userStatsSocket.value?.readyState === WebSocket.OPEN
   })
   
   // Métodos principales
@@ -63,6 +96,9 @@ export function useWebSocket() {
         connectAudit()
       }
       
+      // Conectar a estadísticas de usuarios
+      connectUserStats()
+      
     } catch (error) {
       console.error('Error conectando WebSockets:', error)
       connectionError.value = error.message
@@ -85,6 +121,11 @@ export function useWebSocket() {
     if (auditSocket.value) {
       auditSocket.value.close()
       auditSocket.value = null
+    }
+    
+    if (userStatsSocket.value) {
+      userStatsSocket.value.close()
+      userStatsSocket.value = null
     }
     
     // Limpiar intervalos
@@ -205,6 +246,32 @@ export function useWebSocket() {
     }
   }
   
+  const connectUserStats = () => {
+    const url = `${wsConfig.baseUrl}/user-stats/`
+    userStatsSocket.value = new WebSocket(url)
+    
+    userStatsSocket.value.onopen = () => {
+      console.log('WebSocket de estadísticas de usuarios conectado')
+    }
+    
+    userStatsSocket.value.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        handleUserStatsMessage(data)
+      } catch (error) {
+        console.error('Error parseando mensaje de estadísticas de usuarios:', error)
+      }
+    }
+    
+    userStatsSocket.value.onclose = (event) => {
+      console.log('WebSocket de estadísticas de usuarios desconectado:', event.code, event.reason)
+    }
+    
+    userStatsSocket.value.onerror = (error) => {
+      console.error('Error en WebSocket de estadísticas de usuarios:', error)
+    }
+  }
+  
   // Manejo de mensajes
   const handleNotificationMessage = (data) => {
     lastMessage.value = data
@@ -272,6 +339,25 @@ export function useWebSocket() {
         break
       default:
         console.log('Mensaje de auditoría no manejado:', data)
+    }
+  }
+  
+  const handleUserStatsMessage = (data) => {
+    lastMessage.value = data
+    addToHistory(data)
+    
+    switch (data.type) {
+      case 'user_stats':
+        emit('user-stats-updated', data.data)
+        break
+      case 'user_stats_update':
+        emit('user-stats-updated', data.data)
+        break
+      case 'pong':
+        // Respuesta a ping
+        break
+      default:
+        console.log('Mensaje de estadísticas de usuarios no manejado:', data)
     }
   }
   
@@ -362,6 +448,14 @@ export function useWebSocket() {
     }
   }
   
+  const getUserStats = () => {
+    if (userStatsSocket.value) {
+      sendMessage(userStatsSocket.value, {
+        type: 'get_stats'
+      })
+    }
+  }
+  
   // Event emitter simple
   const listeners = new Map()
   
@@ -413,8 +507,16 @@ export function useWebSocket() {
   // Watchers
   watch(() => authStore.user, (newUser, oldUser) => {
     if (newUser && !oldUser) {
-      // Usuario logueado, conectar
-      connect()
+      // Usuario logueado, intentar conectar
+      // Usar setTimeout para evitar errores inmediatos si el servidor no está listo
+      setTimeout(() => {
+        try {
+          connect()
+        } catch (error) {
+          console.warn('⚠️ No se pudieron conectar los WebSockets. La aplicación seguirá funcionando sin actualizaciones en tiempo real:', error.message)
+          connectionError.value = 'WebSockets no disponibles (modo offline)'
+        }
+      }, 1000)
     } else if (!newUser && oldUser) {
       // Usuario deslogueado, desconectar
       disconnect()
@@ -449,6 +551,9 @@ export function useWebSocket() {
     
     // Sistema
     getSystemStatus,
+    
+    // Usuarios
+    getUserStats,
     
     // Eventos
     on,

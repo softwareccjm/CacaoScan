@@ -1,4 +1,4 @@
-"""
+﻿"""
 Consumers de WebSockets para CacaoScan.
 """
 import json
@@ -9,7 +9,15 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
 
-from .models import Notification, ActivityLog, LoginHistory
+from .models import LoginHistory
+try:
+    from notifications.models import Notification
+except ImportError:
+    Notification = None
+try:
+    from audit.models import ActivityLog
+except ImportError:
+    ActivityLog = None
 
 logger = logging.getLogger("cacaoscan.websockets")
 
@@ -74,7 +82,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Formato JSON inválido'
+                'message': 'Formato JSON invÃ¡lido'
             }))
         except Exception as e:
             logger.error(f"Error procesando mensaje WebSocket: {e}")
@@ -84,21 +92,21 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             }))
     
     async def notification_message(self, event):
-        """Enviar notificación al cliente."""
+        """Enviar notificaciÃ³n al cliente."""
         await self.send(text_data=json.dumps({
             'type': 'notification',
             'data': event['data']
         }))
     
     async def notification_update(self, event):
-        """Enviar actualización de notificación al cliente."""
+        """Enviar actualizaciÃ³n de notificaciÃ³n al cliente."""
         await self.send(text_data=json.dumps({
             'type': 'notification_update',
             'data': event['data']
         }))
     
     async def notification_stats_update(self, event):
-        """Enviar actualización de estadísticas al cliente."""
+        """Enviar actualizaciÃ³n de estadÃ­sticas al cliente."""
         await self.send(text_data=json.dumps({
             'type': 'stats_update',
             'data': event['data']
@@ -135,7 +143,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def mark_notification_read(self, notification_id):
-        """Marcar notificación como leída."""
+        """Marcar notificaciÃ³n como leÃ­da."""
         try:
             notification = Notification.objects.get(
                 id=notification_id,
@@ -143,7 +151,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             )
             notification.mark_as_read()
             
-            # Enviar confirmación
+            # Enviar confirmaciÃ³n
             self.send(text_data=json.dumps({
                 'type': 'notification_read',
                 'notification_id': notification_id
@@ -152,23 +160,23 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         except Notification.DoesNotExist:
             self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Notificación no encontrada'
+                'message': 'NotificaciÃ³n no encontrada'
             }))
     
     @database_sync_to_async
     def mark_all_notifications_read(self):
-        """Marcar todas las notificaciones como leídas."""
+        """Marcar todas las notificaciones como leÃ­das."""
         user = User.objects.get(id=self.user_id)
         Notification.mark_all_as_read(user)
         
-        # Enviar confirmación
+        # Enviar confirmaciÃ³n
         self.send(text_data=json.dumps({
             'type': 'all_notifications_read'
         }))
     
     @database_sync_to_async
     def send_notification_stats(self):
-        """Enviar estadísticas de notificaciones."""
+        """Enviar estadÃ­sticas de notificaciones."""
         user = User.objects.get(id=self.user_id)
         
         total_notifications = Notification.objects.filter(user=user).count()
@@ -239,7 +247,7 @@ class SystemStatusConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Formato JSON inválido'
+                'message': 'Formato JSON invÃ¡lido'
             }))
         except Exception as e:
             logger.error(f"Error procesando mensaje WebSocket: {e}")
@@ -249,7 +257,7 @@ class SystemStatusConsumer(AsyncWebsocketConsumer):
             }))
     
     async def system_status_update(self, event):
-        """Enviar actualización de estado del sistema."""
+        """Enviar actualizaciÃ³n de estado del sistema."""
         await self.send(text_data=json.dumps({
             'type': 'system_status',
             'data': event['data']
@@ -265,15 +273,15 @@ class SystemStatusConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def send_system_status(self):
         """Enviar estado actual del sistema."""
-        # Obtener estadísticas del sistema
+        # Obtener estadÃ­sticas del sistema
         total_users = User.objects.count()
         active_users = User.objects.filter(is_active=True).count()
         
-        # Estadísticas de notificaciones
+        # EstadÃ­sticas de notificaciones
         total_notifications = Notification.objects.count()
         unread_notifications = Notification.objects.filter(leida=False).count()
         
-        # Estadísticas de actividad
+        # EstadÃ­sticas de actividad
         today_activities = ActivityLog.objects.filter(
             timestamp__date=timezone.now().date()
         ).count()
@@ -298,7 +306,7 @@ class SystemStatusConsumer(AsyncWebsocketConsumer):
                 'today_logins': today_logins
             },
             'websocket_connections': {
-                'notifications': 0,  # Se actualizará dinámicamente
+                'notifications': 0,  # Se actualizarÃ¡ dinÃ¡micamente
                 'system_status': 1,
                 'audit': 0
             }
@@ -312,11 +320,11 @@ class SystemStatusConsumer(AsyncWebsocketConsumer):
 
 class AuditConsumer(AsyncWebsocketConsumer):
     """
-    Consumer para auditoría en tiempo real.
+    Consumer para auditorÃ­a en tiempo real.
     """
     
     async def connect(self):
-        """Conectar usuario al WebSocket de auditoría."""
+        """Conectar usuario al WebSocket de auditorÃ­a."""
         self.user_id = self.scope['url_route']['kwargs']['user_id']
         self.audit_group_name = f'audit_{self.user_id}'
         
@@ -326,7 +334,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
         
-        # Unirse al grupo de auditoría del usuario
+        # Unirse al grupo de auditorÃ­a del usuario
         await self.channel_layer.group_add(
             self.audit_group_name,
             self.channel_name
@@ -334,7 +342,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         
-        logger.info(f"Admin {user.username} conectado a auditoría WebSocket")
+        logger.info(f"Admin {user.username} conectado a auditorÃ­a WebSocket")
     
     async def disconnect(self, close_code):
         """Desconectar usuario del WebSocket."""
@@ -343,7 +351,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         
-        logger.info(f"Usuario {self.user_id} desconectado de auditoría WebSocket")
+        logger.info(f"Usuario {self.user_id} desconectado de auditorÃ­a WebSocket")
     
     async def receive(self, text_data):
         """Recibir mensaje del cliente."""
@@ -364,7 +372,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Formato JSON inválido'
+                'message': 'Formato JSON invÃ¡lido'
             }))
         except Exception as e:
             logger.error(f"Error procesando mensaje WebSocket: {e}")
@@ -374,7 +382,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
             }))
     
     async def audit_activity(self, event):
-        """Enviar nueva actividad de auditoría."""
+        """Enviar nueva actividad de auditorÃ­a."""
         await self.send(text_data=json.dumps({
             'type': 'audit_activity',
             'data': event['data']
@@ -388,7 +396,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
         }))
     
     async def audit_stats_update(self, event):
-        """Enviar actualización de estadísticas de auditoría."""
+        """Enviar actualizaciÃ³n de estadÃ­sticas de auditorÃ­a."""
         await self.send(text_data=json.dumps({
             'type': 'audit_stats_update',
             'data': event['data']
@@ -404,14 +412,14 @@ class AuditConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def send_audit_stats(self):
-        """Enviar estadísticas de auditoría."""
-        # Estadísticas de ActivityLog
+        """Enviar estadÃ­sticas de auditorÃ­a."""
+        # EstadÃ­sticas de ActivityLog
         total_activities = ActivityLog.objects.count()
         activities_today = ActivityLog.objects.filter(
             timestamp__date=timezone.now().date()
         ).count()
         
-        # Estadísticas de LoginHistory
+        # EstadÃ­sticas de LoginHistory
         total_logins = LoginHistory.objects.count()
         successful_logins = LoginHistory.objects.filter(success=True).count()
         failed_logins = LoginHistory.objects.filter(success=False).count()
@@ -452,7 +460,7 @@ class AuditConsumer(AsyncWebsocketConsumer):
         for activity in recent_activities:
             activities_data.append({
                 'id': activity.id,
-                'usuario': activity.usuario.username if activity.usuario else 'Usuario Anónimo',
+                'usuario': activity.usuario.username if activity.usuario else 'Usuario AnÃ³nimo',
                 'accion': activity.accion,
                 'accion_display': activity.get_accion_display(),
                 'modelo': activity.modelo,
@@ -479,3 +487,133 @@ class AuditConsumer(AsyncWebsocketConsumer):
                 'logins': logins_data
             }
         }))
+
+
+class UserStatsConsumer(AsyncWebsocketConsumer):
+    """
+    Consumer para estadÃ­sticas de usuarios en tiempo real.
+    """
+    
+    async def connect(self):
+        """Conectar al WebSocket de estadÃ­sticas de usuarios."""
+        self.stats_group_name = 'user_stats'
+        
+        # Unirse al grupo de estadÃ­sticas de usuarios
+        await self.channel_layer.group_add(
+            self.stats_group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+        
+        # Enviar estadÃ­sticas iniciales
+        await self.send_user_stats()
+        
+        logger.info("Cliente conectado a WebSocket de estadÃ­sticas de usuarios")
+    
+    async def disconnect(self, close_code):
+        """Desconectar del WebSocket."""
+        await self.channel_layer.group_discard(
+            self.stats_group_name,
+            self.channel_name
+        )
+        
+        logger.info("Cliente desconectado de WebSocket de estadÃ­sticas de usuarios")
+    
+    async def receive(self, text_data):
+        """Recibir mensaje del cliente."""
+        try:
+            data = json.loads(text_data)
+            message_type = data.get('type')
+            
+            if message_type == 'ping':
+                await self.send(text_data=json.dumps({
+                    'type': 'pong',
+                    'timestamp': timezone.now().isoformat()
+                }))
+            elif message_type == 'get_stats':
+                await self.send_user_stats()
+            
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Formato JSON invÃ¡lido'
+            }))
+        except Exception as e:
+            logger.error(f"Error procesando mensaje WebSocket: {e}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Error interno del servidor'
+            }))
+    
+    async def user_stats_update(self, event):
+        """Enviar actualizaciÃ³n de estadÃ­sticas de usuarios."""
+        await self.send(text_data=json.dumps({
+            'type': 'user_stats_update',
+            'data': event['data']
+        }))
+    
+    @database_sync_to_async
+    def send_user_stats(self):
+        """Enviar estadÃ­sticas actuales de usuarios."""
+        from django.db.models import Count, Q
+        from datetime import timedelta
+        
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        five_minutes_ago = now - timedelta(minutes=5)
+        
+        # Total de usuarios
+        total_users = User.objects.count()
+        
+        # Usuarios activos
+        active_users = User.objects.filter(is_active=True).count()
+        
+        # Usuarios online (han tenido actividad en los Ãºltimos 5 minutos)
+        # Usar ActivityLog en lugar de LoginHistory para detectar usuarios activos
+        online_user_ids = ActivityLog.objects.filter(
+            timestamp__gte=five_minutes_ago
+        ).exclude(usuario__isnull=True).values_list('usuario_id', flat=True).distinct()
+        
+        online_users = len(set(online_user_ids))
+        
+        # Si no hay actividad reciente, usar last_login como fallback
+        if online_users == 0:
+            online_users = User.objects.filter(
+                last_login__gte=five_minutes_ago
+            ).count()
+        
+        # Nuevos usuarios hoy
+        new_users_today = User.objects.filter(date_joined__gte=today_start).count()
+        
+        # Usuarios por rol
+        users_by_role = {
+            'admin': 0,
+            'analyst': 0,
+            'farmer': 0
+        }
+        
+        # Contar por rol
+        for user in User.objects.all():
+            if user.is_superuser:
+                users_by_role['admin'] += 1
+            elif user.groups.filter(name='analyst').exists():
+                users_by_role['analyst'] += 1
+            else:
+                users_by_role['farmer'] += 1
+        
+        stats = {
+            'timestamp': now.isoformat(),
+            'total': total_users,
+            'active': active_users,
+            'online': online_users,
+            'new_today': new_users_today,
+            'by_role': users_by_role
+        }
+        
+        self.send(text_data=json.dumps({
+            'type': 'user_stats',
+            'data': stats
+        }))
+
+

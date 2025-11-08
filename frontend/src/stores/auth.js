@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Estado reactivo
   const user = ref(null)
   const accessToken = ref(localStorage.getItem('access_token'))
+  const refreshToken = ref(localStorage.getItem('refresh_token'))
   const isLoading = ref(false)
   const error = ref(null)
   const lastActivity = ref(Date.now())
@@ -67,15 +68,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Actions
   const setTokens = (tokenData) => {
-    // Para Token Authentication, solo necesitamos el access token
+    // Guardar access y refresh tokens
     if (typeof tokenData === 'string') {
-      // Si se pasa directamente el token como string
+      // Si se pasa directamente el token como string (solo access)
       accessToken.value = tokenData
       localStorage.setItem('access_token', tokenData)
     } else if (tokenData.access) {
-      // Si se pasa un objeto con access token
+      // Si se pasa un objeto con access y refresh token
       accessToken.value = tokenData.access
       localStorage.setItem('access_token', tokenData.access)
+      
+      // Guardar refresh token si está disponible
+      if (tokenData.refresh) {
+        refreshToken.value = tokenData.refresh
+        localStorage.setItem('refresh_token', tokenData.refresh)
+      }
       
       // Guardar usuario si está disponible
       if (tokenData.user) {
@@ -87,9 +94,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const clearTokens = () => {
     accessToken.value = null
+    refreshToken.value = null
     user.value = null
     
     localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')
   }
 
@@ -167,9 +176,10 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authApi.login(credentials)
       
       if (response.token && response.user) {
-        // Para Token Authentication, solo necesitamos el token
+        // Guardar tokens (access y refresh si están disponibles)
         setTokens({
           access: response.token,
+          refresh: response.refresh, // Agregar refresh token
           user: response.user
         })
         
@@ -200,11 +210,24 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.register(userData)
       
-      // El nuevo backend devuelve token directamente en el registro
+      // Verificar si se requiere verificación de email
+      if (response.verification_required || response.data?.verification_required) {
+        // No hacer login automático, retornar datos para que el componente maneje la redirección
+        return { 
+          success: true, 
+          data: {
+            email: response.data?.email || response.email || userData.email,
+            verification_required: true
+          }
+        }
+      }
+      
+      // El nuevo backend devuelve token directamente en el registro (caso legacy)
       if (response.success && response.token && response.user) {
-        // Para Token Authentication, solo necesitamos el token
+        // Guardar tokens (access y refresh si están disponibles)
         setTokens({
           access: response.token,
+          refresh: response.refresh,
           user: response.user
         })
         
@@ -220,18 +243,23 @@ export const useAuthStore = defineStore('auth', () => {
           setTokens(response)
           await getCurrentUser()
           updateLastActivity()
-          
           await router.push({ name: 'AgricultorDashboard' })
-        } else {
-          // Redirigir a login con mensaje de éxito
-          await router.push({ 
-            name: 'Login', 
-            query: { message: 'Registro exitoso. Por favor inicia sesión.' }
-          })
+          return { success: true }
         }
         
-        return { success: true }
+        if (response.success) {
+          // Si no hay tokens, asumir que necesita verificación
+          return {
+            success: true,
+            data: {
+              email: response.email || userData.email,
+              verification_required: true
+            }
+          }
+        }
       }
+
+      return response
     } catch (err) {
       console.error('Error en registro:', err)
       setError(err.response?.data?.message || err.message || 'Error en el registro')
@@ -272,7 +300,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (!accessToken.value) return null
 
     try {
-      const userData = await authApi.getCurrentUser()
+      const response = await authApi.getCurrentUser()
+      
+      // El endpoint /auth/profile/ puede devolver dos formatos:
+      // 1. { success, data: {...}, message }
+      // 2. {...userData} (directo)
+      
+      const userData = response.data || response
+      
       setUser(userData)
       updateLastActivity()
       return userData
@@ -288,10 +323,38 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Refrescar token (no usado con Token Authentication)
+  // Refrescar access token usando refresh token
   const refreshAccessToken = async () => {
-    // Con Token Authentication no necesitamos refresh tokens
-    throw new Error('Token Authentication no requiere refresh tokens')
+    if (!refreshToken.value) {
+      throw new Error('No hay refresh token disponible')
+    }
+    
+    try {
+      const response = await authApi.refreshAccessToken(refreshToken.value)
+      
+      if (response.access) {
+        accessToken.value = response.access
+        localStorage.setItem('access_token', response.access)
+        
+        // Actualizar refresh token si viene en la respuesta
+        if (response.refresh) {
+          refreshToken.value = response.refresh
+          localStorage.setItem('refresh_token', response.refresh)
+        }
+        
+        updateLastActivity()
+        return response.access
+      }
+      
+      throw new Error('Respuesta inválida del servidor')
+    } catch (err) {
+      console.error('❌ Error refrescando token:', err)
+      // Si el refresh token expiró, limpiar todo
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        await logout(false)
+      }
+      throw err
+    }
   }
 
   // Cambiar contraseña
@@ -344,25 +407,67 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true }
     } catch (err) {
       console.error('Error verificando email:', err)
-      setError(err.response?.data?.detail || 'Error al verificar email')
+      setError(err.response?.data?.message || err.response?.data?.detail || 'Error al verificar email')
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
     }
   }
 
-  // Reenviar verificación de email
-  const resendEmailVerification = async () => {
+  // Verificar email desde token en URL
+  const verifyEmailFromToken = async (token) => {
     isLoading.value = true
     error.value = null
 
     try {
-      await authApi.resendEmailVerification()
-      return { success: true }
+      const response = await authApi.verifyEmailFromToken(token)
+      
+      // Actualizar usuario si está logueado
+      if (isAuthenticated.value) {
+        await getCurrentUser()
+      } else if (response.data && response.data.user) {
+        // Si no está logueado pero la verificación fue exitosa, establecer usuario
+        setUser(response.data.user)
+      }
+      
+      return { 
+        success: true, 
+        message: response.message || 'Email verificado exitosamente' 
+      }
+    } catch (err) {
+      console.error('Error verificando email desde token:', err)
+      const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Error al verificar email'
+      setError(errorMessage)
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Reenviar verificación de email
+  const resendEmailVerification = async (email = null) => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Si se proporciona email, enviarlo en el body
+      if (email) {
+        const response = await authApi.resendEmailVerification(email)
+        return { success: true, message: response.message || 'Email de verificación enviado' }
+      } else {
+        // Si no hay email pero hay usuario logueado, usar su email
+        if (user.value && user.value.email) {
+          const response = await authApi.resendEmailVerification(user.value.email)
+          return { success: true, message: response.message || 'Email de verificación enviado' }
+        } else {
+          throw new Error('Email requerido para reenviar verificación')
+        }
+      }
     } catch (err) {
       console.error('Error reenviando verificación:', err)
-      setError(err.response?.data?.detail || 'Error al reenviar verificación')
-      return { success: false, error: error.value }
+      const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Error al reenviar verificación'
+      setError(errorMessage)
+      return { success: false, error: errorMessage }
     } finally {
       isLoading.value = false
     }
@@ -374,12 +479,28 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const updatedUser = await authApi.updateProfile(profileData)
-      setUser(updatedUser)
+      const response = await authApi.updateProfile(profileData)
+      
+      // Actualizar datos del usuario si la respuesta incluye data
+      if (response.data && response.data.user) {
+        setUser(response.data.user)
+        setSuccess('Perfil actualizado exitosamente')
+        return { success: true, data: response.data.user }
+      } else if (response.user) {
+        setUser(response.user)
+        setSuccess('Perfil actualizado exitosamente')
+        return { success: true, data: response.user }
+      }
+      
+      // Si no hay datos de usuario, actualizar usuario actual
+      if (isAuthenticated.value) {
+        await getCurrentUser()
+      }
+      
       return { success: true }
     } catch (err) {
       console.error('Error actualizando perfil:', err)
-      setError(err.response?.data?.detail || 'Error al actualizar perfil')
+      setError(err.response?.data?.message || err.message || 'Error al actualizar perfil')
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
@@ -391,6 +512,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens()
     clearUser()
     error.value = null
+    isLoading.value = false
     lastActivity.value = Date.now()
   }
 
@@ -454,6 +576,53 @@ export const useAuthStore = defineStore('auth', () => {
     return permissions[permission] || false
   }
 
+  // Enviar código OTP
+  const sendOtp = async (email) => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await authApi.sendOtp(email)
+      
+      if (response.success) {
+        return { success: true, message: response.message || 'Código OTP enviado exitosamente' }
+      } else {
+        setError(response.error || 'Error al enviar código OTP')
+        return { success: false, error: error.value }
+      }
+    } catch (err) {
+      console.error('Error enviando código OTP:', err)
+      setError(err.response?.data?.message || err.message || 'Error al enviar código OTP')
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Verificar código OTP
+  const verifyOtp = async (email, code) => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await authApi.verifyOtp(email, code)
+      
+      if (response.success) {
+        return { success: true, message: response.message || 'Email verificado exitosamente' }
+      } else {
+        setError(response.error || 'Código OTP inválido o expirado')
+        return { success: false, error: error.value }
+      }
+    } catch (err) {
+      console.error('Error verificando código OTP:', err)
+      const errorMessage = err.response?.data?.message || err.message || 'Código OTP inválido o expirado'
+      setError(errorMessage)
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Inicializar store
   initializeFromStorage()
 
@@ -487,6 +656,7 @@ export const useAuthStore = defineStore('auth', () => {
     changePassword,
     requestPasswordReset,
     verifyEmail,
+    verifyEmailFromToken,
     resendEmailVerification,
     updateProfile,
     updateLastActivity,
@@ -494,6 +664,9 @@ export const useAuthStore = defineStore('auth', () => {
     hasPermission,
     clearAll,
     setError,
-    initializeAuth
+    setTokens,
+    initializeAuth,
+    sendOtp,
+    verifyOtp
   }
 })

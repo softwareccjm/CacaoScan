@@ -11,34 +11,136 @@ const authApi = {
    */
   async login(credentials) {
     try {
-      const response = await api.post('/auth/login/', {
-        username: credentials.username || credentials.email,
+      // Enviar email si está disponible, de lo contrario username
+      const loginData = {
         password: credentials.password
-      })
-      return response.data
+      }
+      
+      // Priorizar email sobre username
+      if (credentials.email) {
+        loginData.email = credentials.email
+        loginData.username = credentials.email
+      } else if (credentials.username) {
+        loginData.username = credentials.username
+      }
+      
+      const response = await api.post('/auth/login/', loginData)
+      
+      // El backend puede devolver dos estructuras:
+      // 1. { success, data: { access, refresh, user, ... }, message } (con wrapper)
+      // 2. { success, access, refresh, user, ..., message } (plana)
+      
+      let normalizedData;
+      
+      if (response.data && response.data.data) {
+        // Estructura con wrapper 'data'
+        normalizedData = {
+          token: response.data.data.access,
+          refresh: response.data.data.refresh,
+          user: response.data.data.user,
+          access_expires_at: response.data.data.access_expires_at,
+          refresh_expires_at: response.data.data.refresh_expires_at,
+          message: response.data.message
+        }
+      } else if (response.data && response.data.access && response.data.user) {
+        // Estructura plana (la que realmente usa el backend)
+        normalizedData = {
+          token: response.data.access,
+          refresh: response.data.refresh,
+          user: response.data.user,
+          access_expires_at: response.data.access_expires_at,
+          refresh_expires_at: response.data.refresh_expires_at,
+          message: response.data.message
+        }
+      } else {
+        throw new Error('Respuesta del servidor con formato inválido')
+      }
+      
+      return normalizedData
     } catch (error) {
-      console.error('Error en login API:', error)
       throw error
     }
   },
 
   /**
-   * Registrar nuevo usuario
+   * Registrar nuevo usuario con información de persona
+   * Usa el nuevo endpoint /personas/registrar/ que crea User + Persona
    */
   async register(userData) {
     try {
-      const response = await api.post('/auth/register/', {
-        username: userData.email, // Usar email como username
+      // Payload para el nuevo endpoint de personas
+      const payload = {
+        // Datos del usuario
         email: userData.email,
         password: userData.password,
-        password_confirm: userData.confirm_password, // Corregido: password_confirm
-        first_name: userData.first_name,
-        last_name: userData.last_name
-        // El rol 'farmer' se asigna automáticamente en el backend
-      })
-      return response.data
+        
+        // Datos de la persona
+        tipo_documento: userData.tipo_documento || 'CC', // Por defecto Cédula
+        numero_documento: userData.numero_documento || '',
+        primer_nombre: userData.first_name || userData.primer_nombre || '',
+        segundo_nombre: userData.segundo_nombre || userData.middle_name || '',
+        primer_apellido: userData.last_name || userData.primer_apellido || '',
+        segundo_apellido: userData.segundo_apellido || userData.last_name_2 || '',
+        telefono: userData.phone_number || userData.telefono || '',
+        direccion: userData.direccion || userData.address || '',
+        genero: userData.genero || 'M', // Por defecto Masculino
+        fecha_nacimiento: userData.fecha_nacimiento || userData.birthdate || '',
+        municipio: userData.municipio || '',
+        departamento: userData.departamento || ''
+      };
+      
+      const response = await api.post('/personas/registrar/', payload)
+      
+      // La respuesta del endpoint personas/registrar/ ahora incluye verification_required
+      // No hacer login automático, el usuario debe verificar su email primero
+      if (response.data && response.data.verification_required) {
+        return {
+          success: true,
+          verification_required: true,
+          data: {
+            email: response.data.email || userData.email,
+            verification_required: true
+          },
+          message: 'Registro exitoso. Por favor verifica tu correo electrónico.'
+        }
+      }
+      
+      // Fallback para estructura legacy (no debería llegar aquí ahora)
+      return {
+        success: true,
+        verification_required: true,
+        data: {
+          email: response.data?.email || response.data?.user?.email || userData.email,
+          verification_required: true
+        },
+        message: 'Registro exitoso. Por favor verifica tu correo electrónico.'
+      }
+      
     } catch (error) {
-      console.error('Error en registro API:', error)
+      // Extraer mensaje de error más detallado
+      if (error.response?.data) {
+        // Si hay errores de validación específicos
+        if (error.response.data.detail) {
+          error.message = error.response.data.detail
+        } else if (error.response.data.error) {
+          error.message = error.response.data.error
+        } else if (typeof error.response.data === 'string') {
+          error.message = error.response.data
+        } else if (error.response.data.non_field_errors) {
+          error.message = error.response.data.non_field_errors[0]
+        } else {
+          // Intentar extraer el primer error de campo
+          const firstError = Object.values(error.response.data)[0]
+          if (Array.isArray(firstError)) {
+            error.message = firstError[0]
+          } else if (typeof firstError === 'string') {
+            error.message = firstError
+          } else {
+            error.message = 'Error en los datos proporcionados'
+          }
+        }
+      }
+      
       throw error
     }
   },
@@ -51,13 +153,12 @@ const authApi = {
       const response = await api.post('/auth/logout/')
       return response.data
     } catch (error) {
-      console.error('Error en logout API:', error)
       throw error
     }
   },
 
   /**
-   * Refrescar token de acceso
+   * Refrescar token de acceso usando refresh token
    */
   async refreshToken(refreshToken) {
     try {
@@ -66,9 +167,15 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error refrescando token:', error)
       throw error
     }
+  },
+
+  /**
+   * Alias para refreshToken (mantiene compatibilidad)
+   */
+  async refreshAccessToken(refreshToken) {
+    return this.refreshToken(refreshToken)
   },
 
   /**
@@ -81,7 +188,6 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error verificando token:', error)
       throw error
     }
   },
@@ -94,7 +200,6 @@ const authApi = {
       const response = await api.get('/auth/profile/')
       return response.data
     } catch (error) {
-      console.error('Error obteniendo usuario actual:', error)
       throw error
     }
   },
@@ -104,22 +209,31 @@ const authApi = {
    */
   async updateProfile(profileData) {
     try {
-      const response = await api.patch('/auth/users/me/update/', {
-        first_name: profileData.firstName,
-        last_name: profileData.lastName,
-        phone_number: profileData.phoneNumber,
-        // Datos del perfil
-        region: profileData.region,
-        municipality: profileData.municipality,
-        farm_name: profileData.farmName,
-        years_experience: profileData.yearsExperience,
-        farm_size_hectares: profileData.farmSizeHectares,
-        preferred_language: profileData.preferredLanguage,
-        email_notifications: profileData.emailNotifications
-      })
+      const payload = {
+        first_name: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
+        last_name: profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || ''
+      }
+      
+      // Incluir phone_number si está disponible
+      if (profileData.phoneNumber || profileData.phone) {
+        payload.phone_number = profileData.phoneNumber || profileData.phone
+      }
+      
+      const response = await api.put('/auth/profile/', payload)
       return response.data
     } catch (error) {
-      console.error('Error actualizando perfil:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Obtener perfil del usuario actual
+   */
+  async getProfile() {
+    try {
+      const response = await api.get('/auth/profile/')
+      return response.data
+    } catch (error) {
       throw error
     }
   },
@@ -129,14 +243,13 @@ const authApi = {
    */
   async changePassword(passwordData) {
     try {
-      const response = await api.post('/auth/users/change-password/', {
+      const response = await api.post('/auth/change-password/', {
         old_password: passwordData.oldPassword,
         new_password: passwordData.newPassword,
         confirm_password: passwordData.confirmPassword
       })
       return response.data
     } catch (error) {
-      console.error('Error cambiando contraseña:', error)
       throw error
     }
   },
@@ -146,12 +259,11 @@ const authApi = {
    */
   async requestPasswordReset(email) {
     try {
-      const response = await api.post('/auth/password-reset/', {
+      const response = await api.post('/auth/forgot-password/', {
         email: email
       })
       return response.data
     } catch (error) {
-      console.error('Error solicitando reset de contraseña:', error)
       throw error
     }
   },
@@ -161,7 +273,7 @@ const authApi = {
    */
   async confirmPasswordReset(resetData) {
     try {
-      const response = await api.post('/auth/password-reset-confirm/', {
+      const response = await api.post('/auth/reset-password/', {
         uid: resetData.uid,
         token: resetData.token,
         new_password: resetData.newPassword,
@@ -169,13 +281,12 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error confirmando reset de contraseña:', error)
       throw error
     }
   },
 
   /**
-   * Verificar email con token
+   * Verificar email con token (POST con token en body)
    */
   async verifyEmail(uid, token) {
     try {
@@ -185,7 +296,18 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error verificando email:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Verificar email con token desde la URL (GET con token en path)
+   */
+  async verifyEmailFromToken(token) {
+    try {
+      const response = await api.get(`/auth/verify-email/${token}/`)
+      return response.data
+    } catch (error) {
       throw error
     }
   },
@@ -193,12 +315,12 @@ const authApi = {
   /**
    * Reenviar email de verificación
    */
-  async resendEmailVerification() {
+  async resendEmailVerification(email = null) {
     try {
-      const response = await api.post('/auth/resend-verification/')
+      const payload = email ? { email } : {}
+      const response = await api.post('/auth/resend-verification/', payload)
       return response.data
     } catch (error) {
-      console.error('Error reenviando verificación:', error)
       throw error
     }
   },
@@ -211,7 +333,6 @@ const authApi = {
       const response = await api.get('/auth/admin/stats/')
       return response.data
     } catch (error) {
-      console.error('Error obteniendo estadísticas:', error)
       throw error
     }
   },
@@ -227,7 +348,6 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error en acciones masivas:', error)
       throw error
     }
   },
@@ -240,7 +360,10 @@ const authApi = {
       const response = await api.get('/auth/users/', { params })
       return response.data
     } catch (error) {
-      console.error('Error obteniendo usuarios:', error)
+      // Fallback suave para no bloquear la UI si el backend responde 500
+      if (error.response?.status === 500) {
+        return { results: [], count: 0, page: 1, page_size: 50, total_pages: 1 }
+      }
       throw error
     }
   },
@@ -253,7 +376,6 @@ const authApi = {
       const response = await api.get(`/auth/users/${userId}/`)
       return response.data
     } catch (error) {
-      console.error('Error obteniendo usuario:', error)
       throw error
     }
   },
@@ -263,10 +385,9 @@ const authApi = {
    */
   async updateUser(userId, userData) {
     try {
-      const response = await api.patch(`/auth/users/${userId}/`, userData)
+      const response = await api.patch(`/auth/users/${userId}/update/`, userData)
       return response.data
     } catch (error) {
-      console.error('Error actualizando usuario:', error)
       throw error
     }
   },
@@ -276,10 +397,35 @@ const authApi = {
    */
   async deleteUser(userId) {
     try {
-      const response = await api.delete(`/auth/users/${userId}/`)
+      const response = await api.delete(`/auth/users/${userId}/delete/`)
       return response.data
     } catch (error) {
-      console.error('Error eliminando usuario:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Cambiar estado de usuario (activo/inactivo)
+   */
+  async toggleUserStatus(userId, isActive) {
+    try {
+      const response = await api.patch(`/auth/users/${userId}/update/`, {
+        is_active: isActive
+      })
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
+   * Obtener estadísticas de usuarios
+   */
+  async getUserStats() {
+    try {
+      const response = await api.get('/auth/users/stats/')
+      return response.data
+    } catch (error) {
       throw error
     }
   },
@@ -294,7 +440,6 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error en forgot password API:', error)
       throw error
     }
   },
@@ -311,7 +456,30 @@ const authApi = {
       })
       return response.data
     } catch (error) {
-      console.error('Error en reset password API:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Enviar código OTP para verificación de email
+   */
+  async sendOtp(email) {
+    try {
+      const response = await api.post('/auth/send-otp/', { email })
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
+   * Verificar código OTP
+   */
+  async verifyOtp(email, code) {
+    try {
+      const response = await api.post('/auth/verify-otp/', { email, code })
+      return response.data
+    } catch (error) {
       throw error
     }
   }

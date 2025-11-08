@@ -92,17 +92,15 @@
                   <h6 class="text-muted">Descripción</h6>
                   <p class="text-muted">{{ finca.descripcion }}</p>
                 </div>
-
-                <!-- Coordenadas GPS -->
-                <div v-if="finca.coordenadas_lat && finca.coordenadas_lng" class="mt-3">
-                  <h6 class="text-muted">Coordenadas GPS</h6>
-                  <p class="text-muted">
-                    <i class="fas fa-globe me-2"></i>
-                    {{ finca.coordenadas_lat }}, {{ finca.coordenadas_lng }}
-                  </p>
-                </div>
               </div>
             </div>
+
+            <!-- 🌍 Mapa de ubicación -->
+            <FincaLocationMap
+              :nombre="finca.nombre"
+              :latitud="finca.coordenadas_lat"
+              :longitud="finca.coordenadas_lng"
+            />
 
             <!-- Estadísticas -->
             <div class="card mt-4">
@@ -240,11 +238,24 @@
 </template>
 
 <script setup>
+// 1. Vue core
 import { ref, onMounted, computed } from 'vue'
+
+// 2. Router
 import { useRoute, useRouter } from 'vue-router'
+
+// 3. Stores
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
+
+// 4. Services
+import api from '@/services/api'
+
+// 5. Libraries
 import Swal from 'sweetalert2'
+
+// 6. Components
+import FincaLocationMap from '@/components/fincas/FincaLocationMap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -269,25 +280,37 @@ const loadFinca = async () => {
     loading.value = true
     error.value = null
     
-    const response = await fetch(`/api/fincas/${route.params.id}/`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    // Usar la instancia de axios con interceptor JWT
+    const response = await api.get(`/api/v1/fincas/${route.params.id}/`)
     
-    if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${response.statusText}`)
-    }
-    
-    finca.value = await response.json()
+    finca.value = response.data
     
     // Cargar lotes recientes
     await loadLotesRecientes()
     
   } catch (err) {
-    error.value = err.message
-    console.error('Error cargando finca:', err)
+    
+    // Manejar diferentes tipos de errores
+    if (err.response) {
+      if (err.response.status === 404) {
+        error.value = 'La finca no existe o fue desactivada.'
+        router.push({ name: 'Fincas', query: { notFound: 'true' } })
+      } else if (err.response.status === 403) {
+        error.value = 'No tienes permiso para ver esta finca.'
+        router.push({ name: 'Fincas' })
+      } else if (err.response.status === 401) {
+        error.value = 'Tu sesión ha expirado. Redirigiendo al login...'
+        setTimeout(() => {
+          authStore.logout(false)
+        }, 2000)
+      } else {
+        error.value = err.response.data?.detail || `Error ${err.response.status}`
+      }
+    } else if (err.request) {
+      error.value = 'No se pudo conectar al servidor. Verifica tu conexión.'
+    } else {
+      error.value = err.message || 'Error desconocido'
+    }
   } finally {
     loading.value = false
   }
@@ -295,19 +318,10 @@ const loadFinca = async () => {
 
 const loadLotesRecientes = async () => {
   try {
-    const response = await fetch(`/api/fincas/${route.params.id}/lotes/`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    
-    if (response.ok) {
-      const data = await response.json()
-      lotesRecientes.value = data.results?.slice(0, 5) || []
-    }
+    const response = await api.get(`/api/v1/fincas/${route.params.id}/lotes/`)
+    lotesRecientes.value = response.data.results?.slice(0, 5) || []
   } catch (err) {
-    console.error('Error cargando lotes:', err)
+    // Ignorar errores de lotes - no es crítico para mostrar la finca
   }
 }
 

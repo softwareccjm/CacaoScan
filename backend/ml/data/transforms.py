@@ -1,5 +1,5 @@
-"""
-Transformaciones de imágenes para el procesamiento de cacao.
+﻿"""
+Transformaciones de imÃ¡genes para el procesamiento de cacao.
 """
 import numpy as np
 from PIL import Image, ImageOps
@@ -13,12 +13,12 @@ def resize_with_padding(
     fill_color: Tuple[int, int, int] = (0, 0, 0)
 ) -> np.ndarray:
     """
-    Redimensiona una imagen manteniendo la proporción y añadiendo padding.
+    Redimensiona una imagen manteniendo la proporciÃ³n y aÃ±adiendo padding.
     
     Args:
         image: Imagen como array numpy
-        target_size: Tamaño objetivo (width, height)
-        target_size: Tamaño objetivo (width, height)
+        target_size: TamaÃ±o objetivo (width, height)
+        target_size: TamaÃ±o objetivo (width, height)
         fill_color: Color de relleno para el padding
         
     Returns:
@@ -27,10 +27,10 @@ def resize_with_padding(
     h, w = image.shape[:2]
     target_w, target_h = target_size
     
-    # Calcular la escala para mantener la proporción
+    # Calcular la escala para mantener la proporciÃ³n
     scale = min(target_w / w, target_h / h)
     
-    # Calcular el nuevo tamaño
+    # Calcular el nuevo tamaÃ±o
     new_w = int(w * scale)
     new_h = int(h * scale)
     
@@ -40,7 +40,7 @@ def resize_with_padding(
     # Crear imagen con padding
     padded = np.full((target_h, target_w, 3), fill_color, dtype=np.uint8)
     
-    # Calcular posición para centrar
+    # Calcular posiciÃ³n para centrar
     y_offset = (target_h - new_h) // 2
     x_offset = (target_w - new_w) // 2
     
@@ -78,14 +78,14 @@ def denormalize_image(image: np.ndarray) -> np.ndarray:
 
 def apply_mask_to_image(image: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """
-    Aplica una máscara a una imagen.
+    Aplica una mÃ¡scara a una imagen.
     
     Args:
         image: Imagen original
-        mask: Máscara binaria
+        mask: MÃ¡scara binaria
         
     Returns:
-        Imagen con máscara aplicada
+        Imagen con mÃ¡scara aplicada
     """
     if len(image.shape) == 3:
         # Imagen a color
@@ -103,33 +103,33 @@ def crop_with_mask(
     padding: int = 10
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Recorta una imagen usando una máscara con padding adicional.
+    Recorta una imagen usando una mÃ¡scara con padding adicional.
     
     Args:
         image: Imagen original
-        mask: Máscara binaria
-        padding: Padding adicional en píxeles
+        mask: MÃ¡scara binaria
+        padding: Padding adicional en pÃ­xeles
         
     Returns:
-        Tuple con (imagen recortada, máscara recortada)
+        Tuple con (imagen recortada, mÃ¡scara recortada)
     """
-    # Encontrar bounding box de la máscara
+    # Encontrar bounding box de la mÃ¡scara
     coords = np.where(mask > 0)
     if len(coords[0]) == 0:
-        # No hay píxeles activos en la máscara
+        # No hay pÃ­xeles activos en la mÃ¡scara
         return image, mask
     
     y_min, y_max = coords[0].min(), coords[0].max()
     x_min, x_max = coords[1].min(), coords[1].max()
     
-    # Añadir padding
+    # AÃ±adir padding
     h, w = image.shape[:2]
     y_min = max(0, y_min - padding)
     y_max = min(h, y_max + padding)
     x_min = max(0, x_min - padding)
     x_max = min(w, x_max + padding)
     
-    # Recortar imagen y máscara
+    # Recortar imagen y mÃ¡scara
     cropped_image = image[y_min:y_max, x_min:x_max]
     cropped_mask = mask[y_min:y_max, x_min:x_max]
     
@@ -146,13 +146,13 @@ def create_transparent_crop(
     
     Args:
         image: Imagen original
-        mask: Máscara binaria
+        mask: MÃ¡scara binaria
         padding: Padding adicional
         
     Returns:
         Imagen recortada con canal alpha
     """
-    # Recortar imagen y máscara
+    # Recortar imagen y mÃ¡scara
     cropped_image, cropped_mask = crop_with_mask(image, mask, padding)
     
     # Crear imagen RGBA
@@ -178,11 +178,11 @@ def resize_crop_to_square(
     fill_color: Tuple[int, int, int, int] = (0, 0, 0, 0)
 ) -> np.ndarray:
     """
-    Redimensiona un recorte a un cuadrado manteniendo la proporción.
+    Redimensiona un recorte a un cuadrado manteniendo la proporciÃ³n.
     
     Args:
         image: Imagen RGBA
-        target_size: Tamaño del cuadrado objetivo
+        target_size: TamaÃ±o del cuadrado objetivo
         fill_color: Color de relleno (RGBA)
         
     Returns:
@@ -190,10 +190,10 @@ def resize_crop_to_square(
     """
     h, w = image.shape[:2]
     
-    # Calcular la escala para mantener la proporción
+    # Calcular la escala para mantener la proporciÃ³n
     scale = min(target_size / w, target_size / h)
     
-    # Calcular el nuevo tamaño
+    # Calcular el nuevo tamaÃ±o
     new_w = int(w * scale)
     new_h = int(h * scale)
     
@@ -203,7 +203,7 @@ def resize_crop_to_square(
     # Crear imagen cuadrada
     square = np.full((target_size, target_size, 4), fill_color, dtype=np.uint8)
     
-    # Calcular posición para centrar
+    # Calcular posiciÃ³n para centrar
     y_offset = (target_size - new_h) // 2
     x_offset = (target_size - new_w) // 2
     
@@ -224,18 +224,18 @@ def validate_crop_quality(
     
     Args:
         image: Imagen original
-        mask: Máscara binaria
-        min_area_ratio: Proporción mínima de área de la máscara respecto a la imagen
-        max_aspect_ratio: Proporción máxima de aspecto del bounding box
+        mask: MÃ¡scara binaria
+        min_area_ratio: ProporciÃ³n mÃ­nima de Ã¡rea de la mÃ¡scara respecto a la imagen
+        max_aspect_ratio: ProporciÃ³n mÃ¡xima de aspecto del bounding box
         
     Returns:
-        True si el recorte es válido, False en caso contrario
+        True si el recorte es vÃ¡lido, False en caso contrario
     """
-    # Calcular área de la máscara
+    # Calcular Ã¡rea de la mÃ¡scara
     mask_area = np.sum(mask > 0)
     total_area = mask.size
     
-    # Verificar área mínima
+    # Verificar Ã¡rea mÃ­nima
     if mask_area / total_area < min_area_ratio:
         return False
     
@@ -247,7 +247,7 @@ def validate_crop_quality(
     y_min, y_max = coords[0].min(), coords[0].max()
     x_min, x_max = coords[1].min(), coords[1].max()
     
-    # Calcular proporción de aspecto
+    # Calcular proporciÃ³n de aspecto
     bbox_width = x_max - x_min
     bbox_height = y_max - y_min
     
@@ -256,8 +256,10 @@ def validate_crop_quality(
     
     aspect_ratio = max(bbox_width / bbox_height, bbox_height / bbox_width)
     
-    # Verificar proporción de aspecto
+    # Verificar proporciÃ³n de aspecto
     if aspect_ratio > max_aspect_ratio:
         return False
     
     return True
+
+

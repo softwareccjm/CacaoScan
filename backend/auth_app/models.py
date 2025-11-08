@@ -1,0 +1,179 @@
+﻿"""
+Modelos de autenticaciÃ³n para CacaoScan.
+"""
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+import uuid
+import logging
+import random
+
+logger = logging.getLogger("cacaoscan.auth")
+
+
+class EmailVerificationToken(models.Model):
+    """
+    Modelo para tokens de verificaciÃ³n de email.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='auth_email_token')
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    is_verified = models.BooleanField(default=False)
+    
+    # ConfiguraciÃ³n de expiraciÃ³n (24 horas por defecto)
+    EXPIRATION_HOURS = 24
+    
+    class Meta:
+        verbose_name = 'Token de VerificaciÃ³n de Email'
+        verbose_name_plural = 'Tokens de VerificaciÃ³n de Email'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Token para {self.user.email} - {'Verificado' if self.is_verified else 'Pendiente'}"
+    
+    @property
+    def is_expired(self):
+        """Verificar si el token ha expirado."""
+        if self.is_verified:
+            return False
+        
+        expiration_time = self.created_at + timezone.timedelta(hours=self.EXPIRATION_HOURS)
+        return timezone.now() > expiration_time
+    
+    @property
+    def expires_at(self):
+        """Obtener fecha de expiraciÃ³n del token."""
+        return self.created_at + timezone.timedelta(hours=self.EXPIRATION_HOURS)
+    
+    def verify(self):
+        """Marcar el token como verificado."""
+        self.is_verified = True
+        self.verified_at = timezone.now()
+        self.save()
+        
+        # Marcar el usuario como activo si no lo estaba
+        if not self.user.is_active:
+            self.user.is_active = True
+            self.user.save()
+    
+    @classmethod
+    def create_for_user(cls, user):
+        """Crear un nuevo token de verificaciÃ³n para un usuario."""
+        # Eliminar token existente si existe
+        cls.objects.filter(user=user).delete()
+        
+        # Crear nuevo token
+        return cls.objects.create(user=user)
+    
+    @classmethod
+    def get_valid_token(cls, token_uuid):
+        """Obtener un token vÃ¡lido por UUID."""
+        try:
+            token_obj = cls.objects.get(token=token_uuid)
+            if token_obj.is_expired:
+                return None
+            return token_obj
+        except cls.DoesNotExist:
+            return None
+
+
+class UserProfile(models.Model):
+    """
+    Perfil extendido del usuario con informaciÃ³n especÃ­fica de agricultores.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='auth_profile')
+    
+    # InformaciÃ³n de contacto
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    
+    # InformaciÃ³n geogrÃ¡fica
+    region = models.CharField(max_length=100, blank=True, null=True)
+    municipality = models.CharField(max_length=100, blank=True, null=True)
+    
+    # InformaciÃ³n de la finca
+    farm_name = models.CharField(max_length=200, blank=True, null=True)
+    years_experience = models.PositiveIntegerField(blank=True, null=True)
+    farm_size_hectares = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    
+    # Preferencias del usuario
+    preferred_language = models.CharField(max_length=10, default='es', choices=[
+        ('es', 'EspaÃ±ol'),
+        ('en', 'English'),
+    ])
+    email_notifications = models.BooleanField(default=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Perfil de Usuario'
+        verbose_name_plural = 'Perfiles de Usuario'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Perfil de {self.user.get_full_name() or self.user.username}"
+    
+    @property
+    def full_name(self):
+        """Obtener nombre completo del usuario."""
+        return self.user.get_full_name() or self.user.username
+    
+    @property
+    def role(self):
+        """Obtener rol del usuario desde el username o grupos."""
+        if self.user.is_superuser:
+            return 'admin'
+        elif self.user.groups.filter(name='analyst').exists():
+            return 'analyst'
+        else:
+            return 'farmer'
+    
+    @property
+    def is_verified(self):
+        """Verificar si el usuario estÃ¡ verificado."""
+        try:
+            # Usar auth_email_token como relaciÃ³n estÃ¡ndar
+            if hasattr(self.user, 'auth_email_token'):
+                return self.user.auth_email_token.is_verified
+            elif hasattr(self.user, 'auth_email_token'):
+                return self.user.auth_email_token.is_verified
+            return False
+        except:
+            return False
+
+
+class PendingEmailVerification(models.Model):
+    """
+    Modelo para verificaciÃ³n pendiente de email con cÃ³digo OTP.
+    Guarda temporalmente los datos del usuario hasta que verifique el cÃ³digo OTP.
+    """
+    email = models.EmailField(unique=True)
+    otp_code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_sent = models.DateTimeField(auto_now=True)
+    temp_data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'VerificaciÃ³n Pendiente de Email'
+        verbose_name_plural = 'Verificaciones Pendientes de Email'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', 'otp_code']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"OTP para {self.email} - {self.otp_code}"
+
+    def is_expired(self):
+        """Verificar si el cÃ³digo OTP ha expirado (10 minutos)."""
+        return (timezone.now() - self.created_at).total_seconds() > 600
+
+    @staticmethod
+    def generate_code():
+        """Generar un cÃ³digo OTP aleatorio de 6 dÃ­gitos."""
+        return str(random.randint(100000, 999999))
+
+
