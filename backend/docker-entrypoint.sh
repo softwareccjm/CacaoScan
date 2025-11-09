@@ -16,7 +16,8 @@ export PYTHONDONTWRITEBYTECODE=1
 
 log "🚀 Iniciando CacaoScan (${ROLE})..."
 
-install -d -m 2750 -o appuser -g appgroup "$STATIC_ROOT" "$MEDIA_ROOT" /tmp/cacaoscan
+# Crear directorios necesarios (ya corremos como appuser)
+mkdir -p "$STATIC_ROOT" "$MEDIA_ROOT" /tmp/cacaoscan /app/logs
 
 wait_for_database() {
     local elapsed=0

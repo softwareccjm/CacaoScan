@@ -64,7 +64,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system appgroup \
     && useradd --system --gid appgroup --create-home --shell /bin/bash appuser \
-    && mkdir -p /app /var/www/staticfiles /var/www/media /var/log/cacaoscan /tmp/cacaoscan \
+    && mkdir -p /app /app/logs /var/www/staticfiles /var/www/media /var/log/cacaoscan /tmp/cacaoscan \
     && chown -R appuser:appgroup /app /var/www /var/log/cacaoscan /tmp/cacaoscan
 
 WORKDIR /app
