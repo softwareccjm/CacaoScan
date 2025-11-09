@@ -165,11 +165,11 @@ class Persona(models.Model):
         
         # Validar nombres (solo letras y espacios)
         if self.primer_nombre:
-            if not re.match(r'^[a-zA-ZáéíóúÉ"Úñ'üÜ\s]+$', self.primer_nombre):
+            if not all(char.isalpha() or char.isspace() for char in self.primer_nombre):
                 errors['primer_nombre'] = 'El primer nombre solo puede contener letras.'
         
         if self.primer_apellido:
-            if not re.match(r'^[a-zA-ZáéíóúÉ"Úñ'üÜ\s]+$', self.primer_apellido):
+            if not all(char.isalpha() or char.isspace() for char in self.primer_apellido):
                 errors['primer_apellido'] = 'El primer apellido solo puede contener letras.'
         
         # Validar que el municipio pertenezca al departamento

@@ -225,7 +225,7 @@ class PersonaRegistroSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("El primer nombre es obligatorio.")
         
-        if not re.match(r'^[a-zA-ZáéíóúÉ"Úñ'üÜ\s]+$', value):
+        if not all(char.isalpha() or char.isspace() for char in value):
             raise serializers.ValidationError("El primer nombre solo puede contener letras.")
         
         return value
@@ -236,7 +236,7 @@ class PersonaRegistroSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("El primer apellido es obligatorio.")
         
-        if not re.match(r'^[a-zA-ZáéíóúÉ"Úñ'üÜ\s]+$', value):
+        if not all(char.isalpha() or char.isspace() for char in value):
             raise serializers.ValidationError("El primer apellido solo puede contener letras.")
         
         return value
@@ -516,7 +516,7 @@ class PersonaActualizacionSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("El primer nombre es obligatorio.")
         
-        if not re.match(r'^[a-zA-ZáéíóúÉ"Úñ'üÜ\s]+$', value):
+        if not all(char.isalpha() or char.isspace() for char in value):
             raise serializers.ValidationError("El primer nombre solo puede contener letras.")
         
         return value
@@ -527,7 +527,7 @@ class PersonaActualizacionSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("El primer apellido es obligatorio.")
         
-        if not re.match(r'^[a-zA-ZáéíóúÉ"Úñ'üÜ\s]+$', value):
+        if not all(char.isalpha() or char.isspace() for char in value):
             raise serializers.ValidationError("El primer apellido solo puede contener letras.")
         
         return value

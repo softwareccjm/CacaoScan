@@ -1231,7 +1231,7 @@ def main():
     # Mostrar resultados de evaluación
     if 'evaluation_results' in results:
         eval_results = results['evaluation_results']
-        print("\n=== RESULTADOS DE EVALUACI"N ===")
+        print("\n=== RESULTADOS DE EVALUACIÓN ===")
         
         if config['multi_head'] and 'multihead' in eval_results:
             multihead_results = eval_results['multihead']
