@@ -23,17 +23,18 @@ except Exception:
 
 # Configuración de logs
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
-def _deshadow_alpha(rgb: np.ndarray, alpha: np.ndarray, max_dist: int = 35) -> np.ndarray:
-    """Elimina sombras adyacentes al objeto sin perder borde real.
+# Evitar duplicar handlers si ya está configurado
+if not logger.hasHandlers():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 
-    Estrategia:
-    - Estimar color de fondo con píxeles de alpha==0.
-    - Calcular diferencia de color en espacio Lab respecto al fondo (deltaE aprox.).
-    - Detectar candidatos a sombra: alpha>0, baja diferencia de color y bajo gradiente,
-      y cercanos al borde (distance transform).
-    - Quitar esas regiones del alpha y suavizar.
-    """
+# --- INICIO DE CORRECCIÓN ---
+# Definir la excepción personalizada que faltaba
+class SegmentationError(Exception):
+    pass
+# --- FIN DE CORRECCIÓN ---
+
+def _deshadow_alpha(rgb: np.ndarray, alpha: np.ndarray, max_dist: int = 35) -> np.ndarray:
+    """Elimina sombras adyacentes al objeto sin perder borde real."""
     h, w = alpha.shape
     bg_mask = alpha == 0
     if not np.any(bg_mask):
@@ -58,7 +59,7 @@ def _deshadow_alpha(rgb: np.ndarray, alpha: np.ndarray, max_dist: int = 35) -> n
     grad = cv2.magnitude(gx, gy)
 
     # Distancia al fondo para limitar a una franja alrededor del objeto
-    dist_to_bg = cv2.distanceTransform((alpha == 0).astype(np.uint8) * 255, cv2.DIST_L2, 5)
+    dist_to_bg = cv2.distanceTransform((alpha > 0).astype(np.uint8), cv2.DIST_L2, 5)
 
     shadow_like = (
         (alpha > 0) &
@@ -81,15 +82,24 @@ def _clean_components(mask: np.ndarray, min_area_ratio: float = 0.002) -> np.nda
     """Conserva el componente mayor, elimina ruido y rellena huecos."""
     h, w = mask.shape
     min_area = max(16, int(min_area_ratio * h * w))
-    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    out = np.zeros_like(mask)
+    
+    # Asegurar que la máscara sea binaria (0 o 255) y de tipo uint8
+    if mask.max() <= 1.0 and mask.dtype != np.uint8:
+        mask_bin = (mask * 255).astype(np.uint8)
+    else:
+        mask_bin = np.uint8(mask)
+
+    cnts, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    out = np.zeros_like(mask_bin)
     if not cnts:
         return mask
     cnts = [c for c in cnts if cv2.contourAreaé >= min_area]
     if not cnts:
-        return mask
+        return mask_bin
+    
     largest = max(cnts, key=cv2.contourArea)
     cv2.drawContours(out, [largest], -1, 255, thickness=cv2.FILLED)
+    
     # Rellenar huecos internos
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     out = cv2.morphologyEx(out, cv2.MORPH_CLOSE, kernel, iterations=2)
@@ -99,25 +109,19 @@ def _clean_components(mask: np.ndarray, min_area_ratio: float = 0.002) -> np.nda
 def _guided_refine(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
     """Refina alpha guiado por bordes de la imagen para un recorte más nítido."""
     if _HAS_XIMGPROC:
-        guide = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-        guide = cv2.blur(guide, (3, 3))
-        a32 = (alpha.astype(np.float32) / 255.0)
-        refined = ximgproc.guidedFilter(guide=guide, src=a32, radius=8, eps=1e-3)
-        return (np.clip(refined, 0.0, 1.0) * 255.0).astype(np.uint8)
-    # Fallback: joint bilateral aproximado con bilateral sobre alpha
+        try:
+            guide = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+            guide = cv2.blur(guide, (3, 3))
+            a32 = (alpha.astype(np.float32) / 255.0)
+            refined = ximgproc.guidedFilter(guide=guide, src=a32, radius=8, eps=1e-3)
+            return (np.clip(refined, 0.0, 1.0) * 255.0).astype(np.uint8)
+        except Exception:
+             pass
     return cv2.bilateralFilter(alpha, d=0, sigmaColor=35, sigmaSpace=9)
 
 
 def _remove_background_opencv(image_path: str) -> Image.Image:
-    """Elimina fondo con OpenCV con mejores resultados y devuelve un PNG RGBA listo para recortar.
-
-    Pipeline mejorado:
-    1) Umbral inicial (Otsu) + morfología para aproximar foreground.
-    2) GrabCut con máscara inicial (GC_INIT_WITH_MASK) para refinar.
-    3) Selección del mayor contorno para evitar ruido.
-    4) Suavizado de bordes (feather) en el canal alpha.
-    5) Recorte tight con padding y encuadre en lienzo cuadrado 512x512.
-    """
+    """Elimina fondo con OpenCV con mejores resultados y devuelve un PNG RGBA listo para recortar."""
     bgr = cv2.imread(image_path)
     if bgr is None:
         raise FileNotFoundError(f"No se pudo leer la imagen: {image_path}")
@@ -129,7 +133,6 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
     _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    # Decidir inversión según predominio (asumimos semilla dominante como fondo)
     if np.mean(otsu) > 127:
         initial = 255 - otsu
     else:
@@ -148,7 +151,6 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
     try:
         cv2.grabCut(bgr, gc_mask, None, bgd, fgd, 5, cv2.GC_INIT_WITH_MASK)
     except Exception:
-        # Fallback a rect si falla
         rect = (10, 10, max(1, w - 20), max(1, h - 20))
         gc_mask = np.zeros((h, w), np.uint8)
         cv2.grabCut(bgr, gc_mask, rect, bgd, fgd, 5, cv2.GC_INIT_WITH_RECT)
@@ -162,11 +164,9 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
         largest = max(cnts, key=cv2.contourArea)
         clean = np.zeros_like(bin_mask)
         cv2.drawContours(clean, [largest], -1, 255, thickness=cv2.FILLED)
-        # Refinar usando el casco convexo para descartar salientes de pared/sombra
         hull = cv2.convexHull(largest)
         hull_mask = np.zeros_like(bin_mask)
         cv2.drawContours(hull_mask, [hull], -1, 255, thickness=cv2.FILLED)
-        # Intersección para no expandir más allá del objeto estimado
         clean = cv2.bitwise_and(clean, hull_mask)
     else:
         clean = bin_mask
@@ -175,15 +175,12 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
     edge = cv2.Canny(clean, 50, 150)
     feather = cv2.GaussianBlur(edge, (21, 21), 0)
     alpha = np.clip(clean.astype(np.float32) + feather.astype(np.float32), 0, 255).astype(np.uint8)
-    # Desombrear alpha manteniendo el color
     alpha = _deshadow_alpha(rgb, alpha)
-    # Refinar bordes guiado por la imagen
     alpha = _guided_refine(rgb, alpha)
 
     # 5) Recorte tight con padding
     ys, xs = np.where(alpha > 0)
     if len(xs) == 0 or len(ys) == 0:
-        # Si no hay máscara válida, devolver RGBA con alpha binaria original
         rgba = np.dstack([rgb, clean])
         return Image.fromarray(rgba, "RGBA")
 
@@ -199,9 +196,6 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
     crop_rgb = rgb[y1:y2 + 1, x1:x2 + 1]
     crop_a = alpha[y1:y2 + 1, x1:x2 + 1]
 
-    # Mantener resolución original del recorte (no reescalar para preservar detalle)
-    # Suavizar solo el canal alpha para bordes más naturales sin tocar color
-    # Refino alpha final (desombreado + guided)
     smooth_a = _guided_refine(crop_rgb, _deshadow_alpha(crop_rgb, crop_a))
     rgba = np.dstack([crop_rgb, smooth_a])
     return Image.fromarray(rgba, "RGBA")
@@ -235,10 +229,12 @@ def save_processed_png(pil_png: Image.Image, out_name: str) -> Path:
 def segment_and_crop_cacao_bean(image_path: str, method: str = "ai") -> str:
     """
     Segmenta (elimina fondo) y recorta una imagen de cacao.
+    
+    PRIORIDAD RESTAURADA: 1. U-Net (ai), 2. rembg, 3. OpenCV
 
     Args:
         image_path (str): Ruta de la imagen original.
-        method (str): Método de segmentación ("ai" o "opencv").
+        method (str): Método de segmentación ("ai", "opencv", "yolo").
 
     Returns:
         str: Ruta absoluta del archivo PNG generado con fondo transparente.
@@ -249,37 +245,65 @@ def segment_and_crop_cacao_bean(image_path: str, method: str = "ai") -> str:
     filename = os.path.basename(image_path)
     logger.info(f"Iniciando eliminación de fondo para: {filename}")
 
-    # Determinar método
     processed: Image.Image
-    if method == "ai":
-        try:
-            processed = remove_background_ai(image_path)
-        except FileNotFoundError:
-            # Fallback transparente para no requerir modelo entrenado en tests
-            logger.warning("Modelo IA no encontrado; usando método OpenCV como fallback.")
-            # Intentar rembg si existe
-            if _HAS_REMBG:
-                try:
-                    processed = _remove_background_rembg(image_path)
-                except Exception:
-                    processed = _remove_background_opencv(image_path)
-            else:
-                processed = _remove_background_opencv(image_path)
-    elif method == "opencv":
-        # Priorizar rembg si está instalado
-        if _HAS_REMBG:
-            try:
-                processed = _remove_background_rembg(image_path)
-            except Exception:
-                processed = _remove_background_opencv(image_path)
-        else:
-            processed = _remove_background_opencv(image_path)
-    else:
-        raise ValueError("Método no válido. Use 'ai' o 'opencv'.")
+    method = (method or "ai").lower()
 
+    if method == "opencv":
+        logger.debug("Segmentación solicitada con backend OpenCV (modo directo)")
+        try:
+            processed = _remove_background_opencv(image_path)
+        except Exception as e_opencv:
+            logger.error(f"OpenCV directo falló para {filename}: {e_opencv}")
+            raise FileNotFoundError(f"No se pudo procesar la imagen {filename} con OpenCV: {e_opencv}")
+    else:
+        # Cadena prioritaria AI -> rembg -> OpenCV
+        try:
+            logger.debug("Prioridad 1: Intentando U-Net (remove_background_ai)...")
+            processed = remove_background_ai(image_path)
+        except Exception as e_ai:
+            logger.warning(f"U-Net (Prioridad 1) falló: {e_ai}. Intentando rembg...")
+            try:
+                if _HAS_REMBG:
+                    logger.debug("Prioridad 2: Intentando rembg...")
+                    processed = _remove_background_rembg(image_path)
+                else:
+                    raise RuntimeError("rembg no disponible, saltando a OpenCV")
+            except Exception as e_rembg:
+                logger.warning(f"rembg (Prioridad 2) falló: {e_rembg}. Usando OpenCV como último recurso...")
+                try:
+                    logger.debug("Prioridad 3: Intentando OpenCV...")
+                    processed = _remove_background_opencv(image_path)
+                except Exception as e_opencv:
+                    logger.error(f"Todos los métodos de segmentación fallaron para {filename}: {e_opencv}")
+                    raise FileNotFoundError(f"No se pudo procesar la imagen {filename} con ningún método.")
+    
     # Guardar en processed/YYYY/MM/DD
     output_filename = f"cacao_{uuid.uuid4().hex}.png"
     out_path = save_processed_png(processed, output_filename)
 
     logger.info(f"[OK] Imagen procesada y guardada en: {out_path}")
     return str(out_path)
+
+
+def convert_bmp_to_jpg(bmp_path: Path):
+    """
+    Convierte una imagen BMP a JPG (en memoria).
+    (Función movida desde commands/convert_cacao_images.py para ser reutilizable)
+    """
+    try:
+        img = Image.open(bmp_path)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Guardar en buffer de bytes
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='JPEG', quality=90)
+        img_byte_arr.seek(0)
+        
+        # Recargar desde buffer para asegurar formato JPG
+        jpg_img = Image.open(img_byte_arr)
+        
+        return jpg_img, {"success": True, "format": "JPEG"}
+    except Exception as e:
+        logger.error(f"Error convirtiendo BMP a JPG: {bmp_path.name}: {e}")
+        return None, {"success": False, "error": str(e)}
