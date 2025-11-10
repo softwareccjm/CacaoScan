@@ -1,4 +1,4 @@
-"""
+﻿"""
 Procesador de recortes con máscaras para granos de cacao.
 """
 import numpy as np
@@ -27,7 +27,8 @@ class CacaoCropper:
         crop_size: int = 512,
         padding: int = 10,
         save_masks: bool = False,
-        overwrite: bool = False
+        overwrite: bool = False,
+        enable_yolo: bool = True  # <-- NUEVO FLAG
     ):
         """
         Inicializa el procesador de recortes.
@@ -44,6 +45,7 @@ class CacaoCropper:
         self.padding = padding
         self.save_masks = save_masks
         self.overwrite = overwrite
+        self.enable_yolo = enable_yolo # <-- NUEVO FLAG
         
         # Asegurar que los directorios existen
         ensure_dir_exists(get_crops_dir())
@@ -70,7 +72,6 @@ class CacaoCropper:
         crop_path = get_crops_dir() / f"{image_id}.png"
         mask_path = get_masks_dir() / f"{image_id}.png" if self.save_masks else None
         
-        # Verificar si ya existe el crop y no se debe sobrescribir
         if not force_process and not self.overwrite and crop_path.exists():
             # Verificar si la imagen original es más nueva
             if not self._should_reprocess(image_path, crop_path):
@@ -84,6 +85,13 @@ class CacaoCropper:
                 }
         
         try:
+            # --- INICIO DE CORRECCIÓN ---
+            # Si YOLO está desactivado o no se inicializó, saltar al fallback
+            if not self.yolo_inference or not self.enable_yolo:
+                logger.info(f"YOLO desactivado para ID {image_id}. Usando fallback OpenCV...")
+                return self._process_with_opencv_fallback(image_path, image_id)
+            # --- FIN DE CORRECCIÓN ---
+
             # Realizar inferencia YOLO
             if self.yolo_inference is None:
                 raise ValueError("YOLO inference no está inicializado")
@@ -128,12 +136,10 @@ class CacaoCropper:
             if mask_area < 100:  # Mnimo de pxeles
                 logger.warning(f"Mscara muy pequea ({mask_area} pxeles) para {image_path.name}")
             
-            # Cargar imagen original
             image = cv2.imread(str(image_path))
             if image is None:
                 raise ValueError(f"No se pudo cargar la imagen: {image_path}")
             
-            # Convertir de BGR a RGB
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             
             # Obtener máscara de la predicción
@@ -151,7 +157,6 @@ class CacaoCropper:
             
             # Normalizar mscara a valores 0-255 si es necesario
             if mask.dtype != np.uint8:
-                # Normalizar valores flotantes a 0-255
                 if mask.max() <= 1.0:
                     mask = (mask * 255).astype(np.uint8)
                 else:
@@ -180,16 +185,11 @@ class CacaoCropper:
                 # Si hay error en la validacin, continuar de todos modos
                 logger.warning(f"Error en validacin de crop para {image_path}: {e}, continuando...")
             
-            # Crear imagen con fondo transparente (recortar solo el bounding box del grano, eliminar espacios en blanco)
-            # Usar padding=0 para recorte exacto sin bordes blancos, mantener calidad original
             transparent_crop = create_transparent_crop(
                 image_rgb, mask, padding=0, crop_only=True
             )
             
-            # Convertir a PIL Image directamente (mantener calidad original, sin redimensionar)
             pil_crop = Image.fromarray(transparent_crop, 'RGBA')
-            
-            # Guardar recorte
             save_image(pil_crop, crop_path)
             
             # Guardar máscara si se solicita
@@ -198,7 +198,7 @@ class CacaoCropper:
                 pil_mask = Image.fromarray(mask_normalized, 'L')
                 save_image(pil_mask, mask_path)
             
-            logger.debug(f"Procesado exitosamente ID {image_id}")
+            logger.debug(f"Procesado exitosamente ID {image_id} (con YOLO)")
             
             return {
                 'success': True,
@@ -214,7 +214,6 @@ class CacaoCropper:
             
         except Exception as e:
             logger.error(f"Error procesando imagen {image_path}: {e}")
-            # Intentar fallback a OpenCV si YOLO falla completamente
             try:
                 logger.warning(f"Intentando fallback OpenCV despus de error en YOLO...")
                 return self._process_with_opencv_fallback(image_path, image_id)
@@ -279,36 +278,36 @@ class CacaoCropper:
                 image_rgb, mask, padding=0, crop_only=True
             )
             
-            # Convertir a PIL Image directamente (mantener calidad original, sin redimensionar)
-            pil_crop = Image.fromarray(transparent_crop, 'RGBA')
-            
-            # Guardar recorte usando el image_id
-            crop_path = get_crops_dir() / f"{image_id}_opencv.png"
+            # Esta es la ruta que el pipeline de entrenamiento espera
+            crop_path = get_crops_dir() / f"{image_id}.png"
             save_image(pil_crop, crop_path)
             
             # Guardar mscara si se solicita
             mask_path = None
             if self.save_masks:
                 mask_path = get_masks_dir() / f"{image_id}_opencv.png"
-                mask_normalized = (mask * 255).astype(np.uint8) if mask.max() <= 1 else mask.astype(np.uint8)
-                pil_mask = Image.fromarray(mask_normalized, 'L')
-                save_image(pil_mask, mask_path)
-            
-            logger.info(f"Procesado exitosamente con OpenCV fallback: {image_path.name}")
+                # Extraer máscara de la imagen RGBA
+                crop_array = np.array(pil_crop)
+                if crop_array.shape[2] == 4:
+                    mask = crop_array[:, :, 3]
+                    pil_mask = Image.fromarray(mask, 'L')
+                    save_image(pil_mask, mask_path)
+
+            logger.info(f"Procesado exitosamente con Fallback (rembg/OpenCV): {image_path.name}")
             
             return {
                 'success': True,
                 'skipped': False,
                 'crop_path': crop_path,
                 'mask_path': mask_path,
-                'confidence': 0.5,  # Confianza fija para OpenCV
-                'area': int(np.sum(mask > 128)),
+                'confidence': 0.5,  # Confianza fija para fallback
+                'area': int(np.sum(np.array(pil_crop)[:,:,3] > 128)),
                 'bbox': None,
-                'method': 'opencv_fallback'
+                'method': 'fallback_chain'
             }
             
         except Exception as e:
-            logger.error(f"Error en fallback OpenCV para {image_path}: {e}")
+            logger.error(f"Error en fallback OpenCV/rembg para {image_path}: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': f"Fallback OpenCV fall: {str(e)}",
@@ -319,13 +318,6 @@ class CacaoCropper:
     def _should_reprocess(self, source_path: Path, target_path: Path) -> bool:
         """
         Determina si se debe reprocesar basado en timestamps.
-        
-        Args:
-            source_path: Ruta de la imagen fuente
-            target_path: Ruta de la imagen objetivo
-            
-        Returns:
-            True si se debe reprocesar
         """
         source_time = get_file_timestamp(source_path)
         target_time = get_file_timestamp(target_path)
@@ -389,7 +381,6 @@ class CacaoCropper:
                         'error': result.get('error', 'Error desconocido')
                     })
                 
-                # Actualizar callback de progreso
                 if progress_callback:
                     progress_callback(i + 1, total_images, result)
                 
@@ -405,7 +396,6 @@ class CacaoCropper:
                     'error': str(e)
                 })
         
-        # Log final
         success_rate = (stats['successful'] / stats['processed'] * 100) if stats['processed'] > 0 else 0
         logger.info(f"Procesamiento completado: {stats['successful']} exitosos, {stats['failed']} fallidos, {stats['skipped']} saltados")
         logger.info(f"Tasa de éxito: {success_rate:.2f}%")
@@ -418,7 +408,8 @@ def create_cacao_cropper(
     crop_size: int = 512,
     padding: int = 10,
     save_masks: bool = False,
-    overwrite: bool = False
+    overwrite: bool = False,
+    enable_yolo: bool = True  # <-- NUEVO FLAG
 ) -> CacaoCropper:
     """
     Función de conveniencia para crear un procesador de recortes.
@@ -435,14 +426,24 @@ def create_cacao_cropper(
     """
     from .infer_yolo_seg import create_yolo_inference
     
-    yolo_inference = create_yolo_inference(confidence_threshold=confidence_threshold)
+    # --- INICIO DE CORRECCIÓN ---
+    # Solo cargar YOLO si está habilitado
+    yolo_inference = None
+    if enable_yolo:
+        try:
+            yolo_inference = create_yolo_inference(confidence_threshold=confidence_threshold)
+        except Exception as e:
+            logger.warning(f"No se pudo cargar YOLO (enable_yolo=True): {e}. Se desactivará YOLO.")
+            enable_yolo = False
+    else:
+        logger.info("Creando CacaoCropper con YOLO desactivado.")
+    # --- FIN DE CORRECCIÓN ---
     
     return CacaoCropper(
         yolo_inference=yolo_inference,
         crop_size=crop_size,
         padding=padding,
         save_masks=save_masks,
-        overwrite=overwrite
+        overwrite=overwrite,
+        enable_yolo=enable_yolo # <-- Pasar el flag
     )
-
-
