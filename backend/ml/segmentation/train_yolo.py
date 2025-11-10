@@ -163,7 +163,110 @@ class YOLOTrainingManager:
             Lista de anotaciones o None si falla
         """
         try:
-            # Cargar imagen
+            # Método 1: Intentar usar YOLO base para generar máscara de segmentación
+            try:
+                from .infer_yolo_seg import YOLOSegmentationInference
+                
+                yolo_inference = YOLOSegmentationInference(confidence_threshold=0.2)
+                prediction = yolo_inference.get_best_prediction(image_path)
+                
+                if prediction and prediction.get('mask') is not None:
+                    mask = prediction['mask']
+                    bbox = prediction.get('bbox', [])
+                    
+                    # Redimensionar máscara al tamaño de la imagen si es necesario
+                    image = cv2.imread(str(image_path))
+                    if image is None:
+                        return None
+                    
+                    height, width = image.shape[:2]
+                    mask_height, mask_width = mask.shape[:2]
+                    
+                    if mask_height != height or mask_width != width:
+                        mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_LINEAR)
+                    
+                    # Normalizar máscara
+                    if mask.dtype != np.uint8:
+                        if mask.max() <= 1.0:
+                            mask = (mask * 255).astype(np.uint8)
+                        else:
+                            mask = mask.astype(np.uint8)
+                    
+                    # Calcular bounding box desde la máscara
+                    coords = np.where(mask > 128)
+                    if len(coords[0]) > 0:
+                        y_min, y_max = int(coords[0].min()), int(coords[0].max())
+                        x_min, x_max = int(coords[1].min()), int(coords[1].max())
+                        
+                        # Convertir a formato YOLO (normalizado)
+                        x_center = ((x_min + x_max) / 2) / width
+                        y_center = ((y_min + y_max) / 2) / height
+                        bbox_w = (x_max - x_min) / width
+                        bbox_h = (y_max - y_min) / height
+                        
+                        annotation = {
+                            'class_id': 0,  # cacao_grain
+                            'bbox': [x_center, y_center, bbox_w, bbox_h],
+                            'mask': mask,
+                            'confidence': prediction.get('confidence', 0.5)
+                        }
+                        
+                        logger.debug(f"Anotación generada usando YOLO base para {image_path.name}")
+                        return [annotation]
+            except Exception as e:
+                logger.debug(f"No se pudo usar YOLO base para {image_path.name}: {e}")
+            
+            # Método 2: Intentar usar crop existente para generar anotación
+            try:
+                from ..utils.paths import get_crops_dir
+                from pathlib import Path
+                
+                # Extraer ID de la imagen
+                image_id = image_path.stem
+                crop_path = get_crops_dir() / f"{image_id}.png"
+                
+                if crop_path.exists():
+                    from PIL import Image
+                    crop_image = Image.open(crop_path)
+                    
+                    if crop_image.mode == 'RGBA':
+                        # Usar canal alpha como máscara
+                        crop_array = np.array(crop_image)
+                        alpha = crop_array[:, :, 3]
+                        
+                        # Cargar imagen original para obtener dimensiones
+                        image = cv2.imread(str(image_path))
+                        if image is not None:
+                            height, width = image.shape[:2]
+                            
+                            # Redimensionar máscara del crop al tamaño original
+                            mask = cv2.resize(alpha, (width, height), interpolation=cv2.INTER_LINEAR)
+                            
+                            # Calcular bounding box desde la máscara
+                            coords = np.where(mask > 128)
+                            if len(coords[0]) > 0:
+                                y_min, y_max = int(coords[0].min()), int(coords[0].max())
+                                x_min, x_max = int(coords[1].min()), int(coords[1].max())
+                                
+                                # Convertir a formato YOLO (normalizado)
+                                x_center = ((x_min + x_max) / 2) / width
+                                y_center = ((y_min + y_max) / 2) / height
+                                bbox_w = (x_max - x_min) / width
+                                bbox_h = (y_max - y_min) / height
+                                
+                                annotation = {
+                                    'class_id': 0,  # cacao_grain
+                                    'bbox': [x_center, y_center, bbox_w, bbox_h],
+                                    'mask': mask,
+                                    'confidence': 0.8
+                                }
+                                
+                                logger.debug(f"Anotación generada usando crop existente para {image_path.name}")
+                                return [annotation]
+            except Exception as e:
+                logger.debug(f"No se pudo usar crop existente para {image_path.name}: {e}")
+            
+            # Método 3: Fallback - anotación centrada simple
             image = cv2.imread(str(image_path))
             if image is None:
                 return None
@@ -197,9 +300,10 @@ class YOLOTrainingManager:
                 'class_id': 0,  # cacao_grain
                 'bbox': [x_center, y_center, bbox_w, bbox_h],
                 'mask': mask,
-                'confidence': 1.0
+                'confidence': 0.5
             }
             
+            logger.debug(f"Anotación generada usando método fallback (centrado) para {image_path.name}")
             return [annotation]
             
         except Exception as e:
