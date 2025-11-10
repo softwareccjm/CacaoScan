@@ -18,6 +18,7 @@ backend/ml/models/
 backend/ml/runs/
 backend/ml/logs/
 backend/ml/outputs/
+backend/training/management/commands/flujoentrenamiento.txt
 
 # Archivos temporales
 *.tmp
