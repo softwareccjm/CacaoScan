@@ -39,8 +39,9 @@ class ResNet18Regression(nn.Module):
         """
         super(ResNet18Regression, self).__init__()
         
-        # Cargar ResNet18 pre-entrenado
-        self.backbone = models.resnet18(pretrained=pretrained)
+        # Cargar ResNet18 pre-entrenado (con la nueva API 'weights')
+        weights = models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
+        self.backbone = models.resnet18(weights=weights)
         
         # Obtener número de características del último layer
         num_features = self.backbone.fc.in_features
@@ -161,7 +162,7 @@ class MultiHeadRegression(nn.Module):
         self.backbone_type = backbone_type
         self.shared_features = shared_features
         
-        # Crear backbone
+        # --- CORRECCIÓN: Crear el backbone directamente ---
         if backbone_type == "resnet18":
             self.backbone = ResNet18Regression(
                 num_outputs=1,  # Solo para obtener características
@@ -176,10 +177,10 @@ class MultiHeadRegression(nn.Module):
             if not TIMM_AVAILABLE:
                 raise ImportError("timm es requerido para ConvNeXt")
             
-            self.backbone = ConvNeXtTinyRegression(
-                num_outputs=1,
+            self.backbone = timm.create_model(
+                'convnext_tiny',
                 pretrained=pretrained,
-                dropout_rate=0.0
+                num_classes=0  # Remover clasificador
             )
             # Remover la cabeza de regresión del backbone
             self.backbone.regression_head = nn.Identity()
@@ -287,18 +288,32 @@ class HybridCacaoRegression(nn.Module):
         """
         super(HybridCacaoRegression, self).__init__()
         
+        if not TIMM_AVAILABLE:
+            raise ImportError("timm es requerido para ConvNeXt. Instalar con: pip install timm")
+            
         self.use_pixel_features = use_pixel_features
         
         # Backbone 1: ResNet18
-        self.resnet18 = models.resnet18(pretrained=pretrained)
-        # Remover capa final y obtener features
+        weights_resnet = models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
+        self.resnet18 = models.resnet18(weights=weights_resnet)
+        resnet_features = self.resnet18.fc.in_features # 512
         self.resnet18.fc = nn.Identity()
-        resnet_features = 512
+        
+        # Extractor de features para ResNet
+        def resnet_extractor(x):
+            x = self.resnet18.conv1(x)
+            x = self.resnet18.bn1(x)
+            x = self.resnet18.relu(x)
+            x = self.resnet18.maxpool(x)
+            x = self.resnet18.layer1(x)
+            x = self.resnet18.layer2(x)
+            x = self.resnet18.layer3(x)
+            x = self.resnet18.layer4(x)
+            x = self.resnet18.avgpool(x)
+            return torch.flatten(x, 1)
+        self.resnet_feature_extractor = resnet_extractor
         
         # Backbone 2: ConvNeXt Tiny
-        if not TIMM_AVAILABLE:
-            raise ImportError("timm es requerido para ConvNeXt. Instalar con: pip install timm")
-        
         self.convnext = timm.create_model(
             'convnext_tiny',
             pretrained=pretrained,
@@ -315,7 +330,7 @@ class HybridCacaoRegression(nn.Module):
                 nn.Linear(64, 128),
                 nn.ReLU(inplace=True)
             )
-            pixel_features = 128
+            pixel_features_dim = 128
         else:
             pixel_features = 0
         
@@ -340,7 +355,7 @@ class HybridCacaoRegression(nn.Module):
         
         # Capa de fusin
         self.fusion = nn.Sequential(
-            nn.Linear(fused_features, 512),
+            nn.Linear(fused_features_dim, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout_rate),
             nn.Linear(512, 256),
@@ -357,8 +372,9 @@ class HybridCacaoRegression(nn.Module):
         )
         
         self.num_outputs = num_outputs
+        logger.info(f"Modelo Híbrido Creado: Fused features dim = {fused_features_dim} (use_pixel_features={use_pixel_features})")
     
-    def forward(self, image: torch.Tensor, pixel_features: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, image: torch.Tensor, pixel_features: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         """
         Forward pass del modelo hbrido.
         
@@ -367,10 +383,10 @@ class HybridCacaoRegression(nn.Module):
             pixel_features: Tensor de features de pxeles [batch, num_pixel_features] (opcional)
             
         Returns:
-            Predicciones [batch, num_outputs]
+            Diccionario de predicciones (para compatibilidad con el loop de entrenamiento)
         """
         # Extraer features de ResNet18
-        resnet_feat = self.resnet18(image)  # [batch, 512]
+        resnet_feat = self.resnet_feature_extractor(image)  # [batch, 512]
         resnet_feat = self.resnet_projection(resnet_feat)  # [batch, 256]
         
         # Extraer features de ConvNeXt
@@ -381,7 +397,7 @@ class HybridCacaoRegression(nn.Module):
         if self.use_pixel_features and pixel_features is not None:
             pixel_feat = self.pixel_branch(pixel_features)  # [batch, 128]
             # Concatenar todas las features
-            fused = torch.cat([resnet_feat, convnext_feat, pixel_feat], dim=1)  # [batch, 640]
+            fused = torch.cat([resnet_feat, convnext_feat, pixel_feat], dim=1)
         else:
             # Sin features de pxeles
             fused = torch.cat([resnet_feat, convnext_feat], dim=1)  # [batch, 512]
@@ -445,12 +461,13 @@ def create_model(
     if hybrid:
         # Modelo hbrido que fusiona ResNet18 + ConvNeXt + Pxeles
         return HybridCacaoRegression(
-            num_outputs=4 if num_outputs == 1 else num_outputs,
+            num_outputs=4, # El modelo híbrido siempre tiene 4 salidas
             pretrained=pretrained,
             dropout_rate=dropout_rate,
             use_pixel_features=use_pixel_features
         )
     elif multi_head:
+        logger.info(f"Creando modelo Multi-Head (Backbone: {model_type})")
         return MultiHeadRegression(
             backbone_type=model_type,
             pretrained=pretrained,
@@ -458,6 +475,7 @@ def create_model(
             shared_features=True
         )
     else:
+        logger.info(f"Creando modelo Individual (Backbone: {model_type}, Outputs: {num_outputs})")
         if model_type == "resnet18":
             return ResNet18Regression(
                 num_outputs=num_outputs,
@@ -499,7 +517,7 @@ def get_model_info(model: nn.Module) -> Dict[str, any]:
         'total_parameters': total_params,
         'trainable_parameters': trainable_params,
         'model_type': type(model).__name__,
-        'device': next(model.parameters()).device
+        'device': next(model.parameters()).device if next(model.parameters(), None) is not None else 'cpu'
     }
 
 
@@ -516,5 +534,3 @@ TARGET_NAMES = {
     'grosor': 'Grosor (mm)',
     'peso': 'Peso (g)'
 }
-
-
