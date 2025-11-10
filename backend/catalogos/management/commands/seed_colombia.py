@@ -2,6 +2,20 @@ from django.core.management.base import BaseCommand
 from catalogos.models import Departamento, Municipio
 
 
+def _normalize_text(value: str) -> str:
+    """
+    Corrige textos que quedaron con codificación UTF-8 interpretada como Latin-1.
+    """
+    if not isinstance(value, str):
+        return value
+    if 'Ã' in value or 'Â' in value or 'ð' in value:
+        try:
+            return value.encode('latin-1').decode('utf-8')
+        except UnicodeEncodeError:
+            return value
+    return value
+
+
 class Command(BaseCommand):
     help = "Cargar todos los departamentos y municipios de Colombia"
 
@@ -452,10 +466,16 @@ class Command(BaseCommand):
         
         for codigo, (nombre_dept, municipios) in data.items():
             # Crear o obtener el departamento
+            nombre_dept = _normalize_text(nombre_dept)
             departamento, created = Departamento.objects.get_or_create(
                 codigo=codigo,
                 defaults={'nombre': nombre_dept}
             )
+
+            if not created and departamento.nombre != nombre_dept:
+                Departamento.objects.filter(pk=departamento.pk).update(nombre=nombre_dept)
+                departamento.refresh_from_db()
+                self.stdout.write(self.style.WARNING(f'• Departamento actualizado: {departamento.nombre}'))
             
             if created:
                 self.stdout.write(self.style.SUCCESS(f'" Departamento: {nombre_dept}'))
@@ -468,11 +488,16 @@ class Command(BaseCommand):
                 nombre_mun = municipios[i + 1] if i + 1 < len(municipios) else ""
                 
                 if nombre_mun:  # Solo si hay nombre disponible
+                    nombre_mun = _normalize_text(nombre_mun)
                     municipio, mun_created = Municipio.objects.get_or_create(
                         departamento=departamento,
                         codigo=codigo_mun,
                         defaults={'nombre': nombre_mun}
                     )
+
+                    if not mun_created and municipio.nombre != nombre_mun:
+                        Municipio.objects.filter(pk=municipio.pk).update(nombre=nombre_mun)
+                        self.stdout.write(self.style.WARNING(f'  • Municipio actualizado: {nombre_mun}'))
                     
                     if mun_created:
                         total_mun += 1
