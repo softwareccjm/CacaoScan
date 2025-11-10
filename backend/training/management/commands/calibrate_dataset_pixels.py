@@ -1,15 +1,9 @@
 """
 Comando para calibrar el dataset basándose en mediciones directas de píxeles.
-
-Proceso:
-1. Lee todas las imágenes .bmp del directorio raw
-2. Para cada imagen que existe en el CSV:
-   - Segmenta (quita fondo)
-   - Mide píxeles del grano (área, ancho, alto)
-   - Guarda imagen segmentada en PNG
-   - Calcula factores de escala usando datos reales del CSV
-3. Guarda todo en un archivo de calibración JSON
-4. Usa esas relaciones para mejorar entrenamiento y predicción
+ACTUALIZADO:
+- Acepta '--segmentation-backend' para controlar cómo se quita el fondo.
+- Llama a la cascada de segmentación (rembg/opencv) directamente
+  en lugar de usar el CacaoCropper (YOLO).
 """
 import os
 import sys
@@ -22,12 +16,15 @@ from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 
 # Importar utilidades de ML
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+project_root = Path(__file__).resolve().parents[4] # Sube 4 niveles
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from ml.data.dataset_loader import CacaoDatasetLoader
-from ml.prediction.predict import CacaoPredictor
-from ml.utils.paths import get_raw_images_dir, ensure_dir_exists
+from ml.utils.paths import get_raw_images_dir, ensure_dir_exists, get_datasets_dir
 from ml.utils.logs import get_ml_logger
+# Importar el procesador de segmentación que SÍ funciona (rembg/opencv)
+from ml.segmentation.processor import segment_and_crop_cacao_bean
 
 logger = get_ml_logger("cacaoscan.training.calibrate")
 
@@ -59,6 +56,14 @@ class Command(BaseCommand):
             default=None,
             help='Máximo número de imágenes a procesar (para pruebas)'
         )
+        # --- AÑADIDO ---
+        parser.add_argument(
+            '--segmentation-backend',
+            type=str,
+            default='auto',
+            choices=['auto', 'opencv', 'ai'],
+            help="Backend para quitar fondo: 'ai' (U-Net/rembg) o 'opencv' (GrabCut)"
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('🔧 Iniciando calibración del dataset basada en píxeles...'))
@@ -70,18 +75,31 @@ class Command(BaseCommand):
         ensure_dir_exists(output_dir)
         ensure_dir_exists(processed_images_dir)
         
+        # Preparar registros existentes si el archivo ya existe
+        existing_records = {}
+        if calibration_file.exists():
+            try:
+                with open(calibration_file, 'r', encoding='utf-8') as f:
+                    existing_data = json.load(f)
+                for record in existing_data.get('calibration_records', []):
+                    existing_records[record['id']] = record
+                self.stdout.write(f'📚 Cargados {len(existing_records)} registros de calibración existentes')
+            except Exception as e:
+                logger.warning(f'No se pudo cargar calibración existente: {e}')
+        
         # Cargar dataset
         try:
             dataset_loader = CacaoDatasetLoader()
             df = dataset_loader.load_dataset()
             valid_df, missing_ids = dataset_loader.validate_images_exist(df)
             self.stdout.write(f'📊 Dataset cargado: {len(valid_df)} imágenes válidas')
+            valid_records_map = {
+                record['id']: record
+                for record in dataset_loader.get_valid_records()
+            }
         except Exception as e:
             raise CommandError(f'Error cargando dataset: {e}')
         
-        # Función de segmentación se carga dinámicamente cuando se necesita
-        
-        # Procesar cada imagen
         calibration_data = []
         raw_images_dir = get_raw_images_dir()
         
@@ -90,13 +108,24 @@ class Command(BaseCommand):
         skipped_count = 0
         error_count = 0
         
+        # --- USAR EL BACKEND DE SEGMENTACIÓN ---
+        seg_method = options['segmentation_backend']
+        if seg_method == 'auto':
+            seg_method = 'ai' # 'auto' debe usar la cascada 'ai' (U-Net -> rembg)
+        
+        self.stdout.write(f"Usando backend de segmentación: {seg_method}")
+        
         for idx, row in valid_df.iterrows():
             if max_images and processed_count >= max_images:
                 break
             
             image_id = int(row['id'])
-            image_filename = row.get('filename', f'{image_id}.bmp')
-            image_path = raw_images_dir / image_filename
+            record_info = valid_records_map.get(image_id)
+            if not record_info:
+                self.stdout.write(self.style.ERROR(f'  ❌ Registro {image_id} no encontrado en valid_records'))
+                error_count += 1
+                continue
+            image_path = Path(record_info['raw_image_path'])
             
             if not image_path.exists():
                 self.stdout.write(self.style.WARNING(f'  [WARN] Imagen no encontrada: {image_filename}'))
@@ -106,20 +135,33 @@ class Command(BaseCommand):
             # Verificar si ya está procesada
             processed_png_path = processed_images_dir / f'{image_id}.png'
             if options['skip_existing'] and processed_png_path.exists():
-                skipped_count += 1
-                continue
-            
-            try:
-                # Cargar imagen original para medir píxeles totales
-                image = Image.open(image_path).convert('RGB')
-                original_pixels_total = image.width * image.height
-                
-                # Segmentar (quitar fondo) usando función existente
-                from ml.segmentation.processor import segment_and_crop_cacao_bean
-                
+                existing_record = existing_records.get(image_id)
+                if existing_record:
+                    calibration_data.append(existing_record)
+                    skipped_count += 1
+                    continue
+                # Si no hay registro previo, intentar cargar la imagen existente para medir
                 try:
-                    # Usar función existente que convierte BMP → PNG segmentado
-                    png_path_str = segment_and_crop_cacao_bean(str(image_path), method="ai")
+                    crop_image = Image.open(processed_png_path)
+                    confidence = 0.99
+                    image = Image.open(image_path).convert('RGB')
+                    original_pixels_total = image.width * image.height
+                    skipped_count += 1
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f'  ❌ Error cargando crop existente {processed_png_path.name}: {e}'))
+                    error_count += 1
+                    continue
+            
+            else:
+                # Procesar la imagen
+                try:
+                    # Cargar imagen original para medir píxeles totales
+                    image = Image.open(image_path).convert('RGB')
+                    original_pixels_total = image.width * image.height
+                    
+                    # --- CORRECCIÓN: Usar segment_and_crop_cacao_bean ---
+                    # Esta función usa la cascada (U-Net -> rembg -> OpenCV) que funciona
+                    png_path_str = segment_and_crop_cacao_bean(str(image_path), method=seg_method)
                     
                     if not png_path_str:
                         raise Exception("Segmentación no devolvió ruta de imagen")
@@ -168,13 +210,10 @@ class Command(BaseCommand):
                     alpha = crop_array[:, :, 3]
                     mask = (alpha > 128).astype(np.uint8)
                 else:
-                    # Si no tiene alpha, toda la imagen es el grano
                     mask = np.ones(crop_array.shape[:2], dtype=np.uint8) * 255
                 
-                # Área del grano en píxeles
                 grain_area_pixels = int(np.sum(mask > 0))
                 
-                # Bounding box del grano
                 y_coords, x_coords = np.where(mask > 0)
                 if len(x_coords) > 0:
                     width_pixels = int(x_coords.max() - x_coords.min() + 1)
@@ -194,37 +233,21 @@ class Command(BaseCommand):
                 scale_factor_ancho = ancho_real / width_pixels if width_pixels > 0 else 0
                 scale_factor_promedio = (scale_factor_alto + scale_factor_ancho) / 2 if (height_pixels > 0 and width_pixels > 0) else 0
                 
-                # Copiar imagen procesada al directorio de calibración (ya está en PNG)
-                # Si el crop_image viene de segment_and_crop_cacao_bean, ya está guardado
-                # Solo necesitamos copiarlo o referenciarlo
-                processed_png_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                # Si la imagen procesada ya existe en otro lugar, copiarla
-                if crop_path != processed_png_path and crop_path.exists():
-                    from shutil import copy2
-                    copy2(crop_path, processed_png_path)
-                else:
-                    # Si no existe, guardarla directamente
-                    crop_image.save(processed_png_path, 'PNG')
-                
-                # Píxeles eliminados (fondo)
                 background_pixels = original_pixels_total - grain_area_pixels
                 background_ratio = background_pixels / original_pixels_total if original_pixels_total > 0 else 0
                 
                 # Crear registro de calibración
                 calibration_record = {
                     'id': image_id,
-                    'filename': image_filename,
+                    'filename': image_path.name,
                     'original_image_path': str(image_path),
                     'processed_image_path': str(processed_png_path),
-                    # Datos reales (del CSV)
                     'real_dimensions': {
                         'alto_mm': alto_real,
                         'ancho_mm': ancho_real,
                         'grosor_mm': grosor_real,
                         'peso_g': peso_real
                     },
-                    # Medidas en píxeles (después de quitar fondo)
                     'pixel_measurements': {
                         'grain_area_pixels': grain_area_pixels,
                         'width_pixels': width_pixels,
@@ -232,19 +255,16 @@ class Command(BaseCommand):
                         'bbox_area_pixels': width_pixels * height_pixels,
                         'aspect_ratio': width_pixels / height_pixels if height_pixels > 0 else 0
                     },
-                    # Píxeles eliminados (fondo)
                     'background_info': {
                         'original_total_pixels': original_pixels_total,
                         'background_pixels': background_pixels,
                         'background_ratio': float(background_ratio)
                     },
-                    # Factores de escala calculados
                     'scale_factors': {
                         'alto_mm_per_pixel': float(scale_factor_alto),
                         'ancho_mm_per_pixel': float(scale_factor_ancho),
                         'average_mm_per_pixel': float(scale_factor_promedio)
                     },
-                    # Confianza de segmentación
                     'segmentation_confidence': float(confidence)
                 }
                 
@@ -266,7 +286,6 @@ class Command(BaseCommand):
             'skipped_count': skipped_count,
             'error_count': error_count,
             'calibration_records': calibration_data,
-            # Estadísticas agregadas
             'statistics': self._calculate_calibration_statistics(calibration_data)
         }
         
@@ -280,13 +299,25 @@ class Command(BaseCommand):
         self.stdout.write(f'   [ERROR] Errores: {error_count}')
         self.stdout.write(f'   💾 Archivo de calibración: {calibration_file}')
         self.stdout.write(f'   📁 Imágenes procesadas: {processed_images_dir}')
+
+        # --- LOG DE INTERRUPCIÓN / RESUMEN ---
+        expected = len(valid_df) if max_images is None else min(max_images, len(valid_df))
+        if processed_count + skipped_count + error_count < expected:
+            self.stdout.write(self.style.WARNING(
+                f'⚠️ Calibración detenida antes de completar todos los registros '
+                f'({processed_count + skipped_count + error_count}/{expected}). '
+                'Probable interrupción manual o falta de recursos; relanza con --skip-existing para continuar.'
+            ))
         
         # Mostrar estadísticas
         stats = calibration_dict['statistics']
         self.stdout.write(f'\n📈 Estadísticas de calibración:')
-        self.stdout.write(f'   Factor escala promedio: {stats["scale_factors"]["mean"]:.6f} mm/píxel')
-        self.stdout.write(f'   Factor escala std: {stats["scale_factors"]["std"]:.6f} mm/píxel')
-        self.stdout.write(f'   Rango: {stats["scale_factors"]["min"]:.6f} - {stats["scale_factors"]["max"]:.6f} mm/píxel')
+        if stats and 'scale_factors' in stats and stats['scale_factors']['mean'] > 0:
+            self.stdout.write(f'   Factor escala promedio: {stats["scale_factors"]["mean"]:.6f} mm/píxel')
+            self.stdout.write(f'   Factor escala std: {stats["scale_factors"]["std"]:.6f} mm/píxel')
+            self.stdout.write(f'   Rango: {stats["scale_factors"]["min"]:.6f} - {stats["scale_factors"]["max"]:.6f} mm/píxel')
+        else:
+            self.stdout.write('   Sin estadísticas nuevas (no se procesaron imágenes en esta ejecución).')
     
     def _calculate_calibration_statistics(self, calibration_data):
         """Calcula estadísticas agregadas de la calibración."""
@@ -361,4 +392,3 @@ class Command(BaseCommand):
         }
         
         return stats
-
