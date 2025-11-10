@@ -154,8 +154,13 @@ class Command(BaseCommand):
             
             def progress_callback(current, total, result):
                 if current % 10 == 0 or current == total:
-                    status = """ if result.get('success', False) else "-"
-                    self.stdout.write(f"Procesadas {current}/{total} imágenes {status}")
+                    is_success = bool(result and result.get('success'))
+                    status = "OK" if is_success else "-"
+                    message = (result or {}).get('message')
+                    suffix = f" ({message})" if message else ""
+                    self.stdout.write(
+                        f"Procesadas {current}/{total} imágenes {status}{suffix}"
+                    )
             
             try:
                 processing_stats = cropper.process_batch(

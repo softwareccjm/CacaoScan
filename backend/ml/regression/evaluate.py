@@ -416,7 +416,7 @@ class RegressionEvaluator:
             logger.info(f"Reporte de evaluación guardado en {save_path}")
         
         # Log de resumen
-        logger.info("=== REPORTE DE EVALUACI"N ===")
+        logger.info("=== REPORTE DE EVALUACIÓN ===")
         logger.info(f"Promedio MAE: {total_mae:.4f}")
         logger.info(f"Promedio RMSE: {total_rmse:.4f}")
         logger.info(f"Promedio R²: {total_r2:.4f}")
