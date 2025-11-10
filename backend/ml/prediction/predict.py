@@ -6,6 +6,7 @@ import time
 import uuid
 import os
 import hashlib
+import platform
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Any, List
 from datetime import datetime
@@ -18,13 +19,15 @@ import torchvision.transforms as transforms
 from PIL import Image
 import io
 
-from ..utils.paths import get_regressors_artifacts_dir
+from ..utils.paths import get_regressors_artifacts_dir, get_datasets_dir
 from ..utils.logs import get_ml_logger
-from ..utils.io import ensure_dir_exists
+from ..utils.io import ensure_dir_exists, load_json
 from ..segmentation.cropper import create_cacao_cropper
-from ..regression.models import create_model, TARGETS
-from ..regression.scalers import load_scalers
-from ..data.transforms import remove_background_ai, resize_crop_to_square, create_transparent_crop
+from ..regression.models import create_model, TARGETS, get_model_info
+from ..regression.scalers import load_scalers, CacaoScalers
+from ..data.transforms import remove_background_ai
+# Importar el pipeline de entrenamiento para la función de auto-entrenamiento
+from ..pipeline.train_all import CacaoTrainingPipeline 
 
 logger = get_ml_logger("cacaoscan.ml.prediction")
 
@@ -72,12 +75,15 @@ class PredictionConfig:
     IMAGE_SIZE: Tuple[int, int] = (224, 224)
     IMAGENET_MEAN: List[float] = None
     IMAGENET_STD: List[float] = None
+    MIN_YOLO_CONFIDENCE: float = 0.25
+    MIN_CROP_SIZE: int = 50
+    MIN_VISIBLE_RATIO: float = 0.2
     
-    # Confianza
-    CONFIDENCE_MC_SAMPLES: int = 10
-    CONFIDENCE_CV_FACTOR: float = 5.0
-    CONFIDENCE_VARIANCE_FACTOR: float = 20.0
-    CONFIDENCE_WEIGHTS: Tuple[float, float] = (0.6, 0.4)
+    # Límites físicos de targets (mm o g)
+    TARGET_LIMITS: Dict[str, Tuple[float, float]] = None
+    
+    # Constantes para features de píxeles
+    PIXEL_FEATURE_KEYS: List[str] = None
     
     def __post_init__(self):
         """Inicializar valores por defecto."""
@@ -89,19 +95,16 @@ class PredictionConfig:
                 'peso': (0.2, 10.0)
             }
         
-        if self.SCALE_FACTORS is None:
-            self.SCALE_FACTORS = {
-                'alto': 0.18,
-                'ancho': 0.10,
-                'grosor': 0.07,
-                'peso': 0.00008
-            }
-        
         if self.IMAGENET_MEAN is None:
             self.IMAGENET_MEAN = [0.485, 0.456, 0.406]
         
         if self.IMAGENET_STD is None:
             self.IMAGENET_STD = [0.229, 0.224, 0.225]
+            
+        if self.PIXEL_FEATURE_KEYS is None:
+            self.PIXEL_FEATURE_KEYS = [
+                'pixel_width', 'pixel_height', 'pixel_area', 'scale_factor', 'aspect_ratio'
+            ]
 
 
 # Configuracin global
@@ -116,16 +119,13 @@ class PredictionError(Exception):
     """Excepcin base para errores de prediccin."""
     pass
 
-
 class ModelNotLoadedError(PredictionError):
     """Error cuando los modelos no estn cargados."""
     pass
 
-
 class InvalidImageError(PredictionError):
     """Error cuando la imagen es invlida."""
     pass
-
 
 class SegmentationError(PredictionError):
     """Error en segmentacin."""
@@ -137,7 +137,9 @@ class SegmentationError(PredictionError):
 # ============================================================================
 
 class CacaoPredictor:
-    """Predictor unificado para granos de cacao."""
+    """
+    Predictor unificado para granos de cacao (Versión Híbrida).
+    """
     
     def __init__(self, confidence_threshold: float = 0.5, config: Optional[PredictionConfig] = None):
         """
@@ -152,8 +154,8 @@ class CacaoPredictor:
         
         # Componentes del pipeline
         self.yolo_cropper: Optional[Any] = None
-        self.regression_models: Dict[str, torch.nn.Module] = {}
-        self.scalers: Optional[Any] = None
+        self.regression_model: Optional[torch.nn.Module] = None # Un solo modelo híbrido
+        self.scalers: Optional[CacaoScalers] = None
         
         # Estado
         self.device = self._get_device()
@@ -179,8 +181,8 @@ class CacaoPredictor:
             transforms.Normalize(mean=self.config.IMAGENET_MEAN, std=self.config.IMAGENET_STD)
         ])
         
-        logger.info(f"Predictor inicializado (threshold={confidence_threshold}, device={self.device})")
-    
+        logger.info(f"Predictor Híbrido inicializado (threshold={confidence_threshold}, device={self.device})")
+
     def _load_pixel_calibration(self) -> None:
         """Carga el archivo de calibracin de pxeles del dataset si existe."""
         calibration_file = Path("media/datasets/pixel_calibration.json")
@@ -224,7 +226,7 @@ class CacaoPredictor:
             True si se cargaron exitosamente, False en caso contrario
         """
         try:
-            logger.info("Cargando artefactos...")
+            logger.info("Cargando artefactos (Modo Híbrido)...")
             start_time = time.time()
             
             # 1. Cargar YOLO cropper
@@ -235,7 +237,7 @@ class CacaoPredictor:
             if not self._ensure_models_exist():
                 return False
             
-            # 3. Cargar escaladores
+            # 3. Cargar escaladores (siguen siendo 4)
             if not self._load_scalers():
                 return False
             
@@ -274,7 +276,7 @@ class CacaoPredictor:
             
             self.models_loaded = True
             load_time = time.time() - start_time
-            logger.info(f"Artefactos cargados exitosamente en {load_time:.2f}s")
+            logger.info(f"Artefactos Híbridos cargados exitosamente en {load_time:.2f}s")
             return True
             
         except Exception as e:
@@ -286,8 +288,8 @@ class CacaoPredictor:
         try:
             self.yolo_cropper = create_cacao_cropper(
                 confidence_threshold=self.confidence_threshold,
-                crop_size=self.config.CROP_SIZE,
-                padding=self.config.PADDING,
+                crop_size=512,
+                padding=10,
                 save_masks=False,
                 overwrite=False
             )
@@ -298,18 +300,25 @@ class CacaoPredictor:
     
     def _ensure_models_exist(self) -> bool:
         """Verifica que existan modelos y los entrena si es necesario."""
-        models_exist = all(
-            (get_regressors_artifacts_dir() / f"{target}.pt").exists()
+        model_exist = (get_regressors_artifacts_dir() / "hybrid.pt").exists()
+        scalers_exist = all(
+            (get_regressors_artifacts_dir() / f"{target}_scaler.pkl").exists()
             for target in TARGETS
         )
-        scalers_exist = get_regressors_artifacts_dir().exists()
         
-        if models_exist and scalers_exist:
+        if model_exist and scalers_exist:
             return True
         
+        # Si falta el modelo híbrido pero existen los individuales, lanzar error
+        if not model_exist and (get_regressors_artifacts_dir() / "alto.pt").exists():
+             logger.error("Error: Se encontraron modelos antiguos (individuales).")
+             logger.error("Este predictor requiere el modelo 'hybrid.pt'.")
+             logger.error("Por favor, elimine los modelos antiguos (.pt) y vuelva a entrenar con el comando 'train_cacao_models --hybrid'")
+             return False
+
         auto_train_enabled = os.getenv("AUTO_TRAIN_ENABLED", "0").lower() in ("1", "true", "yes")
         if not auto_train_enabled:
-            logger.warning("Modelos no encontrados y AUTO_TRAIN_ENABLED=0")
+            logger.warning("Modelo Híbrido no encontrado y AUTO_TRAIN_ENABLED=0")
             return False
         
         logger.warning("Modelos no encontrados. Iniciando entrenamiento automtico...")
@@ -336,8 +345,10 @@ class CacaoPredictor:
                 'multi_head': False,
                 'model_type': 'resnet18',
                 'img_size': 224,
+                'learning_rate': 1e-4,
+                'num_workers': 0 if platform.system() == 'Windows' else 2,
                 'early_stopping_patience': 10,
-                'save_best_only': True
+                'targets': TARGETS
             }
             
             logger.info(f"Iniciando entrenamiento automtico con config: {config}")
@@ -536,40 +547,11 @@ class CacaoPredictor:
         # Mover a device
         tensor = tensor.to(self.device)
         
-        logger.debug(f"Imagen preprocesada: forma={tensor.shape}, device={tensor.device}, dtype={tensor.dtype}")
-        
         return tensor
     
-    def _denormalize_prediction(
+    def _denormalize_predictions(
         self,
-        normalized_value: float,
-        target: str
-    ) -> float:
-        """
-        Desnormaliza un valor predicho usando el escalador.
-        
-        Args:
-            normalized_value: Valor normalizado del modelo
-            target: Target a desnormalizar
-            
-        Returns:
-            Valor desnormalizado
-        """
-        if not self.scalers or target not in self.scalers.scalers:
-            raise ValueError(f"No hay escalador disponible para {target}")
-        
-        scaler = self.scalers.scalers[target]
-        target_values = np.array([normalized_value]).reshape(-1, 1)
-        denorm_values = scaler.inverse_transform(target_values)
-        return float(denorm_values.flatten()[0])
-    
-    def _calculate_pixel_based_dimensions(
-        self,
-        object_area_pixels: int,
-        width_pixels: int,
-        height_pixels: int,
-        mask: np.ndarray,
-        alpha: np.ndarray
+        normalized_values: Dict[str, float]
     ) -> Dict[str, float]:
         """
         Calcula dimensiones fsicas reales basadas en anlisis preciso de pxeles.
@@ -1422,7 +1404,7 @@ class CacaoPredictor:
             Tuple (crop_image, crop_url, confidence)
         """
         # Guardar temporalmente para procesamiento
-        temp_image_path = self.processed_crops_dir / f"temp_{uuid.uuid4()}.jpg"
+        temp_image_path = self.runtime_crops_dir / f"temp_{uuid.uuid4()}.jpg"
         image.save(temp_image_path)
         
         crop_image = None
@@ -1439,8 +1421,8 @@ class CacaoPredictor:
                 
                 logger.info("Segmentacin U-Net exitosa")
                 
-            except (FileNotFoundError, Exception) as e:
-                logger.debug(f"U-Net no disponible ({e}), usando YOLO como fallback...")
+            except Exception as e:
+                logger.debug(f"U-Net falló ({e}), usando YOLO como fallback...")
                 
                 # MTODO 2: Fallback a YOLO
                 if self.yolo_cropper is None:
@@ -1516,7 +1498,7 @@ class CacaoPredictor:
                 )
                 segmentation_method = "yolo"
             
-            # Asegurar RGBA y mejorar el crop
+            # Asegurar RGBA
             if crop_image.mode != 'RGBA':
                 if crop_image.mode == 'RGB':
                     # Convertir RGB a RGBA usando OpenCV para mejor deteccin
@@ -1591,16 +1573,10 @@ class CacaoPredictor:
             return crop_image, crop_url, confidence
             
         finally:
-            # Limpiar archivo temporal
             if temp_image_path.exists():
                 temp_image_path.unlink()
-    
-    def _refine_mask_with_opencv(
-        self, 
-        image: Image.Image, 
-        yolo_mask: Optional[np.ndarray], 
-        original_path: Optional[Path]
-    ) -> Image.Image:
+
+    def _calculate_pixel_to_mm_scale_factor(self, width_pixels: int, height_pixels: int) -> float:
         """
         Refina la mscara usando OpenCV para deteccin precisa de pxeles del cacao.
         Elimina bordes blancos y ajusta la mscara pixel por pixel.
@@ -1751,12 +1727,8 @@ class CacaoPredictor:
         Calcula dimensiones fsicas basadas en anlisis preciso de pxeles.
         Esto es crucial para predicciones precisas basadas en el tamao real del grano.
         """
-        # Convertir a numpy array manteniendo alpha
         crop_array = np.array(crop_image)
-        
-        # Extraer RGB y alpha
-        rgb = crop_array[:, :, :3] if crop_array.shape[2] >= 3 else crop_array
-        alpha = crop_array[:, :, 3] if crop_array.shape[2] == 4 else np.ones(crop_array.shape[:2]) * 255
+        alpha = crop_array[:, :, 3]
         
         # Mscara binaria: 1 donde hay grano visible, 0 donde es transparente
         mask = (alpha > 128).astype(np.float32)
@@ -1782,8 +1754,6 @@ class CacaoPredictor:
         if len(x_coords) > 0:
             width_visible = int(x_coords.max() - x_coords.min() + 1)
             height_visible = int(y_coords.max() - y_coords.min() + 1)
-            x_min, x_max = x_coords.min(), x_coords.max()
-            y_min, y_max = y_coords.min(), y_coords.max()
         else:
             width_visible = crop_array.shape[1]
             height_visible = crop_array.shape[0]
@@ -1842,18 +1812,10 @@ class CacaoPredictor:
     
     def predict(self, image: Image.Image) -> Dict[str, Any]:
         """
-        Predice dimensiones y peso de un grano de cacao.
-        
-        Args:
-            image: Imagen PIL del grano
-            
-        Returns:
-            Diccionario con predicciones y metadatos
+        Predice dimensiones y peso de un grano de cacao (Modo Híbrido).
         """
         if not self.models_loaded:
-            raise ModelNotLoadedError(
-                "Los artefactos no han sido cargados. Llamar load_artifacts() primero."
-            )
+            raise ModelNotLoadedError("Artefactos no cargados. Llamar load_artifacts() primero.")
         
         start_time = time.time()
         
@@ -1863,17 +1825,18 @@ class CacaoPredictor:
             crop_image, crop_url, yolo_confidence = self._segment_and_crop(image)
             
             if crop_image is None:
-                raise SegmentationError("No se pudo segmentar la imagen correctamente")
+                raise SegmentationError("No se pudo segmentar la imagen.")
             
             # 2. Extraer caractersticas del crop
             crop_characteristics = self._extract_crop_characteristics(crop_image)
             
-            # Validar calidad del crop
-            crop_std = crop_characteristics['std']
-            if crop_std < self.config.MIN_CROP_STD:
-                logger.warning(f"Crop con std baja ({crop_std:.4f}), puede afectar predicciones")
-            
-            # 3. Preprocesar imagen
+            # Convertir features a tensor
+            pixel_features_tensor = torch.tensor([
+                pixel_features[key] for key in self.config.PIXEL_FEATURE_KEYS
+            ], dtype=torch.float32).unsqueeze(0).to(self.device) # Shape [1, 5]
+
+            # PASO 3: Preprocesar imagen para el modelo
+            logger.debug("Paso 3: Preprocesando imagen para CNN...")
             crop_image_rgb = crop_image.convert('RGB')
             image_tensor = self._preprocess_image(crop_image_rgb)
             
@@ -1886,39 +1849,30 @@ class CacaoPredictor:
             
             logger.debug(f"Tensor preprocesado: forma={image_tensor.shape}, device={image_tensor.device}")
             
-            # 4. Predecir cada target
-            predictions = {}
-            confidences = {}
-            
+            # PASO 5: Aplicar límites
+            final_predictions = {}
             for target in TARGETS:
-                pred_value, confidence = self._predict_single_target(
-                    image_tensor,
-                    target,
-                    crop_characteristics
-                )
-                predictions[target] = pred_value
-                confidences[target] = confidence
+                min_val, max_val = self.config.TARGET_LIMITS[target]
+                final_predictions[target] = np.clip(predictions[target], min_val, max_val)
             
-            # 5. Validar diversidad de predicciones
-            self._validate_predictions_diversity(predictions)
-            
-            # 6. Preparar resultado
+            # PASO 6: Preparar resultado
             total_time = time.time() - start_time
             
             result = {
-                'alto_mm': predictions['alto'],
-                'ancho_mm': predictions['ancho'],
-                'grosor_mm': predictions['grosor'],
-                'peso_g': predictions['peso'],
+                'alto_mm': final_predictions['alto'],
+                'ancho_mm': final_predictions['ancho'],
+                'grosor_mm': final_predictions['grosor'],
+                'peso_g': final_predictions['peso'],
                 'confidences': confidences,
                 'crop_url': crop_url,
                 'debug': {
                     'segmented': True,
                     'yolo_conf': float(yolo_confidence),
                     'latency_ms': int(total_time * 1000),
-                    'models_version': 'v2',
+                    'models_version': 'v_hybrid',
                     'device': str(self.device),
-                    'total_time_s': total_time
+                    'total_time_s': total_time,
+                    'pixel_features_input': pixel_features
                 }
             }
             
@@ -1933,15 +1887,7 @@ class CacaoPredictor:
             raise PredictionError(f"Error procesando imagen: {e}") from e
     
     def predict_from_bytes(self, image_bytes: bytes) -> Dict[str, Any]:
-        """
-        Predice desde bytes de imagen.
-        
-        Args:
-            image_bytes: Bytes de la imagen
-            
-        Returns:
-            Diccionario con predicciones
-        """
+        """ Predice desde bytes de imagen. """
         try:
             image = Image.open(io.BytesIO(image_bytes))
             if image.mode != 'RGB':
@@ -1964,17 +1910,11 @@ class CacaoPredictor:
         info = {
             'status': 'loaded',
             'device': str(self.device),
-            'models': {},
+            'model': 'HybridCacaoRegression',
+            'model_details': get_model_info(self.regression_model),
             'scalers': 'loaded' if self.scalers else 'not_loaded',
             'yolo_cropper': 'loaded' if self.yolo_cropper else 'not_loaded'
         }
-        
-        for target, model in self.regression_models.items():
-            info['models'][target] = {
-                'type': type(model).__name__,
-                'parameters': sum(p.numel() for p in model.parameters())
-            }
-        
         return info
 
 
@@ -1984,13 +1924,9 @@ class CacaoPredictor:
 
 _predictor_instance: Optional[CacaoPredictor] = None
 
-
 def get_predictor() -> CacaoPredictor:
     """
-    Obtiene la instancia global del predictor.
-    
-    Returns:
-        Instancia del predictor
+    Obtiene la instancia global del predictor Híbrido.
     """
     global _predictor_instance
     
@@ -2003,7 +1939,6 @@ def get_predictor() -> CacaoPredictor:
     
     return _predictor_instance
 
-
 def load_artifacts() -> bool:
     """
     Función de conveniencia para cargar artefactos.
@@ -2013,7 +1948,6 @@ def load_artifacts() -> bool:
     """
     predictor = get_predictor()
     return predictor.load_artifacts()
-
 
 def predict_image(image: Image.Image) -> Dict[str, Any]:
     """
@@ -2028,7 +1962,6 @@ def predict_image(image: Image.Image) -> Dict[str, Any]:
     predictor = get_predictor()
     return predictor.predict(image)
 
-
 def predict_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
     """
     Función de conveniencia para predecir desde bytes.
@@ -2041,5 +1974,3 @@ def predict_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
     """
     predictor = get_predictor()
     return predictor.predict_from_bytes(image_bytes)
-
-
