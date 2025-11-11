@@ -84,12 +84,21 @@ class DatasetStatsSerializer(serializers.Serializer):
 
 
 class ModelsStatusSerializer(serializers.Serializer):
-    """Serializer para estado de modelos."""
-    yolo_segmentation = serializers.CharField()
-    regression_models = serializers.DictField()
-    device = serializers.CharField(required=False)
-    models_info = serializers.DictField(required=False)
+    """
+    Serializador para el estado de los modelos de ML.
+    ACTUALIZADO para reflejar el modelo Híbrido único.
+    """
     status = serializers.CharField()
+    device = serializers.CharField()
+    model = serializers.CharField()
+    model_details = serializers.DictField()
+    scalers = serializers.CharField()
+
+    def validate(self, data):
+        # La función get_model_info() ahora devuelve esta estructura
+        if 'status' not in data or 'model' not in data:
+            raise serializers.ValidationError("Respuesta de estado de modelo inválida.")
+        return data
 
 
 class LoadModelsResponseSerializer(serializers.Serializer):
@@ -607,6 +616,23 @@ class TrainingJobStatusSerializer(serializers.ModelSerializer):
             'model_name', 'progress_percentage', 'created_at', 'started_at',
             'completed_at', 'duration_formatted', 'is_active'
         )
+
+
+class AutoTrainConfigSerializer(serializers.Serializer):
+    """
+    Configuración básica para disparar entrenamiento automático.
+    """
+    epochs = serializers.IntegerField(required=False, min_value=1, max_value=500, default=50)
+    batch_size = serializers.IntegerField(required=False, min_value=1, max_value=128, default=16)
+    learning_rate = serializers.FloatField(required=False, min_value=1e-6, max_value=1.0, default=1e-4)
+    model_type = serializers.CharField(required=False, default='hybrid')
+
+    def validate_model_type(self, value: str) -> str:
+        value = value or 'hybrid'
+        allowed = {'hybrid'}
+        if value not in allowed:
+            raise serializers.ValidationError(f"Tipo de modelo inválido. Opciones permitidas: {', '.join(sorted(allowed))}.")
+        return value
 
 
 # Serializers para gestión de fincas

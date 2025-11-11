@@ -596,28 +596,17 @@ class ModelsStatusView(APIView):
             predictor = get_predictor()
             model_info = predictor.get_model_info()
             
-            if model_info['status'] == 'loaded':
-                return Response({
-                    'yolo_segmentation': 'loaded',
-                    'regression_models': {
-                        target: 'loaded' if target in model_info['models'] else 'not_loaded'
-                        for target in ['alto', 'ancho', 'grosor', 'peso']
-                    },
-                    'device': model_info['device'],
-                    'models_info': model_info['models'],
-                    'status': 'ready'
-                })
-            else:
-                return Response({
-                    'yolo_segmentation': 'not_loaded',
-                    'regression_models': {
-                        'alto': 'not_loaded',
-                        'ancho': 'not_loaded', 
-                        'grosor': 'not_loaded',
-                        'peso': 'not_loaded'
-                    },
-                    'status': 'not_loaded'
-                })
+            response_data = {
+                'status': model_info.get('status', 'not_loaded'),
+                'device': model_info.get('device', 'unknown'),
+                'model': model_info.get('model', 'HybridCacaoRegression'),
+                'model_details': model_info.get('model_details', {}),
+                'scalers': model_info.get('scalers', 'not_loaded'),
+            }
+
+            serializer = ModelsStatusSerializer(data=response_data)
+            serializer.is_valid(raise_exception=True)
+            return Response(serializer.data)
                 
         except Exception as e:
             logger.error(f"Error obteniendo estado de modelos: {e}")
@@ -801,13 +790,8 @@ class AutoInitializeView(APIView):
                 crops_dir = get_crops_dir()
                 
                 if not crops_dir.exists() or len(list(crops_dir.glob("*.png"))) == 0:
-<<<<<<< HEAD
                     logger.info("Generando crops automáticamente...")
                     from management.commands.make_cacao_crops import Command as CropCommand
-=======
-                    logger.info("Generando crops automÃ¡ticamente...")
-                    from api.management.commands.make_cacao_crops import Command as CropCommand
->>>>>>> 70136e3 (refactor: actualizar views para nuevos comandos)
                     
                     # Simular comando de crops
                     crop_command = CropCommand()
