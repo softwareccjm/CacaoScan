@@ -401,7 +401,7 @@ onMounted(() => {
 
 <style scoped>
 .border-end:last-child {
-  border-end: none !important;
+  border-right: none !important;
 }
 
 .card {
