@@ -5,8 +5,8 @@ x-backend-health: &backend-health
   test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
   interval: 30s
   timeout: 10s
-  retries: 3
-  start_period: 40s
+  retries: 5
+  start_period: 120s
 
 services:
   # Base de datos PostgreSQL
@@ -29,6 +29,7 @@ services:
       retries: 5
     networks:
       - private
+      - public
 
   # Redis para (futuros) Channels
   redis:
@@ -53,6 +54,7 @@ services:
       retries: 5
     networks:
       - private
+      - public
 
   # Backend Django
   backend:
@@ -65,10 +67,10 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-cacaoscan_db}
       DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       USE_REDIS: ${USE_REDIS:-True}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+
       PYTHONDONTWRITEBYTECODE: 1
       PYTHONUNBUFFERED: 1
       PYTHONHASHSEED: random
@@ -79,6 +81,8 @@ services:
       - ./backend/media:/app/media
       # Mantenemos el volumen con nombre para los estáticos
       - backend_static:/app/staticfiles
+      # Montar el archivo .env del backend dentro del contenedor
+      - ./backend/.env:/app/.env
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

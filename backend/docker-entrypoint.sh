@@ -36,14 +36,16 @@ if ! python -m gunicorn --version > /dev/null 2>&1; then
     pip install --user gunicorn
 fi
 
-# Esperar a que la base de datos esté lista
-if [ -n "$DB_HOST" ]; then
-    echo "⏳ Esperando a que la base de datos esté lista..."
-    until nc -z "$DB_HOST" "${DB_PORT:-5432}"; do
-        echo "   Base de datos no disponible, esperando..."
-        sleep 1
-    done
-    log "✅ Base de datos disponible"
+# Función para esperar a que la base de datos esté lista
+wait_for_database() {
+    if [ -n "${DB_HOST:-}" ]; then
+        log "⏳ Esperando a que la base de datos esté lista..."
+        until nc -z "${DB_HOST}" "${DB_PORT:-5432}"; do
+            log "   Base de datos no disponible, esperando..."
+            sleep 1
+        done
+        log "✅ Base de datos disponible"
+    fi
 }
 
 run_management_command() {
@@ -73,18 +75,8 @@ case "${ROLE}" in
         log "✅ Iniciando servidor Gunicorn"
         exec "$@"
         ;;
-    worker)
-        wait_for_database
-        log "✅ Iniciando Celery Worker"
-        exec celery -A cacaoscan worker --loglevel=${CELERY_LOG_LEVEL:-info} --concurrency=${CELERY_CONCURRENCY:-4} --queues=${CELERY_QUEUES:-default}
-        ;;
-    beat)
-        wait_for_database
-        log "✅ Iniciando Celery Beat"
-        exec celery -A cacaoscan beat --loglevel=${CELERY_LOG_LEVEL:-info} --scheduler=${CELERY_SCHEDULER:-celery.beat.PersistentScheduler}
-        ;;
     *)
         log "✅ Ejecutando comando personalizado: $*"
         exec "$@"
         ;;
- esac
+esac
