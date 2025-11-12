@@ -7,7 +7,8 @@
     
     <!-- Tabla responsiva -->
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
+      <table class="min-w-full divide-y divide-gray-200" :aria-label="tableLabel || 'Tabla de datos'">
+        <caption class="sr-only">{{ tableLabel || 'Tabla de datos con información de registros' }}</caption>
         <thead class="bg-gradient-to-r from-gray-50 to-gray-50">
           <tr>
             <th 
@@ -126,6 +127,10 @@ export default {
     selectedRows: {
       type: Array,
       default: () => []
+    },
+    tableLabel: {
+      type: String,
+      default: ''
     }
   },
   emits: ['sort', 'row-select'],
@@ -156,6 +161,19 @@ export default {
 </script>
 
 <style scoped>
+/* Clase para ocultar visualmente pero mantener accesible para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 /* Mejoras de responsividad para la tabla */
 @media (max-width: 768px) {
   .md\:px-6 {
