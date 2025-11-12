@@ -1,5 +1,5 @@
 <template>
-  <div class="prediction-method-selector">
+  <div class="w-full">
     <h3 class="text-lg font-semibold text-gray-900 mb-4">Método de Análisis</h3>
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -259,11 +259,6 @@ export default {
 </script>
 
 <style scoped>
-@reference "tailwindcss";
-
-.prediction-method-selector {
-  @apply w-full;
-}
 
 /* Transiciones suaves */
 .transition-all {
