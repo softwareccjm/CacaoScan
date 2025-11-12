@@ -629,8 +629,6 @@ class AuthenticationService(BaseService):
         try:
             if hasattr(user, 'auth_email_token'):
                 return user.auth_email_token.is_verified
-            elif hasattr(user, 'auth_email_token'):
-                return user.auth_email_token.is_verified
         except:
             pass
         return user.is_active
