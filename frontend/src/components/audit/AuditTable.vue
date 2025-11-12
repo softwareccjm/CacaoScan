@@ -24,7 +24,8 @@
       </div>
 
       <div class="table-responsive">
-        <table class="audit-table">
+        <table class="audit-table" aria-label="Tabla de registros de auditoría">
+          <caption class="sr-only">Tabla de auditoría mostrando registros de actividad del sistema</caption>
           <thead>
             <tr>
               <th 
@@ -280,9 +281,9 @@ export default {
       // Parse duration string (e.g., "1:23:45")
       const parts = durationString.split(':')
       if (parts.length === 3) {
-        const hours = parseInt(parts[0])
-        const minutes = parseInt(parts[1])
-        const seconds = parseInt(parts[2])
+        const hours = Number.parseInt(parts[0])
+        const minutes = Number.parseInt(parts[1])
+        const seconds = Number.parseInt(parts[2])
         
         if (hours > 0) {
           return `${hours}h ${minutes}m`
@@ -445,7 +446,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: #374151;
   font-size: 0.875rem;
 }
 
@@ -713,5 +714,17 @@ export default {
   .sort-icon {
     display: none;
   }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>
