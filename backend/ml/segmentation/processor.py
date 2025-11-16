@@ -93,10 +93,12 @@ def _clean_components(mask: np.ndarray, min_area_ratio: float = 0.002) -> np.nda
     out = np.zeros_like(mask_bin)
     if not cnts:
         return mask
-    cnts = [c for c in cnts if cv2.contourAreaé >= min_area]
+
+    # Filtrar por área mínima usando contourArea correctamente
+    cnts = [c for c in cnts if cv2.contourArea(c) >= float(min_area)]
     if not cnts:
         return mask_bin
-    
+
     largest = max(cnts, key=cv2.contourArea)
     cv2.drawContours(out, [largest], -1, 255, thickness=cv2.FILLED)
     

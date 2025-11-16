@@ -21,7 +21,12 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from ml.data.dataset_loader import CacaoDatasetLoader
-from ml.utils.paths import get_raw_images_dir, ensure_dir_exists, get_datasets_dir
+from ml.utils.paths import (
+    get_raw_images_dir,
+    ensure_dir_exists,
+    get_datasets_dir,
+    get_crop_image_path,
+)
 from ml.utils.logs import get_ml_logger
 # Importar el procesador de segmentación que SÍ funciona (rembg/opencv)
 from ml.segmentation.processor import segment_and_crop_cacao_bean
@@ -71,9 +76,8 @@ class Command(BaseCommand):
         # Directorios
         output_dir = Path(options['output_dir'])
         calibration_file = Path(options['calibration_file'])
-        processed_images_dir = output_dir / 'processed_png'
+        # Usar directamente la carpeta de crops (cacao_images/crops/{id}.png)
         ensure_dir_exists(output_dir)
-        ensure_dir_exists(processed_images_dir)
         
         # Preparar registros existentes si el archivo ya existe
         existing_records = {}
@@ -128,12 +132,12 @@ class Command(BaseCommand):
             image_path = Path(record_info['raw_image_path'])
             
             if not image_path.exists():
-                self.stdout.write(self.style.WARNING(f'  [WARN] Imagen no encontrada: {image_filename}'))
+                self.stdout.write(self.style.WARNING(f'  [WARN] Imagen no encontrada: {image_path.name}'))
                 error_count += 1
                 continue
             
-            # Verificar si ya está procesada
-            processed_png_path = processed_images_dir / f'{image_id}.png'
+            # Verificar si ya está procesada (en carpeta de crops por ID)
+            processed_png_path = get_crop_image_path(image_id)
             if options['skip_existing'] and processed_png_path.exists():
                 existing_record = existing_records.get(image_id)
                 if existing_record:
@@ -172,6 +176,10 @@ class Command(BaseCommand):
                     
                     # Cargar imagen segmentada (PNG con alpha)
                     crop_image = Image.open(crop_path)
+                    # Guardar/actualizar PNG en carpeta de crops con nombre por ID
+                    processed_png_path = get_crop_image_path(image_id)
+                    ensure_dir_exists(processed_png_path.parent)
+                    crop_image.save(processed_png_path)
                     confidence = 0.95  # Alta confianza si segment_and_crop_cacao_bean funcionó
                     
                 except Exception as seg_error:
@@ -199,85 +207,83 @@ class Command(BaseCommand):
                         raise Exception(f"Imagen segmentada no encontrada: {crop_path}")
                     
                     crop_image = Image.open(crop_path)
+                    # El cropper ya guarda en cacao_images/crops/{id}.png, pero
+                    # aseguramos processed_png_path apuntando allí
+                    processed_png_path = get_crop_image_path(image_id)
                     confidence = crop_result.get('confidence', 0.0)
-                
-                if crop_image is None:
-                    raise Exception("No se pudo segmentar la imagen")
-                
-                # Medir píxeles del grano (sin fondo)
-                crop_array = np.array(crop_image)
-                if crop_array.shape[2] == 4:  # RGBA
-                    alpha = crop_array[:, :, 3]
-                    mask = (alpha > 128).astype(np.uint8)
-                else:
-                    mask = np.ones(crop_array.shape[:2], dtype=np.uint8) * 255
-                
-                grain_area_pixels = int(np.sum(mask > 0))
-                
-                y_coords, x_coords = np.where(mask > 0)
-                if len(x_coords) > 0:
-                    width_pixels = int(x_coords.max() - x_coords.min() + 1)
-                    height_pixels = int(y_coords.max() - y_coords.min() + 1)
-                else:
-                    width_pixels = crop_image.width
-                    height_pixels = crop_image.height
-                
-                # Datos reales del CSV
-                alto_real = float(row['alto'])
-                ancho_real = float(row['ancho'])
-                grosor_real = float(row['grosor'])
-                peso_real = float(row['peso'])
-                
-                # Calcular factores de escala (píxeles → mm)
-                scale_factor_alto = alto_real / height_pixels if height_pixels > 0 else 0
-                scale_factor_ancho = ancho_real / width_pixels if width_pixels > 0 else 0
-                scale_factor_promedio = (scale_factor_alto + scale_factor_ancho) / 2 if (height_pixels > 0 and width_pixels > 0) else 0
-                
-                background_pixels = original_pixels_total - grain_area_pixels
-                background_ratio = background_pixels / original_pixels_total if original_pixels_total > 0 else 0
-                
-                # Crear registro de calibración
-                calibration_record = {
-                    'id': image_id,
-                    'filename': image_path.name,
-                    'original_image_path': str(image_path),
-                    'processed_image_path': str(processed_png_path),
-                    'real_dimensions': {
-                        'alto_mm': alto_real,
-                        'ancho_mm': ancho_real,
-                        'grosor_mm': grosor_real,
-                        'peso_g': peso_real
-                    },
-                    'pixel_measurements': {
-                        'grain_area_pixels': grain_area_pixels,
-                        'width_pixels': width_pixels,
-                        'height_pixels': height_pixels,
-                        'bbox_area_pixels': width_pixels * height_pixels,
-                        'aspect_ratio': width_pixels / height_pixels if height_pixels > 0 else 0
-                    },
-                    'background_info': {
-                        'original_total_pixels': original_pixels_total,
-                        'background_pixels': background_pixels,
-                        'background_ratio': float(background_ratio)
-                    },
-                    'scale_factors': {
-                        'alto_mm_per_pixel': float(scale_factor_alto),
-                        'ancho_mm_per_pixel': float(scale_factor_ancho),
-                        'average_mm_per_pixel': float(scale_factor_promedio)
-                    },
-                    'segmentation_confidence': float(confidence)
-                }
-                
-                calibration_data.append(calibration_record)
-                processed_count += 1
-                
-                if processed_count % 10 == 0:
-                    self.stdout.write(f'  ✅ Procesadas: {processed_count} imágenes...')
-                    
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f'  [ERROR] Error procesando {image_filename}: {e}'))
-                error_count += 1
-                continue
+            
+            if crop_image is None:
+                raise Exception("No se pudo segmentar la imagen")
+            
+            # Medir píxeles del grano (sin fondo)
+            crop_array = np.array(crop_image)
+            if crop_array.shape[2] == 4:  # RGBA
+                alpha = crop_array[:, :, 3]
+                mask = (alpha > 128).astype(np.uint8)
+            else:
+                mask = np.ones(crop_array.shape[:2], dtype=np.uint8) * 255
+            
+            grain_area_pixels = int(np.sum(mask > 0))
+            
+            y_coords, x_coords = np.where(mask > 0)
+            if len(x_coords) > 0:
+                width_pixels = int(x_coords.max() - x_coords.min() + 1)
+                height_pixels = int(y_coords.max() - y_coords.min() + 1)
+            else:
+                width_pixels = crop_image.width
+                height_pixels = crop_image.height
+            
+            # Datos reales del CSV
+            alto_real = float(row['alto'])
+            ancho_real = float(row['ancho'])
+            grosor_real = float(row['grosor'])
+            peso_real = float(row['peso'])
+            
+            # Calcular factores de escala (píxeles → mm)
+            scale_factor_alto = alto_real / height_pixels if height_pixels > 0 else 0
+            scale_factor_ancho = ancho_real / width_pixels if width_pixels > 0 else 0
+            scale_factor_promedio = (scale_factor_alto + scale_factor_ancho) / 2 if (height_pixels > 0 and width_pixels > 0) else 0
+            
+            background_pixels = original_pixels_total - grain_area_pixels
+            background_ratio = background_pixels / original_pixels_total if original_pixels_total > 0 else 0
+            
+            # Crear registro de calibración
+            calibration_record = {
+                'id': image_id,
+                'filename': image_path.name,
+                'original_image_path': str(image_path),
+                'processed_image_path': str(processed_png_path),
+                'real_dimensions': {
+                    'alto_mm': alto_real,
+                    'ancho_mm': ancho_real,
+                    'grosor_mm': grosor_real,
+                    'peso_g': peso_real
+                },
+                'pixel_measurements': {
+                    'grain_area_pixels': grain_area_pixels,
+                    'width_pixels': width_pixels,
+                    'height_pixels': height_pixels,
+                    'bbox_area_pixels': width_pixels * height_pixels,
+                    'aspect_ratio': width_pixels / height_pixels if height_pixels > 0 else 0
+                },
+                'background_info': {
+                    'original_total_pixels': original_pixels_total,
+                    'background_pixels': background_pixels,
+                    'background_ratio': float(background_ratio)
+                },
+                'scale_factors': {
+                    'alto_mm_per_pixel': float(scale_factor_alto),
+                    'ancho_mm_per_pixel': float(scale_factor_ancho),
+                    'average_mm_per_pixel': float(scale_factor_promedio)
+                },
+                'segmentation_confidence': float(confidence)
+            }
+            
+            calibration_data.append(calibration_record)
+            processed_count += 1
+            
+            if processed_count % 10 == 0:
+                self.stdout.write(f'  ✅ Procesadas: {processed_count} imágenes...')
         
         # Guardar archivo de calibración
         calibration_dict = {

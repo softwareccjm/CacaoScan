@@ -192,6 +192,32 @@ docker-compose exec backend python manage.py createsuperuser
 
 # Reconstruir las imágenes
 docker-compose build --no-cache
+
+
+---
+
+#### Pasos adicionales recomendados **antes de ejecutar pipelines de ML/IA**:
+
+### 📸 Preparación previa antes de ejecutar pipelines de ML/IA
+
+1. **Coloca las imágenes en la carpeta `raw`:**  
+   Asegúrate de que todas las imágenes sean archivos `.bmp` y estén ubicadas dentro de la carpeta correspondiente (`cacao_images/raw/`).
+
+2. **Agrega el dataset CSV:**  
+   Copia el archivo CSV del dataset en la carpeta `datasets/`. Debe tener la siguiente estructura de columnas (la cabecera y un ejemplo):
+
+   ```
+   ID,ALTO,ANCHO,GROSOR,PESO,filename,image_path
+   510,22.8,16.3,10.2,1.72,510.bmp,cacao_images\raw\510.bmp
+   ```
+
+3. **Procesa las imágenes para eliminar el fondo:**  
+   Ejecuta el siguiente comando para segmentar las imágenes desde el contenedor `backend`:
+
+   ```bash
+   docker compose exec backend python manage.py calibrate_dataset_pixels --segmentation-backend auto
+   ```
+
 ```
 
 > 📖 **Más información**: Consulta el archivo [DOCKER_README.md](DOCKER_README.md) para documentación completa sobre Docker.

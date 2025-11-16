@@ -213,7 +213,12 @@ class CacaoTrainingPipeline:
         missing_crop_records = []
         
         for record in valid_records:
-            crop_path = record['crop_image_path']
+            crop_path_value = record['crop_image_path']
+            if crop_path_value:
+                crop_path = crop_path_value if isinstance(crop_path_value, Path) else Path(crop_path_value)
+            else:
+                crop_path = None
+            record['crop_image_path'] = crop_path
             if crop_path and crop_path.exists():
                 crop_records.append(record)
             else:

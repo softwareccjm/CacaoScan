@@ -277,7 +277,10 @@ class CacaoCropper:
             transparent_crop = create_transparent_crop(
                 image_rgb, mask, padding=0, crop_only=True
             )
-            
+
+            # Convertir a PIL antes de guardar
+            pil_crop = Image.fromarray(transparent_crop, "RGBA")
+
             # Esta es la ruta que el pipeline de entrenamiento espera
             crop_path = get_crops_dir() / f"{image_id}.png"
             save_image(pil_crop, crop_path)
@@ -290,7 +293,7 @@ class CacaoCropper:
                 crop_array = np.array(pil_crop)
                 if crop_array.shape[2] == 4:
                     mask = crop_array[:, :, 3]
-                    pil_mask = Image.fromarray(mask, 'L')
+                    pil_mask = Image.fromarray(mask, "L")
                     save_image(pil_mask, mask_path)
 
             logger.info(f"Procesado exitosamente con Fallback (rembg/OpenCV): {image_path.name}")
@@ -301,7 +304,7 @@ class CacaoCropper:
                 'crop_path': crop_path,
                 'mask_path': mask_path,
                 'confidence': 0.5,  # Confianza fija para fallback
-                'area': int(np.sum(np.array(pil_crop)[:,:,3] > 128)),
+                'area': int(np.sum(np.array(pil_crop)[:, :, 3] > 128)),
                 'bbox': None,
                 'method': 'fallback_chain'
             }

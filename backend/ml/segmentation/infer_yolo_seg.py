@@ -117,6 +117,9 @@ class YOLOSegmentationInference:
         Returns:
             Lista de predicciones con información de detección y segmentación
         """
+        # Asegurar que trabajamos siempre con Path
+        if not isinstance(image_path, Path):
+            image_path = Path(image_path)
         if not image_path.exists():
             raise FileNotFoundError(f"Imagen no encontrada: {image_path}")
         
@@ -262,6 +265,10 @@ class YOLOSegmentationInference:
         Returns:
             Mejor predicción o None si no hay detecciones
         """
+        # Asegurar siempre un Path para logging y acceso a disco
+        if not isinstance(image_path, Path):
+            image_path = Path(image_path)
+
         predictions = self.predict(image_path)
         if not predictions:
             return None
@@ -291,8 +298,11 @@ class YOLOSegmentationInference:
             class_name = best_pred.get('class_name', 'unknown')
             if class_name not in ['cacao_grain', 'cacao']:
                 logger.debug(
-                    f"Modelo base detectó clase '{class_name}' en {image_path.name}. "
-                    f"Usando máscara con área={best_pred.get('area', 0)} y confianza={best_pred.get('confidence', 0):.2f}"
+                    "Modelo base detectó clase '%s' en %s. Usando máscara con área=%s y confianza=%.2f",
+                    class_name,
+                    image_path.name,
+                    best_pred.get('area', 0),
+                    best_pred.get('confidence', 0.0),
                 )
         
         return best_pred

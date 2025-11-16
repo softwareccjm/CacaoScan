@@ -4,12 +4,12 @@ ACTUALIZADO:
 - Añadido '--segmentation-backend' para controlar cómo se generan los crops.
 """
 import time
-import platform
-import os
+import subprocess
+import signal
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 # Asegurar que el path del proyecto esté configurado para ml
 import sys
@@ -395,10 +395,8 @@ class Command(BaseCommand):
             self.stdout.write(f"Archivos de escaladores: {len(scaler_files)}")
         
         self.stdout.write("="*50)
-        
         self.stdout.write(
             self.style.SUCCESS("¡Entrenamiento completado exitosamente!")
-<<<<<<< HEAD
         )
     
     def _run_with_celery(self, config: dict, options: dict) -> None:
@@ -843,6 +841,3 @@ class Command(BaseCommand):
                 self.style.WARNING(f"Error deteniendo worker: {e}")
             )
 
-=======
-        )
->>>>>>> 9951c9e (feat: actualizar train_cacao_models en training)
