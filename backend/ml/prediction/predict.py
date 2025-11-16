@@ -29,7 +29,6 @@ from ..utils.io import ensure_dir_exists, load_json
 from ..segmentation.processor import segment_and_crop_cacao_bean, SegmentationError
 from ..regression.models import create_model, TARGETS, get_model_info
 from ..regression.scalers import load_scalers, CacaoScalers
-from ..pipeline.train_all import CacaoTrainingPipeline 
 
 # Configuración de Django (necesaria para que el worker de Gunicorn encuentre MEDIA_ROOT)
 try:
@@ -220,7 +219,7 @@ class CacaoPredictor:
             return False
 
     def _ensure_models_exist(self) -> bool:
-        """Verifica que existan modelos y los entrena si es necesario."""
+        """Verifica que existan los modelos y escaladores requeridos."""
         model_exist = (get_regressors_artifacts_dir() / "hybrid.pt").exists()
         scalers_exist = all(
             (get_regressors_artifacts_dir() / f"{target}_scaler.pkl").exists()
@@ -231,55 +230,39 @@ class CacaoPredictor:
             return True
         
         if not model_exist and (get_regressors_artifacts_dir() / "alto.pt").exists():
-             logger.error("Error: Se encontraron modelos antiguos (individuales).")
-             logger.error("Este predictor requiere el modelo 'hybrid.pt'.")
-             logger.error("Por favor, elimine los modelos antiguos (.pt) y vuelva a entrenar con el comando 'train_cacao_models --hybrid'")
-             return False
+            logger.error("Error: Se encontraron modelos antiguos (individuales).")
+            logger.error("Este predictor requiere el modelo 'hybrid.pt'.")
+            logger.error(
+                "Por favor, elimina los modelos individuales (.pt) y entrena el modelo híbrido "
+                "con: python manage.py train_cacao_models --model-type=hybrid --hybrid"
+            )
+            return False
 
         auto_train_enabled = os.getenv("AUTO_TRAIN_ENABLED", "0").lower() in ("1", "true", "yes")
-        if not auto_train_enabled:
-            logger.warning("Modelo Híbrido no encontrado y AUTO_TRAIN_ENABLED=0")
-            return False
-        
-        logger.warning("Modelo Híbrido (hybrid.pt) no encontrado. Iniciando entrenamiento automático...")
-        return self._auto_train_models()
+        if auto_train_enabled:
+            logger.error(
+                "AUTO_TRAIN_ENABLED está activado, pero el entrenamiento automático desde "
+                "el predictor ya no está soportado. "
+                "Entrena los modelos manualmente con el comando "
+                "'python manage.py train_cacao_models --model-type=hybrid --hybrid'."
+            )
+        else:
+            logger.warning(
+                "Modelo Híbrido (hybrid.pt) o escaladores no encontrados. "
+                "Entrena los modelos con: python manage.py train_cacao_models --model-type=hybrid --hybrid"
+            )
+        return False
     
     def _auto_train_models(self) -> bool:
         """
-        Entrena automáticamente el modelo HÍBRIDO si no existe.
+        Método mantenido solo por compatibilidad.
+        El entrenamiento automático ya no se ejecuta desde el predictor.
         """
-        try:
-            logger.info("🚀 Iniciando entrenamiento automático de modelo HÍBRIDO...")
-            
-            # Configuración de entrenamiento automático (Híbrido)
-            config = {
-                'multi_head': True,
-                'model_type': 'hybrid',
-                'hybrid': True,
-                'use_pixel_features': True, # Requerido para híbrido
-                'epochs': 50,
-                'batch_size': 16,
-                'img_size': 224,
-                'learning_rate': 1e-4,
-                'num_workers': 0 if platform.system() == 'Windows' else 2,
-                'early_stopping_patience': 10,
-                'targets': TARGETS,
-                'segmentation_backend': 'opencv' # Usar el fallback que funciona
-            }
-            
-            pipeline = CacaoTrainingPipeline(config)
-            results = pipeline.run_pipeline()
-            
-            if results and 'evaluation_results' in results:
-                logger.info("Entrenamiento automático Híbrido completado exitosamente")
-                return True
-            else:
-                logger.error("Error en entrenamiento automático Híbrido")
-                return False
-            
-        except Exception as e:
-            logger.error(f"Error en entrenamiento automático Híbrido: {e}", exc_info=True)
-            return False
+        logger.error(
+            "Entrenamiento automático desde el predictor no soportado. "
+            "Usa el comando de gestión: python manage.py train_cacao_models --model-type=hybrid --hybrid"
+        )
+        return False
     
     def _load_scalers(self) -> bool:
         """Carga los escaladores (siguen siendo 4 escaladores)."""

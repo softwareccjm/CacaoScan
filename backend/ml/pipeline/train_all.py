@@ -66,22 +66,26 @@ class CacaoDataset(Dataset):
     """
     Dataset personalizado para entrenamiento de modelos de cacao.
     """
-    
+
     def __init__(
         self,
         image_paths: List[Path],
         targets: Dict[str, np.ndarray],
-        transform=None,
-        pixel_features: Optional[Dict[str, np.ndarray]] = None
+        transform,
+        pixel_features: Optional[Dict[str, np.ndarray]] = None,
+        is_multi_head: bool = False,
+        is_hybrid: bool = False,
     ):
         """
         Inicializa el dataset.
-        
+
         Args:
-            image_paths: Lista de rutas a imágenes
-            targets: Diccionario con targets normalizados
-            transform: Transformaciones a aplicar
-            pixel_features: Diccionario con features de pxeles (opcional)
+            image_paths: Lista de rutas a imágenes.
+            targets: Diccionario con targets normalizados.
+            transform: Transformaciones a aplicar.
+            pixel_features: Diccionario con features de píxeles (opcional).
+            is_multi_head: Indica si el modelo es multi‑head.
+            is_hybrid: Indica si el modelo es híbrido (usa features de píxeles).
         """
         self.image_paths = image_paths
         self.targets = targets
@@ -89,86 +93,82 @@ class CacaoDataset(Dataset):
         self.pixel_features = pixel_features
         self.is_multi_head = is_multi_head
         self.is_hybrid = is_hybrid
-        
-        lengths = [len(image_paths)] + [len(targets[target]) for target in targets.keys()]
-        if pixel_features and is_hybrid:
+
+        lengths = [len(image_paths)] + [len(v) for v in targets.values()]
+        if pixel_features is not None and is_hybrid:
             missing_keys = [k for k in PIXEL_FEATURE_KEYS if k not in pixel_features]
             if missing_keys:
                 raise ValueError(f"Faltan las siguientes features de píxeles: {missing_keys}")
-            lengths.extend([len(pixel_features[feat]) for feat in PIXEL_FEATURE_KEYS])
-        
+            lengths.extend(len(pixel_features[feat]) for feat in PIXEL_FEATURE_KEYS)
+
         if len(set(lengths)) > 1:
             mismatched = {
                 "images": len(image_paths),
                 **{f"target_{k}": len(v) for k, v in targets.items()},
-                **({f"pixel_{k}": len(v) for k, v in pixel_features.items()} if pixel_features and is_hybrid else {})
+                **(
+                    {f"pixel_{k}": len(v) for k, v in pixel_features.items()}
+                    if pixel_features is not None and is_hybrid
+                    else {}
+                ),
             }
             logger.error(f"Error: Longitudes de datos inconsistentes: {mismatched}")
             raise ValueError(f"Longitudes inconsistentes en los datos del dataset: {mismatched}")
-        
-        if self.transform is None:
-            self.transform = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-            ])
-        
+
+    def __len__(self) -> int:
+        return len(self.image_paths)
+
+    def __getitem__(self, idx: int):
+        image_path = self.image_paths[idx]
+        image = Image.open(image_path).convert("RGB")
         image = self.transform(image)
-        
-        # Obtener targets
+
         available_targets = list(self.targets.keys())
-        if len(available_targets) == 1:
-            # Modelo individual
+
+        # Caso simple: un solo target
+        if not self.is_multi_head and not self.is_hybrid:
             target_name = available_targets[0]
-            target = self.targets[target_name][idx]
-            
-            # Aadir features de pxeles si estn disponibles
+            target_value = float(self.targets[target_name][idx])
+
             if self.pixel_features is not None:
-                pixel_feat = torch.tensor([
-                    self.pixel_features['pixel_width'][idx],
-                    self.pixel_features['pixel_height'][idx],
-                    self.pixel_features['pixel_area'][idx],
-                    self.pixel_features['scale_factor'][idx],
-                    self.pixel_features['aspect_ratio'][idx]
-                ], dtype=torch.float32)
-                return image, torch.tensor(target, dtype=torch.float32), pixel_feat
-            else:
-                return image, torch.tensor(target, dtype=torch.float32)
-        else:
-            # Modelo multi-head o hbrido
-            targets_dict = {}
-            for target_name in TARGETS:
-                targets_dict[target_name] = torch.tensor(
-                    self.targets[target_name][idx], dtype=torch.float32
+                pixel_feat = torch.tensor(
+                    [
+                        float(self.pixel_features["pixel_width"][idx]),
+                        float(self.pixel_features["pixel_height"][idx]),
+                        float(self.pixel_features["pixel_area"][idx]),
+                        float(self.pixel_features["scale_factor"][idx]),
+                        float(self.pixel_features["aspect_ratio"][idx]),
+                    ],
+                    dtype=torch.float32,
                 )
-            
-            # Para modelo hbrido, devolver target como tensor de 4 valores
-            if len(available_targets) == 4:  # alto, ancho, grosor, peso
-                target_tensor = torch.tensor([
-                    targets_dict['alto'],
-                    targets_dict['ancho'],
-                    targets_dict['grosor'],
-                    targets_dict['peso']
-                ], dtype=torch.float32)
-            else:
-                target_tensor = torch.stack(list(targets_dict.values()))
-            
-            # Aadir features de pxeles si estn disponibles
-            if self.pixel_features is not None:
-                pixel_feat = torch.tensor([
-                    self.pixel_features['pixel_width'][idx],
-                    self.pixel_features['pixel_height'][idx],
-                    self.pixel_features['pixel_area'][idx],
-                    self.pixel_features['scale_factor'][idx],
-                    self.pixel_features['aspect_ratio'][idx]
-                ], dtype=torch.float32)
-                return image, target_tensor, pixel_feat
-            else:
-                return image, targets_dict
-        else:
-            target_name = list(self.targets.keys())[0]
-            target = self.targets[target_name][idx]
-            return image, torch.tensor(target, dtype=torch.float32)
+                return image, torch.tensor(target_value, dtype=torch.float32), pixel_feat
+
+            return image, torch.tensor(target_value, dtype=torch.float32)
+
+        # Modelo multi‑head / híbrido: devolver los 4 targets
+        targets_tensor = torch.tensor(
+            [
+                float(self.targets["alto"][idx]),
+                float(self.targets["ancho"][idx]),
+                float(self.targets["grosor"][idx]),
+                float(self.targets["peso"][idx]),
+            ],
+            dtype=torch.float32,
+        )
+
+        if self.pixel_features is not None:
+            pixel_feat = torch.tensor(
+                [
+                    float(self.pixel_features["pixel_width"][idx]),
+                    float(self.pixel_features["pixel_height"][idx]),
+                    float(self.pixel_features["pixel_area"][idx]),
+                    float(self.pixel_features["scale_factor"][idx]),
+                    float(self.pixel_features["aspect_ratio"][idx]),
+                ],
+                dtype=torch.float32,
+            )
+            return image, targets_tensor, pixel_feat
+
+        return image, targets_tensor
 
 
 class CacaoTrainingPipeline:
