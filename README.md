@@ -217,12 +217,21 @@ docker-compose build --no-cache
    ```bash
    docker compose exec backend python manage.py calibrate_dataset_pixels --segmentation-backend auto
    ```
+4. **Entrena los modelos de ML/IA:**  
+   Ejecuta el siguiente comando para iniciar el entrenamiento de los modelos (puedes personalizar los argumentos según tus necesidades):
+
+   ```bash
+   docker compose exec backend python manage.py train_cacao_models --hybrid --use-pixel-features --epochs 50 --batch-size 32 --segmentation-backend opencv
+   ```
+
+   Si deseas ver todas las opciones disponibles, ejecuta:
+
+   ```bash
+   docker compose exec backend python manage.py train_cacao_models --help
+   ```
+
 
 ```
-
-> 📖 **Más información**: Consulta el archivo [DOCKER_README.md](DOCKER_README.md) para documentación completa sobre Docker.
-
----
 
 ## 📂 Estructura del Proyecto
 
