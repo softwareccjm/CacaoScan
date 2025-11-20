@@ -26,8 +26,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Copiar solo requirements.txt primero para aprovechar el cache de Docker
+# Si requirements.txt no cambia, esta capa se cachea y no reinstala dependencias
 COPY requirements.txt ./
 
+# Instalar dependencias (esta capa se cachea si requirements.txt no cambia)
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt

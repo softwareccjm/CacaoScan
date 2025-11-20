@@ -1905,6 +1905,7 @@ class CacaoTrainingPipeline:
     def _generate_crops_for_missing(self, missing_records: List[Dict]) -> List[Dict]:
         """
         Genera crops solo para los registros que no tienen crops.
+        Usa segmentación (U-Net -> rembg -> OpenCV) para eliminar el fondo.
         
         Args:
             missing_records: Lista de registros que no tienen crops
@@ -1912,15 +1913,24 @@ class CacaoTrainingPipeline:
         Returns:
             Lista de registros con crops generados exitosamente
         """
-        logger.info(f"[INICIO] Generando crops para {len(missing_records)} imgenes faltantes...")
+        logger.info(f"[INICIO] Generando crops para {len(missing_records)} imágenes faltantes...")
         
         from pathlib import Path
         from PIL import Image
         import os
         
-        # Crear directorio de crops si no existe
-        crops_dir = Path("media/cacao_images/crops")
-        crops_dir.mkdir(parents=True, exist_ok=True)
+        # Obtener método de segmentación de la configuración
+        seg_backend = self.config.get("segmentation_backend", "auto")
+        if seg_backend == "auto":
+            seg_method = "ai"  # Usa cascada (U-Net -> rembg -> OpenCV)
+        else:
+            seg_method = seg_backend
+        
+        logger.info(f"Usando método de segmentación: {seg_method} (cascada: U-Net -> rembg -> OpenCV)")
+        
+        # Importar función de segmentación
+        from ml.segmentation.processor import segment_and_crop_cacao_bean
+        from ml.utils.paths import get_crop_image_path, ensure_dir_exists
         
         crop_records = []
         successful = 0
@@ -1945,14 +1955,29 @@ class CacaoTrainingPipeline:
                     successful += 1
                     continue
                 
-                # Generar crop simple (redimensionar imagen original)
-                img = Image.open(image_path)
-                img_resized = img.resize((512, 512), Image.Resampling.LANCZOS)
-                img_resized.save(crop_path, "PNG")
-                
-                logger.debug(f"Crop generado: {crop_path}")
-                crop_records.append(record)
-                successful += 1
+                # Generar crop usando segmentación (elimina fondo)
+                try:
+                    # Usa segment_and_crop_cacao_bean que intenta U-Net primero
+                    png_path_str = segment_and_crop_cacao_bean(str(image_path), method=seg_method)
+                    
+                    if not png_path_str:
+                        raise Exception("Segmentación no devolvió ruta de imagen")
+                    
+                    # Cargar imagen segmentada
+                    segmented_image = Image.open(png_path_str)
+                    
+                    # Guardar en la ubicación correcta (crops/{id}.png)
+                    ensure_dir_exists(crop_path.parent)
+                    segmented_image.save(crop_path, "PNG")
+                    
+                    logger.debug(f"Crop generado con segmentación: {crop_path}")
+                    crop_records.append(record)
+                    successful += 1
+                    
+                except Exception as seg_error:
+                    logger.warning(f"Error en segmentación para ID {image_id}: {seg_error}")
+                    failed += 1
+                    continue
                 
                 # Log de progreso cada 10 imágenes
                 if (i + 1) % 10 == 0:
@@ -1962,7 +1987,7 @@ class CacaoTrainingPipeline:
                 logger.error(f"Error generando crop para ID {record['id']}: {e}")
                 failed += 1
         
-        logger.info(f"[OK] Generacin de crops faltantes completada: {successful} exitosos, {failed} fallidos")
+        logger.info(f"[OK] Generación de crops faltantes completada: {successful} exitosos, {failed} fallidos")
         return crop_records
     
     def _generate_crops_automatically(self, valid_records: List[Dict]) -> List[Dict]:

@@ -75,15 +75,31 @@ services:
       PYTHONHASHSEED: random
       PKG_RESOURCES_CACHE_DIR: /tmp/pkg_resources_cache
     volumes:
-      # --- ESTA ES LA CORRECCIÓN ---
-      # Mapea su carpeta local 'backend/media' al '/app/media' del contenedor
-      - ./backend/media:/app/media
+      # Montar el código para desarrollo (evita reconstruir la imagen)
+      - ./backend:/app
+      # Excluir directorios que no deben montarse desde el host
+      - /app/staticfiles
+      - /app/media
+      # Montar específicamente directorios de datos necesarios para ML
+      - ./backend/media/datasets:/app/media/datasets
+      - ./backend/media/cacao_images:/app/media/cacao_images
       # Mantenemos el volumen con nombre para los estáticos
       - backend_static:/app/staticfiles
     entrypoint: ["/docker-entrypoint.sh"]
     command: ["gunicorn", "cacaoscan.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
     ports:
       - "127.0.0.1:8000:8000"
+    # Habilitar GPU para entrenamiento ML (opcional, solo si está disponible)
+    # Si no hay GPU, el contenedor funcionará normalmente usando CPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Alternativa: usar runtime nvidia si está disponible (más flexible)
+    # runtime: nvidia  # Descomentar si deploy no funciona
     depends_on:
       db:
         condition: service_healthy

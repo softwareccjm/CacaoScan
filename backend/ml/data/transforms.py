@@ -142,7 +142,7 @@ def train_background_ai(image_dir="ml/data/dataset/images", mask_dir="ml/data/da
 def remove_background_ai(image_path: str) -> Image.Image:
     """
     Quita el fondo usando el modelo IA entrenado (U-Net) con refinamiento OpenCV.
-    Elimina bordes blancos y detecta cada pxel del cacao con precisin.
+    Elimina bordes blancos, recorta tight el grano y detecta cada pxel del cacao con precisin.
     """
     model_path = "ml/segmentation/cacao_unet.pth"
     if not os.path.exists(model_path):
@@ -156,7 +156,8 @@ def remove_background_ai(image_path: str) -> Image.Image:
     # Cargar imagen original
     img = Image.open(image_path).convert("RGB")
     img_array = np.array(img)
-    original_size = img.size  # (ancho, alto)
+    h, w = img_array.shape[:2]
+    original_size = (w, h)  # (ancho, alto)
     
     # Preprocesar para el modelo
     transform = T.Compose([
@@ -179,8 +180,66 @@ def remove_background_ai(image_path: str) -> Image.Image:
     # REFINAMIENTO PRECISO CON OPENCV
     mask_refined = _refine_mask_opencv_precise(img_array, mask)
     
-    # Crear imagen RGBA con mscara refinada
-    rgba = np.dstack((img_array, mask_refined))
+    # Importar funciones de refinamiento de processor.py
+    from ml.segmentation.processor import _deshadow_alpha, _guided_refine, _clean_components
+    
+    # Aplicar refinamiento adicional (igual que OpenCV)
+    alpha = _deshadow_alpha(img_array, mask_refined)
+    alpha = _guided_refine(img_array, alpha)
+    
+    # Limpiar componentes (solo el más grande)
+    alpha = _clean_components(alpha)
+    
+    # RECORTE TIGHT: encontrar bounding box del grano
+    ys, xs = np.where(alpha > 0)
+    if len(xs) == 0 or len(ys) == 0:
+        # Si no hay píxeles válidos, devolver imagen completa con máscara
+        rgba = np.dstack([img_array, alpha])
+        return Image.fromarray(rgba, "RGBA")
+    
+    x1, x2 = xs.min(), xs.max()
+    y1, y2 = ys.min(), ys.max()
+    
+    # Padding mínimo (8% del tamaño o mínimo 10px)
+    pad_x = max(10, int(0.08 * (x2 - x1 + 1)))
+    pad_y = max(10, int(0.08 * (y2 - y1 + 1)))
+    
+    x1 = max(0, x1 - pad_x)
+    y1 = max(0, y1 - pad_y)
+    x2 = min(w - 1, x2 + pad_x)
+    y2 = min(h - 1, y2 + pad_y)
+    
+    # Recortar región del grano
+    crop_rgb = img_array[y1:y2 + 1, x1:x2 + 1]
+    crop_alpha = alpha[y1:y2 + 1, x1:x2 + 1]
+    
+    # Refinar máscara en el crop (más preciso)
+    crop_alpha = _deshadow_alpha(crop_rgb, crop_alpha)
+    crop_alpha = _guided_refine(crop_rgb, crop_alpha)
+    
+    # Eliminar píxeles blancos residuales en el crop
+    gray_crop = cv2.cvtColor(crop_rgb, cv2.COLOR_RGB2GRAY)
+    white_threshold = 220
+    is_white = gray_crop > white_threshold
+    
+    # Eliminar píxeles blancos que están en el borde de la máscara
+    kernel = np.ones((5, 5), np.uint8)
+    alpha_dilated = cv2.dilate(crop_alpha, kernel, iterations=1)
+    border_region = (alpha_dilated > 0) & (crop_alpha == 0)
+    
+    # Eliminar píxeles blancos en el borde
+    crop_alpha = np.where(border_region & is_white, 0, crop_alpha).astype(np.uint8)
+    
+    # También eliminar píxeles blancos dentro del objeto si están muy cerca del borde
+    dist_to_edge = cv2.distanceTransform((crop_alpha > 0).astype(np.uint8), cv2.DIST_L2, 5)
+    edge_region = dist_to_edge < 15  # 15 píxeles del borde
+    crop_alpha = np.where(edge_region & is_white & (crop_alpha > 0), 0, crop_alpha).astype(np.uint8)
+    
+    # Limpieza final
+    crop_alpha = _clean_components(crop_alpha)
+    
+    # Crear imagen RGBA recortada
+    rgba = np.dstack([crop_rgb, crop_alpha])
     
     return Image.fromarray(rgba, "RGBA")
 

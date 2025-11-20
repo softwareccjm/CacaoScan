@@ -119,7 +119,20 @@ class Command(BaseCommand):
         if seg_method == 'auto':
             seg_method = 'ai' # 'auto' debe usar la cascada 'ai' (U-Net -> rembg)
         
-        self.stdout.write(f"Usando backend de segmentación: {seg_method}")
+        # Detectar y mostrar dispositivo (GPU/CPU) si se usa AI
+        if seg_method == 'ai':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device_name = torch.cuda.get_device_name(0)
+                    memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                    self.stdout.write(f"🚀 Usando GPU: {device_name} ({memory_gb:.1f} GB)")
+                else:
+                    self.stdout.write(f"🖥️  Usando CPU (GPU no disponible)")
+            except ImportError:
+                self.stdout.write(f"⚠️  PyTorch no disponible, usando CPU")
+        
+        self.stdout.write(f"📸 Backend de segmentación: {seg_method}")
         
         for idx, row in valid_df.iterrows():
             if max_images and processed_count >= max_images:

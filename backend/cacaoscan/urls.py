@@ -28,13 +28,25 @@ def get_schema_view_lazy():
             public=True,
             permission_classes=[permissions.AllowAny],
         )
-    except Exception as e:
+    except Exception:
         # Si hay error al cargar drf_yasg, retornar una vista dummy
         from django.views.generic import TemplateView
-        return type('DummySchemaView', (), {
-            'without_ui': lambda format: TemplateView.as_view(template_name='drf_yasg/error.html'),
-            'with_ui': lambda ui, cache_timeout: TemplateView.as_view(template_name='drf_yasg/error.html'),
-        })()
+        from django.http import JsonResponse
+        
+        class DummySchemaView:
+            @staticmethod
+            def without_ui(cache_timeout):
+                def view(request, format=None):
+                    return JsonResponse({'error': 'Swagger not available'}, status=503)
+                return view
+            
+            @staticmethod
+            def with_ui(ui, cache_timeout):
+                def view(request):
+                    return JsonResponse({'error': 'Swagger UI not available'}, status=503)
+                return view
+        
+        return DummySchemaView()
 
 schema_view = get_schema_view_lazy()
 
@@ -45,22 +57,50 @@ def health_check(request):
 urlpatterns = [
     path('health', health_check, name='health-check'),
     path('admin/', admin.site.urls),
-    # API de documentos legales - COMENTADA: el contenido ahora est en el frontend
-    # path('api/v1/legal/', include('legal.urls')),
-    # API de personas (incluida en v1 con prefijo personas/)
-    path('api/v1/personas/', include('personas.urls')),
-    # API de catálogos (incluida en v1 para consistencia)
-    path('api/v1/', include('catalogos.urls')),
-    # API de imgenes (debe ir antes de api.urls para evitar conflictos)
-    path('api/v1/', include('images_app.urls')),
-    # API principal de CacaoScan (debe ir despus de rutas especficas)
-    path('api/v1/', include('api.urls')),
-    
-    # Swagger URLs
-    re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
-    re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    re_path(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
+
+# Cargar URLs de apps de forma segura
+try:
+    urlpatterns += [
+        # API de personas (incluida en v1 con prefijo personas/)
+        path('api/v1/personas/', include('personas.urls')),
+    ]
+except Exception:
+    pass
+
+try:
+    urlpatterns += [
+        # API de catálogos (incluida en v1 para consistencia)
+        path('api/v1/', include('catalogos.urls')),
+    ]
+except Exception:
+    pass
+
+try:
+    urlpatterns += [
+        # API de imágenes (debe ir antes de api.urls para evitar conflictos)
+        path('api/v1/', include('images_app.urls')),
+    ]
+except Exception:
+    pass
+
+try:
+    urlpatterns += [
+        # API principal de CacaoScan (debe ir después de rutas específicas)
+        path('api/v1/', include('api.urls')),
+    ]
+except Exception:
+    pass
+
+# Swagger URLs - solo si está disponible
+try:
+    urlpatterns += [
+        re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+        re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+        re_path(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    ]
+except Exception:
+    pass
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
