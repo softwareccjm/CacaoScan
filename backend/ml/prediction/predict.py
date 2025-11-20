@@ -192,18 +192,68 @@ class CacaoPredictor:
                 return False
             
             try:
+                # CRÍTICO: Detectar número de características de píxeles del checkpoint
+                # antes de crear el modelo
+                checkpoint = torch.load(model_path, map_location=self.device)
+                pixel_feature_dim = None
+                
+                # Importar constantes de características
+                from ..pipeline.train_all import CALIB_PIXEL_FEATURE_KEYS, PIXEL_FEATURE_KEYS
+                
+                # Intentar detectar desde el checkpoint
+                if 'model_state_dict' in checkpoint:
+                    state_dict = checkpoint['model_state_dict']
+                    # Buscar la capa pixel_branch.0.weight que tiene shape [256, num_pixel_features]
+                    if 'pixel_branch.0.weight' in state_dict:
+                        pixel_feature_dim = state_dict['pixel_branch.0.weight'].shape[1]
+                        logger.info(f"✅ Detectado pixel_feature_dim={pixel_feature_dim} desde checkpoint")
+                        
+                        # Actualizar PIXEL_FEATURE_KEYS según el número detectado
+                        if pixel_feature_dim == len(CALIB_PIXEL_FEATURE_KEYS):
+                            self.config.PIXEL_FEATURE_KEYS = CALIB_PIXEL_FEATURE_KEYS
+                            logger.info(f"✅ Usando CALIB_PIXEL_FEATURE_KEYS ({pixel_feature_dim} características)")
+                        elif pixel_feature_dim == len(PIXEL_FEATURE_KEYS):
+                            self.config.PIXEL_FEATURE_KEYS = PIXEL_FEATURE_KEYS
+                            logger.info(f"✅ Usando PIXEL_FEATURE_KEYS ({pixel_feature_dim} características)")
+                        else:
+                            logger.warning(f"⚠️ pixel_feature_dim={pixel_feature_dim} no coincide con ninguna configuración conocida")
+                    else:
+                        logger.warning("⚠️ No se encontró 'pixel_branch.0.weight' en checkpoint, usando valor por defecto")
+                
+                # Si no se detectó, usar valor por defecto basado en las características disponibles
+                if pixel_feature_dim is None:
+                    # Verificar si tenemos CALIB_PIXEL_FEATURE_KEYS disponibles
+                    if self.pixel_calibration and self.pixel_calibration.get('calibration_records'):
+                        records = self.pixel_calibration['calibration_records']
+                        if records and any(
+                            k in records[0] 
+                            for k in CALIB_PIXEL_FEATURE_KEYS
+                        ):
+                            pixel_feature_dim = len(CALIB_PIXEL_FEATURE_KEYS)  # 12
+                            logger.info(f"✅ Usando CALIB_PIXEL_FEATURE_KEYS: {pixel_feature_dim} características")
+                            # Actualizar config para usar CALIB_PIXEL_FEATURE_KEYS
+                            self.config.PIXEL_FEATURE_KEYS = CALIB_PIXEL_FEATURE_KEYS
+                        else:
+                            pixel_feature_dim = len(PIXEL_FEATURE_KEYS)  # 5 por defecto
+                            logger.info(f"✅ Usando PIXEL_FEATURE_KEYS por defecto: {pixel_feature_dim} características")
+                    else:
+                        pixel_feature_dim = len(PIXEL_FEATURE_KEYS)  # 5 por defecto
+                        logger.info(f"✅ Usando PIXEL_FEATURE_KEYS por defecto: {pixel_feature_dim} características")
+                
+                # Crear modelo con el número correcto de características
                 self.regression_model = create_model(
                     model_type="hybrid",
                     pretrained=False,
                     dropout_rate=0.2,
                     hybrid=True,
-                    use_pixel_features=True
+                    use_pixel_features=True,
+                    pixel_feature_dim=pixel_feature_dim
                 )
-                checkpoint = torch.load(model_path, map_location=self.device)
+                
                 self.regression_model.load_state_dict(checkpoint['model_state_dict'])
                 self.regression_model.to(self.device)
                 self.regression_model.eval()
-                logger.info(f"✅ Modelo Híbrido (hybrid.pt) cargado exitosamente")
+                logger.info(f"✅ Modelo Híbrido (hybrid.pt) cargado exitosamente con {pixel_feature_dim} características de píxeles")
                 
             except Exception as e:
                 logger.error(f"Error cargando modelo híbrido: {e}", exc_info=True)
@@ -296,7 +346,11 @@ class CacaoPredictor:
         if not self.scalers:
             raise ValueError("No hay escaladores disponibles para desnormalizar")
         
-        temp_data = {target: [normalized_values[target]] for target in TARGETS}
+        # Convertir a arrays de numpy (requerido por inverse_transform)
+        temp_data = {
+            target: np.array([normalized_values[target]], dtype=np.float32) 
+            for target in TARGETS
+        }
         denorm_data = self.scalers.inverse_transform(temp_data)
         denormalized_predictions = {
             target: float(denorm_data[target][0]) for target in TARGETS
@@ -393,6 +447,8 @@ class CacaoPredictor:
     def _extract_crop_characteristics(self, crop_image: Image.Image) -> Dict[str, float]:
         """
         Extrae características visuales y de píxeles del GRANO REAL (solo áreas con alpha>0).
+        
+        Soporta tanto PIXEL_FEATURE_KEYS (5 características) como CALIB_PIXEL_FEATURE_KEYS (12 características).
         """
         crop_array = np.array(crop_image)
         alpha = crop_array[:, :, 3]
@@ -404,19 +460,81 @@ class CacaoPredictor:
         if len(x_coords) > 0:
             width_visible = int(x_coords.max() - x_coords.min() + 1)
             height_visible = int(y_coords.max() - y_coords.min() + 1)
+            bbox_area = width_visible * height_visible
         else:
             width_visible = crop_array.shape[1]
             height_visible = crop_array.shape[0]
+            bbox_area = width_visible * height_visible
 
         scale_factor = self._calculate_pixel_to_mm_scale_factor(width_visible, height_visible)
-
-        return {
+        aspect_ratio = float(width_visible / height_visible if height_visible > 0 else 1.0)
+        
+        # Características básicas (PIXEL_FEATURE_KEYS)
+        features = {
             'pixel_width': float(width_visible),
             'pixel_height': float(height_visible),
             'pixel_area': float(object_area),
             'scale_factor': float(scale_factor),
-            'aspect_ratio': float(width_visible / height_visible if height_visible > 0 else 1.0)
+            'aspect_ratio': aspect_ratio
         }
+        
+        # Si el modelo requiere CALIB_PIXEL_FEATURE_KEYS (12 características), calcular las adicionales
+        if len(self.config.PIXEL_FEATURE_KEYS) >= 12:
+            # Calcular características extendidas
+            original_total_pixels = crop_array.shape[0] * crop_array.shape[1]
+            background_pixels = original_total_pixels - object_area
+            background_ratio = float(background_pixels / original_total_pixels if original_total_pixels > 0 else 0.0)
+            
+            # Calcular mm_per_pixel usando valores promedio de calibración si están disponibles
+            avg_mm_per_pixel = scale_factor
+            alto_mm_per_pixel = scale_factor
+            ancho_mm_per_pixel = scale_factor
+            
+            # Intentar obtener valores más precisos de pixel_calibration.json si está disponible
+            if self.pixel_calibration and 'calibration_records' in self.pixel_calibration:
+                records = self.pixel_calibration['calibration_records']
+                if records:
+                    # Calcular promedios de los registros de calibración
+                    avg_mm_per_pixel_list = [
+                        r.get('average_mm_per_pixel', scale_factor) 
+                        for r in records 
+                        if 'average_mm_per_pixel' in r
+                    ]
+                    alto_mm_per_pixel_list = [
+                        r.get('alto_mm_per_pixel', scale_factor) 
+                        for r in records 
+                        if 'alto_mm_per_pixel' in r
+                    ]
+                    ancho_mm_per_pixel_list = [
+                        r.get('ancho_mm_per_pixel', scale_factor) 
+                        for r in records 
+                        if 'ancho_mm_per_pixel' in r
+                    ]
+                    
+                    if avg_mm_per_pixel_list:
+                        avg_mm_per_pixel = float(np.mean(avg_mm_per_pixel_list))
+                    if alto_mm_per_pixel_list:
+                        alto_mm_per_pixel = float(np.mean(alto_mm_per_pixel_list))
+                    if ancho_mm_per_pixel_list:
+                        ancho_mm_per_pixel = float(np.mean(ancho_mm_per_pixel_list))
+            
+            # Agregar características extendidas (CALIB_PIXEL_FEATURE_KEYS)
+            features.update({
+                'grain_area_pixels': float(object_area),
+                'width_pixels': float(width_visible),
+                'height_pixels': float(height_visible),
+                'bbox_area_pixels': float(bbox_area),
+                'aspect_ratio': aspect_ratio,  # Ya calculado
+                'original_total_pixels': float(original_total_pixels),
+                'background_pixels': float(background_pixels),
+                'background_ratio': background_ratio,
+                'alto_mm_per_pixel': alto_mm_per_pixel,
+                'ancho_mm_per_pixel': ancho_mm_per_pixel,
+                'average_mm_per_pixel': avg_mm_per_pixel,
+                'segmentation_confidence': 0.85  # Valor por defecto (se puede mejorar con confianza real de segmentación)
+            })
+        
+        return features
         
     def _predict_hybrid(
         self,

@@ -87,8 +87,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--learning-rate',
             type=float,
-            default=1e-5,  # REDUCIDO de 1e-4 a 1e-5 para estabilidad con Uncertainty Loss
-            help='Learning rate (default: 1e-5, reducido para estabilidad con Uncertainty Loss)'
+            default=1e-4,  # Aumentado de 1e-5 a 1e-4 para mejor aprendizaje
+            help='Learning rate (default: 1e-4, optimizado para mejor convergencia)'
         )
         parser.add_argument(
             '--loss-type',
@@ -100,9 +100,9 @@ class Command(BaseCommand):
         parser.add_argument(
             '--scheduler-type',
             type=str,
-            default='reduce_on_plateau',
+            default='cosine_warmup',
             choices=['reduce_on_plateau', 'cosine', 'cosine_warmup', 'onecycle'],
-            help='Tipo de scheduler: reduce_on_plateau (recomendado), cosine, cosine_warmup, o onecycle (default: reduce_on_plateau)'
+            help='Tipo de scheduler: reduce_on_plateau, cosine, cosine_warmup (recomendado), o onecycle (default: cosine_warmup)'
         )
         parser.add_argument(
             '--max-grad-norm',
@@ -134,14 +134,14 @@ class Command(BaseCommand):
         parser.add_argument(
             '--early-stopping-patience',
             type=int,
-            default=10,
-            help='Paciencia para early stopping (default: 10)'
+            default=15,
+            help='Paciencia para early stopping (default: 15, aumentado para entrenamiento más robusto)'
         )
         parser.add_argument(
             '--dropout-rate',
             type=float,
-            default=0.2,
-            help='Tasa de dropout (default: 0.2)'
+            default=0.25,
+            help='Tasa de dropout (default: 0.25, aumentado para mejor regularización)'
         )
         parser.add_argument(
             '--use-raw-images',
@@ -255,7 +255,7 @@ class Command(BaseCommand):
             'weight_decay': 1e-4,
             'min_lr': 1e-7,  # Reducido para mejor fine-tuning
             'loss_type': options.get('loss_type', 'smooth_l1'),  # SmoothL1Loss por defecto (más robusta)
-            'scheduler_type': options.get('scheduler_type', 'reduce_on_plateau'),  # ReduceLROnPlateau por defecto
+            'scheduler_type': options.get('scheduler_type', 'cosine_warmup'),  # CosineWarmup por defecto para mejor exploración
             'max_grad_norm': options.get('max_grad_norm', 1.0),
             'use_mixed_precision': options.get('use_mixed_precision', False),
             'targets': self._parse_targets(options['targets'])

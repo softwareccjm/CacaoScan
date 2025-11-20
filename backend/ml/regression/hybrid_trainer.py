@@ -88,9 +88,10 @@ class HybridTrainer:
         )
         
         # Intelligent early stopping
+        early_stopping_patience = config.get('early_stopping_patience', 15)
         self.early_stopping = IntelligentEarlyStopping(
-            patience=8,
-            min_delta_percent=0.01,  # 1%
+            patience=early_stopping_patience,  # Usa config
+            min_delta_percent=0.005,  # Reducido de 1% a 0.5% para detectar mejoras pequeñas
             r2_threshold=-2.0,
             r2_consecutive=2,
             val_loss_increase_epochs=3

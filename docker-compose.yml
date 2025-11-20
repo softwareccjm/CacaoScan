@@ -39,7 +39,7 @@ services:
     command:
       - redis-server
       - "--requirepass"
-      - "${REDIS_PASSWORD}"
+      - "${REDIS_PASSWORD:-default_redis_password}"
       - "--appendonly"
       - "yes"
     volumes:
@@ -47,7 +47,7 @@ services:
     ports:
       - "6380:6379"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-default_redis_password} ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -86,7 +86,7 @@ services:
       # Mantenemos el volumen con nombre para los estáticos
       - backend_static:/app/staticfiles
     entrypoint: ["/docker-entrypoint.sh"]
-    command: ["gunicorn", "cacaoscan.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
+    command: ["gunicorn", "cacaoscan.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--reload"]
     ports:
       - "127.0.0.1:8000:8000"
     # Habilitar GPU para entrenamiento ML (opcional, solo si está disponible)

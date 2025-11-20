@@ -198,10 +198,24 @@ class RegressionEvaluator:
                     outputs = self.model(images)
                 # --- FIN DE CORRECCIÓN ---
                 
+                # Manejar targets: puede ser tensor 2D [batch_size, 4] o diccionario
+                if isinstance(targets_dict, dict):
+                    # Si es diccionario, usar directamente
+                    targets_by_key = targets_dict
+                else:
+                    # Si es tensor 2D, extraer columnas según el orden: [alto, ancho, grosor, peso]
+                    # targets_dict tiene forma [batch_size, 4]
+                    targets_by_key = {
+                        'alto': targets_dict[:, 0],
+                        'ancho': targets_dict[:, 1],
+                        'grosor': targets_dict[:, 2],
+                        'peso': targets_dict[:, 3]
+                    }
+                
                 for target in TARGETS:
                     # Obtener predicciones y targets
                     predictions_batch = outputs[target].cpu().numpy().flatten()
-                    targets_batch = targets_dict[target].cpu().numpy().flatten()
+                    targets_batch = targets_by_key[target].cpu().numpy().flatten()
                     
                     all_predictions[target].extend(predictions_batch)
                     all_targets[target].extend(targets_batch)

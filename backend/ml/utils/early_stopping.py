@@ -85,8 +85,23 @@ class IntelligentEarlyStopping:
         should_rollback = False
         
         # Check minimum improvement (1%)
-        min_delta = self.best_val_loss * self.min_delta_percent
-        is_best = val_loss < self.best_val_loss - min_delta
+        # Handle initial case when best_val_loss is inf
+        if self.best_val_loss == float('inf'):
+            # First epoch: any finite loss is considered best
+            is_best = True
+            min_delta = 0.0
+        else:
+            # Calculate min_delta based on absolute value to handle negative losses
+            min_delta = abs(self.best_val_loss * self.min_delta_percent)
+            
+            # For negative losses: less negative (closer to zero) is better
+            # For positive losses: smaller is better
+            if self.best_val_loss < 0:
+                # Negative loss: we want val_loss > best_val_loss (less negative)
+                is_best = val_loss > self.best_val_loss + min_delta
+            else:
+                # Positive loss: we want val_loss < best_val_loss (smaller)
+                is_best = val_loss < self.best_val_loss - min_delta
         
         # Check for low R² (consecutive epochs)
         for target in self.TARGETS:
@@ -103,29 +118,43 @@ class IntelligentEarlyStopping:
             else:
                 self.low_r2_count[target] = 0
         
-        # Check for increasing val_loss
-        if val_loss > self.last_val_loss:
-            self.val_loss_increase_count += 1
-            if self.val_loss_increase_count >= self.val_loss_increase_epochs:
-                should_rollback = True
-                logger.warning(
-                    f"Val loss increased for {self.val_loss_increase_count} consecutive epochs. "
-                    f"Triggering rollback to best checkpoint."
-                )
-        else:
-            self.val_loss_increase_count = 0
+        # Check for increasing val_loss (worsening)
+        # Skip check on first epoch (last_val_loss is inf)
+        if self.last_val_loss != float('inf'):
+            # For negative losses: more negative (worse) means val_loss < last_val_loss
+            # For positive losses: larger (worse) means val_loss > last_val_loss
+            if (self.last_val_loss < 0 and val_loss < self.last_val_loss) or \
+               (self.last_val_loss >= 0 and val_loss > self.last_val_loss):
+                self.val_loss_increase_count += 1
+                if self.val_loss_increase_count >= self.val_loss_increase_epochs:
+                    should_rollback = True
+                    logger.warning(
+                        f"Val loss worsened for {self.val_loss_increase_count} consecutive epochs. "
+                        f"Triggering rollback to best checkpoint."
+                    )
+            else:
+                self.val_loss_increase_count = 0
         
         self.last_val_loss = val_loss
         
         # Update best model
         if is_best:
+            old_best = self.best_val_loss
             self.best_val_loss = val_loss
             self.best_epoch = epoch
             self.counter = 0
-            logger.info(
-                f"Epoch {epoch}: New best model (val_loss={val_loss:.4f}, "
-                f"improvement={min_delta:.4f})"
-            )
+            
+            if old_best == float('inf'):
+                logger.info(
+                    f"Epoch {epoch}: Initial best model (val_loss={val_loss:.4f})"
+                )
+            else:
+                improvement = abs(val_loss - old_best)
+                direction = "improved" if (old_best < 0 and val_loss > old_best) or (old_best >= 0 and val_loss < old_best) else "changed"
+                logger.info(
+                    f"Epoch {epoch}: New best model (val_loss={val_loss:.4f}, "
+                    f"previous={old_best:.4f}, {direction} by {improvement:.4f})"
+                )
         else:
             self.counter += 1
             logger.debug(

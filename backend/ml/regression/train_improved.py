@@ -326,15 +326,16 @@ def train_multi_head_model_improved(
     # Early stopping inteligente
     try:
         from ..utils.early_stopping import IntelligentEarlyStopping
+        early_stopping_patience = config.get('early_stopping_patience', 15)
         early_stopping = IntelligentEarlyStopping(
-            patience=8,
-            min_delta_percent=0.01,  # 1%
+            patience=early_stopping_patience,  # Usa config en lugar de hardcodeado
+            min_delta_percent=0.005,  # Reducido de 1% a 0.5% para detectar mejoras pequeñas
             r2_threshold=-2.0,
             r2_consecutive=2,
             val_loss_increase_epochs=3
         )
         use_intelligent_early_stopping = True
-        logger.info("Using IntelligentEarlyStopping")
+        logger.info(f"Using IntelligentEarlyStopping (patience={early_stopping_patience}, min_delta=0.5%)")
     except ImportError:
         logger.warning("IntelligentEarlyStopping not available, using basic early stopping")
         use_intelligent_early_stopping = False
