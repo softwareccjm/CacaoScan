@@ -68,7 +68,8 @@ run_management_command() {
 
 if [[ "${ROLE}" == "web" ]]; then
     wait_for_database
-    run_management_command migrate --noinput
+    # Ejecutar migraciones, incluyendo las de apps de terceros como token_blacklist
+    run_management_command migrate --noinput --run-syncdb
     run_management_command collectstatic --noinput
     if [[ "${CREATE_DEFAULT_SUPERUSER:-true}" == "true" ]]; then
         log "👤 Asegurando superusuario predeterminado"

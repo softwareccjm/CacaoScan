@@ -93,9 +93,10 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
     chmod +x /docker-entrypoint.sh
 
+# Render inyecta PORT automáticamente
+# Exponemos el puerto por defecto, Render detectará el puerto dinámico automáticamente
 EXPOSE 8000
 
-# Render inyecta PORT automáticamente, usar esa variable si está disponible
 ENV PORT=8000
 
 CMD ["sh", "-c", "gunicorn cacaoscan.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 300 --graceful-timeout 60"]
