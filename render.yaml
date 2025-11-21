@@ -69,7 +69,7 @@ services:
     startCommand: ""
 
   # Base de datos PostgreSQL
-  - type: pspg
+  - type: postgres
     name: cacaoscan-db
     plan: starter
     databaseName: cacaoscan_db
