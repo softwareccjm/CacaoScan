@@ -131,6 +131,153 @@ pnpm dev
 
 ---
 
+## 🐳 Instalación con Docker (Recomendado)
+
+La forma más fácil de ejecutar CacaoScan es usando Docker Compose.
+
+### Requisitos
+- Docker Desktop instalado ([descargar aquí](https://www.docker.com/products/docker-desktop))
+- Docker Compose v3.8 o superior
+
+### Pasos de instalación
+
+1. **Clonar el repositorio**:
+```bash
+git clone https://github.com/tu_usuario/cacaoscan.git
+cd cacaoscan
+```
+
+2. **Configurar variables de entorno**:
+```bash
+# Copia el archivo de ejemplo
+cp .env.example .env
+
+# Edita el archivo .env con tus configuraciones (opcional)
+```
+
+3. **Construir y ejecutar los contenedores**:
+```bash
+docker-compose up -d --build
+```
+
+4. **Verificar que todo esté funcionando**:
+```bash
+docker-compose ps
+docker-compose logs -f
+```
+
+5. **Acceder a la aplicación**:
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8000/api/v1/
+- **Admin Django**: http://localhost:8000/admin/
+
+### Comandos útiles de Docker
+
+```bash
+# Ver logs en tiempo real
+docker-compose logs -f
+
+# Detener todos los servicios
+docker-compose down
+
+# Detener y eliminar volúmenes (⚠️ borra datos)
+docker-compose down -v
+
+# Reiniciar un servicio específico
+docker-compose restart backend
+
+# Ejecutar comandos Django en el contenedor
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py createsuperuser
+
+# Reconstruir las imágenes
+docker-compose build --no-cache
+
+
+---
+
+#### Pasos adicionales recomendados **antes de ejecutar pipelines de ML/IA**:
+
+### 📸 Preparación previa antes de ejecutar pipelines de ML/IA
+
+#### 1. Preparar datos
+
+**Coloca las imágenes en la carpeta `raw`:**  
+Asegúrate de que todas las imágenes estén ubicadas en `backend/media/cacao_images/raw/`.  
+Formatos soportados: `.bmp`, `.jpg`, `.jpeg`, `.png`, `.tiff`, `.tif`
+
+**Agrega el dataset CSV:**  
+Copia el archivo CSV del dataset en `backend/media/datasets/`. Debe tener la siguiente estructura:
+
+```
+ID,ALTO,ANCHO,GROSOR,PESO,filename,image_path
+510,22.8,16.3,10.2,1.72,510.bmp,cacao_images\raw\510.bmp
+```
+
+#### 2. Flujo completo de entrenamiento ML/IA
+
+Ejecuta los siguientes comandos **en orden** para entrenar el sistema completo:
+
+**Paso 1: Entrenar modelo U-Net para segmentación de fondo**
+
+```bash
+# Con GPU (recomendado)
+docker compose exec backend python manage.py train_unet_background --epochs 20 --batch-size 16
+
+# Sin GPU (usa CPU automáticamente)
+docker compose exec backend python manage.py train_unet_background --epochs 20 --batch-size 4
+```
+
+**¿Qué hace?**
+- Entrena un modelo U-Net para eliminar el fondo de imágenes de granos de cacao
+- Genera: `ml/segmentation/cacao_unet.pth`
+- **Detección automática**: Usa GPU si está disponible, si no usa CPU
+- Tiempo estimado: 
+  - Con GPU: ~30-60 minutos
+  - Sin GPU: ~2-4 horas (recomendado `--batch-size 4`)
+
+**Paso 2: Generar crops y calibrar píxeles**
+
+```bash
+docker compose exec backend python manage.py calibrate_dataset_pixels --segmentation-backend auto
+```
+
+**¿Qué hace?**
+- Procesa todas las imágenes del dataset
+- Usa el U-Net entrenado (si existe) para eliminar el fondo
+- Crea crops (imágenes sin fondo) en `backend/media/cacao_images/crops/`
+- Mide píxeles y calcula factores de escala (píxel → mm)
+- Genera: `backend/media/datasets/pixel_calibration.json`
+- Tiempo estimado: ~5-15 minutos
+
+**Paso 3: Entrenar modelos de regresión**
+
+```bash
+# Con GPU (recomendado)
+docker compose exec backend python manage.py train_cacao_models --hybrid --use-pixel-features --epochs 50 --batch-size 32
+
+# Sin GPU (usa CPU automáticamente)
+docker compose exec backend python manage.py train_cacao_models --hybrid --use-pixel-features --epochs 50 --batch-size 8
+```
+
+**¿Qué hace?**
+- Carga los crops y `pixel_calibration.json` generados en el paso anterior
+- Entrena un modelo híbrido (CNN + Pixel Features) para predecir dimensiones y peso
+- Genera: `ml/artifacts/regressors/hybrid.pt`
+- **Detección automática**: Usa GPU si está disponible, si no usa CPU
+- Tiempo estimado: 
+  - Con GPU: ~1-3 horas
+  - Sin GPU: ~6-12 horas (recomendado `--batch-size 8` o menor)
+
+**Ver todas las opciones disponibles:**
+
+```bash
+docker compose exec backend python manage.py train_cacao_models --help
+```
+
+
+```
+
 ## 📂 Estructura del Proyecto
 
 ```

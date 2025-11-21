@@ -1,4 +1,4 @@
-﻿"""
+"""
 Django settings for cacaoscan project.
 """
 
@@ -11,8 +11,51 @@ from datetime import timedelta
 # Cargar variables de entorno desde .env
 BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_path = os.path.join(BASE_DIR, ".env")
+
+# Crear .env si no existe con valores por defecto
+if not os.path.exists(dotenv_path):
+    default_env_content = """# ===========================
+# Configuración de Base de Datos PostgreSQL
+# ===========================
+DB_NAME=cacaoscan_db
+DB_USER=cristian
+DB_PASSWORD=123456
+DB_HOST=localhost
+DB_PORT=5432
+
+# ===========================
+# Configuración de Django
+# ===========================
+# IMPORTANTE: Genera tu propia clave secreta. Puedes usar un generador online.
+SECRET_KEY=django-insecure-m#z@j!v+e)d^u_r-f&q!w)t#b@s&y*p(k$l-!g@h_c^x@o
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# ===========================
+# Configuración de API
+# ===========================
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+
+# ===========================
+# Configuración de Email (Opcional)
+# ===========================
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=tu-email@gmail.com
+EMAIL_HOST_PASSWORD=tu-app-password
+
+# ===========================
+# Configuración de CORS (Producción)
+# ===========================
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+AUTO_TRAIN_ENABLED=0
+"""
+    with open(dotenv_path, 'w', encoding='utf-8') as f:
+        f.write(default_env_content)
+    print(f"✅ Archivo .env creado automáticamente en: {dotenv_path}")
+
 load_dotenv(dotenv_path)
-print(f"ðŸ“‚ .env cargado desde: {dotenv_path}")
 
 
 # Suprimir warnings molestos
@@ -24,16 +67,33 @@ warnings.filterwarnings('ignore', category=UserWarning, module='drf_yasg')
 warnings.filterwarnings('ignore', category=UserWarning, module='torchvision')
 warnings.filterwarnings('ignore', category=UserWarning, module='torch')
 
+# Optimizar pkg_resources para evitar escaneo excesivo
+# Esto reduce significativamente el uso de memoria con volmenes montados
+import pkg_resources
+import os
+
+# Limitar el escaneo de pkg_resources
+pkg_resources_cache_dir = os.environ.get('PKG_RESOURCES_CACHE_DIR', '/tmp/pkg_resources_cache')
+os.makedirs(pkg_resources_cache_dir, exist_ok=True)
+
+# Configurar PYTHONPATH para evitar escaneo innecesario
+if 'PYTHONPATH' not in os.environ:
+    os.environ['PYTHONPATH'] = str(BASE_DIR)
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-here')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me')
 
-# SECURITY WARNING: don't run with someone turned on in production!
-DEBUG = True
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '192.168.1.9', '*']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -76,6 +136,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -83,8 +144,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.error_handler.StandardErrorMiddleware',  # Middleware de errores
-    'api.middleware.TokenCleanupMiddleware',  # Limpieza automÃ¡tica de tokens
-    'api.realtime_middleware.RealtimeAuditMiddleware',  # AuditorÃ­a en tiempo real
+    'api.middleware.TokenCleanupMiddleware',  # Limpieza automática de tokens
+    'api.realtime_middleware.RealtimeAuditMiddleware',  # Auditoría en tiempo real
     'api.realtime_middleware.RealtimeLoginMiddleware',  # Registro de logins
 ]
 
@@ -113,8 +174,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'cacaoscan_db'),
-        'USER': os.environ.get('DB_USER', 'jeferson'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'J3Fers0n272003@'),
+        'USER': os.environ.get('DB_USER', 'cacaoscan'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
@@ -144,11 +205,12 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = Path(os.environ.get('DJANGO_STATIC_ROOT', BASE_DIR / 'staticfiles'))
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media'))
 
 # AWS S3 Configuration
 USE_S3 = os.environ.get('USE_S3', 'False').lower() == 'true'
@@ -165,16 +227,16 @@ if USE_S3:
         'CacheControl': 'max-age=86400',
     }
     
-    # S3 static files configuration (opcional, solo si quieres servir estáticos desde S3)
+    # S3 static files configuration (opcional, solo si quieres servir estticos desde S3)
     # STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     
     # S3 media files configuration
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 else:
-    # Configuración local para desarrollo
+    # Configuración local para desarrollo / entornos sin S3
     MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
+    MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media'))
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -198,14 +260,14 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",  # Alternativo para otros dev servers
-    "http://127.0.0.1:3000",
-]
+# Para desarrollo: permitir todas las conexiones desde cualquier IP
+cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_origins:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+else:
+    CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# ConfiguraciÃ³n adicional de CORS para desarrollo
+# Configuración adicional de CORS para desarrollo
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_HEADERS = [
     'accept',
@@ -269,7 +331,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'logs/django.log',
+            'filename': str(BASE_DIR / 'logs' / 'django.log'),
             'formatter': 'verbose',
         },
         'console': {
@@ -325,24 +387,24 @@ LOGGING = {
     },
 }
 
-# ConfiguraciÃ³n de Email con fallback TLS/SSL
+# Configuración de Email con fallback TLS/SSL
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
 # Credenciales Gmail con App Password
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ch4130949@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'scdtfcpicnqjmiyo')  # Nueva App Password sin espacios
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '30'))
-# ConfiguraciÃ³n de fallback para SSL
+# Configuración de fallback para SSL
 EMAIL_USE_SSL_FALLBACK = os.environ.get('EMAIL_USE_SSL_FALLBACK', 'True').lower() == 'true'
 
-# ConfiguraciÃ³n de SendGrid (alternativa)
+# Configuración de SendGrid (alternativa)
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
 SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@cacaoscan.com')
 
-# ConfiguraciÃ³n de emails del sistema
+# Configuración de emails del sistema
 # Usar el mismo email que el usuario autenticado en SMTP para evitar bloqueos de Gmail
 # Gmail requiere que el remitente coincida con EMAIL_HOST_USER para entregar a otros correos
 DEFAULT_FROM_EMAIL = os.environ.get(
@@ -357,15 +419,15 @@ ADMINS = [
 ]
 MANAGERS = ADMINS
 
-# ConfiguraciÃ³n de templates de email
+# Configuración de templates de email
 EMAIL_TEMPLATES_DIR = BASE_DIR / 'api' / 'templates' / 'emails'
 
-# ConfiguraciÃ³n de notificaciones por email
+# Configuración de notificaciones por email
 EMAIL_NOTIFICATIONS_ENABLED = os.environ.get('EMAIL_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
 EMAIL_NOTIFICATION_TYPES = [
     'welcome',           # Email de bienvenida
-    'password_reset',    # Restablecimiento de contraseÃ±a
-    'analysis_complete', # AnÃ¡lisis completado
+    'password_reset',    # Restablecimiento de contraseña
+    'analysis_complete', # Análisis completado
     'report_ready',      # Reporte listo
     'training_complete', # Entrenamiento completado
     'defect_alert',      # Alerta de defectos
@@ -373,27 +435,27 @@ EMAIL_NOTIFICATION_TYPES = [
     'weekly_summary',    # Resumen semanal
 ]
 
-# ConfiguraciÃ³n de cola de emails (para producciÃ³n)
+# Configuración de cola de emails (para producción)
 EMAIL_QUEUE_ENABLED = os.environ.get('EMAIL_QUEUE_ENABLED', 'False').lower() == 'true'
 EMAIL_BATCH_SIZE = int(os.environ.get('EMAIL_BATCH_SIZE', '50'))
 EMAIL_RETRY_ATTEMPTS = int(os.environ.get('EMAIL_RETRY_ATTEMPTS', '3'))
 
-# ConfiguraciÃ³n de JWT
+# Configuración de JWT
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Token de acceso vÃ¡lido por 1 hora
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Token de refresh vÃ¡lido por 7 dÃ­as
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Token de acceso válido por 1 hora
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Token de refresh válido por 7 días
     'ROTATE_REFRESH_TOKENS': True,                   # Rotar tokens de refresh
     'BLACKLIST_AFTER_ROTATION': True,                # Blacklistear tokens antiguos
-    'UPDATE_LAST_LOGIN': True,                       # Actualizar Ãºltimo login
+    'UPDATE_LAST_LOGIN': True,                       # Actualizar último login
     
     'ALGORITHM': 'HS256',                            # Algoritmo de firma
     'SIGNING_KEY': SECRET_KEY,                       # Clave de firma
-    'VERIFYING_KEY': None,                           # Clave de verificaciÃ³n
+    'VERIFYING_KEY': None,                           # Clave de verificación
     'AUDIENCE': None,                                # Audiencia
     'ISSUER': None,                                  # Emisor
     
-    'AUTH_HEADER_TYPES': ('Bearer',),               # Tipo de header de autorizaciÃ³n
+    'AUTH_HEADER_TYPES': ('Bearer',),               # Tipo de header de autorización
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',        # Nombre del header
     'USER_ID_FIELD': 'id',                           # Campo de ID de usuario
     'USER_ID_CLAIM': 'user_id',                     # Claim de ID de usuario
@@ -410,12 +472,12 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-# ConfiguraciÃ³n de Django Channels
+# Configuración de Django Channels
 ASGI_APPLICATION = 'cacaoscan.asgi.application'
 
-# ConfiguraciÃ³n de Channels
+# Configuración de Channels
 # Para desarrollo sin Redis, usa InMemoryChannelLayer
-# Para producciÃ³n, usa Redis: 'channels_redis.core.RedisChannelLayer'
+# Para producción, usa Redis: 'channels_redis.core.RedisChannelLayer'
 USE_REDIS = os.environ.get('USE_REDIS', 'False').lower() == 'true'
 
 if USE_REDIS:
@@ -437,14 +499,30 @@ else:
         },
     }
 
-# ConfiguraciÃ³n de WebSockets
+# Configuración de WebSockets
 WEBSOCKET_URL = os.environ.get('WEBSOCKET_URL', 'ws://localhost:8000/ws/')
 WEBSOCKET_HEARTBEAT_INTERVAL = int(os.environ.get('WEBSOCKET_HEARTBEAT_INTERVAL', '30'))
 WEBSOCKET_MAX_CONNECTIONS = int(os.environ.get('WEBSOCKET_MAX_CONNECTIONS', '1000'))
 
-# ConfiguraciÃ³n de notificaciones en tiempo real
+# Configuración de notificaciones en tiempo real
 REALTIME_NOTIFICATIONS_ENABLED = os.environ.get('REALTIME_NOTIFICATIONS_ENABLED', 'True').lower() == 'true'
 NOTIFICATION_BROADCAST_ENABLED = os.environ.get('NOTIFICATION_BROADCAST_ENABLED', 'True').lower() == 'true'
 NOTIFICATION_PERSISTENCE_ENABLED = os.environ.get('NOTIFICATION_PERSISTENCE_ENABLED', 'True').lower() == 'true'
 
-
+# Configuracin de Celery
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1
+# Configuracin para evitar warnings de deprecacin en Celery 6.0+
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 10

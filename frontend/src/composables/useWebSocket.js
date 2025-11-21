@@ -490,18 +490,45 @@ export function useWebSocket() {
   
   // Lifecycle
   onMounted(() => {
-    // Configurar heartbeat
-    const heartbeatInterval = setInterval(() => {
-      if (hasAnyConnection.value) {
-        ping()
-      }
-    }, wsConfig.heartbeatInterval)
+    // Solo conectar WebSockets si están habilitados (evitar reconexiones infinitas)
+    const wsEnabled = import.meta.env.VITE_WS_ENABLED !== 'false'
     
-    // Limpiar al desmontar
-    onUnmounted(() => {
-      clearInterval(heartbeatInterval)
-      disconnect()
-    })
+    if (wsEnabled) {
+      // Configurar heartbeat solo si hay conexión
+      let heartbeatInterval = null
+      
+      const startHeartbeat = () => {
+        if (heartbeatInterval) return
+        
+        heartbeatInterval = setInterval(() => {
+          if (hasAnyConnection.value) {
+            try {
+              ping()
+            } catch (error) {
+              console.error('Error en heartbeat:', error)
+              if (heartbeatInterval) {
+                clearInterval(heartbeatInterval)
+                heartbeatInterval = null
+              }
+            }
+          }
+        }, wsConfig.heartbeatInterval)
+      }
+      
+      // Iniciar heartbeat después de un delay
+      setTimeout(() => {
+        startHeartbeat()
+      }, 2000)
+      
+      // Limpiar al desmontar
+      onUnmounted(() => {
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval)
+          heartbeatInterval = null
+        }
+        disconnect()
+      })
+    }
   })
   
   // Watchers

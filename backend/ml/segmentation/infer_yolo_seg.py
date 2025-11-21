@@ -1,5 +1,5 @@
-﻿"""
-Inferencia con YOLOv8-seg para segmentaciÃ³n de granos de cacao.
+"""
+Inferencia con YOLOv8-seg para segmentación de granos de cacao.
 """
 import numpy as np
 import cv2
@@ -11,7 +11,7 @@ try:
     from ultralytics import YOLO
 except ImportError:
     YOLO = None
-    logging.warning("Ultralytics no estÃ¡ instalado. La funcionalidad de segmentaciÃ³n no estarÃ¡ disponible.")
+    logging.warning("Ultralytics no está instalado. La funcionalidad de segmentación no estará disponible.")
 
 from ..utils.paths import get_yolo_artifacts_dir, ensure_dir_exists
 from ..utils.logs import get_ml_logger
@@ -21,18 +21,18 @@ logger = get_ml_logger("cacaoscan.ml.segmentation")
 
 
 class YOLOSegmentationInference:
-    """Clase para inferencia de segmentaciÃ³n con YOLOv8-seg."""
+    """Clase para inferencia de segmentación con YOLOv8-seg."""
     
     def __init__(self, model_path: Optional[Path] = None, confidence_threshold: float = 0.5):
         """
-        Inicializa el modelo de segmentaciÃ³n.
+        Inicializa el modelo de segmentación.
         
         Args:
             model_path: Ruta al modelo personalizado. Si es None, usa el modelo base.
             confidence_threshold: Umbral de confianza para las predicciones
         """
         if YOLO is None:
-            raise ImportError("Ultralytics no estÃ¡ instalado. Instalar con: pip install ultralytics")
+            raise ImportError("Ultralytics no está instalado. Instalar con: pip install ultralytics")
         
         self.confidence_threshold = confidence_threshold
         self.model = None
@@ -49,9 +49,20 @@ class YOLOSegmentationInference:
             if model_path and model_path.exists():
                 logger.info(f"Cargando modelo personalizado desde {model_path}")
                 self.model = YOLO(str(model_path))
+                self.is_custom_model = True
             else:
-                logger.info("Cargando modelo base YOLOv8s-seg")
-                self.model = YOLO('yolov8s-seg.pt')
+                # Buscar modelo personalizado entrenado automáticamente
+                custom_model_path = self._find_custom_model()
+                if custom_model_path:
+                    logger.info(f"Cargando modelo personalizado entrenado desde {custom_model_path}")
+                    self.model = YOLO(str(custom_model_path))
+                    self.is_custom_model = True
+                else:
+                    logger.info("Cargando modelo base YOLOv8s-seg (no se encontró modelo personalizado)")
+                    logger.warning("El modelo base está entrenado en COCO y puede clasificar incorrectamente los granos de cacao")
+                    logger.warning("Se recomienda entrenar un modelo personalizado para mejor precisión")
+                    self.model = YOLO('yolov8s-seg.pt')
+                    self.is_custom_model = False
             
             logger.info("Modelo YOLOv8-seg cargado exitosamente")
             
@@ -59,38 +70,81 @@ class YOLOSegmentationInference:
             logger.error(f"Error al cargar el modelo YOLO: {e}")
             raise
     
-    def predict(self, image_path: Path) -> List[Dict[str, Any]]:
+    def _find_custom_model(self) -> Optional[Path]:
         """
-        Realiza predicciÃ³n de segmentaciÃ³n en una imagen.
+        Busca automáticamente un modelo personalizado entrenado.
+        
+        Returns:
+            Ruta al modelo personalizado si existe, None en caso contrario
+        """
+        artifacts_dir = get_yolo_artifacts_dir()
+        models_dir = artifacts_dir / "models"
+        
+        if not models_dir.exists():
+            return None
+        
+        # Buscar el mejor modelo en subdirectorios de entrenamiento
+        # Los modelos se guardan en: models/cacao_seg_YYYYMMDD_HHMMSS/weights/best.pt
+        best_models = []
+        for train_dir in models_dir.iterdir():
+            if train_dir.is_dir():
+                weights_dir = train_dir / "weights"
+                best_model = weights_dir / "best.pt"
+                if best_model.exists():
+                    # Obtener timestamp del directorio para ordenar
+                    try:
+                        timestamp = train_dir.name.split("_")[-2:]  # Obtener fecha y hora
+                        timestamp_str = "_".join(timestamp)
+                        best_models.append((timestamp_str, best_model))
+                    except:
+                        best_models.append((train_dir.name, best_model))
+        
+        if best_models:
+            # Ordenar por timestamp (más reciente primero)
+            best_models.sort(reverse=True)
+            return best_models[0][1]
+        
+        return None
+    
+    def predict(self, image_path: Path, conf_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+        """
+        Realiza predicción de segmentación en una imagen.
         
         Args:
             image_path: Ruta a la imagen
+            conf_threshold: Umbral de confianza (usa self.confidence_threshold si es None)
             
         Returns:
-            Lista de predicciones con informaciÃ³n de detecciÃ³n y segmentaciÃ³n
+            Lista de predicciones con información de detección y segmentación
         """
+        # Asegurar que trabajamos siempre con Path
+        if not isinstance(image_path, Path):
+            image_path = Path(image_path)
         if not image_path.exists():
             raise FileNotFoundError(f"Imagen no encontrada: {image_path}")
         
         try:
-            # Realizar predicciÃ³n
-            results = self.model(str(image_path), conf=self.confidence_threshold)
+            # Usar threshold proporcionado o el predeterminado
+            threshold = conf_threshold if conf_threshold is not None else self.confidence_threshold
+            
+            # Realizar prediccin con umbral inicial
+            results = self.model(str(image_path), conf=threshold)
             
             predictions = []
             
             for result in results:
                 if result.masks is not None and len(result.masks) > 0:
-                    # Obtener informaciÃ³n de las detecciones
+                    # Obtener información de las detecciones
                     boxes = result.boxes
                     masks = result.masks
                     
                     for i in range(len(boxes)):
-                        # InformaciÃ³n de la caja delimitadora
+                        # Información de la caja delimitadora
                         box = boxes[i]
                         conf = float(box.conf[0])
                         cls = int(box.cls[0])
                         
-                        # InformaciÃ³n de la mÃ¡scara
+                        # Información de la máscara
                         mask = masks[i]
                         mask_data = mask.data[0].cpu().numpy()
                         
@@ -106,6 +160,78 @@ class YOLOSegmentationInference:
                         
                         predictions.append(prediction)
             
+            # Si no hay detecciones con el umbral inicial, intentar con umbrales ms bajos progresivamente
+            if not predictions:
+                lower_thresholds = [0.4, 0.3, 0.25, 0.2, 0.15, 0.1]  # Ms intentos con umbrales progresivamente ms bajos
+                for lower_threshold in lower_thresholds:
+                    logger.debug(f"Intentando deteccin con umbral {lower_threshold}...")
+                    results = self.model(str(image_path), conf=lower_threshold)
+                    
+                    for result in results:
+                        if result.masks is not None and len(result.masks) > 0:
+                            boxes = result.boxes
+                            masks = result.masks
+                            
+                            # Filtrar solo las detecciones ms confiables de cada intento
+                            for i in range(len(boxes)):
+                                box = boxes[i]
+                                conf = float(box.conf[0])
+                                
+                                # Solo aceptar si la confianza es razonable
+                                if conf >= lower_threshold * 0.8:  # Al menos 80% del umbral usado
+                                    mask = masks[i]
+                                    mask_data = mask.data[0].cpu().numpy()
+                                    
+                                    prediction = {
+                                        'confidence': conf,
+                                        'class_id': int(box.cls[0]),
+                                        'class_name': self.model.names[int(box.cls[0])],
+                                        'bbox': box.xyxy[0].cpu().numpy().tolist(),
+                                        'mask': mask_data,
+                                        'area': np.sum(mask_data > 0.5),
+                                        'center': self._calculate_mask_center(mask_data)
+                                    }
+                                    
+                                    predictions.append(prediction)
+                            
+                            # Si encontramos detecciones, detener bsqueda
+                            if predictions:
+                                break
+                    
+                    if predictions:
+                        break
+            
+            # Si an no hay detecciones, usar el ltimo intento con umbral muy bajo
+            if not predictions and threshold > 0.25:
+                logger.debug(f"No se encontraron detecciones con conf={threshold:.2f}, intentando con umbral ms bajo...")
+                # Intentar con umbrales progresivamente ms bajos
+                for lower_threshold in [0.4, 0.3, 0.25]:
+                    results = self.model(str(image_path), conf=lower_threshold)
+                    for result in results:
+                        if result.masks is not None and len(result.masks) > 0:
+                            boxes = result.boxes
+                            masks = result.masks
+                            for i in range(len(boxes)):
+                                box = boxes[i]
+                                conf = float(box.conf[0])
+                                if conf >= 0.25:  # Aceptar si confianza >= 0.25
+                                    cls = int(box.cls[0])
+                                    mask = masks[i]
+                                    mask_data = mask.data[0].cpu().numpy()
+                                    prediction = {
+                                        'confidence': conf,
+                                        'class_id': cls,
+                                        'class_name': self.model.names[cls],
+                                        'bbox': box.xyxy[0].cpu().numpy().tolist(),
+                                        'mask': mask_data,
+                                        'area': np.sum(mask_data > 0.5),
+                                        'center': self._calculate_mask_center(mask_data)
+                                    }
+                                    predictions.append(prediction)
+                    if predictions:
+                        logger.debug(f"Encontradas {len(predictions)} detecciones con conf={lower_threshold:.2f}")
+                        break
+            
             # Ordenar por confianza descendente
             predictions.sort(key=lambda x: x['confidence'], reverse=True)
             
@@ -114,33 +240,72 @@ class YOLOSegmentationInference:
             return predictions
             
         except Exception as e:
-            logger.error(f"Error en la predicciÃ³n para {image_path}: {e}")
+            logger.error(f"Error en la predicción para {image_path}: {e}")
             return []
     
     def _calculate_mask_center(self, mask: np.ndarray) -> Tuple[int, int]:
-        """Calcula el centro de masa de una mÃ¡scara."""
+        """Calcula el centro de masa de una máscara."""
         moments = cv2.moments(mask.astype(np.uint8))
         if moments['m00'] != 0:
             cx = int(moments['m10'] / moments['m00'])
             cy = int(moments['m01'] / moments['m00'])
             return (cx, cy)
         else:
-            # Fallback: centro geomÃ©trico
+            # Fallback: centro geométrico
             h, w = mask.shape
             return (w // 2, h // 2)
     
     def get_best_prediction(self, image_path: Path) -> Optional[Dict[str, Any]]:
         """
-        Obtiene la mejor predicciÃ³n (mayor confianza) para una imagen.
+        Obtiene la mejor predicción (mayor confianza) para una imagen.
         
         Args:
             image_path: Ruta a la imagen
             
         Returns:
-            Mejor predicciÃ³n o None si no hay detecciones
+            Mejor predicción o None si no hay detecciones
         """
+        # Asegurar siempre un Path para logging y acceso a disco
+        if not isinstance(image_path, Path):
+            image_path = Path(image_path)
+
         predictions = self.predict(image_path)
-        return predictions[0] if predictions else None
+        if not predictions:
+            return None
+        
+        # Si es modelo personalizado, usar la primera (ya ordenada por confianza)
+        if hasattr(self, 'is_custom_model') and self.is_custom_model:
+            return predictions[0]
+        
+        # Para modelo base, ignorar la clase y seleccionar por mejor combinación de área y confianza
+        # Priorizar predicciones con mayor área y confianza razonable
+        best_pred = None
+        best_score = 0
+        
+        for pred in predictions:
+            # Score combinado: área * confianza
+            # Esto prioriza máscaras grandes con buena confianza
+            area = pred.get('area', 0)
+            confidence = pred.get('confidence', 0)
+            score = area * confidence
+            
+            if score > best_score:
+                best_score = score
+                best_pred = pred
+        
+        if best_pred:
+            # Log informativo sobre la clase detectada (pero no afecta la selección)
+            class_name = best_pred.get('class_name', 'unknown')
+            if class_name not in ['cacao_grain', 'cacao']:
+                logger.debug(
+                    "Modelo base detectó clase '%s' en %s. Usando máscara con área=%s y confianza=%.2f",
+                    class_name,
+                    image_path.name,
+                    best_pred.get('area', 0),
+                    best_pred.get('confidence', 0.0),
+                )
+        
+        return best_pred
     
     def filter_predictions_by_class(
         self,
@@ -148,7 +313,7 @@ class YOLOSegmentationInference:
         target_classes: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Filtra predicciones por clase especÃ­fica.
+        Filtra predicciones por clase específica.
         
         Args:
             predictions: Lista de predicciones
@@ -169,27 +334,27 @@ class YOLOSegmentationInference:
     
     def validate_prediction_quality(self, prediction: Dict[str, Any]) -> bool:
         """
-        Valida la calidad de una predicciÃ³n.
+        Valida la calidad de una predicción.
         
         Args:
-            prediction: PredicciÃ³n a validar
+            prediction: Predicción a validar
             
         Returns:
-            True si la predicciÃ³n es de buena calidad
+            True si la predicción es de buena calidad
         """
         if not prediction:
             return False
         
-        # Verificar confianza mÃ­nima
+        # Verificar confianza mínima
         if prediction['confidence'] < self.confidence_threshold:
             return False
         
-        # Verificar Ã¡rea mÃ­nima de la mÃ¡scara
-        min_area = 100  # pÃ­xeles
+        # Verificar área mínima de la máscara
+        min_area = 100  # píxeles
         if prediction['area'] < min_area:
             return False
         
-        # Verificar que la mÃ¡scara no estÃ© vacÃ­a
+        # Verificar que la máscara no esté vacía
         mask = prediction['mask']
         if np.sum(mask > 0.5) == 0:
             return False
@@ -203,16 +368,16 @@ class YOLOSegmentationInference:
         output_dir: Path
     ) -> None:
         """
-        Guarda informaciÃ³n de debug de una predicciÃ³n.
+        Guarda información de debug de una predicción.
         
         Args:
             image_path: Ruta a la imagen original
-            prediction: PredicciÃ³n a guardar
+            prediction: Predicción a guardar
             output_dir: Directorio de salida
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Guardar mÃ¡scara
+        # Guardar máscara
         mask = prediction['mask']
         mask_normalized = (mask * 255).astype(np.uint8)
         mask_path = output_dir / f"{image_path.stem}_mask.png"
@@ -224,7 +389,7 @@ class YOLOSegmentationInference:
         x1, y1, x2, y2 = map(int, bbox)
         cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
         
-        # AÃ±adir texto con confianza
+        # Añadir texto con confianza
         conf_text = f"Conf: {prediction['confidence']:.3f}"
         cv2.putText(image, conf_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         
@@ -239,7 +404,7 @@ def create_yolo_inference(
     confidence_threshold: float = 0.5
 ) -> YOLOSegmentationInference:
     """
-    FunciÃ³n de conveniencia para crear una instancia de inferencia YOLO.
+    Función de conveniencia para crear una instancia de inferencia YOLO.
     
     Args:
         model_path: Ruta al modelo personalizado

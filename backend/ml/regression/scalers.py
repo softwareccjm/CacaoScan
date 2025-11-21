@@ -1,5 +1,5 @@
-﻿"""
-Manejo de escaladores para normalizaciÃ³n de targets de regresiÃ³n.
+"""
+Manejo de escaladores para normalización de targets de regresión.
 """
 import joblib
 import numpy as np
@@ -18,7 +18,14 @@ logger = get_ml_logger("cacaoscan.ml.regression")
 
 
 class CacaoScalers:
-    """Manejador de escaladores para targets de regresiÃ³n."""
+    """
+    Manejador de escaladores para targets de regresión con log-transform selectivo.
+    
+    Aplica log1p SOLO a grosor y peso.
+    """
+    
+    # Targets que requieren log-transform
+    LOG_TARGETS = {"grosor", "peso"}
     
     def __init__(self, scaler_type: str = "standard"):
         """
@@ -33,9 +40,11 @@ class CacaoScalers:
         
         # Asegurar que el directorio de artefactos existe
         ensure_dir_exists(get_regressors_artifacts_dir())
+        
+        logger.info(f"CacaoScalers initialized with LOG_TARGETS: {self.LOG_TARGETS}")
     
     def _create_scaler(self) -> StandardScaler:
-        """Crea un escalador segÃºn el tipo especificado."""
+        """Crea un escalador según el tipo especificado."""
         if self.scaler_type == "standard":
             return StandardScaler()
         elif self.scaler_type == "minmax":
@@ -65,15 +74,40 @@ class CacaoScalers:
                 else:
                     raise ValueError(f"Columna '{target}' no encontrada en DataFrame")
         else:
-            target_data = data
+            # Si es diccionario, asegurar que los arrays sean 2D para los scalers
+            target_data = {}
+            for target in TARGETS:
+                if target not in data:
+                    raise ValueError(f"Target '{target}' no encontrado en datos")
+                
+                target_array = data[target]
+                # Asegurar que sea array numpy
+                if not isinstance(target_array, np.ndarray):
+                    target_array = np.array(target_array)
+                
+                # Reshape a 2D si es 1D
+                if target_array.ndim == 1:
+                    target_data[target] = target_array.reshape(-1, 1)
+                elif target_array.ndim == 2:
+                    target_data[target] = target_array
+                else:
+                    raise ValueError(f"Array de target '{target}' tiene dimensión inválida: {target_array.ndim}")
         
         # Crear y ajustar escalador para cada target
         for target in TARGETS:
             if target not in target_data:
                 raise ValueError(f"Target '{target}' no encontrado en datos")
             
+            # Aplicar log1p SOLO a grosor y peso ANTES de normalizar
+            target_array = target_data[target].copy()
+            if target in self.LOG_TARGETS:
+                target_array = np.log1p(target_array)
+                logger.info(f"Applied log1p transform to {target} before scaling")
+            else:
+                logger.debug(f"No log transform for {target}")
+            
             scaler = self._create_scaler()
-            scaler.fit(target_data[target])
+            scaler.fit(target_array)
             self.scalers[target] = scaler
             
             logger.debug(f"Escalador ajustado para {target}: mean={scaler.mean_[0]:.3f}, std={scaler.scale_[0]:.3f}")
@@ -103,14 +137,36 @@ class CacaoScalers:
                 else:
                     raise ValueError(f"Columna '{target}' no encontrada en DataFrame")
         else:
-            target_data = data
+            # Si es diccionario, asegurar que los arrays sean 2D para los scalers
+            target_data = {}
+            for target in TARGETS:
+                if target not in data:
+                    raise ValueError(f"Target '{target}' no encontrado en datos")
+                
+                target_array = data[target]
+                # Asegurar que sea array numpy
+                if not isinstance(target_array, np.ndarray):
+                    target_array = np.array(target_array)
+                
+                # Reshape a 2D si es 1D
+                if target_array.ndim == 1:
+                    target_data[target] = target_array.reshape(-1, 1)
+                elif target_array.ndim == 2:
+                    target_data[target] = target_array
+                else:
+                    raise ValueError(f"Array de target '{target}' tiene dimensión inválida: {target_array.ndim}")
         
         transformed_data = {}
         for target in TARGETS:
             if target not in target_data:
                 raise ValueError(f"Target '{target}' no encontrado en datos")
             
-            transformed = self.scalers[target].transform(target_data[target])
+            # Aplicar log1p SOLO a grosor y peso ANTES de transformar
+            target_array = target_data[target].copy()
+            if target in self.LOG_TARGETS:
+                target_array = np.log1p(target_array)
+            
+            transformed = self.scalers[target].transform(target_array)
             transformed_data[target] = transformed.flatten()
             
         return transformed_data
@@ -136,13 +192,19 @@ class CacaoScalers:
             # Reshape para el escalador
             target_values = data[target].reshape(-1, 1)
             original = self.scalers[target].inverse_transform(target_values)
+            
+            # Aplicar expm1 SOLO a grosor y peso DESPUÉS de inverse_transform
+            if target in self.LOG_TARGETS:
+                original = np.expm1(original)
+                original = np.maximum(original, 0.0)  # Ensure non-negative
+            
             original_data[target] = original.flatten()
             
         return original_data
     
     def fit_transform(self, data: Union[pd.DataFrame, Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:
         """
-        Ajusta y transforma los datos en una sola operaciÃ³n.
+        Ajusta y transforma los datos en una sola operación.
         
         Args:
             data: Datos a ajustar y transformar
@@ -171,18 +233,18 @@ class CacaoScalers:
                 scaler_path = artifacts_dir / f"{file_prefix}{target}_scaler.pkl"
                 joblib.dump(self.scalers[target], scaler_path)
                 
-                # Verificar que el archivo se guardÃ³ correctamente
+                # Verificar que el archivo se guardó correctamente
                 if scaler_path.exists() and scaler_path.stat().st_size > 0:
-                    logger.debug(f"âœ… Escalador guardado para {target} en {scaler_path} ({scaler_path.stat().st_size} bytes)")
+                    logger.debug(f"[OK] Escalador guardado para {target} en {scaler_path} ({scaler_path.stat().st_size} bytes)")
                     saved_scalers.append(target)
                 else:
-                    logger.error(f"âŒ Error: Escalador no se guardÃ³ para {target}: {scaler_path}")
+                    logger.error(f"[ERROR] Error: Escalador no se guardó para {target}: {scaler_path}")
                     raise IOError(f"No se pudo guardar el escalador para {target}")
             
-            logger.info(f"âœ… Todos los escaladores guardados exitosamente en {artifacts_dir}: {saved_scalers}")
+            logger.info(f"[OK] Todos los escaladores guardados exitosamente en {artifacts_dir}: {saved_scalers}")
             
         except Exception as e:
-            logger.error(f"âŒ Error guardando escaladores: {e}")
+            logger.error(f"[ERROR] Error guardando escaladores: {e}")
             raise
     
     def load(self, file_prefix: str = "") -> None:
@@ -208,13 +270,13 @@ class CacaoScalers:
     
     def get_scaler_stats(self) -> Dict[str, Dict[str, float]]:
         """
-        Obtiene estadÃ­sticas de los escaladores ajustados.
+        Obtiene estadísticas de los escaladores ajustados.
         
         Returns:
-            Diccionario con estadÃ­sticas por target
+            Diccionario con estadísticas por target
         """
         if not self.is_fitted:
-            raise ValueError("Los escaladores deben ser ajustados antes de obtener estadÃ­sticas")
+            raise ValueError("Los escaladores deben ser ajustados antes de obtener estadísticas")
         
         stats = {}
         for target in TARGETS:
@@ -231,7 +293,7 @@ class CacaoScalers:
 
 def load_scalers(file_prefix: str = "") -> CacaoScalers:
     """
-    FunciÃ³n de conveniencia para cargar escaladores.
+    Función de conveniencia para cargar escaladores.
     
     Args:
         file_prefix: Prefijo para los nombres de archivo
@@ -249,7 +311,7 @@ def save_scalers(
     file_prefix: str = ""
 ) -> None:
     """
-    FunciÃ³n de conveniencia para guardar escaladores.
+    Función de conveniencia para guardar escaladores.
     
     Args:
         scalers: Instancia de CacaoScalers
@@ -263,7 +325,7 @@ def create_scalers_from_data(
     scaler_type: str = "standard"
 ) -> CacaoScalers:
     """
-    FunciÃ³n de conveniencia para crear y ajustar escaladores desde datos.
+    Función de conveniencia para crear y ajustar escaladores desde datos.
     
     Args:
         data: Datos de entrenamiento
@@ -279,13 +341,13 @@ def create_scalers_from_data(
 
 def validate_scalers(scalers: CacaoScalers) -> bool:
     """
-    Valida que todos los escaladores estÃ©n correctamente ajustados.
+    Valida que todos los escaladores estén correctamente ajustados.
     
     Args:
         scalers: Instancia de CacaoScalers a validar
         
     Returns:
-        True si todos los escaladores son vÃ¡lidos
+        True si todos los escaladores son válidos
     """
     if not scalers.is_fitted:
         return False
@@ -300,7 +362,5 @@ def validate_scalers(scalers: CacaoScalers) -> bool:
             logger.error(f"Escalador no ajustado para target: {target}")
             return False
     
-    logger.info("Todos los escaladores son vÃ¡lidos")
+    logger.info("Todos los escaladores son válidos")
     return True
-
-

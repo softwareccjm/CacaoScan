@@ -1,0 +1,156 @@
+x-common-env: &common-env
+  - .env
+
+x-backend-health: &backend-health
+  test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: cacaoscan_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - private
+
+  # Redis para (futuros) Channels
+  redis:
+    image: redis:7-alpine
+    container_name: cacaoscan-redis
+    restart: unless-stopped
+    env_file: *common-env
+    command:
+      - redis-server
+      - "--requirepass"
+      - "${REDIS_PASSWORD:-default_redis_password}"
+      - "--appendonly"
+      - "yes"
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-default_redis_password} ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - private
+
+  # Backend Django
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime-base
+    container_name: cacaoscan_backend
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-cacaoscan_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
+      USE_REDIS: ${USE_REDIS:-True}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+      PYTHONHASHSEED: random
+      PKG_RESOURCES_CACHE_DIR: /tmp/pkg_resources_cache
+    volumes:
+      # Montar el código para desarrollo (evita reconstruir la imagen)
+      - ./backend:/app
+      # Excluir directorios que no deben montarse desde el host
+      - /app/staticfiles
+      - /app/media
+      # Montar específicamente directorios de datos necesarios para ML
+      - ./backend/media/datasets:/app/media/datasets
+      - ./backend/media/cacao_images:/app/media/cacao_images
+      # Mantenemos el volumen con nombre para los estáticos
+      - backend_static:/app/staticfiles
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["gunicorn", "cacaoscan.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--reload"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    # Habilitar GPU para entrenamiento ML (opcional, solo si está disponible)
+    # Si no hay GPU, el contenedor funcionará normalmente usando CPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Alternativa: usar runtime nvidia si está disponible (más flexible)
+    # runtime: nvidia  # Descomentar si deploy no funciona
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck: *backend-health
+    networks:
+      - private
+      - public
+
+  # --- SERVICIOS DE CELERY ELIMINADOS ---
+
+  # Frontend Vue/Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://backend:8000/api/v1
+    container_name: cacaoscan_frontend
+    environment:
+      VITE_API_BASE_URL: http://backend:8000/api/v1
+    ports:
+      - "127.0.0.1:5173:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - public
+      - private
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_static:
+    driver: local
+  # --- 'backend_media' ya no es necesario aquí si usamos bind mount ---
+  # backend_media:
+  #   driver: local
+
+networks:
+  private:
+    driver: bridge
+    internal: true
+  public:
+    driver: bridge

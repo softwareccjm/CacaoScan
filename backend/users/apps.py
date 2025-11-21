@@ -6,6 +6,10 @@ class UsersConfig(AppConfig):
     name = 'users'
     
     def ready(self):
-        import users.signals
+        """Importar signals cuando la app esté lista."""
+        try:
+            import users.signals  # noqa: F401
+        except ImportError:
+            pass
 
 

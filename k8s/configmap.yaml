@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: app-namespace
+data:
+  DB_HOST: "db-service"
+  DB_PORT: "5432"
+  DEBUG: "False"
+  ALLOWED_HOSTS: "backend-service,app.cacaoscan.com"
+  USE_REDIS: "True"
+  FRONTEND_URL: "https://app.cacaoscan.com"
+  CORS_ALLOWED_ORIGINS: "https://app.cacaoscan.com"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: app-namespace
+data:
+  VITE_API_BASE_URL: "http://backend-service:8000/api/v1"
+

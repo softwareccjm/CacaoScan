@@ -9,12 +9,73 @@ import router from '@/router'
 // Configuración base de Axios
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
-  timeout: 30000, // 30 segundos
+  timeout: 15000, // 15 segundos (reducido para evitar bloqueos)
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 })
+
+// Contador de peticiones activas para evitar sobrecarga
+let activeRequests = 0
+const MAX_CONCURRENT_REQUESTS = 10  // Aumentado de 5 a 10 para permitir más peticiones simultáneas
+
+// Interceptor para limitar peticiones concurrentes (con timeout más corto)
+api.interceptors.request.use(
+  (config) => {
+    // Esperar si hay demasiadas peticiones activas (con timeout más corto)
+    if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+      return new Promise((resolve, reject) => {
+        let checkInterval = null
+        let timeoutId = null
+        let resolved = false
+        
+        const cleanup = () => {
+          if (checkInterval) clearInterval(checkInterval)
+          if (timeoutId) clearTimeout(timeoutId)
+        }
+        
+        checkInterval = setInterval(() => {
+          if (activeRequests < MAX_CONCURRENT_REQUESTS && !resolved) {
+            resolved = true
+            cleanup()
+            activeRequests++
+            resolve(config)
+          }
+        }, 50)  // Verificar cada 50ms (más frecuente)
+        
+        // Timeout de seguridad más corto (2 segundos en lugar de 5)
+        timeoutId = setTimeout(() => {
+          if (!resolved) {
+            resolved = true
+            cleanup()
+            activeRequests++
+            resolve(config)  // Permitir la petición aunque esté en límite
+          }
+        }, 2000)
+      })
+    }
+    
+    activeRequests++
+    return config
+  },
+  (error) => {
+    activeRequests = Math.max(0, activeRequests - 1)
+    return Promise.reject(error)
+  }
+)
+
+// Interceptor de respuesta para decrementar contador
+api.interceptors.response.use(
+  (response) => {
+    activeRequests = Math.max(0, activeRequests - 1)
+    return response
+  },
+  (error) => {
+    activeRequests = Math.max(0, activeRequests - 1)
+    return Promise.reject(error)
+  }
+)
 
 // Variables para manejar el refresh token concurrente
 let isRefreshing = false
@@ -39,7 +100,7 @@ const getAuthStore = () => {
   return useAuthStore()
 }
 
-// Interceptor de Request
+// Interceptor de Request (segundo - autenticación y logging)
 api.interceptors.request.use(
   (config) => {
     // Obtener token de localStorage
@@ -52,8 +113,8 @@ api.interceptors.request.use(
     // Agregar timestamp para debugging
     config.metadata = { startTime: new Date() }
 
-    // Log de request en desarrollo
-    if (import.meta.env.DEV) {
+    // Log de request en desarrollo (solo si no hay demasiadas peticiones)
+    if (import.meta.env.DEV && activeRequests < 10) {
       console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
         data: config.data,
         params: config.params
@@ -63,6 +124,7 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
+    activeRequests = Math.max(0, activeRequests - 1)
     console.error('❌ Request Error:', error)
     return Promise.reject(error)
   }
