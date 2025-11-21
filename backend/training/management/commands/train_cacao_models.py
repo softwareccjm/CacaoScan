@@ -105,6 +105,12 @@ class Command(BaseCommand):
             help='Tipo de scheduler: reduce_on_plateau, cosine, cosine_warmup (recomendado), o onecycle (default: cosine_warmup)'
         )
         parser.add_argument(
+            '--warmup-epochs',
+            type=int,
+            default=None,
+            help='Número de épocas de warmup para cosine_warmup scheduler (default: 5, o 10 si se usa --hybrid --use-pixel-features)'
+        )
+        parser.add_argument(
             '--max-grad-norm',
             type=float,
             default=1.0,
@@ -219,6 +225,10 @@ class Command(BaseCommand):
         use_hybrid = options.get('hybrid', False) or options.get('model_type') == 'hybrid'
         use_hybrid_v2 = options.get('hybrid_v2', False)
         train_separate_dimensions = options.get('train_separate_dimensions', False)
+        use_pixel_features = options.get('use_pixel_features', True)
+        
+        # Detectar si se está usando la configuración optimizada (--hybrid --use-pixel-features)
+        is_optimized_hybrid = use_hybrid and use_pixel_features and not use_hybrid_v2
         
         is_windows = platform.system() == 'Windows'
         num_workers = options['num_workers']
@@ -235,30 +245,64 @@ class Command(BaseCommand):
             )
             num_workers = 0
 
+        # Si se usa --hybrid --use-pixel-features, aplicar configuración optimizada automáticamente
+        if is_optimized_hybrid:
+            # Aplicar valores optimizados solo si el usuario no los especificó explícitamente
+            optimized_epochs = options['epochs'] if options['epochs'] != 50 else 100
+            optimized_lr = options['learning_rate'] if options['learning_rate'] != 1e-4 else 5e-5
+            optimized_patience = options['early_stopping_patience'] if options['early_stopping_patience'] != 15 else 25
+            optimized_dropout = options['dropout_rate'] if options['dropout_rate'] != 0.25 else 0.3
+            optimized_loss = options.get('loss_type', 'huber') if 'loss_type' in options else 'huber'
+            optimized_scheduler = options.get('scheduler_type', 'cosine_warmup') if 'scheduler_type' in options else 'cosine_warmup'
+            
+            # Mostrar mensaje informativo
+            if optimized_epochs == 100 or optimized_lr == 5e-5 or optimized_patience == 25:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        "✅ Configuración optimizada detectada (--hybrid --use-pixel-features)\n"
+                        "   Aplicando valores optimizados automáticamente:\n"
+                        f"   - Épocas: {optimized_epochs}\n"
+                        f"   - Learning Rate: {optimized_lr}\n"
+                        f"   - Early Stopping Patience: {optimized_patience}\n"
+                        f"   - Dropout: {optimized_dropout}\n"
+                        f"   - Loss: {optimized_loss}\n"
+                        f"   - Scheduler: {optimized_scheduler}"
+                    )
+                )
+        else:
+            # Valores normales si no es configuración optimizada
+            optimized_epochs = options['epochs']
+            optimized_lr = options['learning_rate']
+            optimized_patience = options['early_stopping_patience']
+            optimized_dropout = options['dropout_rate']
+            optimized_loss = options.get('loss_type', 'smooth_l1')
+            optimized_scheduler = options.get('scheduler_type', 'cosine_warmup')
+
         config = {
             'multi_head': options['multihead'] or use_hybrid or use_hybrid_v2,
             'model_type': 'hybrid' if (use_hybrid or use_hybrid_v2) else options['model_type'],
             'hybrid': use_hybrid,
             'hybrid_v2': use_hybrid_v2,
-            'use_pixel_features': options.get('use_pixel_features', True) and (use_hybrid or use_hybrid_v2 or train_separate_dimensions),
+            'use_pixel_features': use_pixel_features and (use_hybrid or use_hybrid_v2 or train_separate_dimensions),
             'train_separate_dimensions': train_separate_dimensions,  # Nuevo flag
-            'epochs': options['epochs'],
+            'epochs': optimized_epochs,
             'batch_size': options['batch_size'],
             'img_size': options['img_size'],
-            'learning_rate': options['learning_rate'],
+            'learning_rate': optimized_lr,
             'num_workers': num_workers,
-            'early_stopping_patience': options['early_stopping_patience'],
-            'dropout_rate': options['dropout_rate'],
+            'early_stopping_patience': optimized_patience,
+            'dropout_rate': optimized_dropout,
             'use_raw_images': options.get('use_raw_images', False),
             'segmentation_backend': options.get('segmentation_backend', 'auto'), # <-- AÑADIR
             'pretrained': True,
             'weight_decay': 1e-4,
             'min_lr': 1e-7,  # Reducido para mejor fine-tuning
-            'loss_type': options.get('loss_type', 'smooth_l1'),  # SmoothL1Loss por defecto (más robusta)
-            'scheduler_type': options.get('scheduler_type', 'cosine_warmup'),  # CosineWarmup por defecto para mejor exploración
+            'loss_type': optimized_loss,
+            'scheduler_type': optimized_scheduler,
             'max_grad_norm': options.get('max_grad_norm', 1.0),
             'use_mixed_precision': options.get('use_mixed_precision', False),
-            'targets': self._parse_targets(options['targets'])
+            'targets': self._parse_targets(options['targets']),
+            'warmup_epochs': options.get('warmup_epochs') if options.get('warmup_epochs') is not None else (10 if is_optimized_hybrid else 5)
         }
         
         if options['test_mode']:
