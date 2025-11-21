@@ -1,3 +1,5 @@
+version: "1"
+
 services:
   # --- Base de datos PostgreSQL ---
   - type: pserv
