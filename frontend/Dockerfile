@@ -33,13 +33,14 @@ ENV APP_VERSION=${APP_VERSION}
 
 USER root
 RUN apk add --no-cache curl
-USER 101
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY start-nginx.sh /start-nginx.sh
 
 RUN chmod +x /start-nginx.sh
+
+USER 101
 
 # Render inyecta PORT automáticamente
 ENV PORT=8080
