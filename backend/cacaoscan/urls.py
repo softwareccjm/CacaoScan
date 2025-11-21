@@ -54,6 +54,20 @@ def health_check(request):
     """Endpoint simple para health check."""
     return JsonResponse({'status': 'ok', 'service': 'cacaoscan-backend'}, status=200)
 
+def api_info(request):
+    """Endpoint de información del API para diagnóstico."""
+    from django.conf import settings
+    return JsonResponse({
+        'status': 'ok',
+        'service': 'cacaoscan-backend',
+        'cors_allowed_origins': getattr(settings, 'CORS_ALLOWED_ORIGINS', []),
+        'cors_allow_all': getattr(settings, 'CORS_ALLOW_ALL_ORIGINS', False),
+        'allowed_hosts': getattr(settings, 'ALLOWED_HOSTS', []),
+        'debug': getattr(settings, 'DEBUG', False),
+        'request_origin': request.META.get('HTTP_ORIGIN', 'No origin header'),
+        'request_host': request.META.get('HTTP_HOST', 'No host header'),
+    }, status=200)
+
 def root_view(request):
     """Vista informativa para la ruta raíz."""
     html_content = """
@@ -175,6 +189,7 @@ urlpatterns = [
     path('', root_view, name='root'),
     path('health/', health_check, name='health-check'),
     path('health', health_check, name='health-check-no-slash'),
+    path('api-info/', api_info, name='api-info'),
     path('admin/', admin.site.urls),
 ]
 

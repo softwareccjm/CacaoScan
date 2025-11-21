@@ -315,6 +315,22 @@ CORS_ALLOWED_HEADERS = [
     'x-requested-with',
 ]
 
+# CORS: Permitir métodos HTTP necesarios
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Logging de CORS para debugging (solo en desarrollo)
+if DEBUG:
+    import logging
+    cors_logger = logging.getLogger('corsheaders')
+    cors_logger.setLevel(logging.DEBUG)
+
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8MB

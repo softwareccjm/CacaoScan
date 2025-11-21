@@ -6,9 +6,28 @@
 import axios from 'axios'
 import router from '@/router'
 
+// Obtener API Base URL con prioridad:
+// 1. Runtime injection (window.__API_BASE_URL__) - para configuración dinámica
+// 2. Build-time variable (import.meta.env.VITE_API_BASE_URL) - para build estático
+// 3. Fallback localhost - para desarrollo local
+const getApiBaseUrl = () => {
+  // Prioridad 1: Runtime injection (mejor para producción, permite cambios sin rebuild)
+  if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
+    return window.__API_BASE_URL__
+  }
+  
+  // Prioridad 2: Build-time variable (Vite inyecta esto durante el build)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  
+  // Prioridad 3: Fallback para desarrollo local
+  return 'http://localhost:8000/api/v1'
+}
+
 // Configuración base de Axios
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  baseURL: getApiBaseUrl(),
   timeout: 15000, // 15 segundos (reducido para evitar bloqueos)
   headers: {
     'Content-Type': 'application/json',
