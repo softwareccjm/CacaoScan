@@ -15,16 +15,24 @@ CONFIG_SCRIPT="/usr/share/nginx/html/config.js"
 
 if [ -n "${API_URL}" ]; then
     # Escribir configuración en el archivo (ya existe con permisos correctos)
-    echo "window.__API_BASE_URL__ = '${API_URL}';" > "$CONFIG_SCRIPT" 2>/dev/null || {
-        # Si falla, intentar con printf (más compatible)
-        printf "window.__API_BASE_URL__ = '%s';\n" "${API_URL}" > "$CONFIG_SCRIPT" 2>/dev/null || {
-            echo "⚠️ No se pudo escribir config.js, usando build-time URL"
-        }
-    }
-    echo "✅ API Base URL configurada: ${API_URL}"
+    # Agregar logging para debug
+    cat > "$CONFIG_SCRIPT" << EOF
+// Runtime API configuration injected by start-nginx.sh
+window.__API_BASE_URL__ = '${API_URL}';
+console.log('✅ [Config] Runtime API URL injected:', window.__API_BASE_URL__);
+EOF
+    if [ $? -eq 0 ]; then
+        echo "✅ API Base URL configurada en runtime: ${API_URL}"
+    else
+        echo "⚠️ No se pudo escribir config.js, usando build-time URL"
+    fi
 else
     # Mantener contenido por defecto si no hay URL configurada
-    echo "// No runtime API URL configured, using build-time or default" > "$CONFIG_SCRIPT" 2>/dev/null || true
+    cat > "$CONFIG_SCRIPT" << EOF
+// No runtime API URL configured, using build-time or default
+console.warn('⚠️ [Config] No runtime API URL configured');
+EOF
+    echo "⚠️ No se encontró API_URL, usando build-time o default"
 fi
 
 # Iniciar nginx

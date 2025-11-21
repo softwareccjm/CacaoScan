@@ -7,15 +7,35 @@ import axios from 'axios'
 import router from '@/router'
 import { getApiBaseUrl } from '@/utils/apiConfig'
 
+// Obtener URL del API (se evalúa en tiempo de importación)
+const apiBaseUrl = getApiBaseUrl()
+
+// Log de configuración inicial
+console.log('🚀 [API Service] Initializing with baseURL:', apiBaseUrl)
+
 // Configuración base de Axios
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: apiBaseUrl,
   timeout: 15000, // 15 segundos (reducido para evitar bloqueos)
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 })
+
+// Interceptor para loggear todas las peticiones (solo en desarrollo o si hay problemas)
+api.interceptors.request.use(
+  (config) => {
+    if (import.meta.env.DEV || config.baseURL.includes('localhost')) {
+      console.log('📤 [API Request]', config.method?.toUpperCase(), config.baseURL + config.url)
+    }
+    return config
+  },
+  (error) => {
+    console.error('❌ [API Request Error]', error)
+    return Promise.reject(error)
+  }
+)
 
 // Contador de peticiones activas para evitar sobrecarga
 let activeRequests = 0
@@ -104,6 +124,14 @@ const getAuthStore = () => {
 // Interceptor de Request (segundo - autenticación y logging)
 api.interceptors.request.use(
   (config) => {
+    // Actualizar baseURL dinámicamente en cada petición (por si cambió en runtime)
+    const currentApiUrl = getApiBaseUrl()
+    if (api.defaults.baseURL !== currentApiUrl) {
+      console.log('🔄 [API] Updating baseURL from', api.defaults.baseURL, 'to', currentApiUrl)
+      api.defaults.baseURL = currentApiUrl
+      config.baseURL = currentApiUrl
+    }
+    
     // Obtener token de localStorage
     const token = localStorage.getItem('access_token')
     
@@ -116,7 +144,7 @@ api.interceptors.request.use(
 
     // Log de request en desarrollo (solo si no hay demasiadas peticiones)
     if (import.meta.env.DEV && activeRequests < 10) {
-      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
         data: config.data,
         params: config.params
       })

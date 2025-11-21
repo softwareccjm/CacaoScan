@@ -17,7 +17,8 @@
   <body>
     <div id="app"></div>
     <!-- Runtime configuration script (inyectado por start-nginx.sh si está disponible) -->
-    <script src="/config.js" defer></script>
+    <!-- IMPORTANTE: Sin defer para que se cargue ANTES de main.js -->
+    <script src="/config.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

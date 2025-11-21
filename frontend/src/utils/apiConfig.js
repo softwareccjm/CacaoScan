@@ -18,19 +18,21 @@
 export const getApiBaseUrl = () => {
   // Prioridad 1: Runtime injection (mejor para producción, permite cambios sin rebuild)
   if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
-    console.log('🌐 Using runtime API URL:', window.__API_BASE_URL__)
+    console.log('🌐 [API Config] Using runtime API URL:', window.__API_BASE_URL__)
     return window.__API_BASE_URL__
   }
   
   // Prioridad 2: Build-time variable (Vite inyecta esto durante el build)
   if (import.meta.env.VITE_API_BASE_URL) {
-    console.log('🔧 Using build-time API URL:', import.meta.env.VITE_API_BASE_URL)
+    console.log('🔧 [API Config] Using build-time API URL:', import.meta.env.VITE_API_BASE_URL)
     return import.meta.env.VITE_API_BASE_URL
   }
   
   // Prioridad 3: Fallback para desarrollo local
   const devUrl = 'http://localhost:8000/api/v1'
-  console.log('🏠 Using development API URL:', devUrl)
+  console.warn('⚠️ [API Config] Using development fallback URL:', devUrl)
+  console.warn('⚠️ [API Config] window.__API_BASE_URL__:', typeof window !== 'undefined' ? window.__API_BASE_URL__ : 'N/A')
+  console.warn('⚠️ [API Config] VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL || 'N/A')
   return devUrl
 }
 
