@@ -3,7 +3,7 @@
 
 services:
   # Base de datos PostgreSQL
-  - type: database # <--- CORRECCIÓN IMPORTANTE: el tipo es 'database'
+  - type: pserv # <--- CORREGIDO: Usar 'pserv' para PostgreSQL en Render Blueprints
     name: cacaoscan-db
     plan: starter
     databaseName: cacaoscan_db
@@ -20,7 +20,7 @@ services:
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
-        generateValue: true # Render generará una clave aleatoria y segura
+        generateValue: true
       # Referencias a la Base de Datos
       - key: DB_NAME
         fromDatabase:
