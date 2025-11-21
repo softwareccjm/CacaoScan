@@ -2,8 +2,9 @@
  * Servicio API para estadísticas del dashboard
  */
 import axios from 'axios'
+import { getApiBaseUrlWithoutPath } from '@/utils/apiConfig'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const API_BASE_URL = `${getApiBaseUrlWithoutPath()}/api`
 
 class DashboardStatsService {
   constructor() {

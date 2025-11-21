@@ -51,9 +51,28 @@ export function useWebSocket() {
   const auditSocket = ref(null)
   const userStatsSocket = ref(null)
   
+  // Convertir HTTP/HTTPS a WS/WSS usando configuración centralizada
+  const getWebSocketUrl = () => {
+    if (import.meta.env.VITE_WS_URL) {
+      return import.meta.env.VITE_WS_URL
+    }
+    // Usar runtime injection si está disponible
+    if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
+      const apiUrl = window.__API_BASE_URL__.replace(/\/api\/v1\/?$/, '')
+      return apiUrl.replace(/^https?/, 'ws') + '/ws'
+    }
+    // Usar build-time variable
+    if (import.meta.env.VITE_API_BASE_URL) {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '')
+      return apiUrl.replace(/^https?/, 'ws') + '/ws'
+    }
+    // Fallback para desarrollo
+    return 'ws://localhost:8000/ws'
+  }
+  
   // Configuración
   const wsConfig = {
-    baseUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws',
+    baseUrl: getWebSocketUrl(),
     heartbeatInterval: 30000, // 30 segundos
     reconnectDelay: 5000, // 5 segundos
     maxMessageHistory: 100
