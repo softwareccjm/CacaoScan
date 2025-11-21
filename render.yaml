@@ -1,6 +1,4 @@
 version: "1"
-previews:
-  generation: automatic
 
 databases:
   - name: cacaoscan-db
