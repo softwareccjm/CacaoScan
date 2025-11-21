@@ -68,6 +68,11 @@ from ml.regression.augmentation import (
     create_advanced_val_transform,
 )
 from ml.segmentation.cropper import create_cacao_cropper
+# Importar función de entrenamiento incremental
+try:
+    from ml.regression.incremental_train import run_incremental_training
+except ImportError:
+    run_incremental_training = None
 
 
 logger = get_ml_logger("cacaoscan.ml.pipeline")
@@ -129,7 +134,6 @@ class CacaoDataset(Dataset):
         self.image_paths = image_paths
         self.targets = targets
         self.transform = transform
-        self.pixel_features = pixel_features
         self.is_multi_head = is_multi_head
         self.is_hybrid = is_hybrid
         
@@ -853,7 +857,6 @@ class CacaoTrainingPipeline:
         logger.info("Creando split estratificado...")
         
         n_samples = len(image_paths)
-        indices = np.arange(n_samples)
         
         peso_values = targets['peso']
         n_quantiles = min(5, n_samples // 10)  # Ajustar número de cuantiles
@@ -904,7 +907,7 @@ class CacaoTrainingPipeline:
                         train_idx, test_size=val_size/(1-test_size), random_state=42, stratify=train_strata
                     )
                     
-            except (ValueError, Exception) as e:
+            except ValueError as e:
                 logger.warning(f"Error en estratificación: {e}. Usando split aleatorio.")
                 # Fallback a split aleatorio
                 train_idx, test_idx = train_test_split(
@@ -1145,6 +1148,11 @@ class CacaoTrainingPipeline:
                 shuffle=True, 
                 num_workers=num_workers_single,
                 pin_memory=pin_memory_single
+                train_dataset_single,
+                batch_size=self.config['batch_size'], 
+                shuffle=True, 
+                num_workers=num_workers_single,
+                pin_memory=pin_memory_single
             )
             val_loader_single = DataLoader(
                 val_dataset_single,
@@ -1153,13 +1161,6 @@ class CacaoTrainingPipeline:
                 num_workers=num_workers_single,
                 pin_memory=pin_memory_single
             )
-            
-            # Preparar información del dataset
-            dataset_info = {
-                'train_size': len(train_loader_single.dataset),
-                'val_size': len(val_loader_single.dataset),
-                'test_size': len(self.test_loader.dataset) if self.test_loader else 0
-            }
             
             # Entrenar modelo
             history = train_single_model(
@@ -1344,7 +1345,7 @@ class CacaoTrainingPipeline:
             
             # Crear evaluador con el loader especfico
             evaluator = RegressionEvaluator(
-                model=model, test_loader=test_loader_single,
+                model=model, test_loader=target_loader,
                 scalers=self.scalers, device=self.device
             )
             target_results = evaluator.evaluate_single_model(target, denormalize=True)
@@ -1356,13 +1357,16 @@ class CacaoTrainingPipeline:
         """Evalúa modelo multi-head."""
         logger.info("Evaluando modelo multi-head...")
         
-        model_name = "hybrid.pt" if self.is_hybrid else "multihead.pt"
+        MODEL_HYBRID = "hybrid.pt"
+        MODEL_MULTIHEAD = "multihead.pt"
+        
+        model_name = MODEL_HYBRID if self.is_hybrid else MODEL_MULTIHEAD
         model_path = get_regressors_artifacts_dir() / model_name
         
         if not model_path.exists():
-            if self.is_hybrid and (get_regressors_artifacts_dir() / "multihead.pt").exists():
-                model_path = get_regressors_artifacts_dir() / "multihead.pt"
-                logger.warning(f"Usando 'multihead.pt' para el modelo híbrido.")
+            if self.is_hybrid and (get_regressors_artifacts_dir() / MODEL_MULTIHEAD).exists():
+                model_path = get_regressors_artifacts_dir() / MODEL_MULTIHEAD
+                logger.warning("Usando 'multihead.pt' para el modelo híbrido.")
             else:
                  logger.warning(f"Modelo {model_name} no encontrado: {model_path}")
                  return {}
@@ -1459,7 +1463,9 @@ class CacaoTrainingPipeline:
             model_path = artifacts_dir / model_name
             if not model_path.exists():
                 missing_files.append(f"Modelo {model_name}: {model_path}")
+                missing_files.append(f"Modelo {model_name}: {model_path}")
             elif model_path.stat().st_size == 0:
+                missing_files.append(f"Modelo {model_name} está vacío: {model_path}")
                 missing_files.append(f"Modelo {model_name} está vacío: {model_path}")
         
         for target in TARGETS:
@@ -1552,6 +1558,8 @@ class CacaoTrainingPipeline:
         }
         
         # Ejecutar entrenamiento incremental
+        if run_incremental_training is None:
+            raise ImportError("ml.regression.incremental_train no está disponible")
         results = run_incremental_training(new_data, incremental_config, target)
         
         logger.info(f"Entrenamiento incremental completado para {target}")
@@ -1585,7 +1593,7 @@ class CacaoTrainingPipeline:
                 "status": "not_available"
             }
     
-    def run_pipeline(self, multi_head: bool = False) -> Dict[str, Union[Dict, List]]:
+    def run_pipeline(self) -> Dict[str, Union[Dict, List]]:
         """
         Ejecuta el pipeline completo.
         """
@@ -1643,6 +1651,9 @@ class CacaoTrainingPipeline:
             val_images_indices = [image_paths.index(img) for img in val_images]
             test_images_indices = [image_paths.index(img) for img in test_images]
             
+            self.train_targets_original = {t: targets_original[t][train_images_indices] for t in TARGETS}
+            self.val_targets_original = {t: targets_original[t][val_images_indices] for t in TARGETS}
+            self.test_targets_original = {t: targets_original[t][test_images_indices] for t in TARGETS}
             self.train_targets_original = {t: targets_original[t][train_images_indices] for t in TARGETS}
             self.val_targets_original = {t: targets_original[t][val_images_indices] for t in TARGETS}
             self.test_targets_original = {t: targets_original[t][test_images_indices] for t in TARGETS}
@@ -1938,7 +1949,6 @@ class CacaoTrainingPipeline:
         
         for i, record in enumerate(missing_records):
             try:
-                image_id = record['id']
                 image_path = Path(record['image_path'])
                 crop_path = Path(record['crop_image_path'])
                 
@@ -2016,7 +2026,6 @@ class CacaoTrainingPipeline:
         
         for i, record in enumerate(valid_records):
             try:
-                image_id = record['id']
                 image_path = Path(record['image_path'])
                 crop_path = Path(record['crop_image_path'])
                 
@@ -2054,17 +2063,14 @@ class CacaoTrainingPipeline:
         return crop_records
 
 
-def main():
-    """Función principal del script."""
+def _create_argument_parser() -> argparse.ArgumentParser:
+    """Crea y configura el parser de argumentos de línea de comandos."""
     parser = argparse.ArgumentParser(description='Pipeline de entrenamiento para modelos de cacao')
     
-    # Argumentos del modelo
     parser.add_argument('--multihead', type=str, default='false', choices=['true', 'false'],
                        help='Usar modelo multi-head (default: false)')
     parser.add_argument('--model-type', type=str, default='resnet18', choices=['resnet18', 'convnext_tiny'],
                        help='Tipo de modelo (default: resnet18)')
-    
-    # Argumentos de entrenamiento
     parser.add_argument('--epochs', type=int, default=50,
                        help='Número de épocas (default: 50)')
     parser.add_argument('--batch-size', type=int, default=32,
@@ -2129,6 +2135,19 @@ def main():
                 if target in eval_results:
                     metrics = eval_results[target]
                     print(f"{target.upper()}: MAE={metrics['mae']:.4f}, RMSE={metrics['rmse']:.4f}, R²={metrics['r2']:.4f}")
+
+def main():
+    """Función principal del script."""
+    parser = _create_argument_parser()
+    args = parser.parse_args()
+    config = _build_config_from_args(args)
+    
+    pipeline = CacaoTrainingPipeline(config)
+    results = pipeline.run_pipeline()
+    
+    print("Pipeline completado exitosamente!")
+    print(f"Tiempo total: {results['total_time']:.2f}s")
+    _print_evaluation_results(results, config)
 
 
 def run_training_pipeline(
@@ -2253,6 +2272,8 @@ def run_incremental_training_pipeline(
         }
         
         # Ejecutar entrenamiento incremental
+        if run_incremental_training is None:
+            raise ImportError("ml.regression.incremental_train no está disponible")
         results = run_incremental_training(new_data, config, target)
         
         logger.info("[OK] Entrenamiento incremental completado exitosamente!")

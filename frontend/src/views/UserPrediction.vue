@@ -515,14 +515,14 @@ export default {
     
     // Formatting functions
     const formatDimensions = (prediction) => {
-      const width = parseFloat(prediction.width).toFixed(1);
-      const height = parseFloat(prediction.height).toFixed(1);
-      const thickness = parseFloat(prediction.thickness).toFixed(1);
+      const width = Number.parseFloat(prediction.width).toFixed(1);
+      const height = Number.parseFloat(prediction.height).toFixed(1);
+      const thickness = Number.parseFloat(prediction.thickness).toFixed(1);
       return `${width} × ${height} × ${thickness} mm`;
     };
     
     const formatWeight = (weight) => {
-      return `${parseFloat(weight).toFixed(2)}g`;
+      return `${Number.parseFloat(weight).toFixed(2)}g`;
     };
     
     const formatRelativeTime = (dateString) => {
@@ -536,9 +536,9 @@ export default {
       const diffDays = Math.floor(diffMs / 86400000);
       
       if (diffMins < 1) return 'Hace un momento';
-      if (diffMins < 60) return `Hace ${diffMins} minuto${diffMins !== 1 ? 's' : ''}`;
-      if (diffHours < 24) return `Hace ${diffHours} hora${diffHours !== 1 ? 's' : ''}`;
-      if (diffDays < 7) return `Hace ${diffDays} día${diffDays !== 1 ? 's' : ''}`;
+      if (diffMins < 60) return `Hace ${diffMins} minuto${diffMins === 1 ? '' : 's'}`;
+      if (diffHours < 24) return `Hace ${diffHours} hora${diffHours === 1 ? '' : 's'}`;
+      if (diffDays < 7) return `Hace ${diffDays} día${diffDays === 1 ? '' : 's'}`;
       
       return date.toLocaleDateString('es-ES');
     };
@@ -633,10 +633,8 @@ export default {
       isYoloMethod,
       startNewAnalysis,
       loadLatestPrediction,
-      loadMoreHistory,
       
       // Utility functions
-      clearError,
       formatDimensions,
       formatWeight,
       formatRelativeTime,

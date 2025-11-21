@@ -15,11 +15,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libpq-dev \
+    libfreetype6-dev \
+    libgif-dev \
     libjpeg62-turbo-dev \
     libpng-dev \
-    libgif-dev \
-    libfreetype6-dev \
+    libpq-dev \
     libtiff5-dev \
     libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -48,22 +48,22 @@ ENV PYTHONUNBUFFERED=1 \
     APP_VERSION=${APP_VERSION}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    libjpeg62-turbo \
-    libpng16-16 \
-    libgif7 \
-    libfreetype6 \
-    libtiff6 \
-    libwebp7 \
+    curl \
     libfontconfig1 \
-    libxrender1 \
+    libfreetype6 \
+    libgif7 \
     libgl1 \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
     libgomp1 \
+    libjpeg62-turbo \
+    libpng16-16 \
+    libpq5 \
+    libsm6 \
+    libtiff6 \
+    libwebp7 \
+    libxext6 \
+    libxrender1 \
     netcat-openbsd \
-    curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system appgroup \
     && useradd --system --gid appgroup --create-home --shell /bin/bash appuser \
@@ -95,14 +95,5 @@ RUN sed -i 's/\r$//' /docker-entrypoint.sh && \
 
 EXPOSE 8000
 
-CMD ["gunicorn", "cacaoscan.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
+CMD ["gunicorn", "cacaoscan.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "300", "--graceful-timeout", "60"]
 
-# ========================================
-# Etapa 4: Celery (worker/beat)
-# ========================================
-FROM runtime-base AS celery
-
-ENV SERVICE_ROLE=worker \
-    C_FORCE_ROOT=0
-
-CMD ["celery", "-A", "cacaoscan", "worker", "--loglevel=info", "--concurrency=4"]

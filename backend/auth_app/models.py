@@ -137,8 +137,6 @@ class UserProfile(models.Model):
             # Usar auth_email_token como relación estándar
             if hasattr(self.user, 'auth_email_token'):
                 return self.user.auth_email_token.is_verified
-            elif hasattr(self.user, 'auth_email_token'):
-                return self.user.auth_email_token.is_verified
             return False
         except:
             return False
