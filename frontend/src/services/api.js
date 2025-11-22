@@ -131,12 +131,31 @@ const getAuthStore = () => {
 // Interceptor de Request (segundo - autenticación y logging)
 api.interceptors.request.use(
   (config) => {
-    // Actualizar baseURL dinámicamente en cada petición (por si cambió en runtime)
+    // SIEMPRE actualizar baseURL dinámicamente en cada petición
     const currentApiUrl = getApiBaseUrl()
-    if (api.defaults.baseURL !== currentApiUrl) {
-      console.log('🔄 [API] Updating baseURL from', api.defaults.baseURL, 'to', currentApiUrl)
-      api.defaults.baseURL = currentApiUrl
+    
+    // Forzar actualización de baseURL si no es una URL absoluta
+    if (!currentApiUrl.startsWith('http://') && !currentApiUrl.startsWith('https://')) {
+      console.error('❌ [API] baseURL no es absoluta, forzando actualización')
+      const fallbackUrl = 'https://cacaoscan-backend.onrender.com/api/v1'
+      console.warn('⚠️ [API] Usando fallback absoluto:', fallbackUrl)
+      api.defaults.baseURL = fallbackUrl
+      config.baseURL = fallbackUrl
+    } else {
+      // Actualizar si cambió
+      if (api.defaults.baseURL !== currentApiUrl) {
+        console.log('🔄 [API] Updating baseURL from', api.defaults.baseURL, 'to', currentApiUrl)
+        api.defaults.baseURL = currentApiUrl
+      }
+      // Asegurar que config.baseURL sea absoluta
       config.baseURL = currentApiUrl
+    }
+    
+    // Validación final: asegurar que config.baseURL sea absoluta
+    if (config.baseURL && !config.baseURL.startsWith('http://') && !config.baseURL.startsWith('https://')) {
+      console.error('❌ [API] CRITICAL: baseURL sigue siendo relativa:', config.baseURL)
+      console.error('❌ [API] Forzando URL absoluta del backend')
+      config.baseURL = 'https://cacaoscan-backend.onrender.com/api/v1'
     }
     
     // Obtener token de localStorage
@@ -149,13 +168,9 @@ api.interceptors.request.use(
     // Agregar timestamp para debugging
     config.metadata = { startTime: new Date() }
 
-    // Log de request en desarrollo (solo si no hay demasiadas peticiones)
-    if (import.meta.env.DEV && activeRequests < 10) {
-      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
-        data: config.data,
-        params: config.params
-      })
-    }
+    // Log de request (siempre para debug)
+    const fullUrl = config.baseURL ? `${config.baseURL}${config.url}` : config.url
+    console.log(`🚀 [API Request] ${config.method?.toUpperCase()} ${fullUrl}`)
 
     return config
   },

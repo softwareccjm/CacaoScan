@@ -16,29 +16,55 @@
  * @returns {string} URL base del API
  */
 export const getApiBaseUrl = () => {
+  // URL absoluta del backend en producción (fallback seguro)
+  const PRODUCTION_BACKEND_URL = 'https://cacaoscan-backend.onrender.com/api/v1'
+  
   // Prioridad 1: Runtime injection (mejor para producción, permite cambios sin rebuild)
   if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
-    const url = window.__API_BASE_URL__
-    console.log('🌐 [API Config] Using runtime API URL:', url)
-    // Validar que sea una URL absoluta
+    let url = window.__API_BASE_URL__
+    console.log('🌐 [API Config] Runtime API URL encontrada:', url)
+    
+    // Validar y corregir si es relativa
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      console.error('❌ [API Config] Runtime URL no es absoluta:', url)
+      console.error('❌ [API Config] Runtime URL es relativa, corrigiendo...')
+      // Si es relativa, construir URL absoluta
+      if (url.startsWith('/')) {
+        // Es una ruta absoluta relativa al dominio actual
+        url = `https://${window.location.hostname}${url}`
+        console.warn('⚠️ [API Config] Construida URL desde ruta relativa:', url)
+      } else {
+        // Usar fallback de producción
+        console.warn('⚠️ [API Config] Usando fallback de producción:', PRODUCTION_BACKEND_URL)
+        return PRODUCTION_BACKEND_URL
+      }
     }
+    
+    console.log('✅ [API Config] Using runtime API URL:', url)
     return url
   }
   
   // Prioridad 2: Build-time variable (Vite inyecta esto durante el build)
   if (import.meta.env.VITE_API_BASE_URL) {
-    const url = import.meta.env.VITE_API_BASE_URL
-    console.log('🔧 [API Config] Using build-time API URL:', url)
-    // Validar que sea una URL absoluta
+    let url = import.meta.env.VITE_API_BASE_URL
+    console.log('🔧 [API Config] Build-time API URL encontrada:', url)
+    
+    // Validar y corregir si es relativa
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      console.error('❌ [API Config] Build-time URL no es absoluta:', url)
+      console.error('❌ [API Config] Build-time URL es relativa, usando fallback')
+      return PRODUCTION_BACKEND_URL
     }
+    
+    console.log('✅ [API Config] Using build-time API URL:', url)
     return url
   }
   
-  // Prioridad 3: Fallback para desarrollo local
+  // Prioridad 3: Detectar si estamos en producción y usar URL absoluta
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    console.log('🌍 [API Config] Detectado entorno de producción, usando URL absoluta del backend')
+    return PRODUCTION_BACKEND_URL
+  }
+  
+  // Prioridad 4: Fallback para desarrollo local
   const devUrl = 'http://localhost:8000/api/v1'
   console.warn('⚠️ [API Config] Using development fallback URL:', devUrl)
   console.warn('⚠️ [API Config] window.__API_BASE_URL__:', typeof window !== 'undefined' ? window.__API_BASE_URL__ : 'N/A')
