@@ -1,8 +1,10 @@
 """
 Views module for CacaoScan API.
 Organized by domain for better maintainability.
+Re-exports views from modular apps for backward compatibility.
 """
-from .auth import (
+# Import views from modular apps
+from auth_app.views import (
     LoginView,
     RegisterView,
     LogoutView,
@@ -15,7 +17,8 @@ from .auth import (
     VerifyEmailPreRegistrationView,
     ForgotPasswordView,
     ResetPasswordView,
-    # User management views
+    SendOtpView,
+    VerifyOtpView,
     UserListView,
     UserUpdateView,
     UserDeleteView,
@@ -24,7 +27,7 @@ from .auth import (
     UserDetailView,
 )
 
-from .image import (
+from images_app.views import (
     ScanMeasureView,
     ImagesListView,
     ImageDetailView,
@@ -43,18 +46,33 @@ from .image import (
     BatchAnalysisView,
 )
 
-# User views moved to auth module
-# Training views moved to ml module
-# ML views moved to ml module
-
-# Import views from new modular structure
-from .finca import (
-    FincaListCreateView, FincaDetailView, FincaUpdateView,
-    FincaDeleteView, FincaActivateView, FincaStatsView,
-    LoteListCreateView, LoteDetailView, LoteUpdateView,
-    LoteDeleteView, LoteStatsView, LotesPorFincaView,
+from fincas_app.views import (
+    FincaListCreateView,
+    FincaDetailView,
+    FincaUpdateView,
+    FincaDeleteView,
+    FincaActivateView,
+    FincaStatsView,
+    LoteListCreateView,
+    LoteDetailView,
+    LoteUpdateView,
+    LoteDeleteView,
+    LoteStatsView,
+    LotesPorFincaView,
 )
-# OTP views already imported from .auth above
+
+from reports.views import (
+    ReporteListCreateView,
+    ReporteDetailView,
+    ReporteDownloadView,
+    ReporteDeleteView,
+    ReporteStatsView,
+    ReporteCleanupView,
+    ReporteAgricultoresView,
+    ReporteUsuariosView,
+)
+
+# Import views that remain in api/views
 from .notifications import (
     NotificationListCreateView, NotificationDetailView,
     NotificationMarkReadView, NotificationMarkAllReadView,
@@ -66,11 +84,6 @@ from .admin import (
     SystemSettingsView, SystemGeneralConfigView, SystemSecurityConfigView,
     SystemMLConfigView, SystemInfoView,
     TaskStatusView,
-)
-from .reports import (
-    ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
-    ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
-    ReporteAgricultoresView, ReporteUsuariosView,
 )
 from .ml import (
     CalibrationStatusView, CalibrationView, CalibratedScanMeasureView,

@@ -14,7 +14,7 @@ from django.db import transaction
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...serializers import SendOtpSerializer, VerifyOtpSerializer, ErrorResponseSerializer
+from api.serializers import SendOtpSerializer, VerifyOtpSerializer, ErrorResponseSerializer
 
 logger = logging.getLogger("cacaoscan.auth")
 

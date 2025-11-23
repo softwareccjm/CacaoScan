@@ -13,13 +13,13 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ....serializers import (
+from api.serializers import (
     ErrorResponseSerializer,
     CacaoImageSerializer,
     CacaoImageDetailSerializer
 )
-from ....utils.decorators import handle_api_errors
-from ....utils.model_imports import get_models_safely
+from api.utils.decorators import handle_api_errors
+from api.utils.model_imports import get_models_safely
 from ..mixins import ImagePermissionMixin
 
 # Import models safely

@@ -11,9 +11,9 @@ from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..mixins import PaginationMixin, AdminPermissionMixin
+from api.views.mixins import PaginationMixin, AdminPermissionMixin
 
-from ...utils.model_imports import get_models_safely
+from api.utils.model_imports import get_models_safely
 
 # Import models safely
 models = get_models_safely({
@@ -22,7 +22,7 @@ models = get_models_safely({
 })
 Lote = models['Lote']
 Finca = models['Finca']
-from ...serializers import (
+from api.serializers import (
     LoteSerializer,
     LoteListSerializer,
     LoteDetailSerializer,

@@ -13,10 +13,10 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...serializers import ErrorResponseSerializer
-from ...utils import create_error_response, create_success_response
-from ...services.email import send_email_notification
-from ...utils.model_imports import get_model_safely
+from api.serializers import ErrorResponseSerializer
+from api.utils import create_error_response, create_success_response
+from api.services.email import send_email_notification
+from api.utils.model_imports import get_model_safely
 
 User = get_user_model()
 EmailVerificationToken = get_model_safely('auth_app.models.EmailVerificationToken')
@@ -39,7 +39,7 @@ class ChangePasswordView(APIView):
         - new_password: Nueva contraseña (mínimo 8 caracteres, mayúscula, minúscula, número)
         - confirm_password: Confirmación de la nueva contraseña
         """
-        from ...serializers import ChangePasswordSerializer
+        from api.serializers import ChangePasswordSerializer
         
         serializer = ChangePasswordSerializer(data=request.data)
         
@@ -266,7 +266,7 @@ class ResetPasswordView(APIView):
 
         # Validate password using centralized validator
         try:
-            from ...utils.validators import validate_password_strength, validate_passwords_match
+            from api.utils.validators import validate_password_strength, validate_passwords_match
             validate_password_strength(new_password)
             validate_passwords_match(new_password, confirm_password)
         except serializers.ValidationError as e:

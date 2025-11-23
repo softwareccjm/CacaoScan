@@ -20,10 +20,10 @@ from django.db.models import Count  # Importar Count
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..mixins import PaginationMixin, AdminPermissionMixin
+from api.views.mixins import PaginationMixin, AdminPermissionMixin
 
 from reports.models import ReporteGenerado
-from ...utils.model_imports import get_models_safely
+from api.utils.model_imports import get_models_safely
 
 # Import models safely
 models = get_models_safely({
@@ -37,7 +37,7 @@ CacaoPrediction = models['CacaoPrediction']
 Finca = models['Finca']
 Lote = models['Lote']
 from reports.services import CacaoReportPDFGenerator, ExcelAgricultoresGenerator, ExcelUsuariosGenerator, ExcelAnalisisGenerator
-from ...serializers import ErrorResponseSerializer
+from api.serializers import ErrorResponseSerializer
 
 logger = logging.getLogger("cacaoscan.api")
 

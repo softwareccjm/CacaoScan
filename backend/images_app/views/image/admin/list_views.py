@@ -10,12 +10,12 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...mixins import PaginationMixin, AdminPermissionMixin
-from ....serializers import (
+from api.views.mixins import PaginationMixin, AdminPermissionMixin
+from api.serializers import (
     ErrorResponseSerializer,
     CacaoImageDetailSerializer
 )
-from ....utils.model_imports import get_models_safely
+from api.utils.model_imports import get_models_safely
 
 # Import models safely
 models = get_models_safely({

@@ -17,9 +17,9 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...views.mixins import PaginationMixin, AdminPermissionMixin
-from ...serializers import UserSerializer, ErrorResponseSerializer
-from ...utils.decorators import handle_api_errors
+from api.views.mixins import PaginationMixin, AdminPermissionMixin
+from api.serializers import UserSerializer, ErrorResponseSerializer
+from api.utils.decorators import handle_api_errors
 
 User = get_user_model()
 
@@ -452,7 +452,7 @@ class AdminStatsView(AdminPermissionMixin, APIView):
                 return self.admin_permission_denied()
             
             # Encolar tarea asíncrona para calcular estadísticas
-            from ...tasks.stats_tasks import calculate_admin_stats_task
+            from api.tasks.stats_tasks import calculate_admin_stats_task
             
             task = calculate_admin_stats_task.delay()
             
@@ -467,7 +467,7 @@ class AdminStatsView(AdminPermissionMixin, APIView):
         except Exception as e:
             logger.error(f"Error encolando tarea de estadísticas: {e}")
             # Retornar datos vacíos en lugar de 500
-            from ...services.stats import StatsService
+            from api.services.stats import StatsService
             stats_service = StatsService()
             return Response(stats_service.get_empty_stats(), status=status.HTTP_200_OK)
 

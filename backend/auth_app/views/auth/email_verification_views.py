@@ -10,14 +10,14 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.contrib.auth import get_user_model
 
-from ...serializers import (
+from api.serializers import (
     EmailVerificationSerializer,
     ResendVerificationSerializer,
     UserSerializer,
     ErrorResponseSerializer
 )
-from ...utils import create_error_response, create_success_response
-from ...utils.model_imports import get_model_safely
+from api.utils import create_error_response, create_success_response
+from api.utils.model_imports import get_model_safely
 
 User = get_user_model()
 EmailVerificationToken = get_model_safely('auth_app.models.EmailVerificationToken')
@@ -187,7 +187,7 @@ class ResendVerificationView(APIView):
             
             # Enviar email de verificación
             try:
-                from ...services.email import send_custom_email
+                from api.services.email import send_custom_email
                 
                 verification_url = f"{settings.FRONTEND_URL}/verify-email/{token_obj.token}"
                 

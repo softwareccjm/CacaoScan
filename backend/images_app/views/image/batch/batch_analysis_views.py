@@ -16,8 +16,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.conf import settings
 
-from ....utils.model_imports import get_models_safely
-from ....tasks.image_tasks import process_batch_analysis_task
+from api.utils.model_imports import get_models_safely
+from api.tasks.image_tasks import process_batch_analysis_task
 
 # Import models safely
 models = get_models_safely({
@@ -30,8 +30,8 @@ Lote = models['Lote']
 Finca = models['Finca']
 CacaoImage = models['CacaoImage']
 CacaoPrediction = models['CacaoPrediction']
-from ....serializers import ErrorResponseSerializer
-from ...mixins import AdminPermissionMixin
+from api.serializers import ErrorResponseSerializer
+from api.views.mixins import AdminPermissionMixin
 
 logger = logging.getLogger("cacaoscan.api")
 

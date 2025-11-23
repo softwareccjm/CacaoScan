@@ -12,12 +12,12 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...serializers import (
+from api.serializers import (
     LoginSerializer,
     UserSerializer,
     ErrorResponseSerializer
 )
-from ...utils import create_error_response, create_success_response
+from api.utils import create_error_response, create_success_response
 
 User = get_user_model()
 logger = logging.getLogger("cacaoscan.api.auth")

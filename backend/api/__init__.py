@@ -7,33 +7,30 @@ All new code should import directly from api.views instead.
 # Re-export views from api.views module for backward compatibility
 # NOTE: These re-exports are maintained for compatibility with urls.py
 # New code should import from api.views or specific view modules directly
-from .views.auth import (
-    SendOtpView,
-    VerifyOtpView,
-)
-from .views.finca import (
+from .views import (
+    # Auth views (from auth_app)
+    SendOtpView, VerifyOtpView,
+    # Finca views (from fincas_app)
     FincaListCreateView, FincaDetailView, FincaUpdateView,
     FincaDeleteView, FincaActivateView, FincaStatsView,
     LoteListCreateView, LoteDetailView, LoteUpdateView,
     LoteDeleteView, LoteStatsView, LotesPorFincaView,
-)
-from .views.notifications import (
+    # Report views (from reports)
+    ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
+    ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
+    ReporteAgricultoresView, ReporteUsuariosView,
+    # Image views (from images_app)
+    BatchAnalysisView,
+    # Notification views (from api.views.notifications)
     NotificationListCreateView, NotificationDetailView,
     NotificationMarkReadView, NotificationMarkAllReadView,
     NotificationUnreadCountView, NotificationStatsView,
     NotificationCreateView,
-)
-from .views.admin import (
+    # Admin views (from api.views.admin)
     ActivityLogListView, LoginHistoryListView, AuditStatsView,
     SystemSettingsView, SystemGeneralConfigView, SystemSecurityConfigView,
     SystemMLConfigView, SystemInfoView,
-)
-from .views.reports import (
-    ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
-    ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
-    ReporteAgricultoresView, ReporteUsuariosView,
-)
-from .views.ml import (
+    # ML views (from api.views.ml)
     CalibrationStatusView, CalibrationView, CalibratedScanMeasureView,
     IncrementalTrainingStatusView, IncrementalTrainingView,
     IncrementalDataUploadView, IncrementalModelVersionsView,
@@ -43,7 +40,6 @@ from .views.ml import (
     ModelPerformanceTrendView, ModelComparisonView, BestModelsView,
     ProductionModelsView,
 )
-from .views.image import BatchAnalysisView
 
 __all__ = [
     # OTP views

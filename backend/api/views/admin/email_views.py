@@ -12,15 +12,15 @@ from datetime import datetime, timedelta
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .services.email import (
+from api.services.email import (
     email_service, 
     email_notification_service,
     send_email_notification,
     send_bulk_email_notification,
     send_custom_email
 )
-from .utils import create_success_response, create_error_response
-from .serializers import ErrorResponseSerializer
+from api.utils import create_success_response, create_error_response
+from api.serializers import ErrorResponseSerializer
 
 logger = logging.getLogger("cacaoscan.email")
 

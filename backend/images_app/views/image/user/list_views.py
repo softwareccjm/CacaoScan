@@ -10,12 +10,12 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...mixins import PaginationMixin
-from ....serializers import (
+from api.views.mixins import PaginationMixin
+from api.serializers import (
     ErrorResponseSerializer,
     CacaoImageSerializer
 )
-from ....utils.decorators import handle_api_errors
+from api.utils.decorators import handle_api_errors
 from ..mixins import ImagePermissionMixin
 
 logger = logging.getLogger("cacaoscan.api.images")

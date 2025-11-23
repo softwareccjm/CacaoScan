@@ -13,7 +13,7 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ....serializers import ErrorResponseSerializer
+from api.serializers import ErrorResponseSerializer
 from ..mixins import ImagePermissionMixin
 
 logger = logging.getLogger("cacaoscan.api.images")
@@ -55,7 +55,7 @@ class ImagesExportView(APIView, ImagePermissionMixin):
         Exporta los resultados de predicciones a CSV.
         """
         try:
-            from ...utils.model_imports import get_models_safely
+            from api.utils.model_imports import get_models_safely
             
             models = get_models_safely({
                 'CacaoImage': 'images_app.models.CacaoImage',

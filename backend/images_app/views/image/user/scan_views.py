@@ -11,12 +11,12 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ....serializers import (
+from api.serializers import (
     ScanMeasureResponseSerializer,
     ErrorResponseSerializer,
 )
-from ....utils.decorators import handle_api_errors
-from ....services.analysis_service import AnalysisService
+from api.utils.decorators import handle_api_errors
+from api.services.analysis_service import AnalysisService
 
 logger = logging.getLogger("cacaoscan.api.images")
 
@@ -79,7 +79,7 @@ class ScanMeasureView(APIView):
             if serializer.is_valid():
                 # Enviar email de análisis completado (opcional, no crítico)
                 try:
-                    from ....services.email.email_service import send_email_notification
+                    from api.services.email.email_service import send_email_notification
                     
                     response_data = result.data
                     avg_confidence = sum(response_data['confidences'].values()) / len(response_data['confidences'])

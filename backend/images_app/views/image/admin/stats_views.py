@@ -12,9 +12,9 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ...mixins import AdminPermissionMixin
-from ....serializers import ErrorResponseSerializer
-from ....utils.model_imports import get_models_safely
+from api.views.mixins import AdminPermissionMixin
+from api.serializers import ErrorResponseSerializer
+from api.utils.model_imports import get_models_safely
 
 # Import models safely
 models = get_models_safely({

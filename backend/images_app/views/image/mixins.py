@@ -1,8 +1,8 @@
 """
 Image permission mixins.
 """
-from ...utils.model_imports import get_models_safely
-from ..mixins import AdminPermissionMixin
+from api.utils.model_imports import get_models_safely
+from api.views.mixins import AdminPermissionMixin
 
 # Import models safely
 models = get_models_safely({

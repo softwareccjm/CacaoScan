@@ -9,13 +9,13 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.contrib.auth import get_user_model
 
-from ...serializers import (
+from api.serializers import (
     RegisterSerializer,
     UserSerializer,
     ErrorResponseSerializer
 )
-from ...utils import create_error_response, create_success_response
-from ...services.auth import RegistrationService
+from api.utils import create_error_response, create_success_response
+from api.services.auth import RegistrationService
 
 User = get_user_model()
 logger = logging.getLogger("cacaoscan.api.auth")

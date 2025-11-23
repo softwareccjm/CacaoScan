@@ -12,8 +12,8 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ....serializers import ErrorResponseSerializer
-from ....utils.model_imports import get_models_safely
+from api.serializers import ErrorResponseSerializer
+from api.utils.model_imports import get_models_safely
 from ..mixins import ImagePermissionMixin
 
 # Import models safely

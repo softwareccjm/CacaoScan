@@ -5,33 +5,36 @@ from django.urls import path
 from . import views
 # Import views from modular structure
 from .views import (
-    # Auth views
+    # Auth views (from auth_app)
     LoginView, RegisterView, LogoutView, UserProfileView, RefreshTokenView,
     ChangePasswordView, EmailVerificationView, ResendVerificationView,
     PreRegisterView, VerifyEmailPreRegistrationView, ForgotPasswordView,
-    ResetPasswordView,
-    # Image views
+    ResetPasswordView, SendOtpView, VerifyOtpView,
+    # User views (from auth_app)
+    UserListView, UserUpdateView, UserDeleteView, UserStatsView,
+    AdminStatsView, UserDetailView,
+    # Image views (from images_app)
     ScanMeasureView, ImagesListView, ImageDetailView, ImagesStatsView,
     ImageUpdateView, ImageDeleteView, ImageDownloadView, ImagesExportView,
     AdminImagesListView, AdminImageDetailView, AdminImageUpdateView,
     AdminImageDeleteView, AdminBulkUpdateView, AdminDatasetStatsView,
-    # User views
-    UserListView, UserUpdateView, UserDeleteView, UserStatsView,
-    AdminStatsView, UserDetailView,
-    # Training views
-    TrainingJobListView, TrainingJobCreateView, TrainingJobStatusView,
-    # ML views
-    ModelsStatusView, DatasetValidationView, LoadModelsView, AutoInitializeView,
-    LatestMetricsView, PromoteModelView
-)
-# Import views from new modular structure
-from .views.finca import (
+    BatchAnalysisView,
+    # Finca views (from fincas_app)
     FincaListCreateView, FincaDetailView, FincaUpdateView,
     FincaDeleteView, FincaActivateView, FincaStatsView,
     LoteListCreateView, LoteDetailView, LoteUpdateView,
     LoteDeleteView, LoteStatsView, LotesPorFincaView,
+    # Report views (from reports)
+    ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
+    ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
+    ReporteAgricultoresView, ReporteUsuariosView,
+    # Training views (from ml module)
+    TrainingJobListView, TrainingJobCreateView, TrainingJobStatusView,
+    # ML views (from ml module)
+    ModelsStatusView, DatasetValidationView, LoadModelsView, AutoInitializeView,
+    LatestMetricsView, PromoteModelView
 )
-from .views.auth import SendOtpView, VerifyOtpView
+# Import remaining views from api/views (not moved to modular apps)
 from .views.notifications import (
     NotificationListCreateView, NotificationDetailView,
     NotificationMarkReadView, NotificationMarkAllReadView,
@@ -41,12 +44,7 @@ from .views.notifications import (
 from .views.admin import (
     ActivityLogListView, LoginHistoryListView, AuditStatsView,
     SystemSettingsView, SystemGeneralConfigView, SystemSecurityConfigView,
-    SystemMLConfigView, SystemInfoView,
-)
-from .views.reports import (
-    ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
-    ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
-    ReporteAgricultoresView, ReporteUsuariosView,
+    SystemMLConfigView, SystemInfoView, TaskStatusView,
 )
 from .views.ml import (
     CalibrationStatusView, CalibrationView, CalibratedScanMeasureView,
@@ -58,8 +56,6 @@ from .views.ml import (
     ModelPerformanceTrendView, ModelComparisonView, BestModelsView,
     ProductionModelsView,
 )
-from .views.image import BatchAnalysisView
-from .views.admin import TaskStatusView
 
 urlpatterns = [
     # Endpoints principales
