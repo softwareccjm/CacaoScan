@@ -22,7 +22,7 @@ from drf_yasg import openapi
 
 from ..mixins import PaginationMixin, AdminPermissionMixin
 
-from ...models import ReporteGenerado
+from reports.models import ReporteGenerado
 from ...utils.model_imports import get_models_safely
 
 # Import models safely

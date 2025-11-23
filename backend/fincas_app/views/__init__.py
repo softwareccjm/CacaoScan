@@ -1,0 +1,4 @@
+"""
+Views for fincas app.
+"""
+

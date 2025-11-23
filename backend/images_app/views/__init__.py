@@ -1,0 +1,4 @@
+"""
+Views for images app.
+"""
+

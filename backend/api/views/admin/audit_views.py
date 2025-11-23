@@ -14,7 +14,7 @@ from drf_yasg import openapi
 
 from ..mixins import AdminPermissionMixin, PaginationMixin
 
-from ...models import LoginHistory
+from audit.models import LoginHistory
 from ...utils.model_imports import get_model_safely
 
 ActivityLog = get_model_safely('audit.models.ActivityLog')

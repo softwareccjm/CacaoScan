@@ -3,7 +3,7 @@ ML serializers for CacaoScan API.
 """
 from rest_framework import serializers
 from ..utils.model_imports import get_models_safely
-from ..models import ModelMetrics
+from training.models import ModelMetrics
 
 # Import models safely
 models = get_models_safely({

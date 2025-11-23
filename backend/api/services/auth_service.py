@@ -23,7 +23,7 @@ EmailVerificationToken = models['EmailVerificationToken']
 UserProfile = models['UserProfile']
 ActivityLog = models['ActivityLog']
 
-from ..models import LoginHistory
+from audit.models import LoginHistory
 
 logger = logging.getLogger("cacaoscan.services.auth")
 

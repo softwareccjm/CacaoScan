@@ -1,0 +1,4 @@
+"""
+Views for authentication app.
+"""
+

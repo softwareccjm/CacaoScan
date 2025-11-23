@@ -9,7 +9,7 @@ from datetime import timedelta, datetime
 import json
 
 from .base import BaseService, ServiceResult, ValidationServiceError, PermissionServiceError, NotFoundServiceError
-from ..models import ReporteGenerado
+from reports.models import ReporteGenerado
 from ..utils.model_imports import get_models_safely
 
 # Import models safely

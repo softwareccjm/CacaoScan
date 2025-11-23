@@ -37,7 +37,7 @@ except ImportError:
 
 # Import models safely
 models = get_models_safely({
-    'ModelMetrics': 'api.models.ModelMetrics',
+    'ModelMetrics': 'training.models.ModelMetrics',
     'TrainingJob': 'training.models.TrainingJob'
 })
 ModelMetrics = models['ModelMetrics']

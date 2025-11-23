@@ -1,7 +1,7 @@
 """
 Report generation services module.
 """
-from .excel_generator import CacaoReportExcelGenerator
+from .excel import CacaoReportExcelGenerator
 from .pdf_generator import CacaoReportPDFGenerator
 
 __all__ = [

@@ -16,8 +16,10 @@ import os
 
 from api.models import (
     CacaoImage, CacaoPrediction, TrainingJob, Finca, Lote, 
-    Notification, ActivityLog, LoginHistory, ReporteGenerado
+    Notification, ActivityLog
 )
+from audit.models import LoginHistory
+from reports.models import ReporteGenerado
 # Removed: optimizations.py deleted (YAGNI - only used in tests, not in production)
 from api.cache_config import API_CACHE_TIMEOUTS
 

@@ -12,7 +12,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from typing import Dict, List, Any
 
-from ...models import ModelMetrics
+from training.models import ModelMetrics
 # Importar desde apps modulares
 from ...utils.model_imports import get_model_safely
 

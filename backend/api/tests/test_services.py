@@ -34,10 +34,10 @@ from api.models import (
     Finca,
     Lote,
     Notification,
-    ActivityLog,
-    LoginHistory,
-    ReporteGenerado
+    ActivityLog
 )
+from audit.models import LoginHistory
+from reports.models import ReporteGenerado
 
 
 class AuthenticationServiceTest(TestCase):

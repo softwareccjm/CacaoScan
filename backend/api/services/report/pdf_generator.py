@@ -35,7 +35,8 @@ Lote = models['Lote']
 Notification = models['Notification']
 ActivityLog = models['ActivityLog']
 
-from ...models import LoginHistory, ReporteGenerado
+from audit.models import LoginHistory
+from reports.models import ReporteGenerado
 
 logger = logging.getLogger("cacaoscan.services.report.pdf")
 

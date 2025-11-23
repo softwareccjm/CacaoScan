@@ -13,9 +13,9 @@ from .base import (
 )
 
 # Importar servicios específicos
-from .auth_service import AuthenticationService
+from .auth import AuthenticationService
 from .analysis_service import AnalysisService
-from .finca_service import FincaService
+from .finca import FincaService
 from .lote_service import LoteService
 from .report_service import ReportService
 
