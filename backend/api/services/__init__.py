@@ -13,11 +13,11 @@ from .base import (
 )
 
 # Importar servicios específicos
-from .auth import AuthenticationService
+from .auth import LoginService, RegistrationService, PasswordService, VerificationService, ProfileService
 from .analysis_service import AnalysisService
 from .finca import FincaService
 from .lote_service import LoteService
-from .report_service import ReportService
+from .report import ReportService
 
 # Importar servicios por dominio
 from .ml.prediction_service import PredictionService
@@ -27,7 +27,11 @@ from .image.storage_service import ImageStorageService
 from .image.management_service import ImageManagementService
 
 # Crear instancias de servicios para uso fácil
-auth_service = AuthenticationService()
+login_service = LoginService()
+registration_service = RegistrationService()
+password_service = PasswordService()
+verification_service = VerificationService()
+profile_service = ProfileService()
 analysis_service = AnalysisService()
 image_service = ImageManagementService()
 finca_service = FincaService()
@@ -45,7 +49,11 @@ __all__ = [
     'NotFoundServiceError',
     
     # Servicios específicos
-    'AuthenticationService',
+    'LoginService',
+    'RegistrationService',
+    'PasswordService',
+    'VerificationService',
+    'ProfileService',
     'AnalysisService', 
     'ImageManagementService',
     'FincaService',
@@ -59,7 +67,11 @@ __all__ = [
     'ImageStorageService',
     
     # Instancias de servicios
-    'auth_service',
+    'login_service',
+    'registration_service',
+    'password_service',
+    'verification_service',
+    'profile_service',
     'analysis_service',
     'image_service', 
     'finca_service',

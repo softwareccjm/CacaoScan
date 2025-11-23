@@ -36,7 +36,8 @@ CacaoImage = models['CacaoImage']
 CacaoPrediction = models['CacaoPrediction']
 Finca = models['Finca']
 Lote = models['Lote']
-from ...services.report import CacaoReportPDFGenerator, CacaoReportExcelGenerator
+from ...services.report import CacaoReportPDFGenerator
+from ...services.report.excel import ExcelAgricultoresService, ExcelUsuariosService, ExcelAnalisisService
 from ...serializers import ErrorResponseSerializer
 
 logger = logging.getLogger("cacaoscan.api")
@@ -243,30 +244,31 @@ class ReporteListCreateView(PaginationMixin, APIView):
             # Generar según tipo y formato
             if reporte.formato == 'pdf':
                 generator = CacaoReportPDFGenerator()
+                # PDF generation logic (to be implemented if needed)
+                raise ValueError("Generación de PDF no implementada aún")
             elif reporte.formato == 'excel':
-                generator = CacaoReportExcelGenerator()
+                excel_service = ExcelAnalisisService()
+                # Generar contenido según tipo
+                if reporte.tipo_reporte == 'calidad':
+                    content = excel_service.generate_quality_report(user, reporte.filtros_aplicados)
+                elif reporte.tipo_reporte == 'finca':
+                    finca_id = reporte.parametros.get('finca_id')
+                    if not finca_id:
+                        raise ValueError("finca_id es requerido para reportes de finca")
+                    content = excel_service.generate_finca_report(finca_id, user, reporte.filtros_aplicados)
+                elif reporte.tipo_reporte == 'auditoria':
+                    content = excel_service.generate_audit_report(user, reporte.filtros_aplicados)
+                elif reporte.tipo_reporte == 'personalizado':
+                    content = excel_service.generate_custom_report(
+                        user, 
+                        reporte.parametros.get('tipo_reporte', 'calidad'),
+                        reporte.parametros,
+                        reporte.filtros_aplicados
+                    )
+                else:
+                    raise ValueError(f"Tipo de reporte no soportado: {reporte.tipo_reporte}")
             else:
                 raise ValueError(f"Formato no soportado: {reporte.formato}")
-            
-            # Generar contenido según tipo
-            if reporte.tipo_reporte == 'calidad':
-                content = generator.generate_quality_report(user, reporte.filtros_aplicados)
-            elif reporte.tipo_reporte == 'finca':
-                finca_id = reporte.parametros.get('finca_id')
-                if not finca_id:
-                    raise ValueError("finca_id es requerido para reportes de finca")
-                content = generator.generate_finca_report(finca_id, user, reporte.filtros_aplicados)
-            elif reporte.tipo_reporte == 'auditoria':
-                content = generator.generate_audit_report(user, reporte.filtros_aplicados)
-            elif reporte.tipo_reporte == 'personalizado':
-                content = generator.generate_custom_report(
-                    user, 
-                    reporte.parametros.get('tipo_reporte', 'calidad'),
-                    reporte.parametros,
-                    reporte.filtros_aplicados
-                )
-            else:
-                raise ValueError(f"Tipo de reporte no soportado: {reporte.tipo_reporte}")
             
             # Crear archivo
             filename = f"{reporte.titulo}_{reporte.id}.{reporte.formato}"
@@ -910,8 +912,8 @@ class ReporteUsuariosView(APIView):
     def get(self, request):
         try:
             # Generar el reporte Excel
-            generator = CacaoReportExcelGenerator()
-            excel_content = generator.generate_users_report()
+            excel_service = ExcelUsuariosService()
+            excel_content = excel_service.generate_users_report()
             
             # Validar que el contenido no esté vacío
             if not excel_content or len(excel_content) < 100:

@@ -15,7 +15,7 @@ from ...serializers import (
     ErrorResponseSerializer
 )
 from ...utils import create_error_response, create_success_response
-from ...services.auth_service import AuthenticationService
+from ...services.auth import RegistrationService
 
 User = get_user_model()
 logger = logging.getLogger("cacaoscan.api.auth")
@@ -58,8 +58,8 @@ class RegisterView(APIView):
         
         if serializer.is_valid():
             # Usar servicio de autenticación para registrar usuario
-            auth_service = AuthenticationService()
-            result = auth_service.register_user_with_email_verification(
+            registration_service = RegistrationService()
+            result = registration_service.register_user_with_email_verification(
                 serializer.validated_data,
                 request
             )
@@ -141,8 +141,8 @@ class PreRegisterView(APIView):
         }
         
         # Usar servicio de autenticación para pre-registro
-        auth_service = AuthenticationService()
-        result = auth_service.pre_register_user(user_data, request)
+        registration_service = RegistrationService()
+        result = registration_service.pre_register_user(user_data, request)
         
         if result.success:
             status_code = status.HTTP_201_CREATED if 'enviado' in result.message else status.HTTP_200_OK
@@ -206,8 +206,8 @@ class VerifyEmailPreRegistrationView(APIView):
             )
         
         # Usar servicio de autenticación para verificar pre-registro y crear usuario
-        auth_service = AuthenticationService()
-        result = auth_service.verify_pre_registration_and_create_user(str(token))
+        registration_service = RegistrationService()
+        result = registration_service.verify_pre_registration_and_create_user(str(token))
         
         if result.success:
             return create_success_response(

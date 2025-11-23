@@ -19,7 +19,7 @@ class FincaService(BaseService):
         super().__init__()
         self.crud_service = FincaCRUDService()
         self.stats_service = FincaStatsService()
-        from .lote_service import LoteService
+        from ..lote_service import LoteService
         self.lote_service = LoteService()
     
     # CRUD methods

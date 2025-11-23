@@ -28,7 +28,7 @@ class FincaCRUDService(BaseService):
     def __init__(self):
         super().__init__()
         self.validation_service = FincaValidationService()
-        from .lote_service import LoteService
+        from ..lote_service import LoteService
         self.lote_service = LoteService()
     
     def create_finca(self, finca_data: Dict[str, Any], user: User) -> ServiceResult:
