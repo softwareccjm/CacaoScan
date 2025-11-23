@@ -59,6 +59,7 @@ from .views.ml import (
     ProductionModelsView,
 )
 from .views.image import BatchAnalysisView
+from .views.task_status_views import TaskStatusView
 
 urlpatterns = [
     # Endpoints principales
@@ -66,6 +67,9 @@ urlpatterns = [
     path('models/status/', ModelsStatusView.as_view(), name='models-status'),
     path('models/load/', LoadModelsView.as_view(), name='load-models'),
     path('dataset/validation/', DatasetValidationView.as_view(), name='dataset-validation'),
+    
+    # Endpoints de estado de tareas Celery
+    path('tasks/<str:task_id>/status/', TaskStatusView.as_view(), name='task-status'),
     
     # Inicialización automática
     path('auto-initialize/', AutoInitializeView.as_view(), name='auto-initialize'),

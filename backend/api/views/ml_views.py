@@ -145,13 +145,16 @@ class DatasetValidationView(APIView):
     )
     def get(self, request):
         """
-        Valida el dataset y devuelve estadísticas.
-        Cache dinámico: el timeout se ajusta según la frecuencia de cambios.
+        Valida el dataset y devuelve estadísticas de forma asíncrona.
+        
+        Si el resultado está en cache, lo retorna inmediatamente.
+        Si no, encola una tarea Celery y retorna un task_id.
         """
         from django.core.cache import cache
         from ..utils.cache_helpers import get_cache_key
+        from ..tasks.ml_tasks import validate_dataset_task
         
-        # Cache key basado en el dataset (puede incluir hash del dataset si está disponible)
+        # Cache key basado en el dataset
         cache_key = get_cache_key('dataset_validation', 'stats')
         
         # Intentar obtener del cache
@@ -159,34 +162,16 @@ class DatasetValidationView(APIView):
         if cached_result is not None:
             return Response(cached_result)
         
-        if CacaoDatasetLoader is None:
-            return Response({
-                'valid': False,
-                'error': 'Cargador de dataset no disponible',
-                'status': 'error'
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        # Si no está en cache, encolar tarea asíncrona
+        task = validate_dataset_task.delay()
         
-        loader = CacaoDatasetLoader()
-        stats = loader.get_dataset_stats()
+        logger.info(f"Dataset validation task enqueued - Task ID: {task.id}")
         
-        response_data = {
-            'valid': len(stats.get('missing_images', [])) == 0,
-            'stats': stats,
-            'status': 'success'
-        }
-        
-        # Cache dinámico: timeout más largo si el dataset es válido y estable
-        # Timeout más corto si hay problemas o cambios recientes
-        if response_data['valid'] and len(stats.get('missing_images', [])) == 0:
-            # Dataset válido y estable: cache por 15 minutos
-            cache_timeout = 60 * 15
-        else:
-            # Dataset con problemas: cache por 5 minutos para detectar cambios más rápido
-            cache_timeout = 60 * 5
-        
-        cache.set(cache_key, response_data, cache_timeout)
-        
-        return Response(response_data)
+        return Response({
+            'task_id': task.id,
+            'status': 'processing',
+            'message': 'Validación de dataset iniciada. Use el task_id para consultar el estado.'
+        }, status=status.HTTP_202_ACCEPTED)
 
 
 class LoadModelsView(APIView):

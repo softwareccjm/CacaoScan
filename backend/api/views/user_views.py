@@ -440,24 +440,32 @@ class AdminStatsView(AdminPermissionMixin, APIView):
     )
     def get(self, request):
         """
-        Obtiene estadísticas globales del sistema.
+        Obtiene estadísticas globales del sistema de forma asíncrona.
         Solo accesible para administradores.
+        
+        Retorna inmediatamente un task_id que puede usarse para consultar el estado
+        del cálculo mediante el endpoint GET /api/v1/tasks/{task_id}/status/
         """
         try:
             # Verificar permisos de administrador
             if not self.is_admin_user(request.user):
                 return self.admin_permission_denied()
             
-            # Usar servicio de estadísticas
-            from ..services.stats import StatsService
+            # Encolar tarea asíncrona para calcular estadísticas
+            from ..tasks.stats_tasks import calculate_admin_stats_task
             
-            stats_service = StatsService()
-            stats = stats_service.get_all_stats()
+            task = calculate_admin_stats_task.delay()
             
-            return Response(stats, status=status.HTTP_200_OK)
+            logger.info(f"Admin stats calculation task enqueued - Task ID: {task.id}")
+            
+            return Response({
+                'task_id': task.id,
+                'status': 'processing',
+                'message': 'Cálculo de estadísticas iniciado. Use el task_id para consultar el estado.'
+            }, status=status.HTTP_202_ACCEPTED)
             
         except Exception as e:
-            logger.warning(f"[WARNING] Error obteniendo estadísticas del sistema: {e}")
+            logger.error(f"Error encolando tarea de estadísticas: {e}")
             # Retornar datos vacíos en lugar de 500
             from ..services.stats import StatsService
             stats_service = StatsService()

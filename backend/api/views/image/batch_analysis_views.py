@@ -4,6 +4,9 @@ Vistas para análisis batch de lotes con ML.
 import logging
 import time
 import io
+import os
+import tempfile
+from pathlib import Path
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,8 +14,10 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.conf import settings
 
 from ...utils.model_imports import get_models_safely
+from ...tasks.image_tasks import process_batch_analysis_task
 
 # Import models safely
 models = get_models_safely({
@@ -56,17 +61,16 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
             required=['name', 'farm', 'collectionDate', 'genetics', 'images']
         ),
         responses={
-            201: openapi.Response(
-                description="Análisis batch completado",
+            202: openapi.Response(
+                description="Análisis batch iniciado (procesamiento asíncrono)",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
+                        'task_id': openapi.Schema(type=openapi.TYPE_STRING, description="ID de la tarea Celery para seguimiento"),
                         'lote_id': openapi.Schema(type=openapi.TYPE_INTEGER),
                         'total_images': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'processed_images': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'failed_images': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'average_confidence': openapi.Schema(type=openapi.TYPE_NUMBER),
-                        'status': openapi.Schema(type=openapi.TYPE_STRING),
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, description="Estado: 'processing'"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
                     }
                 )
             ),
@@ -78,7 +82,10 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
     )
     def post(self, request):
         """
-        Procesa un lote con múltiples imágenes usando ML.
+        Procesa un lote con múltiples imágenes usando ML de forma asíncrona.
+        
+        Retorna inmediatamente un task_id que puede usarse para consultar el estado
+        del procesamiento mediante el endpoint GET /api/v1/tasks/{task_id}/status/
         """
         start_time = time.time()
         
@@ -147,55 +154,57 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # 5. Procesar cada imagen con ML
-            results = self._process_images_batch(request, images, lote)
+            # 5. Guardar imágenes temporalmente y preparar datos para la tarea
+            media_root = Path(settings.MEDIA_ROOT)
+            temp_dir = media_root / 'temp' / f'batch_{lote.id}_{int(time.time())}'
+            temp_dir.mkdir(parents=True, exist_ok=True)
             
-            # 6. Calcular estadísticas
-            stats = self._calculate_stats(results)
+            images_data = []
+            for idx, image_file in enumerate(images):
+                try:
+                    # Save image to temporary location
+                    temp_path = temp_dir / f"{idx}_{image_file.name}"
+                    with open(temp_path, 'wb+') as destination:
+                        for chunk in image_file.chunks():
+                            destination.write(chunk)
+                    
+                    images_data.append({
+                        'file_name': image_file.name,
+                        'file_size': image_file.size,
+                        'file_type': image_file.content_type,
+                        'temp_path': str(temp_path)
+                    })
+                except Exception as e:
+                    logger.error(f"Error saving temporary image {idx}: {e}")
+                    continue
             
-            # 7. Preparar respuesta
-            total_time = time.time() - start_time
-            logger.info(
-                f"Análisis batch completado en {total_time:.2f}s - "
-                f"Lote ID: {lote.id}, Imágenes procesadas: {stats['processed_images']}/{stats['total_images']}"
+            if not images_data:
+                return Response({
+                    'error': 'Error guardando imágenes temporalmente',
+                    'status': 'error'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # 6. Encolar tarea Celery
+            task = process_batch_analysis_task.delay(
+                user_id=request.user.id,
+                lote_id=lote.id,
+                images_data=images_data
             )
             
-            # Preparar resultados individuales para el frontend
-            predictions_list = []
-            for r in results:
-                if r.get('success', False):
-                    pred = r.get('prediction', {})
-                    predictions_list.append({
-                        'image_id': r.get('image_id'),
-                        'alto_mm': pred.get('alto_mm', 0),
-                        'ancho_mm': pred.get('ancho_mm', 0),
-                        'grosor_mm': pred.get('grosor_mm', 0),
-                        'peso_g': pred.get('peso_g', 0),
-                        'confidences': pred.get('confidences', {}),
-                        'crop_url': pred.get('crop_url', ''),
-                        'model_version': pred.get('debug', {}).get('models_version', 'v1.0'),
-                        'processing_time_ms': pred.get('processing_time_ms', 0)
-                    })
-                else:
-                    predictions_list.append({
-                        'image_id': r.get('image_id'),
-                        'error': r.get('error', 'Error desconocido'),
-                        'success': False
-                    })
+            logger.info(
+                f"Batch analysis task enqueued - Task ID: {task.id}, "
+                f"Lote ID: {lote.id}, Images: {len(images_data)}"
+            )
             
+            # 7. Retornar task_id inmediatamente
             return Response({
+                'task_id': task.id,
                 'lote_id': lote.id,
                 'lote_name': lote.identificador,
-                'total_images': stats['total_images'],
-                'processed_images': stats['processed_images'],
-                'failed_images': stats['failed_images'],
-                'average_confidence': stats['average_confidence'],
-                'average_dimensions': stats['average_dimensions'],
-                'total_weight': stats['total_weight'],
-                'predictions': predictions_list,  # Resultados individuales
-                'status': 'completed',
-                'processing_time_seconds': round(total_time, 2)
-            }, status=status.HTTP_201_CREATED)
+                'total_images': len(images_data),
+                'status': 'processing',
+                'message': 'Análisis batch iniciado. Use el task_id para consultar el estado.'
+            }, status=status.HTTP_202_ACCEPTED)
             
         except Exception as e:
             logger.error(f"Error en análisis batch: {e}", exc_info=True)
