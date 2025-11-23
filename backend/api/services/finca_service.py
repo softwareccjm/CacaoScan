@@ -246,9 +246,9 @@ class FincaService(BaseService):
         try:
             try:
                 if user.is_superuser or user.is_staff:
-                    finca = Finca.objects.get(id=finca_id)
+                    finca = Finca.objects.select_related('agricultor').get(id=finca_id)
                 else:
-                    finca = Finca.objects.get(id=finca_id, agricultor=user)
+                    finca = Finca.objects.select_related('agricultor').get(id=finca_id, agricultor=user)
             except Finca.DoesNotExist:
                 return ServiceResult.not_found_error("Finca no encontrada")
             
@@ -325,9 +325,9 @@ class FincaService(BaseService):
         try:
             try:
                 if user.is_superuser or user.is_staff:
-                    finca = Finca.objects.get(id=finca_id)
+                    finca = Finca.objects.select_related('agricultor').get(id=finca_id)
                 else:
-                    finca = Finca.objects.get(id=finca_id, agricultor=user)
+                    finca = Finca.objects.select_related('agricultor').get(id=finca_id, agricultor=user)
             except Finca.DoesNotExist:
                 return ServiceResult.not_found_error("Finca no encontrada")
             
@@ -382,11 +382,11 @@ class FincaService(BaseService):
             ServiceResult con estadísticas
         """
         try:
-            # Construir queryset base
+            # Construir queryset base (optimizado)
             if user.is_superuser or user.is_staff:
-                queryset = Finca.objects.all()
+                queryset = Finca.objects.all().select_related('agricultor')
             else:
-                queryset = Finca.objects.filter(agricultor=user)
+                queryset = Finca.objects.filter(agricultor=user).select_related('agricultor')
             
             # Aplicar filtros
             if filters:
@@ -478,12 +478,12 @@ class LoteService(BaseService):
             required_fields = ['finca', 'identificador', 'variedad', 'fecha_plantacion', 'hectareas']
             self.validate_required_fields(lote_data, required_fields)
             
-            # Validar que la finca pertenezca al usuario
+            # Validar que la finca pertenezca al usuario (optimizado)
             try:
                 if user.is_superuser or user.is_staff:
-                    finca = Finca.objects.get(id=lote_data['finca'])
+                    finca = Finca.objects.select_related('agricultor').get(id=lote_data['finca'])
                 else:
-                    finca = Finca.objects.get(id=lote_data['finca'], agricultor=user)
+                    finca = Finca.objects.select_related('agricultor').get(id=lote_data['finca'], agricultor=user)
             except Finca.DoesNotExist:
                 return ServiceResult.not_found_error("Finca no encontrada")
             
@@ -573,14 +573,17 @@ class LoteService(BaseService):
             # Verificar que la finca pertenezca al usuario
             try:
                 if user.is_superuser or user.is_staff:
-                    finca = Finca.objects.get(id=finca_id)
+                    finca = Finca.objects.select_related('agricultor').get(id=finca_id)
                 else:
-                    finca = Finca.objects.get(id=finca_id, agricultor=user)
+                    finca = Finca.objects.select_related('agricultor').get(id=finca_id, agricultor=user)
             except Finca.DoesNotExist:
                 return ServiceResult.not_found_error("Finca no encontrada")
             
-            # Construir queryset
-            queryset = Lote.objects.filter(finca=finca).order_by('-created_at')
+            # Construir queryset optimizado
+            queryset = Lote.objects.filter(finca=finca).select_related(
+                'finca',
+                'finca__agricultor'
+            ).prefetch_related('cacao_images').order_by('-created_at')
             
             # Aplicar filtros
             if filters:
@@ -690,9 +693,9 @@ class LoteService(BaseService):
         try:
             try:
                 if user.is_superuser or user.is_staff:
-                    lote = Lote.objects.get(id=lote_id)
+                    lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id)
                 else:
-                    lote = Lote.objects.get(id=lote_id, finca__agricultor=user)
+                    lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id, finca__agricultor=user)
             except Lote.DoesNotExist:
                 return ServiceResult.not_found_error("Lote no encontrado")
             
@@ -761,9 +764,9 @@ class LoteService(BaseService):
         try:
             try:
                 if user.is_superuser or user.is_staff:
-                    lote = Lote.objects.get(id=lote_id)
+                    lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id)
                 else:
-                    lote = Lote.objects.get(id=lote_id, finca__agricultor=user)
+                    lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id, finca__agricultor=user)
             except Lote.DoesNotExist:
                 return ServiceResult.not_found_error("Lote no encontrado")
             
@@ -809,11 +812,11 @@ class LoteService(BaseService):
             ServiceResult con estadísticas
         """
         try:
-            # Construir queryset base
+            # Construir queryset base (optimizado)
             if user.is_superuser or user.is_staff:
-                queryset = Lote.objects.all()
+                queryset = Lote.objects.all().select_related('finca', 'finca__agricultor')
             else:
-                queryset = Lote.objects.filter(finca__agricultor=user)
+                queryset = Lote.objects.filter(finca__agricultor=user).select_related('finca', 'finca__agricultor')
             
             # Aplicar filtros
             if filters:

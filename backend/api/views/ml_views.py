@@ -296,7 +296,7 @@ class LatestMetricsView(APIView):
             latest = ModelMetrics.objects.filter(
                 target=target,
                 metric_type='validation'
-            ).order_by('-created_at').first()
+            ).select_related('created_by').order_by('-created_at').first()
             
             if latest:
                 from ..serializers import ModelMetricsListSerializer
@@ -364,8 +364,9 @@ class PromoteModelView(AdminPermissionMixin, APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Buscar el modelo por versión, nombre y target
+        # Optimizado con select_related para evitar query adicional
         try:
-            model_metric = ModelMetrics.objects.get(
+            model_metric = ModelMetrics.objects.select_related('created_by').get(
                 version=version,
                 model_name=model_name,
                 target=target

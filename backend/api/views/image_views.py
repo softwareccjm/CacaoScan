@@ -80,6 +80,7 @@ class ImagePermissionMixin(AdminPermissionMixin):
     def get_user_images_queryset(self, user):
         """
         Obtener queryset de imágenes según permisos del usuario.
+        Optimizado con select_related y prefetch_related para evitar N+1 queries.
         
         Args:
             user: Usuario autenticado
@@ -87,15 +88,24 @@ class ImagePermissionMixin(AdminPermissionMixin):
         Returns:
             QuerySet: Queryset filtrado según permisos
         """
+        base_queryset = CacaoImage.objects.select_related(
+            'user',
+            'finca',
+            'finca__agricultor',
+            'lote',
+            'lote__finca',
+            'lote__finca__agricultor'
+        ).prefetch_related('prediction')
+        
         if self.is_admin_user(user):
             # Admins pueden ver todas las imágenes
-            return CacaoImage.objects.all().select_related('user')
+            return base_queryset
         elif user.groups.filter(name='analyst').exists():
             # Analistas pueden ver todas las imágenes
-            return CacaoImage.objects.all().select_related('user')
+            return base_queryset
         else:
             # Agricultores solo ven sus propias imágenes
-            return CacaoImage.objects.filter(user=user).select_related('user')
+            return base_queryset.filter(user=user)
 
 
 class ScanMeasureView(APIView):
@@ -351,9 +361,16 @@ class ImageDetailView(APIView, ImagePermissionMixin):
         Obtiene los detalles completos de una imagen específica.
         Solo el propietario o un admin pueden acceder.
         """
-        # Obtener imagen
+        # Obtener imagen (optimizado con select_related y prefetch_related)
         try:
-            image = CacaoImage.objects.select_related('user', 'prediction').get(id=image_id)
+            image = CacaoImage.objects.select_related(
+                'user',
+                'finca',
+                'finca__agricultor',
+                'lote',
+                'lote__finca',
+                'lote__finca__agricultor'
+            ).prefetch_related('prediction').get(id=image_id)
         except CacaoImage.DoesNotExist:
             return Response({
                 'error': 'Imagen no encontrada',
@@ -541,9 +558,16 @@ class ImageUpdateView(APIView, ImagePermissionMixin):
         Solo el propietario o un admin pueden actualizar.
         """
         try:
-            # Obtener imagen
+            # Obtener imagen (optimizado)
             try:
-                image = CacaoImage.objects.get(id=image_id)
+                image = CacaoImage.objects.select_related(
+                    'user',
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
                 return Response({
                     'error': 'Imagen no encontrada',
@@ -630,9 +654,16 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
         Solo el propietario o un admin pueden eliminar.
         """
         try:
-            # Obtener imagen con predicción
+            # Obtener imagen con predicción (optimizado)
             try:
-                image = CacaoImage.objects.select_related('prediction').get(id=image_id)
+                image = CacaoImage.objects.select_related(
+                    'user',
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
                 return Response({
                     'error': 'Imagen no encontrada',
@@ -723,9 +754,16 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
         Solo el propietario o un admin pueden descargar.
         """
         try:
-            # Obtener imagen
+            # Obtener imagen (optimizado)
             try:
-                image = CacaoImage.objects.get(id=image_id)
+                image = CacaoImage.objects.select_related(
+                    'user',
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
                 return Response({
                     'error': 'Imagen no encontrada',
@@ -1060,7 +1098,15 @@ class AdminImagesListView(PaginationMixin, AdminPermissionMixin, APIView):
             max_confidence = request.GET.get('max_confidence')
             
             # Construir queryset base con todas las imágenes
-            queryset = CacaoImage.objects.all().select_related('user', 'prediction')
+            # Optimizado: select_related para ForeignKeys, prefetch_related para OneToOne reverso
+            queryset = CacaoImage.objects.all().select_related(
+                'user',
+                'finca',
+                'finca__agricultor',
+                'lote',
+                'lote__finca',
+                'lote__finca__agricultor'
+            ).prefetch_related('prediction')
             
             # Aplicar filtros
             filters_applied = {}
@@ -1288,9 +1334,16 @@ class AdminImageUpdateView(AdminPermissionMixin, APIView):
             if not self.is_admin_user(request.user):
                 return self.admin_permission_denied()
             
-            # Obtener imagen
+            # Obtener imagen (optimizado)
             try:
-                image = CacaoImage.objects.get(id=image_id)
+                image = CacaoImage.objects.select_related(
+                    'user',
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
                 return Response({
                     'error': 'Imagen no encontrada',
@@ -1389,9 +1442,16 @@ class AdminImageDeleteView(AdminPermissionMixin, APIView):
             if not self.is_admin_user(request.user):
                 return self.admin_permission_denied()
             
-            # Obtener imagen con predicción
+            # Obtener imagen con predicción (optimizado)
             try:
-                image = CacaoImage.objects.select_related('user', 'prediction').get(id=image_id)
+                image = CacaoImage.objects.select_related(
+                    'user',
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id)
             except CacaoImage.DoesNotExist:
                 return Response({
                     'error': 'Imagen no encontrada',

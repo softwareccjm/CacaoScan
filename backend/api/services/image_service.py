@@ -117,8 +117,14 @@ class ImageManagementService(BaseService):
             ServiceResult con imágenes paginadas
         """
         try:
-            # Construir queryset
-            queryset = CacaoImage.objects.filter(user=user).order_by('-created_at')
+            # Construir queryset (optimizado)
+            queryset = CacaoImage.objects.filter(user=user).select_related(
+                'finca',
+                'finca__agricultor',
+                'lote',
+                'lote__finca',
+                'lote__finca__agricultor'
+            ).prefetch_related('prediction').order_by('-created_at')
             
             # Aplicar filtros
             if filters:
@@ -182,7 +188,13 @@ class ImageManagementService(BaseService):
         """
         try:
             try:
-                image = CacaoImage.objects.get(id=image_id, user=user)
+                image = CacaoImage.objects.select_related(
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id, user=user)
             except CacaoImage.DoesNotExist:
                 return ServiceResult.not_found_error("Imagen no encontrada")
             
@@ -242,7 +254,13 @@ class ImageManagementService(BaseService):
         """
         try:
             try:
-                image = CacaoImage.objects.get(id=image_id, user=user)
+                image = CacaoImage.objects.select_related(
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id, user=user)
             except CacaoImage.DoesNotExist:
                 return ServiceResult.not_found_error("Imagen no encontrada")
             
@@ -294,7 +312,13 @@ class ImageManagementService(BaseService):
         """
         try:
             try:
-                image = CacaoImage.objects.get(id=image_id, user=user)
+                image = CacaoImage.objects.select_related(
+                    'finca',
+                    'finca__agricultor',
+                    'lote',
+                    'lote__finca',
+                    'lote__finca__agricultor'
+                ).prefetch_related('prediction').get(id=image_id, user=user)
             except CacaoImage.DoesNotExist:
                 return ServiceResult.not_found_error("Imagen no encontrada")
             
@@ -341,8 +365,14 @@ class ImageManagementService(BaseService):
             ServiceResult con estadísticas
         """
         try:
-            # Construir queryset base
-            queryset = CacaoImage.objects.filter(user=user)
+            # Construir queryset base (optimizado)
+            queryset = CacaoImage.objects.filter(user=user).select_related(
+                'finca',
+                'finca__agricultor',
+                'lote',
+                'lote__finca',
+                'lote__finca__agricultor'
+            ).prefetch_related('prediction')
             
             # Aplicar filtros
             if filters:
@@ -398,8 +428,14 @@ class ImageManagementService(BaseService):
             if not image_ids:
                 return ServiceResult.validation_error("Lista de IDs de imágenes vacía")
             
-            # Verificar que todas las imágenes pertenezcan al usuario
-            images = CacaoImage.objects.filter(id__in=image_ids, user=user)
+            # Verificar que todas las imágenes pertenezcan al usuario (optimizado)
+            images = CacaoImage.objects.filter(id__in=image_ids, user=user).select_related(
+                'finca',
+                'finca__agricultor',
+                'lote',
+                'lote__finca',
+                'lote__finca__agricultor'
+            ).prefetch_related('prediction')
             
             if len(images) != len(image_ids):
                 return ServiceResult.validation_error(

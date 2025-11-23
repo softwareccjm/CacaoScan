@@ -254,9 +254,9 @@ class TrainingJobStatusView(AdminPermissionMixin, APIView):
                     'status': 'error'
                 }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
-            # Obtener trabajo de entrenamiento
+            # Obtener trabajo de entrenamiento (optimizado con select_related)
             try:
-                training_job = TrainingJob.objects.get(job_id=job_id)
+                training_job = TrainingJob.objects.select_related('created_by').get(job_id=job_id)
             except TrainingJob.DoesNotExist:
                 return Response({
                     'error': 'Trabajo de entrenamiento no encontrado',

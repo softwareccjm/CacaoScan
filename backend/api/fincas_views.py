@@ -36,15 +36,17 @@ class FincaPermissionMixin(AdminPermissionMixin):
     """
     
     def get_queryset(self):
-        """Obtener queryset filtrado por permisos (optimizado)."""
+        """Obtener queryset filtrado por permisos (optimizado con select_related)."""
         user = self.request.user
+        
+        base_queryset = Finca.objects.select_related('agricultor')
         
         if self.is_admin_user(user):
             # Admin puede ver todas las fincas (activas e inactivas)
-            return Finca.objects.all()
+            return base_queryset
         else:
             # Agricultor solo ve sus fincas ACTIVAS (soft delete)
-            return Finca.objects.filter(agricultor=user, activa=True)
+            return base_queryset.filter(agricultor=user, activa=True)
     
     def perform_create(self, serializer):
         """Asignar automáticamente el agricultor al crear finca."""
