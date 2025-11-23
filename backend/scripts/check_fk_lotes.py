@@ -1,7 +1,7 @@
 """
 Script para verificar y corregir la foreign key de fincas_app_lote.
-Ejecutar con: python manage.py shell < check_fk_lotes.py
-o directamente: python check_fk_lotes.py
+Ejecutar con: python manage.py shell < scripts/check_fk_lotes.py
+o directamente: python scripts/check_fk_lotes.py
 """
 import os
 import django
@@ -113,23 +113,24 @@ def check_and_fix_foreign_key():
             print(f"  - ID: {f['id']}, Nombre: {f['nombre']}")
     
     # Verificar lotes huérfanos
-    cursor.execute("""
-        SELECT l.id, l.finca_id, f.id as finca_exists
-        FROM fincas_app_lote l
-        LEFT JOIN api_finca f ON l.finca_id = f.id
-        WHERE f.id IS NULL
-        LIMIT 10;
-    """)
-    
-    orphaned_lotes = cursor.fetchall()
-    
-    if orphaned_lotes:
-        print(f"\n[WARN]  Lotes huérfanos encontrados: {len(orphaned_lotes)}")
-        print("Lotes sin finca válida:")
-        for lote in orphaned_lotes:
-            print(f"  - Lote ID: {lote[0]}, finca_id: {lote[1]}")
-    else:
-        print("\n✅ No se encontraron lotes huérfanos")
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT l.id, l.finca_id, f.id as finca_exists
+            FROM fincas_app_lote l
+            LEFT JOIN api_finca f ON l.finca_id = f.id
+            WHERE f.id IS NULL
+            LIMIT 10;
+        """)
+        
+        orphaned_lotes = cursor.fetchall()
+        
+        if orphaned_lotes:
+            print(f"\n[WARN]  Lotes huérfanos encontrados: {len(orphaned_lotes)}")
+            print("Lotes sin finca válida:")
+            for lote in orphaned_lotes:
+                print(f"  - Lote ID: {lote[0]}, finca_id: {lote[1]}")
+        else:
+            print("\n✅ No se encontraron lotes huérfanos")
     
     print("\n" + "=" * 60)
     print("Verificación completada")

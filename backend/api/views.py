@@ -22,8 +22,6 @@ from django.db.models import Q, Count, Avg, Min, Max, Sum
 # Importar vistas de calibración
 from .calibration_views import CalibrationStatusView, CalibrationView, CalibratedScanMeasureView
 
-# Importar vistas de emails
-# from .email_views import EmailStatusView, SendTestEmailView, SendBulkNotificationView, EmailTemplatePreviewView, EmailLogsView
 
 # Importar vistas de entrenamiento incremental
 from .incremental_views import (
