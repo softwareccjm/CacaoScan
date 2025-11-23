@@ -100,6 +100,7 @@ from .serializers import (
     FincaStatsSerializer
 )
 from .utils import create_error_response, create_success_response
+from .utils.decorators import handle_api_errors
 from .email_service import send_email_notification
 
 User = get_user_model()
@@ -1359,71 +1360,60 @@ class ImagesListView(PaginationMixin, APIView, ImagePermissionMixin):
         },
         tags=['Imágenes']
     )
+    @handle_api_errors(
+        error_message="Error obteniendo lista de imágenes",
+        log_message="Error obteniendo lista de imágenes"
+    )
     def get(self, request):
         """
         Obtiene la lista de imágenes procesadas con paginación y filtros.
         """
-        try:
-            # Obtener parámetros de consulta (paginación se maneja en el mixin)
-            region = request.GET.get('region')
-            finca = request.GET.get('finca')
-            processed = request.GET.get('processed')
-            search = request.GET.get('search')
-            date_from = request.GET.get('date_from')
-            date_to = request.GET.get('date_to')
-            
-            # Construir queryset base según permisos
-            queryset = self.get_user_images_queryset(request.user)
-            
-            # Aplicar filtros
-            if region:
-                queryset = queryset.filter(region__icontains=region)
-            
-            if finca:
-                queryset = queryset.filter(finca__icontains=finca)
-            
-            if processed is not None:
-                processed_bool = processed.lower() in ['true', '1', 'yes']
-                queryset = queryset.filter(processed=processed_bool)
-            
-            if search:
-                queryset = queryset.filter(
-                    Q(notas__icontains=search) |
-                    Q(finca__icontains=search) |
-                    Q(region__icontains=search) |
-                    Q(lote_id__icontains=search) |
-                    Q(variedad__icontains=search)
-                )
-            
-            if date_from:
-                queryset = queryset.filter(created_at__date__gte=date_from)
-            
-            if date_to:
-                queryset = queryset.filter(created_at__date__lte=date_to)
-            
-            # Ordenar por fecha de creación (más recientes primero)
-            queryset = queryset.order_by('-created_at')
-            
-            # Paginar usando el mixin
-            return self.paginate_queryset(
-                request,
-                queryset,
-                CacaoImageSerializer
+        # Obtener parámetros de consulta (paginación se maneja en el mixin)
+        region = request.GET.get('region')
+        finca = request.GET.get('finca')
+        processed = request.GET.get('processed')
+        search = request.GET.get('search')
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        
+        # Construir queryset base según permisos
+        queryset = self.get_user_images_queryset(request.user)
+        
+        # Aplicar filtros
+        if region:
+            queryset = queryset.filter(region__icontains=region)
+        
+        if finca:
+            queryset = queryset.filter(finca__icontains=finca)
+        
+        if processed is not None:
+            processed_bool = processed.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(processed=processed_bool)
+        
+        if search:
+            queryset = queryset.filter(
+                Q(notas__icontains=search) |
+                Q(finca__icontains=search) |
+                Q(region__icontains=search) |
+                Q(lote_id__icontains=search) |
+                Q(variedad__icontains=search)
             )
-            
-        except ValueError as e:
-            return Response({
-                'error': 'Parámetros de consulta inválidos',
-                'status': 'error',
-                'details': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo lista de imágenes: {e}")
-            return Response({
-                'error': 'Error interno del servidor',
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        
+        # Ordenar por fecha de creación (más recientes primero)
+        queryset = queryset.order_by('-created_at')
+        
+        # Paginar usando el mixin
+        return self.paginate_queryset(
+            request,
+            queryset,
+            CacaoImageSerializer
+        )
 
 
 class ImageDetailView(APIView, ImagePermissionMixin):
@@ -1445,39 +1435,35 @@ class ImageDetailView(APIView, ImagePermissionMixin):
         },
         tags=['Imágenes']
     )
+    @handle_api_errors(
+        error_message="Error obteniendo detalles de imagen",
+        log_message="Error obteniendo detalles de imagen"
+    )
     def get(self, request, image_id):
         """
         Obtiene los detalles completos de una imagen específica.
         Solo el propietario o un admin pueden acceder.
         """
+        # Obtener imagen
         try:
-            # Obtener imagen
-            try:
-                image = CacaoImage.objects.select_related('user', 'prediction').get(id=image_id)
-            except CacaoImage.DoesNotExist:
-                return Response({
-                    'error': 'Imagen no encontrada',
-                    'status': 'error'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Verificar permisos de acceso
-            if not self.can_access_image(request.user, image):
-                return Response({
-                    'error': 'No tienes permisos para acceder a esta imagen',
-                    'status': 'error'
-                }, status=status.HTTP_403_FORBIDDEN)
-            
-            # Serializar imagen con predicción
-            serializer = CacaoImageDetailSerializer(image, context={'request': request})
-            
-            return Response(serializer.data, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo detalles de imagen {image_id}: {e}")
+            image = CacaoImage.objects.select_related('user', 'prediction').get(id=image_id)
+        except CacaoImage.DoesNotExist:
             return Response({
-                'error': 'Error interno del servidor',
+                'error': 'Imagen no encontrada',
                 'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Verificar permisos de acceso
+        if not self.can_access_image(request.user, image):
+            return Response({
+                'error': 'No tienes permisos para acceder a esta imagen',
+                'status': 'error'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Serializar imagen con predicción
+        serializer = CacaoImageDetailSerializer(image, context={'request': request})
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ImagesStatsView(APIView, ImagePermissionMixin):
@@ -2383,91 +2369,80 @@ class UserListView(PaginationMixin, AdminPermissionMixin, APIView):
         },
         tags=['Usuarios']
     )
+    @handle_api_errors(
+        error_message="Error obteniendo lista de usuarios",
+        log_message="Error obteniendo lista de usuarios"
+    )
     def get(self, request):
         """
         Obtiene la lista de usuarios con filtros y paginación.
         Solo accesible para administradores.
         """
-        try:
-            # Verificar permisos de administrador
-            if not self.is_admin_user(request.user):
-                return self.admin_permission_denied()
-            
-            # Obtener parámetros de consulta (paginación se maneja en el mixin)
-            role = request.GET.get('role')
-            is_active = request.GET.get('is_active')
-            is_verified = request.GET.get('is_verified')
-            search = request.GET.get('search')
-            date_from = request.GET.get('date_from')
-            date_to = request.GET.get('date_to')
-            
-            # Construir queryset base (evitar select_related/prefetch a relaciones no garantizadas)
-            queryset = User.objects.all().prefetch_related('groups')
-            
-            # Aplicar filtros
-            if role:
-                if role == 'admin':
-                    queryset = queryset.filter(Q(is_superuser=True) | Q(is_staff=True))
-                elif role == 'analyst':
-                    queryset = queryset.filter(groups__name='analyst')
-                elif role == 'farmer':
-                    queryset = queryset.filter(
-                        ~Q(is_superuser=True),
-                        ~Q(is_staff=True),
-                        ~Q(groups__name='analyst')
-                    )
-            
-            if is_active is not None:
-                active_bool = is_active.lower() in ['true', '1', 'yes']
-                queryset = queryset.filter(is_active=active_bool)
-            
-            if is_verified is not None:
-                verified_bool = is_verified.lower() in ['true', '1', 'yes']
-                if verified_bool:
-                    queryset = queryset.filter(auth_email_token__is_verified=True)
-                else:
-                    queryset = queryset.filter(
-                        Q(auth_email_token__is_verified=False) | 
-                        Q(auth_email_token__isnull=True)
-                    )
-            
-            if search:
+        # Verificar permisos de administrador
+        if not self.is_admin_user(request.user):
+            return self.admin_permission_denied()
+        
+        # Obtener parámetros de consulta (paginación se maneja en el mixin)
+        role = request.GET.get('role')
+        is_active = request.GET.get('is_active')
+        is_verified = request.GET.get('is_verified')
+        search = request.GET.get('search')
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        
+        # Construir queryset base (evitar select_related/prefetch a relaciones no garantizadas)
+        queryset = User.objects.all().prefetch_related('groups')
+        
+        # Aplicar filtros
+        if role:
+            if role == 'admin':
+                queryset = queryset.filter(Q(is_superuser=True) | Q(is_staff=True))
+            elif role == 'analyst':
+                queryset = queryset.filter(groups__name='analyst')
+            elif role == 'farmer':
                 queryset = queryset.filter(
-                    Q(username__icontains=search) |
-                    Q(email__icontains=search) |
-                    Q(first_name__icontains=search) |
-                    Q(last_name__icontains=search)
+                    ~Q(is_superuser=True),
+                    ~Q(is_staff=True),
+                    ~Q(groups__name='analyst')
                 )
-            
-            if date_from:
-                queryset = queryset.filter(date_joined__date__gte=date_from)
-            
-            if date_to:
-                queryset = queryset.filter(date_joined__date__lte=date_to)
-            
-            # Ordenar por fecha de registro (más recientes primero)
-            queryset = queryset.order_by('-date_joined')
-            
-            # Paginar usando el mixin
-            return self.paginate_queryset(
-                request,
-                queryset,
-                UserSerializer
+        
+        if is_active is not None:
+            active_bool = is_active.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(is_active=active_bool)
+        
+        if is_verified is not None:
+            verified_bool = is_verified.lower() in ['true', '1', 'yes']
+            if verified_bool:
+                queryset = queryset.filter(auth_email_token__is_verified=True)
+            else:
+                queryset = queryset.filter(
+                    Q(auth_email_token__is_verified=False) | 
+                    Q(auth_email_token__isnull=True)
+                )
+        
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
             )
-            
-        except ValueError as e:
-            return Response({
-                'error': 'Parámetros de consulta inválidos',
-                'status': 'error',
-                'details': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo lista de usuarios: {e}")
-            return Response({
-                'error': 'Error interno del servidor',
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        if date_from:
+            queryset = queryset.filter(date_joined__date__gte=date_from)
+        
+        if date_to:
+            queryset = queryset.filter(date_joined__date__lte=date_to)
+        
+        # Ordenar por fecha de registro (más recientes primero)
+        queryset = queryset.order_by('-date_joined')
+        
+        # Paginar usando el mixin
+        return self.paginate_queryset(
+            request,
+            queryset,
+            UserSerializer
+        )
     
 
 
@@ -2507,83 +2482,75 @@ class UserUpdateView(AdminPermissionMixin, APIView):
         Actualiza la información de un usuario específico.
         Solo accesible para administradores.
         """
+        # Verificar permisos de administrador
+        if not self.is_admin_user(request.user):
+            return self.admin_permission_denied()
+        
+        # Obtener usuario
         try:
-            # Verificar permisos de administrador
-            if not self.is_admin_user(request.user):
-                return self.admin_permission_denied()
-            
-            # Obtener usuario
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Usuario no encontrado',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validar que no se puede desactivar a sí mismo
+        if user == request.user and request.data.get('is_active') is False:
+            return Response({
+                'error': 'No puedes desactivar tu propia cuenta',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Actualizar campos básicos
+        if 'first_name' in request.data:
+            user.first_name = request.data['first_name']
+        
+        if 'last_name' in request.data:
+            user.last_name = request.data['last_name']
+        
+        if 'email' in request.data:
+            # Verificar que el email no esté en uso por otro usuario
+            if User.objects.filter(email=request.data['email']).exclude(id=user_id).exists():
                 return Response({
-                    'error': 'Usuario no encontrado',
-                    'status': 'error'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Validar que no se puede desactivar a sí mismo
-            if user == request.user and request.data.get('is_active') is False:
-                return Response({
-                    'error': 'No puedes desactivar tu propia cuenta',
+                    'error': 'Este email ya está en uso por otro usuario',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
+            user.email = request.data['email']
+            user.username = request.data['email']  # Mantener username = email
+        
+        if 'is_active' in request.data:
+            user.is_active = request.data['is_active']
+        
+        if 'is_staff' in request.data:
+            user.is_staff = request.data['is_staff']
+        
+        # Guardar cambios
+        user.save()
+        
+        # Actualizar grupos si se proporcionan
+        if 'groups' in request.data:
+            group_names = request.data['groups']
+            from django.contrib.auth.models import Group
             
-            # Actualizar campos básicos
-            if 'first_name' in request.data:
-                user.first_name = request.data['first_name']
+            # Limpiar grupos existentes
+            user.groups.clear()
             
-            if 'last_name' in request.data:
-                user.last_name = request.data['last_name']
-            
-            if 'email' in request.data:
-                # Verificar que el email no esté en uso por otro usuario
-                if User.objects.filter(email=request.data['email']).exclude(id=user_id).exists():
-                    return Response({
-                        'error': 'Este email ya está en uso por otro usuario',
-                        'status': 'error'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-                user.email = request.data['email']
-                user.username = request.data['email']  # Mantener username = email
-            
-            if 'is_active' in request.data:
-                user.is_active = request.data['is_active']
-            
-            if 'is_staff' in request.data:
-                user.is_staff = request.data['is_staff']
-            
-            # Guardar cambios
-            user.save()
-            
-            # Actualizar grupos si se proporcionan
-            if 'groups' in request.data:
-                group_names = request.data['groups']
-                from django.contrib.auth.models import Group
-                
-                # Limpiar grupos existentes
-                user.groups.clear()
-                
-                # Agregar nuevos grupos
-                for group_name in group_names:
-                    try:
-                        group = Group.objects.get(name=group_name)
-                        user.groups.add(group)
-                    except Group.DoesNotExist:
-                        logger.warning(f"Grupo '{group_name}' no encontrado")
-            
-            # Serializar usuario actualizado
-            serializer = UserSerializer(user)
-            
-            return Response({
-                'message': 'Usuario actualizado exitosamente',
-                'user': serializer.data
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Error actualizando usuario {user_id}: {e}")
-            return Response({
-                'error': 'Error interno del servidor',
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Agregar nuevos grupos
+            for group_name in group_names:
+                try:
+                    group = Group.objects.get(name=group_name)
+                    user.groups.add(group)
+                except Group.DoesNotExist:
+                    logger.warning(f"Grupo '{group_name}' no encontrado")
+        
+        # Serializar usuario actualizado
+        serializer = UserSerializer(user)
+        
+        return Response({
+            'message': 'Usuario actualizado exitosamente',
+            'user': serializer.data
+        }, status=status.HTTP_200_OK)
     
 
 
@@ -2618,62 +2585,54 @@ class UserDeleteView(AdminPermissionMixin, APIView):
         Elimina un usuario del sistema.
         Solo accesible para administradores.
         """
+        # Verificar permisos de administrador
+        if not self.is_admin_user(request.user):
+            return self.admin_permission_denied()
+        
+        # Obtener usuario
         try:
-            # Verificar permisos de administrador
-            if not self.is_admin_user(request.user):
-                return self.admin_permission_denied()
-            
-            # Obtener usuario
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                return Response({
-                    'error': 'Usuario no encontrado',
-                    'status': 'error'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Validaciones de seguridad
-            if user == request.user:
-                return Response({
-                    'error': 'No puedes eliminar tu propia cuenta',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if user.is_superuser and not request.user.is_superuser:
-                return Response({
-                    'error': 'No tienes permisos para eliminar superusuarios',
-                    'status': 'error'
-                }, status=status.HTTP_403_FORBIDDEN)
-            
-            # Guardar información del usuario antes de eliminarlo
-            user_data = {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'date_joined': user.date_joined.isoformat(),
-                'is_active': user.is_active,
-                'is_staff': user.is_staff,
-                'is_superuser': user.is_superuser
-            }
-            
-            # Eliminar usuario (esto también eliminará el perfil y tokens relacionados)
-            user.delete()
-            
-            logger.info(f"Usuario {user_data['username']} eliminado por admin {request.user.username}")
-            
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
             return Response({
-                'message': 'Usuario eliminado exitosamente',
-                'deleted_user': user_data
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Error eliminando usuario {user_id}: {e}")
-            return Response({
-                'error': 'Error interno del servidor',
+                'error': 'Usuario no encontrado',
                 'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validaciones de seguridad
+        if user == request.user:
+            return Response({
+                'error': 'No puedes eliminar tu propia cuenta',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user.is_superuser and not request.user.is_superuser:
+            return Response({
+                'error': 'No tienes permisos para eliminar superusuarios',
+                'status': 'error'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Guardar información del usuario antes de eliminarlo
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'date_joined': user.date_joined.isoformat(),
+            'is_active': user.is_active,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser
+        }
+        
+        # Eliminar usuario (esto también eliminará el perfil y tokens relacionados)
+        user.delete()
+        
+        logger.info(f"Usuario {user_data['username']} eliminado por admin {request.user.username}")
+        
+        return Response({
+            'message': 'Usuario eliminado exitosamente',
+            'deleted_user': user_data
+        }, status=status.HTTP_200_OK)
     
 
 
@@ -2700,76 +2659,68 @@ class UserStatsView(AdminPermissionMixin, APIView):
         Obtiene estadísticas de usuarios.
         Solo accesible para administradores.
         """
-        try:
-            # Verificar permisos de administrador
-            if not self.is_admin_user(request.user):
-                return self.admin_permission_denied()
-            
-            from datetime import timedelta, datetime
-            from django.utils import timezone
-            from django.db.models import Count, Q
-            
-            # Estadísticas generales
-            total_users = User.objects.count()
-            active_users = User.objects.filter(is_active=True).count()
-            inactive_users = total_users - active_users
-            
-            # Usuarios registrados hoy
-            today = timezone.now().date()
-            users_today = User.objects.filter(date_joined__date=today).count()
-            
-            # Usuarios en línea (últimos 5 minutos)
-            five_minutes_ago = timezone.now() - timedelta(minutes=5)
-            online_users = User.objects.filter(last_login__gte=five_minutes_ago).count()
-            
-            # Usuarios por rol
-            admin_users = User.objects.filter(Q(is_superuser=True) | Q(is_staff=True)).count()
-            analyst_users = User.objects.filter(groups__name='analyst').distinct().count()
-            farmer_users = User.objects.filter(
-                ~Q(is_superuser=True),
-                ~Q(is_staff=True),
-                ~Q(groups__name='analyst')
-            ).count()
-            
-            # Usuarios por estado de verificación
-            verified_users = User.objects.filter(
-                auth_email_token__is_verified=True
-            ).count()
-            
-            # Usuarios nuevos esta semana
-            this_week_start = today - timedelta(days=today.weekday())
-            users_this_week = User.objects.filter(date_joined__date__gte=this_week_start).count()
-            
-            # Usuarios nuevos este mes
-            this_month_start = today.replace(day=1)
-            users_this_month = User.objects.filter(date_joined__date__gte=this_month_start).count()
-            
-            # Preparar respuesta
-            stats = {
-                'total': total_users,
-                'active': active_users,
-                'inactive': inactive_users,
-                'online': online_users,
-                'new_today': users_today,
-                'new_this_week': users_this_week,
-                'new_this_month': users_this_month,
-                'by_role': {
-                    'admin': admin_users,
-                    'analyst': analyst_users,
-                    'farmer': farmer_users
-                },
-                'verified': verified_users,
-                'generated_at': timezone.now().isoformat()
-            }
-            
-            return Response(stats, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo estadísticas de usuarios: {e}")
-            return Response({
-                'error': 'Error interno del servidor',
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Verificar permisos de administrador
+        if not self.is_admin_user(request.user):
+            return self.admin_permission_denied()
+        
+        from datetime import timedelta, datetime
+        from django.utils import timezone
+        from django.db.models import Count, Q
+        
+        # Estadísticas generales
+        total_users = User.objects.count()
+        active_users = User.objects.filter(is_active=True).count()
+        inactive_users = total_users - active_users
+        
+        # Usuarios registrados hoy
+        today = timezone.now().date()
+        users_today = User.objects.filter(date_joined__date=today).count()
+        
+        # Usuarios en línea (últimos 5 minutos)
+        five_minutes_ago = timezone.now() - timedelta(minutes=5)
+        online_users = User.objects.filter(last_login__gte=five_minutes_ago).count()
+        
+        # Usuarios por rol
+        admin_users = User.objects.filter(Q(is_superuser=True) | Q(is_staff=True)).count()
+        analyst_users = User.objects.filter(groups__name='analyst').distinct().count()
+        farmer_users = User.objects.filter(
+            ~Q(is_superuser=True),
+            ~Q(is_staff=True),
+            ~Q(groups__name='analyst')
+        ).count()
+        
+        # Usuarios por estado de verificación
+        verified_users = User.objects.filter(
+            auth_email_token__is_verified=True
+        ).count()
+        
+        # Usuarios nuevos esta semana
+        this_week_start = today - timedelta(days=today.weekday())
+        users_this_week = User.objects.filter(date_joined__date__gte=this_week_start).count()
+        
+        # Usuarios nuevos este mes
+        this_month_start = today.replace(day=1)
+        users_this_month = User.objects.filter(date_joined__date__gte=this_month_start).count()
+        
+        # Preparar respuesta
+        stats = {
+            'total': total_users,
+            'active': active_users,
+            'inactive': inactive_users,
+            'online': online_users,
+            'new_today': users_today,
+            'new_this_week': users_this_week,
+            'new_this_month': users_this_month,
+            'by_role': {
+                'admin': admin_users,
+                'analyst': analyst_users,
+                'farmer': farmer_users
+            },
+            'verified': verified_users,
+            'generated_at': timezone.now().isoformat()
+        }
+        
+        return Response(stats, status=status.HTTP_200_OK)
     
 
 
