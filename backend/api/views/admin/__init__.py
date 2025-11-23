@@ -13,6 +13,9 @@ from .config_views import (
     SystemMLConfigView,
     SystemInfoView,
 )
+from .task_status_views import (
+    TaskStatusView,
+)
 
 __all__ = [
     'ActivityLogListView',
@@ -23,5 +26,6 @@ __all__ = [
     'SystemSecurityConfigView',
     'SystemMLConfigView',
     'SystemInfoView',
+    'TaskStatusView',
 ]
 

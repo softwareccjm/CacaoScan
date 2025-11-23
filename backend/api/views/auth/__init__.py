@@ -25,6 +25,14 @@ from .otp_views import (
     SendOtpView,
     VerifyOtpView,
 )
+from .user_views import (
+    UserListView,
+    UserUpdateView,
+    UserDeleteView,
+    UserStatsView,
+    AdminStatsView,
+    UserDetailView,
+)
 
 __all__ = [
     # Login views
@@ -46,4 +54,11 @@ __all__ = [
     # OTP views
     'SendOtpView',
     'VerifyOtpView',
+    # User management views
+    'UserListView',
+    'UserUpdateView',
+    'UserDeleteView',
+    'UserStatsView',
+    'AdminStatsView',
+    'UserDetailView',
 ]

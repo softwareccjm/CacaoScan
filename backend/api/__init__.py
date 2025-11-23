@@ -1,54 +1,49 @@
 ﻿"""
 API module for CacaoScan.
 
-This module re-exports views from separate modules for backward compatibility.
+This module re-exports views from api.views for backward compatibility.
 All new code should import directly from api.views instead.
 """
-# Re-export views from separate modules for backward compatibility
+# Re-export views from api.views module for backward compatibility
 # NOTE: These re-exports are maintained for compatibility with urls.py
 # New code should import from api.views or specific view modules directly
-from .otp_views import SendOtpView, VerifyOtpView
-from .fincas_views import (
+from .views.auth import (
+    SendOtpView,
+    VerifyOtpView,
+)
+from .views.finca import (
     FincaListCreateView, FincaDetailView, FincaUpdateView,
-    FincaDeleteView, FincaActivateView, FincaStatsView
-)
-from .lotes_views import (
+    FincaDeleteView, FincaActivateView, FincaStatsView,
     LoteListCreateView, LoteDetailView, LoteUpdateView,
-    LoteDeleteView, LoteStatsView, LotesPorFincaView
+    LoteDeleteView, LoteStatsView, LotesPorFincaView,
 )
-from .notifications_views import (
+from .views.notifications import (
     NotificationListCreateView, NotificationDetailView,
     NotificationMarkReadView, NotificationMarkAllReadView,
     NotificationUnreadCountView, NotificationStatsView,
-    NotificationCreateView
+    NotificationCreateView,
 )
-from .audit_views import (
-    ActivityLogListView, LoginHistoryListView, AuditStatsView
+from .views.admin import (
+    ActivityLogListView, LoginHistoryListView, AuditStatsView,
+    SystemSettingsView, SystemGeneralConfigView, SystemSecurityConfigView,
+    SystemMLConfigView, SystemInfoView,
 )
-from .report_views import (
+from .views.reports import (
     ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
     ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
-    ReporteAgricultoresView, ReporteUsuariosView
+    ReporteAgricultoresView, ReporteUsuariosView,
 )
-from .calibration_views import (
-    CalibrationStatusView, CalibrationView, CalibratedScanMeasureView
-)
-from .incremental_views import (
+from .views.ml import (
+    CalibrationStatusView, CalibrationView, CalibratedScanMeasureView,
     IncrementalTrainingStatusView, IncrementalTrainingView,
     IncrementalDataUploadView, IncrementalModelVersionsView,
-    IncrementalDataVersionsView
-)
-from .model_metrics_views import (
+    IncrementalDataVersionsView,
     ModelMetricsListView, ModelMetricsDetailView, ModelMetricsCreateView,
     ModelMetricsUpdateView, ModelMetricsDeleteView, ModelMetricsStatsView,
     ModelPerformanceTrendView, ModelComparisonView, BestModelsView,
-    ProductionModelsView
+    ProductionModelsView,
 )
-from .batch_analysis_views import BatchAnalysisView
-from .config_views import (
-    SystemSettingsView, SystemGeneralConfigView, SystemSecurityConfigView,
-    SystemMLConfigView, SystemInfoView
-)
+from .views.image import BatchAnalysisView
 
 __all__ = [
     # OTP views

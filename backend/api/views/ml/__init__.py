@@ -25,6 +25,20 @@ from .model_metrics_views import (
     BestModelsView,
     ProductionModelsView,
 )
+from .model_views import (
+    ModelsStatusView,
+    DatasetValidationView,
+    LoadModelsView,
+    AutoInitializeView,
+    LatestMetricsView,
+    PromoteModelView,
+    AutoTrainView,
+)
+from .training_views import (
+    TrainingJobListView,
+    TrainingJobCreateView,
+    TrainingJobStatusView,
+)
 
 __all__ = [
     'CalibrationStatusView',
@@ -45,5 +59,15 @@ __all__ = [
     'ModelComparisonView',
     'BestModelsView',
     'ProductionModelsView',
+    'ModelsStatusView',
+    'DatasetValidationView',
+    'LoadModelsView',
+    'AutoInitializeView',
+    'LatestMetricsView',
+    'PromoteModelView',
+    'AutoTrainView',
+    'TrainingJobListView',
+    'TrainingJobCreateView',
+    'TrainingJobStatusView',
 ]
 

@@ -12,21 +12,21 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..views.mixins import PaginationMixin, AdminPermissionMixin
-from ..serializers import (
+from ...views.mixins import PaginationMixin, AdminPermissionMixin
+from ...serializers import (
     TrainingJobSerializer,
     TrainingJobCreateSerializer,
     TrainingJobStatusSerializer,
     ErrorResponseSerializer
 )
-from ..utils.decorators import handle_api_errors
+from ...utils.decorators import handle_api_errors
 
-from ..utils.model_imports import get_model_safely
+from ...utils.model_imports import get_model_safely
 
 # Import training model safely
 TrainingJob = get_model_safely('training.models.TrainingJob')
 
-logger = logging.getLogger("cacaoscan.api.training")
+logger = logging.getLogger("cacaoscan.api.ml.training")
 
 
 class TrainingJobListView(PaginationMixin, AdminPermissionMixin, APIView):

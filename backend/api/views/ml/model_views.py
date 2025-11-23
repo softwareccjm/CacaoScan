@@ -1,5 +1,5 @@
 """
-ML views for CacaoScan API.
+ML model views for CacaoScan API.
 """
 import logging
 import time
@@ -12,19 +12,19 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..views.mixins import AdminPermissionMixin
-from ..serializers import (
+from ...views.mixins import AdminPermissionMixin
+from ...serializers import (
     ModelsStatusSerializer,
     LoadModelsResponseSerializer,
     ErrorResponseSerializer,
     AutoTrainConfigSerializer
 )
-from ..utils.decorators import handle_api_errors
-from ..services.analysis_service import AnalysisService
-from ..services.ml.ml_service import MLService
-from ..utils.cache_helpers import invalidate_models_status_cache, invalidate_dataset_validation_cache, invalidate_latest_metrics_cache
+from ...utils.decorators import handle_api_errors
+from ...services.analysis_service import AnalysisService
+from ...services.ml.ml_service import MLService
+from ...utils.cache_helpers import invalidate_models_status_cache, invalidate_dataset_validation_cache, invalidate_latest_metrics_cache
 
-from ..utils.model_imports import get_model_safely, get_models_safely
+from ...utils.model_imports import get_model_safely, get_models_safely
 
 # ML related imports (these are functions, not models, but we use the same pattern)
 try:
@@ -43,7 +43,7 @@ models = get_models_safely({
 ModelMetrics = models['ModelMetrics']
 TrainingJob = models['TrainingJob']
 
-logger = logging.getLogger("cacaoscan.api.ml_views")
+logger = logging.getLogger("cacaoscan.api.ml.model_views")
 
 
 @method_decorator(cache_page(60 * 5, cache='api_cache'), name='get')
@@ -151,8 +151,8 @@ class DatasetValidationView(APIView):
         Si no, encola una tarea Celery y retorna un task_id.
         """
         from django.core.cache import cache
-        from ..utils.cache_helpers import get_cache_key
-        from ..tasks.ml_tasks import validate_dataset_task
+        from ...utils.cache_helpers import get_cache_key
+        from ...tasks.ml_tasks import validate_dataset_task
         
         # Cache key basado en el dataset
         cache_key = get_cache_key('dataset_validation', 'stats')
@@ -371,7 +371,7 @@ class LatestMetricsView(APIView):
             ).select_related('created_by').order_by('-created_at').first()
             
             if latest:
-                from ..serializers import ModelMetricsListSerializer
+                from ...serializers import ModelMetricsListSerializer
                 latest_metrics[target] = ModelMetricsListSerializer(latest).data
         
         return Response({
@@ -452,7 +452,7 @@ class PromoteModelView(AdminPermissionMixin, APIView):
         # Promover a producción
         model_metric.mark_as_production()
         
-        from ..serializers import ModelMetricsListSerializer
+        from ...serializers import ModelMetricsListSerializer
         serializer = ModelMetricsListSerializer(model_metric)
         
         logger.info(f"Modelo {model_name} v{version} para {target} promovido a producción por {request.user.username}")

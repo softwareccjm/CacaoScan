@@ -59,7 +59,7 @@ from .views.ml import (
     ProductionModelsView,
 )
 from .views.image import BatchAnalysisView
-from .views.task_status_views import TaskStatusView
+from .views.admin import TaskStatusView
 
 urlpatterns = [
     # Endpoints principales

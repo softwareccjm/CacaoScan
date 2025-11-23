@@ -15,6 +15,13 @@ from .auth import (
     VerifyEmailPreRegistrationView,
     ForgotPasswordView,
     ResetPasswordView,
+    # User management views
+    UserListView,
+    UserUpdateView,
+    UserDeleteView,
+    UserStatsView,
+    AdminStatsView,
+    UserDetailView,
 )
 
 from .image import (
@@ -36,30 +43,9 @@ from .image import (
     BatchAnalysisView,
 )
 
-from .user_views import (
-    UserListView,
-    UserUpdateView,
-    UserDeleteView,
-    UserStatsView,
-    AdminStatsView,
-    UserDetailView
-)
-
-from .training_views import (
-    TrainingJobListView,
-    TrainingJobCreateView,
-    TrainingJobStatusView
-)
-
-from .ml_views import (
-    ModelsStatusView,
-    DatasetValidationView,
-    LoadModelsView,
-    AutoInitializeView,
-    LatestMetricsView,
-    PromoteModelView,
-    AutoTrainView
-)
+# User views moved to auth module
+# Training views moved to ml module
+# ML views moved to ml module
 
 # Import views from new modular structure
 from .finca import (
@@ -79,6 +65,7 @@ from .admin import (
     ActivityLogListView, LoginHistoryListView, AuditStatsView,
     SystemSettingsView, SystemGeneralConfigView, SystemSecurityConfigView,
     SystemMLConfigView, SystemInfoView,
+    TaskStatusView,
 )
 from .reports import (
     ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
@@ -94,6 +81,18 @@ from .ml import (
     ModelMetricsUpdateView, ModelMetricsDeleteView, ModelMetricsStatsView,
     ModelPerformanceTrendView, ModelComparisonView, BestModelsView,
     ProductionModelsView,
+    # Model views
+    ModelsStatusView,
+    DatasetValidationView,
+    LoadModelsView,
+    AutoInitializeView,
+    LatestMetricsView,
+    PromoteModelView,
+    AutoTrainView,
+    # Training views
+    TrainingJobListView,
+    TrainingJobCreateView,
+    TrainingJobStatusView,
 )
 __all__ = [
     # Auth views
@@ -125,18 +124,18 @@ __all__ = [
     'AdminBulkUpdateView',
     'AdminDatasetStatsView',
     'ImagePermissionMixin',
-    # User views
+    # User views (moved to auth module)
     'UserListView',
     'UserUpdateView',
     'UserDeleteView',
     'UserStatsView',
     'AdminStatsView',
     'UserDetailView',
-    # Training views
+    # Training views (moved to ml module)
     'TrainingJobListView',
     'TrainingJobCreateView',
     'TrainingJobStatusView',
-    # ML views
+    # ML views (moved to ml module)
     'ModelsStatusView',
     'DatasetValidationView',
     'LoadModelsView',
@@ -177,6 +176,7 @@ __all__ = [
     'SystemSecurityConfigView',
     'SystemMLConfigView',
     'SystemInfoView',
+    'TaskStatusView',
     # Report views
     'ReporteListCreateView',
     'ReporteDetailView',
