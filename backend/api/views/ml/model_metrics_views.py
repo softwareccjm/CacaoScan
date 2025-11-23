@@ -268,6 +268,10 @@ class ModelMetricsCreateView(APIView):
                 if metrics.is_production_model:
                     metrics.mark_as_production()
                 
+                # Invalidar cache de métricas cuando se crean nuevas métricas
+                from ...utils.cache_helpers import invalidate_latest_metrics_cache
+                invalidate_latest_metrics_cache()
+                
                 response_serializer = ModelMetricsSerializer(metrics)
                 
                 return create_success_response(
@@ -338,6 +342,10 @@ class ModelMetricsUpdateView(APIView):
                 if updated_metrics.is_production_model:
                     updated_metrics.mark_as_production()
                 
+                # Invalidar cache de métricas cuando se actualizan métricas
+                from ...utils.cache_helpers import invalidate_latest_metrics_cache
+                invalidate_latest_metrics_cache()
+                
                 response_serializer = ModelMetricsSerializer(updated_metrics)
                 
                 return create_success_response(
@@ -398,6 +406,10 @@ class ModelMetricsDeleteView(APIView):
         try:
             metrics = ModelMetrics.objects.get(id=metrics_id)
             metrics.delete()
+            
+            # Invalidar cache de métricas cuando se eliminan métricas
+            from ...utils.cache_helpers import invalidate_latest_metrics_cache
+            invalidate_latest_metrics_cache()
             
             return create_success_response(
                 data={},

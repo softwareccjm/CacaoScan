@@ -411,20 +411,17 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
         predictor = None
         
         try:
-            # Obtener predictor
-            from ml.prediction.predict import get_predictor, load_artifacts
+            # Obtener predictor usando MLService (singleton, carga solo una vez)
+            from ...services.ml.ml_service import MLService
             
-            predictor = get_predictor()
+            ml_service = MLService()
+            predictor_result = ml_service.get_predictor()
             
-            if not predictor.models_loaded:
-                logger.info("Modelos no cargados. Intentando carga automática...")
-                success = load_artifacts()
-                
-                if success:
-                    predictor = get_predictor()
-                else:
-                    logger.error("No se pudieron cargar los modelos ML")
-                    return results
+            if not predictor_result.success:
+                logger.error(f"No se pudieron cargar los modelos ML: {predictor_result.error.message}")
+                return results
+            
+            predictor = predictor_result.data
         
         except Exception as e:
             logger.error(f"Error obteniendo predictor: {e}", exc_info=True)

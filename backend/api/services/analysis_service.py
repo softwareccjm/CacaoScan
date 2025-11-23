@@ -526,16 +526,20 @@ class AnalysisService(BaseService):
             # Step 4: Load models
             self.log_info("Step 4: Loading models...")
             try:
-                from ml.prediction.predict import load_artifacts
+                from .ml.ml_service import MLService
                 
-                success = load_artifacts()
+                ml_service = MLService()
+                load_result = ml_service.load_models(force=False)
                 
-                if success:
+                if load_result.success:
                     steps_completed.append("[OK] Models loaded")
                     self.log_info("Models loaded successfully")
                 else:
                     return ServiceResult.error(
-                        ValidationServiceError("Error loading models")
+                        ValidationServiceError(
+                            load_result.error.message,
+                            details=load_result.error.details
+                        )
                     )
                     
             except Exception as e:

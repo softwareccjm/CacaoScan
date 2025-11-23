@@ -132,6 +132,13 @@ class RegisterSerializer(serializers.ModelSerializer):
             is_active=False  # User inactive until email verification
         )
         
+        # Invalidar cache de estadísticas cuando se crean nuevos usuarios
+        try:
+            from ..utils.cache_helpers import invalidate_system_stats_cache
+            invalidate_system_stats_cache()
+        except Exception:
+            pass  # No fallar si hay error en invalidación de cache
+        
         return user
 
 

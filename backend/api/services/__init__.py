@@ -22,6 +22,7 @@ from .report_service import ReportService
 
 # Importar servicios por dominio
 from .ml.prediction_service import PredictionService
+from .ml.ml_service import MLService
 from .image.processing_service import ImageProcessingService
 from .image.storage_service import ImageStorageService
 
@@ -53,6 +54,7 @@ __all__ = [
     
     # Servicios por dominio
     'PredictionService',
+    'MLService',
     'ImageProcessingService',
     'ImageStorageService',
     

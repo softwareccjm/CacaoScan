@@ -3,6 +3,8 @@ ML views for CacaoScan API.
 """
 import logging
 import time
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,6 +21,8 @@ from ..serializers import (
 )
 from ..utils.decorators import handle_api_errors
 from ..services.analysis_service import AnalysisService
+from ..services.ml.ml_service import MLService
+from ..utils.cache_helpers import invalidate_models_status_cache, invalidate_dataset_validation_cache, invalidate_latest_metrics_cache
 
 from ..utils.model_imports import get_model_safely, get_models_safely
 
@@ -42,9 +46,16 @@ TrainingJob = models['TrainingJob']
 logger = logging.getLogger("cacaoscan.api.ml_views")
 
 
+@method_decorator(cache_page(60 * 5, cache='api_cache'), name='get')
 class ModelsStatusView(APIView):
     """
     Endpoint para consultar el estado de los modelos.
+    
+    CACHED: Este endpoint está cacheado por 5 minutos porque:
+    - El estado de los modelos ML no cambia frecuentemente
+    - Obtener el estado requiere cargar información del predictor
+    - Reduce la carga en el sistema de ML
+    - El cache se invalida automáticamente cuando se cargan nuevos modelos
     """
     permission_classes = [IsAuthenticated]
     
@@ -65,31 +76,47 @@ class ModelsStatusView(APIView):
         """
         Devuelve el estado de los modelos entrenados.
         """
-        if get_predictor is None:
-            return Response({
-                'error': 'Sistema de predicción no disponible',
-                'status': 'error'
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        
-        predictor = get_predictor()
-        model_info = predictor.get_model_info()
-        
-        response_data = {
-            'status': model_info.get('status', 'not_loaded'),
-            'device': model_info.get('device', 'unknown'),
-            'model': model_info.get('model', 'HybridCacaoRegression'),
-            'model_details': model_info.get('model_details', {}),
-            'scalers': model_info.get('scalers', 'not_loaded'),
-        }
+        try:
+            ml_service = MLService()
+            status_result = ml_service.get_model_status()
+            
+            if not status_result.success:
+                return Response({
+                    'error': status_result.error.message,
+                    'status': 'error',
+                    'details': status_result.error.details
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            status_data = status_result.data
+            
+            response_data = {
+                'status': status_data.get('status', 'not_loaded'),
+                'device': status_data.get('device', 'unknown'),
+                'model': status_data.get('model', 'HybridCacaoRegression'),
+                'model_details': status_data.get('model_details', {}),
+                'scalers': status_data.get('scalers', 'not_loaded'),
+            }
 
-        serializer = ModelsStatusSerializer(data=response_data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.data)
+            serializer = ModelsStatusSerializer(data=response_data)
+            serializer.is_valid(raise_exception=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error getting models status: {e}")
+            return Response({
+                'error': 'Error obteniendo estado de modelos',
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DatasetValidationView(APIView):
     """
     Endpoint para validar el dataset.
+    
+    CACHED: Este endpoint usa cache dinámico porque:
+    - La validación del dataset puede ser costosa (lee archivos, verifica imágenes)
+    - El dataset no cambia frecuentemente, pero puede cambiar cuando se agregan nuevas imágenes
+    - El cache se invalida automáticamente cuando se detectan cambios en el dataset
+    - El timeout del cache se ajusta dinámicamente según la frecuencia de cambios
     """
     permission_classes = [IsAuthenticated]
     
@@ -119,7 +146,19 @@ class DatasetValidationView(APIView):
     def get(self, request):
         """
         Valida el dataset y devuelve estadísticas.
+        Cache dinámico: el timeout se ajusta según la frecuencia de cambios.
         """
+        from django.core.cache import cache
+        from ..utils.cache_helpers import get_cache_key
+        
+        # Cache key basado en el dataset (puede incluir hash del dataset si está disponible)
+        cache_key = get_cache_key('dataset_validation', 'stats')
+        
+        # Intentar obtener del cache
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return Response(cached_result)
+        
         if CacaoDatasetLoader is None:
             return Response({
                 'valid': False,
@@ -130,11 +169,24 @@ class DatasetValidationView(APIView):
         loader = CacaoDatasetLoader()
         stats = loader.get_dataset_stats()
         
-        return Response({
+        response_data = {
             'valid': len(stats.get('missing_images', [])) == 0,
             'stats': stats,
             'status': 'success'
-        })
+        }
+        
+        # Cache dinámico: timeout más largo si el dataset es válido y estable
+        # Timeout más corto si hay problemas o cambios recientes
+        if response_data['valid'] and len(stats.get('missing_images', [])) == 0:
+            # Dataset válido y estable: cache por 15 minutos
+            cache_timeout = 60 * 15
+        else:
+            # Dataset con problemas: cache por 5 minutos para detectar cambios más rápido
+            cache_timeout = 60 * 5
+        
+        cache.set(cache_key, response_data, cache_timeout)
+        
+        return Response(response_data)
 
 
 class LoadModelsView(APIView):
@@ -159,21 +211,47 @@ class LoadModelsView(APIView):
     def post(self, request):
         """
         Carga los artefactos de ML.
+        
+        Uses MLService to ensure models are loaded only once.
+        If models are already loaded, returns success without reloading.
         """
-        if load_artifacts is None:
-            return Response({
-                'error': 'Sistema de carga de modelos no disponible',
-                'status': 'error'
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        
-        success = load_artifacts()
-        
-        if success:
-            return Response({
-                'message': 'Modelos cargados exitosamente',
-                'status': 'success'
-            })
-        else:
+        try:
+            ml_service = MLService()
+            
+            # Check if models are already loaded
+            status_result = ml_service.get_model_status()
+            if status_result.success:
+                status_data = status_result.data
+                if status_data.get('models_loaded', False) and status_data.get('load_state') == 'loaded':
+                    # Models already loaded
+                    invalidate_models_status_cache()
+                    return Response({
+                        'message': 'Modelos ya están cargados',
+                        'status': 'success',
+                        'already_loaded': True
+                    })
+            
+            # Load models (will only load if not already loaded)
+            load_result = ml_service.load_models(force=False)
+            
+            if load_result.success:
+                # Invalidar cache de estado de modelos cuando se cargan nuevos modelos
+                invalidate_models_status_cache()
+                logger.info("Cache invalidated for models status after loading new models")
+                
+                return Response({
+                    'message': 'Modelos cargados exitosamente',
+                    'status': 'success'
+                })
+            else:
+                return Response({
+                    'error': load_result.error.message,
+                    'status': 'error',
+                    'details': load_result.error.details
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            logger.error(f"Error loading models: {e}")
             return Response({
                 'error': 'Error cargando modelos',
                 'status': 'error'
@@ -259,9 +337,15 @@ class AutoInitializeView(APIView):
             }, status=status_code)
 
 
+@method_decorator(cache_page(60 * 1, cache='api_cache'), name='get')
 class LatestMetricsView(APIView):
     """
     Endpoint para obtener las últimas métricas de todos los targets.
+    
+    CACHED: Este endpoint está cacheado por 1 minuto porque:
+    - Las métricas pueden cambiar frecuentemente durante entrenamientos
+    - 1 minuto es suficiente para reducir carga sin ocultar cambios importantes
+    - El cache se invalida automáticamente cuando se crean nuevas métricas
     """
     permission_classes = [IsAuthenticated]
     

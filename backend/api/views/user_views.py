@@ -6,6 +6,8 @@ from datetime import timedelta, datetime
 from django.db.models import Q, Count, Avg, Min, Max, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from rest_framework.permissions import IsAuthenticated
@@ -411,9 +413,16 @@ class UserStatsView(AdminPermissionMixin, APIView):
         return Response(stats, status=status.HTTP_200_OK)
 
 
+@method_decorator(cache_page(60 * 10, cache='api_cache'), name='get')
 class AdminStatsView(AdminPermissionMixin, APIView):
     """
     Endpoint para obtener estadísticas globales del sistema (Admin only).
+    
+    CACHED: Este endpoint está cacheado por 10 minutos porque:
+    - Calcular estadísticas globales requiere múltiples agregaciones SQL pesadas
+    - Las estadísticas no cambian frecuentemente en tiempo real
+    - Reduce significativamente la carga en la base de datos
+    - El cache se invalida automáticamente cuando hay cambios relevantes (nuevos usuarios, imágenes, etc.)
     """
     permission_classes = [IsAuthenticated]
     

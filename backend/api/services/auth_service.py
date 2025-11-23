@@ -1078,6 +1078,13 @@ class AuthenticationService(BaseService):
                 # Marcar registro pendiente como verificado
                 pending_reg.verify()
                 
+                # Invalidar cache de estadísticas cuando se crean nuevos usuarios
+                try:
+                    from ...utils.cache_helpers import invalidate_system_stats_cache
+                    invalidate_system_stats_cache()
+                except Exception as e:
+                    self.log_warning(f"Error invalidating cache after user creation: {e}")
+                
                 # Crear log de auditoría
                 self.create_audit_log(
                     user=user,

@@ -8,7 +8,7 @@ from typing import Dict, Any
 from PIL import Image
 
 from ..base import BaseService, ServiceResult, ValidationServiceError
-from ml.prediction.predict import get_predictor, load_artifacts
+from .ml_service import MLService
 
 logger = logging.getLogger("cacaoscan.services.ml.prediction")
 
@@ -18,55 +18,26 @@ class PredictionService(BaseService):
     Service for handling ML predictions.
     
     Responsibilities:
-    - Loading and managing ML models
     - Performing predictions on images
-    - Managing model state and availability
+    - Managing prediction workflow
+    
+    Note: Model loading is handled by MLService to ensure singleton pattern.
     """
     
     def __init__(self):
         super().__init__()
+        self.ml_service = MLService()
     
     def get_predictor(self) -> ServiceResult:
         """
         Gets the ML predictor instance.
         
+        Uses MLService to ensure models are loaded only once.
+        
         Returns:
             ServiceResult with predictor instance
         """
-        try:
-            predictor = get_predictor()
-            
-            if not predictor.models_loaded:
-                # Try to load models automatically
-                self.log_info("Models not loaded. Attempting automatic load...")
-                success = load_artifacts()
-                
-                if not success:
-                    return ServiceResult.error(
-                        ValidationServiceError(
-                            "Models not available. Run automatic initialization first.",
-                            details={"suggestion": "POST /api/v1/auto-initialize/ to initialize the system"}
-                        )
-                    )
-                
-                # Retry getting predictor
-                predictor = get_predictor()
-                
-                if not predictor.models_loaded:
-                    return ServiceResult.error(
-                        ValidationServiceError("Error loading models after automatic attempt.")
-                    )
-            
-            return ServiceResult.success(
-                data=predictor,
-                message="Predictor obtained successfully"
-            )
-            
-        except Exception as e:
-            self.log_error(f"Error getting predictor: {str(e)}")
-            return ServiceResult.error(
-                ValidationServiceError("Internal error getting predictor", details={"original_error": str(e)})
-            )
+        return self.ml_service.get_predictor()
     
     def predict(self, image: Image.Image) -> ServiceResult:
         """
@@ -114,24 +85,5 @@ class PredictionService(BaseService):
         Returns:
             ServiceResult with model status information
         """
-        try:
-            predictor = get_predictor()
-            
-            status_data = {
-                'models_loaded': predictor.models_loaded,
-                'model_versions': getattr(predictor, 'model_versions', {}),
-                'available_targets': getattr(predictor, 'available_targets', []),
-                'device': getattr(predictor, 'device', 'unknown')
-            }
-            
-            return ServiceResult.success(
-                data=status_data,
-                message="Model status obtained successfully"
-            )
-            
-        except Exception as e:
-            self.log_error(f"Error checking model status: {str(e)}")
-            return ServiceResult.error(
-                ValidationServiceError("Internal error checking model status", details={"original_error": str(e)})
-            )
+        return self.ml_service.get_model_status()
 

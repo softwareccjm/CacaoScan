@@ -57,6 +57,14 @@ class ImageStorageService(BaseService):
             
             cacao_image.save()
             
+            # Invalidar cache de validación de dataset cuando se crean nuevas imágenes
+            try:
+                from ...utils.cache_helpers import invalidate_dataset_validation_cache, invalidate_system_stats_cache
+                invalidate_dataset_validation_cache()
+                invalidate_system_stats_cache()
+            except Exception as e:
+                self.log_warning(f"Error invalidating cache after image save: {e}")
+            
             self.log_info(f"Image saved with ID {cacao_image.id} for user {user.username}")
             
             return ServiceResult.success(
@@ -96,6 +104,14 @@ class ImageStorageService(BaseService):
             )
             
             cacao_image.save()
+            
+            # Invalidar cache de validación de dataset cuando se crean nuevas imágenes
+            try:
+                from ...utils.cache_helpers import invalidate_dataset_validation_cache, invalidate_system_stats_cache
+                invalidate_dataset_validation_cache()
+                invalidate_system_stats_cache()
+            except Exception as e:
+                self.log_warning(f"Error invalidating cache after image save: {e}")
             
             self.log_info(f"Image saved with ID {cacao_image.id} for user {user.username}")
             
@@ -159,6 +175,13 @@ class ImageStorageService(BaseService):
             # Mark image as processed
             cacao_image.processed = True
             cacao_image.save()
+            
+            # Invalidar cache de estadísticas cuando se crean nuevas predicciones
+            try:
+                from ...utils.cache_helpers import invalidate_system_stats_cache
+                invalidate_system_stats_cache()
+            except Exception as e:
+                self.log_warning(f"Error invalidating cache after prediction save: {e}")
             
             self.log_info(f"Prediction saved with ID {prediction.id}")
             
