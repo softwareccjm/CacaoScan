@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .email_service import (
+from .services.email import (
     email_service, 
     email_notification_service,
     send_email_notification,

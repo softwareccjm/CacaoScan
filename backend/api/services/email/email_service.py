@@ -22,7 +22,7 @@ import base64
 import json
 from datetime import datetime, timedelta
 
-logger = logging.getLogger("cacaoscan.email")
+logger = logging.getLogger("cacaoscan.services.email")
 
 
 class EmailService:
@@ -674,5 +674,4 @@ def send_custom_email(
                 settings.EMAIL_PORT = original_port
         else:
             raise
-
 

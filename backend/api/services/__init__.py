@@ -15,7 +15,6 @@ from .base import (
 # Importar servicios específicos
 from .auth_service import AuthenticationService
 from .analysis_service import AnalysisService
-from .image_service import ImageManagementService
 from .finca_service import FincaService
 from .lote_service import LoteService
 from .report_service import ReportService
@@ -25,6 +24,7 @@ from .ml.prediction_service import PredictionService
 from .ml.ml_service import MLService
 from .image.processing_service import ImageProcessingService
 from .image.storage_service import ImageStorageService
+from .image.management_service import ImageManagementService
 
 # Crear instancias de servicios para uso fácil
 auth_service = AuthenticationService()

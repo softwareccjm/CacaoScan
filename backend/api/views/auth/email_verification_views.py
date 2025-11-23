@@ -187,7 +187,7 @@ class ResendVerificationView(APIView):
             
             # Enviar email de verificación
             try:
-                from ...email_service import send_custom_email
+                from ...services.email import send_custom_email
                 
                 verification_url = f"{settings.FRONTEND_URL}/verify-email/{token_obj.token}"
                 

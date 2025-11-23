@@ -103,7 +103,7 @@ class ScanMeasureView(APIView):
             if serializer.is_valid():
                 # Enviar email de análisis completado (opcional, no crítico)
                 try:
-                    from ...email_service import send_email_notification
+                    from ...services.email import send_email_notification
                     
                     response_data = result.data
                     avg_confidence = sum(response_data['confidences'].values()) / len(response_data['confidences'])

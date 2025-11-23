@@ -328,7 +328,7 @@ class PersonaRegistroSerializer(serializers.Serializer):
         if not skip_email_verification:
             try:
                 from django.conf import settings
-                from api.email_service import send_custom_email
+                from api.services.email import send_custom_email
                 
                 verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification_token.token}"
                 

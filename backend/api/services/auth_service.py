@@ -439,7 +439,7 @@ class AuthenticationService(BaseService):
                 try:
                     from django.conf import settings
                     from django.utils import timezone
-                    from ..email_service import send_email_notification
+                    from ..email import send_email_notification
                     
                     email_context = {
                         'user_name': user.get_full_name() or user.username,
@@ -918,7 +918,7 @@ class AuthenticationService(BaseService):
         try:
             from personas.models import PendingRegistration
             from django.template.loader import render_to_string
-            from ..email_service import send_custom_email
+            from ..email import send_custom_email
             
             # Validar campos requeridos
             email = user_data.get('email')
@@ -1131,7 +1131,7 @@ class AuthenticationService(BaseService):
         """
         try:
             from django.conf import settings
-            from ..email_service import send_custom_email
+            from ..email import send_custom_email
             
             verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification_token.token}"
             
@@ -1192,7 +1192,7 @@ Si no creaste esta cuenta, puedes ignorar este correo.
         """
         try:
             from django.template.loader import render_to_string
-            from ..email_service import send_custom_email
+            from ..email import send_custom_email
             
             verification_url = f"{settings.FRONTEND_URL}/auth/verificar/{pending_reg.verification_token}"
             

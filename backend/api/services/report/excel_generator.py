@@ -14,7 +14,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.chart import BarChart, Reference, PieChart
 
 # Importar desde apps modulares
-from .utils.model_imports import get_models_safely
+from ...utils.model_imports import get_models_safely
 
 # Import models safely
 models = get_models_safely({
@@ -32,9 +32,9 @@ Finca = models['Finca']
 Lote = models['Lote']
 ActivityLog = models['ActivityLog']
 
-from .models import LoginHistory, ReporteGenerado
+from ...models import LoginHistory, ReporteGenerado
 
-logger = logging.getLogger("cacaoscan.api")
+logger = logging.getLogger("cacaoscan.services.report.excel")
 
 
 class CacaoReportExcelGenerator:

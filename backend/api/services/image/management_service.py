@@ -7,19 +7,21 @@ from django.core.files.uploadedfile import UploadedFile
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.db.models import Q, Count, Avg, Min, Max
+from django.utils import timezone
+from datetime import timedelta
 from PIL import Image
 import io
 import os
 
-from .base import BaseService, ServiceResult, ValidationServiceError, PermissionServiceError, NotFoundServiceError
-from ..utils.model_imports import get_model_safely
+from ..base import BaseService, ServiceResult, ValidationServiceError, PermissionServiceError, NotFoundServiceError
+from ...utils.model_imports import get_model_safely
 
 # Import model safely
 CacaoImage = get_model_safely('images_app.models.CacaoImage')
 
 from django.contrib.auth.models import User
 
-logger = logging.getLogger("cacaoscan.services.images")
+logger = logging.getLogger("cacaoscan.services.image.management")
 
 
 class ImageManagementService(BaseService):
@@ -515,5 +517,4 @@ class ImageManagementService(BaseService):
             return ServiceResult.error(
                 ValidationServiceError("Error interno validando imagen", details={"original_error": str(e)})
             )
-
 

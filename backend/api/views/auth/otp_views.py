@@ -69,7 +69,7 @@ class SendOtpView(APIView):
             )
             
             # Enviar email con código OTP usando el servicio de emails
-            from api.email_service import email_service
+            from api.services.email import email_service
             
             # Enviar email con contenido HTML
             email_result = email_service.send_email(

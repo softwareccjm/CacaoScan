@@ -15,7 +15,7 @@ from drf_yasg import openapi
 
 from ...serializers import ErrorResponseSerializer
 from ...utils import create_error_response, create_success_response
-from ...email_service import send_email_notification
+from ...services.email import send_email_notification
 from ...utils.model_imports import get_model_safely
 
 User = get_user_model()

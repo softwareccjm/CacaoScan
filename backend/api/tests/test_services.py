@@ -18,6 +18,7 @@ from api.services import (
     LoteService,
     ReportService
 )
+# ImageManagementService ahora está en api.services.image.management_service
 from api.services.base import (
     ServiceResult,
     ServiceError,

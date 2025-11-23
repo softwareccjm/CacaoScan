@@ -36,8 +36,7 @@ CacaoImage = models['CacaoImage']
 CacaoPrediction = models['CacaoPrediction']
 Finca = models['Finca']
 Lote = models['Lote']
-from ...report_generator import CacaoReportPDFGenerator
-from ...excel_generator import CacaoReportExcelGenerator
+from ...services.report import CacaoReportPDFGenerator, CacaoReportExcelGenerator
 from ...serializers import ErrorResponseSerializer
 
 logger = logging.getLogger("cacaoscan.api")

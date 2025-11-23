@@ -1,9 +1,8 @@
 """
-Generador de reportes avanzado para CacaoScan.
+Generador de reportes PDF para CacaoScan.
 """
 import logging
 import io
-import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
@@ -16,13 +15,9 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.platypus import Image as RLImage
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-import pandas as pd
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
-from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Importar desde apps modulares
-from .utils.model_imports import get_models_safely
+from ...utils.model_imports import get_models_safely
 
 # Import models safely
 models = get_models_safely({
@@ -40,9 +35,9 @@ Lote = models['Lote']
 Notification = models['Notification']
 ActivityLog = models['ActivityLog']
 
-from .models import LoginHistory, ReporteGenerado
+from ...models import LoginHistory, ReporteGenerado
 
-logger = logging.getLogger("cacaoscan.api")
+logger = logging.getLogger("cacaoscan.services.report.pdf")
 
 
 class CacaoReportPDFGenerator:
@@ -718,5 +713,4 @@ class CacaoReportPDFGenerator:
         story.append(Spacer(1, 20))
         
         return story
-
 
