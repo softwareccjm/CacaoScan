@@ -585,7 +585,6 @@ def create_transparent_crop(image_rgb: np.ndarray, mask: np.ndarray, padding: in
         crop_alpha = final_mask[y:y+h, x:x+w].copy()
 
         # NO suavizar - mantener bordes precisos sin halos
-        crop_alpha = crop_alpha
 
         # Crear RGBA con transparencia exacta
         rgba = np.zeros((h, w, 4), dtype=np.uint8)
