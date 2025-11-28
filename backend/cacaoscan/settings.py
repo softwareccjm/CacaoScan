@@ -100,10 +100,20 @@ if 'PYTHONPATH' not in os.environ:
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError(
+        "SECRET_KEY environment variable is required. "
+        "Generate one with: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+# Force DEBUG=False in production environments
+APP_ENV = os.environ.get('APP_ENV', '').lower()
+if APP_ENV == 'production':
+    DEBUG = False
+else:
+    DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 # ALLOWED_HOSTS configuration
 allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
@@ -114,8 +124,18 @@ if allowed_hosts_env:
         if host.strip()
     ]
 else:
-    # Development defaults
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    # Development defaults only if DEBUG is True
+    if DEBUG:
+        ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    else:
+        ALLOWED_HOSTS = []
+
+# Validate ALLOWED_HOSTS in production
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ValueError(
+        "ALLOWED_HOSTS must be configured in production. "
+        "Set ALLOWED_HOSTS environment variable with comma-separated host names."
+    )
 
 # Application definition
 INSTALLED_APPS = [
@@ -227,8 +247,10 @@ DATABASES = {
         'PASSWORD': safe_env_get('DB_PASSWORD', ''),
         'HOST': safe_env_get('DB_HOST', 'localhost'),
         'PORT': safe_env_get('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,  # Reuse database connections for 10 minutes
         'OPTIONS': {
             'client_encoding': 'UTF8',
+            'connect_timeout': 10,
         },
     }
 }
@@ -396,34 +418,32 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-# Para desarrollo: permitir todas las conexiones desde cualquier IP
+# Never use CORS_ALLOW_ALL_ORIGINS in production - always use explicit CORS_ALLOWED_ORIGINS
 cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 if cors_origins:
-    # Validar que cada origen tenga esquema (http:// o https://)
-    # Si el servicio frontend aún no está desplegado, fromService puede devolver solo el nombre
+    # Validate that each origin has scheme (http:// or https://)
     valid_origins = []
     for origin in cors_origins.split(','):
         origin = origin.strip()
         if not origin:
             continue
-        # Solo aceptar orígenes con esquema completo (http:// o https://)
+        # Only accept origins with full scheme (http:// or https://)
         if origin.startswith('http://') or origin.startswith('https://'):
-            # Validar que tenga un dominio válido (contenga un punto o sea localhost)
+            # Validate that it has a valid domain (contains a dot or is localhost)
             if '.' in origin.replace('://', '').split('/')[0] or 'localhost' in origin:
                 valid_origins.append(origin)
-        # Ignorar orígenes sin esquema (como nombres de servicios de Render)
-        # Estos se configurarán correctamente una vez que el servicio esté desplegado
     
     if valid_origins:
         CORS_ALLOWED_ORIGINS = valid_origins
         CORS_ALLOW_ALL_ORIGINS = False
     else:
-        # Si no hay orígenes válidos, usar allow all solo en desarrollo
-        # En producción, se configurará correctamente cuando el frontend esté desplegado
-        CORS_ALLOW_ALL_ORIGINS = DEBUG
+        # If no valid origins, default to empty list (no CORS allowed)
+        CORS_ALLOW_ALL_ORIGINS = False
         CORS_ALLOWED_ORIGINS = []
 else:
-    CORS_ALLOW_ALL_ORIGINS = DEBUG
+    # Default: no CORS allowed (empty list)
+    # In development, explicitly set CORS_ALLOWED_ORIGINS in .env if needed
+    CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = []
 
 # Configuración adicional de CORS para desarrollo
@@ -449,6 +469,17 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# Security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+if not DEBUG:
+    # HSTS settings (only in production)
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
 
 # Logging de CORS para debugging (solo en desarrollo)
 if DEBUG:
