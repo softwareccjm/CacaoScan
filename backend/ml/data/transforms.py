@@ -8,6 +8,9 @@ from torchvision import transforms as T
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
+# Error message constants
+ERROR_IMAGE_CANNOT_BE_NONE = "image cannot be None"
+
 # ======================================================
 #  MODELO: U-Net ligero para segmentacin de fondo
 # ======================================================
@@ -383,7 +386,7 @@ def resize_with_padding(
     Acepta imagen GRAY/RGB/RGBA.
     """
     if image is None:
-        raise ValueError("image cannot be None")
+        raise ValueError(ERROR_IMAGE_CANNOT_BE_NONE)
 
     h, w = image.shape[:2]
     th, tw = target_size
@@ -421,7 +424,7 @@ def resize_with_padding(
 def normalize_image(image: np.ndarray) -> np.ndarray:
     """Normaliza una imagen a rango [0, 1] en float32."""
     if image is None:
-        raise ValueError("image cannot be None")
+        raise ValueError(ERROR_IMAGE_CANNOT_BE_NONE)
     img = image.astype(np.float32)
     if img.max() > 1.0:
         img = img / 255.0
@@ -431,7 +434,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
 def denormalize_image(image: np.ndarray) -> np.ndarray:
     """Desnormaliza una imagen de [0, 1] a uint8 [0, 255]."""
     if image is None:
-        raise ValueError("image cannot be None")
+        raise ValueError(ERROR_IMAGE_CANNOT_BE_NONE)
     img = np.clip(image, 0.0, 1.0)
     return (img * 255.0).astype(np.uint8)
 

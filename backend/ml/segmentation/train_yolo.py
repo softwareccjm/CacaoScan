@@ -32,6 +32,9 @@ from ..data.dataset_loader import CacaoDatasetLoader
 
 logger = get_ml_logger("cacaoscan.ml.segmentation")
 
+# Dataset file constants
+DATASET_YAML_FILENAME = "dataset.yaml"
+
 
 class YOLOTrainingManager:
     """Gestor de entrenamiento de YOLOv8-seg personalizado."""
@@ -416,7 +419,7 @@ class YOLOTrainingManager:
             'names': self.class_names
         }
         
-        yaml_path = self.dataset_dir / "dataset.yaml"
+        yaml_path = self.dataset_dir / DATASET_YAML_FILENAME
         with open(yaml_path, 'w') as f:
             yaml.dump(dataset_config, f, default_flow_style=False)
         
@@ -450,7 +453,7 @@ class YOLOTrainingManager:
         
         # Configuración de entrenamiento
         train_config = {
-            'data': str(self.dataset_dir / "dataset.yaml"),
+                'data': str(self.dataset_dir / DATASET_YAML_FILENAME),
             'epochs': self.epochs,
             'batch': self.batch_size,
             'imgsz': self.image_size,
@@ -535,7 +538,7 @@ class YOLOTrainingManager:
             
             # Validar en dataset de test
             results = model.val(
-                data=str(self.dataset_dir / "dataset.yaml"),
+                    data=str(self.dataset_dir / DATASET_YAML_FILENAME),
                 split='test',
                 imgsz=self.image_size,
                 conf=self.confidence_threshold,
@@ -624,7 +627,7 @@ class YOLOTrainingManager:
                 'model_paths': {
                     'best_model': training_results['best_model_path'],
                     'last_model': training_results['last_model_path'],
-                    'dataset_config': str(self.dataset_dir / "dataset.yaml")
+                    'dataset_config': str(self.dataset_dir / DATASET_YAML_FILENAME)
                 }
             }
             
