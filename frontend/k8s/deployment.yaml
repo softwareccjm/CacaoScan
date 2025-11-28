@@ -17,6 +17,7 @@ spec:
         app: frontend
         component: web
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsUser: 101
         runAsGroup: 101

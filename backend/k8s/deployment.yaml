@@ -17,6 +17,7 @@ spec:
         app: backend
         component: api
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: backend
         image: cacaoscan-backend:latest
@@ -121,7 +122,9 @@ spec:
           failureThreshold: 3
       volumes:
       - name: staticfiles
-        emptyDir: {}
+        emptyDir:
+          sizeLimit: 1Gi
       - name: media
-        emptyDir: {}
+        emptyDir:
+          sizeLimit: 5Gi
 

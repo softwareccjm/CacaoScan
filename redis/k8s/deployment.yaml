@@ -17,6 +17,7 @@ spec:
         app: redis
         component: cache
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: redis
         image: redis:7-alpine
@@ -58,5 +59,6 @@ spec:
           failureThreshold: 3
       volumes:
       - name: redis-data
-        emptyDir: {}
+        emptyDir:
+          sizeLimit: 2Gi
 
