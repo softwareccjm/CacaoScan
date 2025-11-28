@@ -456,7 +456,7 @@ class CacaoPredictor:
         mask = (alpha > 128).astype(np.float32)
         object_area = int(np.sum(mask > 0))
         
-        y_coords, x_coords = np.where(mask > 0)
+        y_coords, x_coords = np.nonzero(mask > 0)
         if len(x_coords) > 0:
             width_visible = int(x_coords.max() - x_coords.min() + 1)
             height_visible = int(y_coords.max() - y_coords.min() + 1)

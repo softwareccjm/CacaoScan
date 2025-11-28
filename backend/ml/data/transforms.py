@@ -191,7 +191,7 @@ def remove_background_ai(image_path: str) -> Image.Image:
     alpha = _clean_components(alpha)
     
     # RECORTE TIGHT: encontrar bounding box del grano
-    ys, xs = np.where(alpha > 0)
+    ys, xs = np.nonzero(alpha > 0)
     if len(xs) == 0 or len(ys) == 0:
         # Si no hay píxeles válidos, devolver imagen completa con máscara
         rgba = np.dstack([img_array, alpha])
@@ -571,7 +571,7 @@ def create_transparent_crop(image_rgb: np.ndarray, mask: np.ndarray, padding: in
             # Si el objeto es pequeo pero el bbox es grande, ajustar el bbox al objeto
             else:
                 # Recalcular bbox basado solo en los pxeles del objeto
-                coords = np.where(final_mask > 128)
+                coords = np.nonzero(final_mask > 128)
                 if len(coords[0]) > 0:
                     y_min, y_max = coords[0].min(), coords[0].max()
                     x_min, x_max = coords[1].min(), coords[1].max()

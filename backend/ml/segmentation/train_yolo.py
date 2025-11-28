@@ -193,7 +193,7 @@ class YOLOTrainingManager:
                             mask = mask.astype(np.uint8)
                     
                     # Calcular bounding box desde la máscara
-                    coords = np.where(mask > 128)
+                    coords = np.nonzero(mask > 128)
                     if len(coords[0]) > 0:
                         y_min, y_max = int(coords[0].min()), int(coords[0].max())
                         x_min, x_max = int(coords[1].min()), int(coords[1].max())
@@ -243,7 +243,7 @@ class YOLOTrainingManager:
                             mask = cv2.resize(alpha, (width, height), interpolation=cv2.INTER_LINEAR)
                             
                             # Calcular bounding box desde la máscara
-                            coords = np.where(mask > 128)
+                            coords = np.nonzero(mask > 128)
                             if len(coords[0]) > 0:
                                 y_min, y_max = int(coords[0].min()), int(coords[0].max())
                                 x_min, x_max = int(coords[1].min()), int(coords[1].max())
