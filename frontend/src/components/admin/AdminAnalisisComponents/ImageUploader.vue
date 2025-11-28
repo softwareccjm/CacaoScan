@@ -54,7 +54,7 @@
       >
         <img 
           :src="getImageUrl(image)" 
-          :alt="image.name || ''"
+          :alt="image.name ? image.name.replace(/^image\s*/i, '') : ''"
           class="w-full h-32 object-cover"
         />
         <button
