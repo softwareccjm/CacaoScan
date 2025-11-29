@@ -324,47 +324,94 @@ class Command(BaseCommand):
         self.stdout.write("RESULTADOS DEL ENTRENAMIENTO COMPLETO")
         self.stdout.write("="*60)
         
-        # Resultados YOLO
-        self.stdout.write("\n--- Entrenamiento YOLO ---")
-        if results.get('yolo'):
-            yolo_result = results['yolo']
-            status = yolo_result.get('status', 'unknown')
-            if status == 'completed':
-                self.stdout.write(self.style.SUCCESS(f"✓ YOLO: {yolo_result.get('message', 'Completado')}"))
-                if yolo_result.get('best_model_path'):
-                    self.stdout.write(f"  Modelo guardado en: {yolo_result['best_model_path']}")
-            else:
-                self.stdout.write(self.style.ERROR(f"✗ YOLO: {yolo_result.get('message', 'Falló')}"))
-                if yolo_result.get('error'):
-                    self.stdout.write(self.style.ERROR(f"  Error: {yolo_result['error']}"))
-        else:
-            self.stdout.write(self.style.WARNING("⊘ YOLO: No se ejecutó"))
-        
-        # Resultados Regresión
-        self.stdout.write("\n--- Entrenamiento Regresión ---")
-        if results.get('regression'):
-            regression_result = results['regression']
-            status = regression_result.get('status', 'unknown')
-            if status == 'completed':
-                self.stdout.write(self.style.SUCCESS(f"✓ Regresión: {regression_result.get('message', 'Completado')}"))
-            else:
-                self.stdout.write(self.style.ERROR(f"✗ Regresión: {regression_result.get('message', 'Falló')}"))
-                if regression_result.get('error'):
-                    self.stdout.write(self.style.ERROR(f"  Error: {regression_result['error']}"))
-        else:
-            self.stdout.write(self.style.WARNING("⊘ Regresión: No se ejecutó"))
-        
-        # Estado final
-        self.stdout.write("\n--- Estado Final ---")
-        final_status = results.get('status', 'unknown')
-        if final_status == 'completed':
-            self.stdout.write(self.style.SUCCESS(f"✓ {results.get('message', 'Entrenamiento completo exitoso')}"))
-        elif final_status == 'partial':
-            self.stdout.write(self.style.WARNING(f"⚠ {results.get('message', 'Entrenamiento completado parcialmente')}"))
-        else:
-            self.stdout.write(self.style.ERROR(f"✗ {results.get('message', 'Entrenamiento falló')}"))
-            if results.get('error'):
-                self.stdout.write(f"  Error: {results['error']}")
+        self._display_yolo_results(results)
+        self._display_regression_results(results)
+        self._display_final_status(results)
         
         self.stdout.write(f"\nTiempo total: {total_time:.2f} segundos ({total_time/60:.2f} minutos)")
         self.stdout.write("="*60)
+
+    def _display_yolo_results(self, results: dict) -> None:
+        """Muestra los resultados del entrenamiento YOLO."""
+        self.stdout.write("\n--- Entrenamiento YOLO ---")
+        yolo_result = results.get('yolo')
+        
+        if not yolo_result:
+            self.stdout.write(self.style.WARNING("⊘ YOLO: No se ejecutó"))
+            return
+        
+        status = yolo_result.get('status', 'unknown')
+        if status == 'completed':
+            self._display_yolo_success(yolo_result)
+        else:
+            self._display_yolo_failure(yolo_result)
+
+    def _display_yolo_success(self, yolo_result: dict) -> None:
+        """Muestra el resultado exitoso de YOLO."""
+        self.stdout.write(self.style.SUCCESS(f"✓ YOLO: {yolo_result.get('message', 'Completado')}"))
+        best_model_path = yolo_result.get('best_model_path')
+        if best_model_path:
+            self.stdout.write(f"  Modelo guardado en: {best_model_path}")
+
+    def _display_yolo_failure(self, yolo_result: dict) -> None:
+        """Muestra el resultado fallido de YOLO."""
+        self.stdout.write(self.style.ERROR(f"✗ YOLO: {yolo_result.get('message', 'Falló')}"))
+        error = yolo_result.get('error')
+        if error:
+            self.stdout.write(self.style.ERROR(f"  Error: {error}"))
+
+    def _display_regression_results(self, results: dict) -> None:
+        """Muestra los resultados del entrenamiento de regresión."""
+        self.stdout.write("\n--- Entrenamiento Regresión ---")
+        regression_result = results.get('regression')
+        
+        if not regression_result:
+            self.stdout.write(self.style.WARNING("⊘ Regresión: No se ejecutó"))
+            return
+        
+        status = regression_result.get('status', 'unknown')
+        if status == 'completed':
+            self._display_regression_success(regression_result)
+        else:
+            self._display_regression_failure(regression_result)
+
+    def _display_regression_success(self, regression_result: dict) -> None:
+        """Muestra el resultado exitoso de regresión."""
+        self.stdout.write(self.style.SUCCESS(f"✓ Regresión: {regression_result.get('message', 'Completado')}"))
+
+    def _display_regression_failure(self, regression_result: dict) -> None:
+        """Muestra el resultado fallido de regresión."""
+        self.stdout.write(self.style.ERROR(f"✗ Regresión: {regression_result.get('message', 'Falló')}"))
+        error = regression_result.get('error')
+        if error:
+            self.stdout.write(self.style.ERROR(f"  Error: {error}"))
+
+    def _display_final_status(self, results: dict) -> None:
+        """Muestra el estado final del entrenamiento."""
+        self.stdout.write("\n--- Estado Final ---")
+        final_status = results.get('status', 'unknown')
+        
+        if final_status == 'completed':
+            self._display_completed_status(results)
+        elif final_status == 'partial':
+            self._display_partial_status(results)
+        else:
+            self._display_failed_status(results)
+
+    def _display_completed_status(self, results: dict) -> None:
+        """Muestra el estado de completado."""
+        message = results.get('message', 'Entrenamiento completo exitoso')
+        self.stdout.write(self.style.SUCCESS(f"✓ {message}"))
+
+    def _display_partial_status(self, results: dict) -> None:
+        """Muestra el estado parcial."""
+        message = results.get('message', 'Entrenamiento completado parcialmente')
+        self.stdout.write(self.style.WARNING(f"⚠ {message}"))
+
+    def _display_failed_status(self, results: dict) -> None:
+        """Muestra el estado fallido."""
+        message = results.get('message', 'Entrenamiento falló')
+        self.stdout.write(self.style.ERROR(f"✗ {message}"))
+        error = results.get('error')
+        if error:
+            self.stdout.write(f"  Error: {error}")

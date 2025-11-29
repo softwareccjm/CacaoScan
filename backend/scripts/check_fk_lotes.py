@@ -44,18 +44,29 @@ def _build_drop_constraint_query(table_name: str, constraint_name: str) -> str:
     Construye una consulta DDL segura para eliminar una constraint.
     Valida y escapa los identificadores antes de construir la consulta.
     
+    SECURITY NOTE: DDL statements (ALTER TABLE, CREATE, etc.) cannot use parameterized
+    queries for identifiers (table names, column names, constraint names) because these
+    are not supported by PostgreSQL. Instead, we use strict validation and proper
+    escaping with double quotes to prevent SQL injection.
+    
     Args:
         table_name: Nombre de la tabla
         constraint_name: Nombre de la constraint
         
     Returns:
         Consulta SQL segura
+        
+    Raises:
+        ValueError: Si algún identificador contiene caracteres inválidos
     """
     safe_table_name = _validate_identifier(table_name)
     safe_constraint_name = _validate_identifier(constraint_name)
     
-    # Build query using string concatenation with validated identifiers
-    # This is safe because both identifiers are validated to only contain whitelisted characters
+    # Build query using string concatenation with validated and escaped identifiers
+    # This is safe because:
+    # 1. Both identifiers are validated to only contain whitelisted characters (alphanumeric, _, -)
+    # 2. Double quotes are properly escaped ("" -> """")
+    # 3. Identifiers are wrapped in double quotes for PostgreSQL
     query = 'ALTER TABLE "' + safe_table_name + '" DROP CONSTRAINT IF EXISTS "' + safe_constraint_name + '"'
     return query
 
@@ -66,6 +77,11 @@ def _build_add_constraint_query(table_name: str, constraint_name: str,
     Construye una consulta DDL segura para agregar una foreign key constraint.
     Valida y escapa todos los identificadores antes de construir la consulta.
     
+    SECURITY NOTE: DDL statements (ALTER TABLE, CREATE, etc.) cannot use parameterized
+    queries for identifiers (table names, column names, constraint names) because these
+    are not supported by PostgreSQL. Instead, we use strict validation and proper
+    escaping with double quotes to prevent SQL injection.
+    
     Args:
         table_name: Nombre de la tabla
         constraint_name: Nombre de la constraint
@@ -75,6 +91,9 @@ def _build_add_constraint_query(table_name: str, constraint_name: str,
         
     Returns:
         Consulta SQL segura
+        
+    Raises:
+        ValueError: Si algún identificador contiene caracteres inválidos
     """
     safe_table_name = _validate_identifier(table_name)
     safe_constraint_name = _validate_identifier(constraint_name)
@@ -82,8 +101,11 @@ def _build_add_constraint_query(table_name: str, constraint_name: str,
     safe_ref_table = _validate_identifier(ref_table)
     safe_ref_column = _validate_identifier(ref_column)
     
-    # Build query using string concatenation with validated identifiers
-    # This is safe because all identifiers are validated to only contain whitelisted characters
+    # Build query using string concatenation with validated and escaped identifiers
+    # This is safe because:
+    # 1. All identifiers are validated to only contain whitelisted characters (alphanumeric, _, -)
+    # 2. Double quotes are properly escaped ("" -> """")
+    # 3. Identifiers are wrapped in double quotes for PostgreSQL
     query = (
         'ALTER TABLE "' + safe_table_name + '" '
         'ADD CONSTRAINT "' + safe_constraint_name + '" '
@@ -96,6 +118,7 @@ def _build_add_constraint_query(table_name: str, constraint_name: str,
 
 def _check_existing_foreign_keys(cursor):
     """Check existing foreign keys for fincas_app_lote."""
+    # Use parameterized query for string literals to prevent SQL injection
     cursor.execute("""
         SELECT 
             tc.constraint_name,
@@ -110,18 +133,28 @@ def _check_existing_foreign_keys(cursor):
         JOIN information_schema.constraint_column_usage AS ccu
             ON ccu.constraint_name = tc.constraint_name
             AND ccu.table_schema = tc.table_schema
-        WHERE tc.constraint_type = 'FOREIGN KEY'
-            AND tc.table_name = 'fincas_app_lote'
-            AND kcu.column_name = 'finca_id';
-    """)
+        WHERE tc.constraint_type = %s
+            AND tc.table_name = %s
+            AND kcu.column_name = %s;
+    """, ['FOREIGN KEY', 'fincas_app_lote', 'finca_id'])
     return cursor.fetchall()
 
 
 def _table_exists(cursor, table_name):
-    """Check if a table exists in the database."""
+    """
+    Check if a table exists in the database.
+    
+    Uses parameterized query with validated identifier to prevent SQL injection.
+    The table_name is validated before being used in the query.
+    """
+    # Validate identifier to prevent SQL injection
     safe_table_name = _validate_identifier(table_name)
-    query = "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '" + safe_table_name + "'"
-    cursor.execute(query)
+    # Use parameterized query for the table name value
+    # Note: We still validate the identifier as an extra security layer
+    cursor.execute(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
+        ['public', safe_table_name]
+    )
     return cursor.fetchone() is not None
 
 

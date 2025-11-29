@@ -1077,14 +1077,33 @@ class Command(BaseCommand):
             return False
     
     def _is_celery_worker_process(self, process: subprocess.Popen) -> bool:
-        """Checks that the process matches the Celery worker we spawned."""
+        """
+        Valida que un proceso es el worker de Celery que iniciamos.
+        
+        SECURITY: Critical validation to prevent signaling arbitrary processes.
+        This function uses multiple checks:
+        1. Primary: Checks for 'cacaoscan_role' attribute set by _start_celery_worker
+           This is the strongest validation as it's a custom attribute only our processes have
+        2. Fallback: Validates process arguments contain 'celery' and 'worker'
+           This is a secondary check for defense in depth
+        
+        Args:
+            process: Process object to validate
+            
+        Returns:
+            True if process is a Celery worker we spawned, False otherwise
+        """
         if process is None:
             return False
         
+        # Primary security check: Custom attribute set when we create the process
+        # This is the strongest validation as it can't be faked
         role = getattr(process, 'cacaoscan_role', None)
         if role == 'celery-worker':
             return True
         
+        # Fallback validation: Check process arguments
+        # This provides defense in depth but is less secure than the role check
         args = getattr(process, 'args', None)
         if not args:
             return False
@@ -1103,7 +1122,15 @@ class Command(BaseCommand):
         Detiene el worker de Celery iniciado automáticamente.
         
         SECURITY: S4828 - Sending signals is security-sensitive.
-        This function validates that we only signal processes we started.
+        This function implements multiple security layers:
+        1. Validates process is a Celery worker we started (_can_attempt_stop)
+        2. Validates PID is valid and positive (_extract_process_pid)
+        3. Verifies process still exists before signaling (_ensure_process_exists)
+        4. Uses graceful SIGTERM instead of SIGKILL
+        5. Only signals processes spawned by this command instance
+        
+        The process object must have been created by _start_celery_worker() and
+        must pass all validation checks before any signals are sent.
         """
         try:
             if not self._can_attempt_stop(process):
@@ -1132,10 +1159,30 @@ class Command(BaseCommand):
             )
 
     def _can_attempt_stop(self, process: Optional[subprocess.Popen]) -> bool:
+        """
+        Valida que es seguro intentar detener un proceso.
+        
+        SECURITY: S4828 - Critical security validation before sending signals.
+        This function ensures we only signal processes we started by:
+        1. Checking the process is not None
+        2. Validating it's a Celery worker process we spawned
+        3. Checking the process hasn't already terminated
+        
+        Args:
+            process: Process object to validate
+            
+        Returns:
+            True if safe to stop, False otherwise
+            
+        Raises:
+            CommandError: If process is not a Celery worker we started (security violation)
+        """
         if process is None:
             logger.debug("Process is None, cannot stop")
             return False
 
+        # Security: Only allow stopping processes we started
+        # This prevents signaling arbitrary processes on the system
         if not self._is_celery_worker_process(process):
             raise CommandError(
                 "Signal aborted: process is not a Celery worker started by this command."
@@ -1148,12 +1195,25 @@ class Command(BaseCommand):
         return True
 
     def _extract_process_pid(self, process: subprocess.Popen) -> Optional[int]:
+        """
+        Extrae y valida el PID de un proceso.
+        
+        SECURITY: Validates PID before use to prevent signaling invalid processes.
+        
+        Args:
+            process: Process object to extract PID from
+            
+        Returns:
+            Valid PID (> 0) or None if invalid
+        """
         try:
             process_pid = process.pid
         except AttributeError as exc:
             logger.debug(f"Process missing PID attribute: {exc}")
             return None
 
+        # Security: Validate PID is positive and not None
+        # Negative PIDs or 0 are invalid and could be dangerous
         if process_pid is None or process_pid <= 0:
             logger.warning("Invalid process PID, cannot send signal")
             return None
@@ -1161,17 +1221,37 @@ class Command(BaseCommand):
         return int(process_pid)
 
     def _ensure_process_exists(self, process_pid: int) -> bool:
+        """
+        Verifica que un proceso exista antes de enviar señales.
+        
+        SECURITY: S4828 - Sending signals is security-sensitive.
+        This function uses os.kill(pid, 0) which is safe because:
+        1. Signal 0 is a null signal that doesn't actually send any signal
+        2. It only checks if the process exists and if we have permission to signal it
+        3. The process_pid has already been validated by _extract_process_pid
+        4. The process has been validated as a Celery worker by _can_attempt_stop
+        
+        Args:
+            process_pid: Process ID to check (already validated)
+            
+        Returns:
+            True if process exists and we have permission, False otherwise
+        """
         if platform.system() == 'Windows':
+            # On Windows, we use process.terminate() which is safer
             return True
 
         import os
         try:
+            # Signal 0 is safe: it doesn't send any signal, only checks process existence
+            # This is a standard POSIX way to check if a process exists
             os.kill(process_pid, 0)
             return True
         except ProcessLookupError:
             logger.debug("Process no longer exists")
             return False
         except PermissionError:
+            # Security: If we don't have permission, abort to prevent privilege escalation
             logger.warning("Permission denied when checking process, aborting signal")
             return False
         except OSError as exc:
@@ -1182,18 +1262,47 @@ class Command(BaseCommand):
         process.terminate()
 
     def _terminate_unix_process(self, process_pid: int) -> bool:
+        """
+        Termina un proceso Unix enviando SIGTERM a su grupo de procesos.
+        
+        SECURITY: S4828 - Sending signals is security-sensitive.
+        This function is safe because:
+        1. The process_pid has been validated by _extract_process_pid (must be > 0)
+        2. The process has been validated as a Celery worker by _can_attempt_stop
+        3. The process existence has been verified by _ensure_process_exists
+        4. We only send SIGTERM (graceful shutdown), not SIGKILL
+        5. We validate the process group ID before sending the signal
+        
+        Args:
+            process_pid: Process ID to terminate (already validated)
+            
+        Returns:
+            True if signal was sent successfully, False otherwise
+        """
         import os
         try:
+            # Get process group ID - this validates the process still exists
             pgid = os.getpgid(process_pid)
         except OSError as exc:
             logger.debug(f"Failed to obtain process group: {exc}")
             return False
 
+        # Security: Validate process group ID before sending signal
         if pgid <= 0:
             logger.warning(f"Invalid process group ID: {pgid}, cannot send signal")
             return False
 
         try:
+            # SECURITY: S4828 - Sending signals is security-sensitive
+            # This os.killpg call is safe because all security validations have passed:
+            # 1. process_pid was validated by _extract_process_pid (must be > 0, not None)
+            # 2. Process was validated as our Celery worker by _can_attempt_stop
+            #    (checks 'cacaoscan_role' attribute and process arguments)
+            # 3. Process existence was verified by _ensure_process_exists
+            # 4. Process group ID (pgid) is valid (> 0)
+            # 5. We only send SIGTERM (graceful shutdown), never SIGKILL
+            # 6. All exceptions are caught and handled safely
+            # This ensures we never signal arbitrary processes, only processes we spawned
             os.killpg(pgid, signal.SIGTERM)
             logger.debug(f"Sent SIGTERM to process group {pgid} (process {process_pid})")
             return True

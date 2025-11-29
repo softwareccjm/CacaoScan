@@ -398,18 +398,7 @@ export const usePredictionStore = defineStore('prediction', {
       };
     },
     
-    /**
-     * Reinicia todo el estado de predicción al estado inicial.
-     * 
-     * Limpia todos los datos relacionados con predicciones actuales y pasadas,
-     * incluyendo la predicción actual, imagen, errores, historial y filtros.
-     * También resetea la paginación al estado inicial.
-     * 
-     * Este método es útil para resetear el store antes de una nueva predicción
-     * o cuando se necesita limpiar completamente el estado de predicción.
-     * 
-     * @returns {void}
-     */
+    // Reinicia todo el estado de predicción al estado inicial
     resetState() {
       // Reset current prediction state
       this.currentPrediction = null;
