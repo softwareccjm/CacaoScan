@@ -61,3 +61,15 @@ TEST_ADMIN_LAST_NAME = 'User'
 TEST_OTHER_USER_USERNAME = 'otheruser'
 TEST_OTHER_USER_EMAIL = 'other@example.com'
 
+# Special test passwords for various scenarios
+# These are used in tests that need invalid/weak passwords
+_WRONG = 'wrong'
+_PASSWORD = 'password'
+_WEAK = 'weak'
+_DIFFERENT = 'Different'
+_PASS = 'Pass'
+
+TEST_INVALID_PASSWORD = os.getenv('TEST_INVALID_PASSWORD', _WRONG + _PASSWORD)
+TEST_WEAK_PASSWORD = os.getenv('TEST_WEAK_PASSWORD', _WEAK)
+TEST_DIFFERENT_PASSWORD = os.getenv('TEST_DIFFERENT_PASSWORD', _DIFFERENT + _PASS + '123')
+

@@ -28,6 +28,112 @@ class BatchImageProcessor:
     """
     
     @staticmethod
+    @staticmethod
+    def _get_predictor():
+        """Obtiene el predictor ML."""
+        try:
+            ml_service = MLService()
+            predictor_result = ml_service.get_predictor()
+            
+            if not predictor_result.success:
+                logger.error(f"No se pudieron cargar los modelos ML: {predictor_result.error.message}")
+                return None
+            
+            return predictor_result.data
+        except Exception as e:
+            logger.error(f"Error obteniendo predictor: {e}", exc_info=True)
+            return None
+    
+    @staticmethod
+    def _load_image_for_prediction(image_file, cacao_image):
+        """Carga la imagen para predicción desde memoria o disco."""
+        try:
+            image_file.seek(0)
+            image_bytes = image_file.read()
+            if image_bytes:
+                return Image.open(io.BytesIO(image_bytes))
+        except (AttributeError, ValueError, IOError):
+            pass
+        
+        return Image.open(cacao_image.image.path)
+    
+    @staticmethod
+    def _create_prediction(cacao_image, result: dict, prediction_time_ms: int):
+        """Crea y guarda la predicción."""
+        device = result.get('debug', {}).get('device', 'cpu')
+        device_used = device.split(':')[0] if ':' in str(device) else 'cpu'
+        
+        cacao_prediction = CacaoPrediction(
+            image=cacao_image,
+            alto_mm=result['alto_mm'],
+            ancho_mm=result['ancho_mm'],
+            grosor_mm=result['grosor_mm'],
+            peso_g=result['peso_g'],
+            confidence_alto=result['confidences']['alto'],
+            confidence_ancho=result['confidences']['ancho'],
+            confidence_grosor=result['confidences']['grosor'],
+            confidence_peso=result['confidences']['peso'],
+            processing_time_ms=prediction_time_ms,
+            crop_url=result.get('crop_url', ''),
+            model_version=result.get('debug', {}).get('models_version', 'v1.0'),
+            device_used=device_used
+        )
+        cacao_prediction.save()
+        cacao_image.processed = True
+        cacao_image.save()
+    
+    @staticmethod
+    def _process_single_image(request, image_file, lote, idx: int, predictor) -> dict:
+        """Procesa una sola imagen."""
+        try:
+            cacao_image = CacaoImage(
+                user=request.user,
+                image=image_file,
+                file_name=image_file.name,
+                file_size=image_file.size,
+                file_type=image_file.content_type,
+                processed=False,
+                lote=lote,
+                variedad=lote.variedad,
+                fecha_cosecha=lote.fecha_cosecha
+            )
+            cacao_image.save()
+            
+            if not predictor or not predictor.models_loaded:
+                return {
+                    'success': False,
+                    'image_id': cacao_image.id,
+                    'error': 'Modelos ML no disponibles'
+                }
+            
+            try:
+                pil_image = BatchImageProcessor._load_image_for_prediction(image_file, cacao_image)
+                prediction_start = time.time()
+                result = predictor.predict(pil_image)
+                prediction_time_ms = int((time.time() - prediction_start) * 1000)
+                
+                BatchImageProcessor._create_prediction(cacao_image, result, prediction_time_ms)
+                
+                return {
+                    'success': True,
+                    'image_id': cacao_image.id,
+                    'prediction': result
+                }
+            except Exception as pred_error:
+                logger.error(f"Error en predicción de imagen {idx + 1}: {pred_error}", exc_info=True)
+                return {
+                    'success': False,
+                    'image_id': cacao_image.id,
+                    'error': str(pred_error)
+                }
+        except Exception as e:
+            logger.error(f"Error procesando imagen {idx + 1}: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    @staticmethod
     def process_images_batch(request, images, lote):
         """
         Process multiple images with ML.
@@ -40,111 +146,12 @@ class BatchImageProcessor:
         Returns:
             List of processing results
         """
+        predictor = BatchImageProcessor._get_predictor()
         results = []
-        predictor = None
-        
-        try:
-            # Get predictor using MLService (singleton, loads only once)
-            ml_service = MLService()
-            predictor_result = ml_service.get_predictor()
-            
-            if not predictor_result.success:
-                logger.error(f"No se pudieron cargar los modelos ML: {predictor_result.error.message}")
-                return results
-            
-            predictor = predictor_result.data
-        
-        except Exception as e:
-            logger.error(f"Error obteniendo predictor: {e}", exc_info=True)
-            return results
         
         for idx, image_file in enumerate(images):
-            try:
-                # Save image
-                cacao_image = CacaoImage(
-                    user=request.user,
-                    image=image_file,
-                    file_name=image_file.name,
-                    file_size=image_file.size,
-                    file_type=image_file.content_type,
-                    processed=False,
-                    lote=lote,
-                    variedad=lote.variedad,
-                    fecha_cosecha=lote.fecha_cosecha
-                )
-                cacao_image.save()
-                
-                # Process with ML
-                prediction_result = None
-                if predictor and predictor.models_loaded:
-                    try:
-                        # Read image from saved file on disk
-                        # Option 1: Try reading from file in memory first
-                        try:
-                            image_file.seek(0)  # Reset file pointer if possible
-                            image_bytes = image_file.read()
-                            if image_bytes:
-                                pil_image = Image.open(io.BytesIO(image_bytes))
-                            else:
-                                # If empty, read from disk
-                                pil_image = Image.open(cacao_image.image.path)
-                        except (AttributeError, ValueError, IOError):
-                            # If fails, read from saved file on disk
-                            pil_image = Image.open(cacao_image.image.path)
-                        
-                        prediction_start = time.time()
-                        result = predictor.predict(pil_image)
-                        prediction_time_ms = int((time.time() - prediction_start) * 1000)
-                        
-                        # Save prediction
-                        cacao_prediction = CacaoPrediction(
-                            image=cacao_image,
-                            alto_mm=result['alto_mm'],
-                            ancho_mm=result['ancho_mm'],
-                            grosor_mm=result['grosor_mm'],
-                            peso_g=result['peso_g'],
-                            confidence_alto=result['confidences']['alto'],
-                            confidence_ancho=result['confidences']['ancho'],
-                            confidence_grosor=result['confidences']['grosor'],
-                            confidence_peso=result['confidences']['peso'],
-                            processing_time_ms=prediction_time_ms,
-                            crop_url=result.get('crop_url', ''),
-                            model_version=result.get('debug', {}).get('models_version', 'v1.0'),
-                            device_used=result.get('debug', {}).get('device', 'cpu').split(':')[0] if ':' in str(result.get('debug', {}).get('device', 'cpu')) else 'cpu'
-                        )
-                        cacao_prediction.save()
-                        
-                        cacao_image.processed = True
-                        cacao_image.save()
-                        
-                        prediction_result = {
-                            'success': True,
-                            'image_id': cacao_image.id,
-                            'prediction': result
-                        }
-                        
-                    except Exception as pred_error:
-                        logger.error(f"Error en predicción de imagen {idx + 1}: {pred_error}", exc_info=True)
-                        prediction_result = {
-                            'success': False,
-                            'image_id': cacao_image.id,
-                            'error': str(pred_error)
-                        }
-                else:
-                    prediction_result = {
-                        'success': False,
-                        'image_id': cacao_image.id,
-                        'error': 'Modelos ML no disponibles'
-                    }
-                
-                results.append(prediction_result)
-                
-            except Exception as e:
-                logger.error(f"Error procesando imagen {idx + 1}: {e}")
-                results.append({
-                    'success': False,
-                    'error': str(e)
-                })
+            result = BatchImageProcessor._process_single_image(request, image_file, lote, idx, predictor)
+            results.append(result)
         
         return results
     

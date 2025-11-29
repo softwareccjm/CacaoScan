@@ -22,6 +22,13 @@ from api.models import (
 )
 from audit.models import LoginHistory
 from reports.models import ReporteGenerado
+from api.tests.test_constants import (
+    TEST_USER_PASSWORD,
+    TEST_USER_USERNAME,
+    TEST_USER_EMAIL,
+    TEST_USER_FIRST_NAME,
+    TEST_USER_LAST_NAME,
+)
 
 
 class EmailVerificationTokenModelTest(TestCase):
@@ -29,10 +36,12 @@ class EmailVerificationTokenModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_token_creation(self):
@@ -105,12 +114,14 @@ class UserProfileModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123',
-            first_name='Test',
-            last_name='User'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential,
+            first_name=TEST_USER_FIRST_NAME,
+            last_name=TEST_USER_LAST_NAME
         )
     
     def test_profile_creation(self):
@@ -207,10 +218,12 @@ class CacaoImageModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_image_creation(self):
@@ -262,10 +275,12 @@ class CacaoPredictionModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
         self.image = CacaoImage.objects.create(
             user=self.user,
@@ -324,10 +339,12 @@ class FincaModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_finca_creation(self):
@@ -385,10 +402,12 @@ class LoteModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
         self.finca = Finca.objects.create(
             nombre='Finca Test',
@@ -459,10 +478,12 @@ class NotificationModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_notification_creation(self):
@@ -510,10 +531,12 @@ class ActivityLogModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_activity_log_creation(self):
@@ -561,10 +584,12 @@ class LoginHistoryModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_login_history_creation(self):
@@ -608,10 +633,12 @@ class ReporteGeneradoModelTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_reporte_creation(self):

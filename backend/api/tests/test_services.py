@@ -38,6 +38,14 @@ from api.models import (
 )
 from audit.models import LoginHistory
 from reports.models import ReporteGenerado
+from api.tests.test_constants import (
+    TEST_USER_PASSWORD,
+    TEST_OTHER_USER_PASSWORD,
+    TEST_USER_USERNAME,
+    TEST_USER_EMAIL,
+    TEST_USER_FIRST_NAME,
+    TEST_USER_LAST_NAME,
+)
 
 
 class AuthenticationServiceTest(TestCase):
@@ -45,18 +53,20 @@ class AuthenticationServiceTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.service = AuthenticationService()
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123',
-            first_name='Test',
-            last_name='User'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential,
+            first_name=TEST_USER_FIRST_NAME,
+            last_name=TEST_USER_LAST_NAME
         )
     
     def test_login_user_success(self):
         """Test de login exitoso."""
-        result = self.service.login_user('test@example.com', 'testpass123')
+        result = self.service.login_user(TEST_USER_EMAIL, TEST_USER_PASSWORD)
         
         self.assertTrue(result.success)
         self.assertIn('access', result.data)
@@ -65,7 +75,7 @@ class AuthenticationServiceTest(TestCase):
     
     def test_login_user_invalid_credentials(self):
         """Test de login con credenciales inválidas."""
-        result = self.service.login_user('test@example.com', 'wrongpassword')
+        result = self.service.login_user(TEST_USER_EMAIL, 'wrongpassword')
         
         self.assertFalse(result.success)
         self.assertIsInstance(result.error, ValidationServiceError)
@@ -73,7 +83,7 @@ class AuthenticationServiceTest(TestCase):
     
     def test_login_user_missing_fields(self):
         """Test de login con campos faltantes."""
-        result = self.service.login_user('', 'testpass123')
+        result = self.service.login_user('', TEST_USER_PASSWORD)
         
         self.assertFalse(result.success)
         self.assertIsInstance(result.error, ValidationServiceError)
@@ -85,7 +95,7 @@ class AuthenticationServiceTest(TestCase):
         mock_token.access_token = 'access_token'
         mock_refresh_token.for_user.return_value = mock_token
         
-        result = self.service.login_user('test@example.com', 'testpass123')
+        result = self.service.login_user(TEST_USER_EMAIL, TEST_USER_PASSWORD)
         
         self.assertTrue(result.success)
         self.assertEqual(result.data['access'], 'access_token')
@@ -93,12 +103,13 @@ class AuthenticationServiceTest(TestCase):
     
     def test_register_user_success(self):
         """Test de registro exitoso."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         user_data = {
             'username': 'newuser',
             'email': 'new@example.com',
             'first_name': 'New',
             'last_name': 'User',
-            'password': 'newpass123'
+            'password': TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         }
         
         result = self.service.register_user(user_data)
@@ -113,12 +124,13 @@ class AuthenticationServiceTest(TestCase):
     
     def test_register_user_email_exists(self):
         """Test de registro con email existente."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         user_data = {
             'username': 'testuser2',
             'email': 'test@example.com',  # Email ya existe
             'first_name': 'Test',
             'last_name': 'User2',
-            'password': 'testpass123'
+            'password': TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         }
         
         result = self.service.register_user(user_data)
@@ -128,12 +140,14 @@ class AuthenticationServiceTest(TestCase):
     
     def test_register_user_validation_errors(self):
         """Test de errores de validación en registro."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        # This is intentionally a weak password for validation testing
         user_data = {
             'username': '',
             'email': 'invalid-email',
             'first_name': '',
             'last_name': '',
-            'password': 'weak'
+            'password': 'weak'  # NOSONAR: Intentionally weak password for validation test
         }
         
         result = self.service.register_user(user_data)
@@ -181,10 +195,12 @@ class AnalysisServiceTest(TestCase):
     def setUp(self):
         """Configuración inicial."""
         self.service = AnalysisService()
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
         self.image = CacaoImage.objects.create(
             user=self.user,
@@ -225,10 +241,12 @@ class AnalysisServiceTest(TestCase):
     
     def test_analyze_image_permission_denied(self):
         """Test de análisis sin permisos."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        other_user_credential = TEST_OTHER_USER_PASSWORD
         other_user = User.objects.create_user(
             username='otheruser',
             email='other@example.com',
-            password='otherpass123'
+            password=other_user_credential
         )
         
         result = self.service.analyze_image(self.image.id, other_user)
@@ -287,10 +305,12 @@ class ImageManagementServiceTest(TestCase):
     def setUp(self):
         """Configuración inicial."""
         self.service = ImageManagementService()
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     @patch('api.services.image_service.default_storage')
@@ -375,10 +395,12 @@ class ImageManagementServiceTest(TestCase):
     
     def test_delete_image_permission_denied(self):
         """Test de eliminación sin permisos."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        other_user_credential = TEST_OTHER_USER_PASSWORD
         other_user = User.objects.create_user(
             username='otheruser',
             email='other@example.com',
-            password='otherpass123'
+            password=other_user_credential
         )
         image = CacaoImage.objects.create(
             user=self.user,
@@ -398,10 +420,12 @@ class FincaServiceTest(TestCase):
     def setUp(self):
         """Configuración inicial."""
         self.service = FincaService()
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_create_finca_success(self):
@@ -531,11 +555,13 @@ class LoteServiceTest(TestCase):
     
     def setUp(self):
         """Configuración inicial."""
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.service = LoteService()
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
         self.finca = Finca.objects.create(
             nombre='Finca Test',
@@ -642,10 +668,12 @@ class ReportServiceTest(TestCase):
     def setUp(self):
         """Configuración inicial."""
         self.service = ReportService()
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
+        user_credential = TEST_USER_PASSWORD
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=user_credential
         )
     
     def test_generate_analysis_report_success(self):

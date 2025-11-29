@@ -22,6 +22,11 @@ from audit.models import LoginHistory
 from reports.models import ReporteGenerado
 # Removed: optimizations.py deleted (YAGNI - only used in tests, not in production)
 from api.cache_config import API_CACHE_TIMEOUTS
+from api.tests.test_constants import (
+    TEST_USER_PASSWORD,
+    TEST_USER_USERNAME,
+    TEST_USER_EMAIL,
+)
 
 
 class CacaoImageAPITestCase(APITestCase):
@@ -32,10 +37,11 @@ class CacaoImageAPITestCase(APITestCase):
         self.client = APIClient()
         
         # Crear usuario de prueba
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         # Crear token de autenticación
@@ -172,10 +178,11 @@ class FincaAPITestCase(APITestCase):
         """Configuración inicial para cada test."""
         self.client = APIClient()
         
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.token = Token.objects.create(user=self.user)
@@ -255,10 +262,11 @@ class NotificationAPITestCase(APITestCase):
         """Configuración inicial para cada test."""
         self.client = APIClient()
         
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.token = Token.objects.create(user=self.user)
@@ -333,10 +341,11 @@ class ReportAPITestCase(APITestCase):
         """Configuración inicial para cada test."""
         self.client = APIClient()
         
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.token = Token.objects.create(user=self.user)
@@ -419,10 +428,11 @@ class IntegrationWorkflowTestCase(TransactionTestCase):
         """Configuración inicial para cada test."""
         self.client = APIClient()
         
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.token = Token.objects.create(user=self.user)

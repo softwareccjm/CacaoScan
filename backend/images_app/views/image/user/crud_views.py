@@ -321,101 +321,116 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
         },
         tags=['Imágenes']
     )
+    def _get_image_or_404(self, image_id: int):
+        """Obtiene la imagen o retorna 404."""
+        try:
+            return CacaoImage.objects.select_related(
+                'user',
+                'finca',
+                'finca__agricultor',
+                'lote',
+                'lote__finca',
+                'lote__finca__agricultor'
+            ).prefetch_related('prediction').get(id=image_id)
+        except CacaoImage.DoesNotExist:
+            return None, Response({
+                'error': ERROR_IMAGE_NOT_FOUND,
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    def _get_original_image_path(self, image, image_id: int):
+        """Obtiene la ruta de la imagen original."""
+        if not image.image:
+            return None, None, Response({
+                'error': 'Imagen original no disponible',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        file_path = image.image.path
+        file_name = image.file_name or f"image_{image_id}.jpg"
+        return file_path, file_name, None
+    
+    def _get_processed_image_url(self, image):
+        """Obtiene la URL de la imagen procesada."""
+        if not hasattr(image, 'prediction') or not image.prediction:
+            return None, Response({
+                'error': 'No hay imagen procesada disponible para esta imagen',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        crop_url = image.prediction.crop_url
+        if not crop_url:
+            return None, Response({
+                'error': 'URL de imagen procesada no disponible',
+                'status': 'error'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        return crop_url, None
+    
+    def _get_content_type(self, file_name: str) -> str:
+        """Determina el content type basado en la extensión del archivo."""
+        file_lower = file_name.lower()
+        if file_lower.endswith('.png'):
+            return 'image/png'
+        if file_lower.endswith(('.jpg', '.jpeg')):
+            return 'image/jpeg'
+        if file_lower.endswith('.bmp'):
+            return 'image/bmp'
+        return 'application/octet-stream'
+    
+    def _create_file_response(self, file_path: str, file_name: str, content_type: str):
+        """Crea la respuesta de archivo."""
+        response = FileResponse(
+            open(file_path, 'rb'),
+            content_type=content_type,
+            as_attachment=True,
+            filename=escape_uri_path(file_name)
+        )
+        response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(file_name)}"'
+        response['Content-Length'] = os.path.getsize(file_path)
+        return response
+    
     def get(self, request, image_id):
         """
         Descarga una imagen original o procesada.
         Solo el propietario o un admin pueden descargar.
         """
         try:
-            # Obtener imagen (optimizado)
-            try:
-                image = CacaoImage.objects.select_related(
-                    'user',
-                    'finca',
-                    'finca__agricultor',
-                    'lote',
-                    'lote__finca',
-                    'lote__finca__agricultor'
-                ).prefetch_related('prediction').get(id=image_id)
-            except CacaoImage.DoesNotExist:
-                return Response({
-                    'error': ERROR_IMAGE_NOT_FOUND,
-                    'status': 'error'
-                }, status=status.HTTP_404_NOT_FOUND)
+            image, error_response = self._get_image_or_404(image_id)
+            if error_response:
+                return error_response
             
-            # Verificar permisos de acceso
             if not self.can_access_image(request.user, image):
                 return Response({
                     'error': 'No tienes permisos para descargar esta imagen',
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Obtener tipo de descarga
             download_type = request.GET.get('type', 'original').lower()
             
             if download_type == 'original':
-                # Descargar imagen original
-                if not image.image:
-                    return Response({
-                        'error': 'Imagen original no disponible',
-                        'status': 'error'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-                file_path = image.image.path
-                file_name = image.file_name or f"image_{image_id}.jpg"
-                
+                file_path, file_name, error_response = self._get_original_image_path(image, image_id)
+                if error_response:
+                    return error_response
             elif download_type == 'processed':
-                # Descargar imagen procesada (crop)
-                if not hasattr(image, 'prediction') or not image.prediction:
-                    return Response({
-                        'error': 'No hay imagen procesada disponible para esta imagen',
-                        'status': 'error'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-                crop_url = image.prediction.crop_url
-                if not crop_url:
-                    return Response({
-                        'error': 'URL de imagen procesada no disponible',
-                        'status': 'error'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-                # Para imágenes procesadas, redirigir a la URL del crop
+                crop_url, error_response = self._get_processed_image_url(image)
+                if error_response:
+                    return error_response
                 return HttpResponseRedirect(crop_url)
-                
             else:
                 return Response({
                     'error': 'Tipo de descarga inválido. Use "original" o "processed"',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Verificar que el archivo existe
             if not os.path.exists(file_path):
                 return Response({
                     'error': 'Archivo de imagen no encontrado en el servidor',
                     'status': 'error'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Determinar content type
-            if file_name.lower().endswith('.png'):
-                content_type = 'image/png'
-            elif file_name.lower().endswith('.jpg') or file_name.lower().endswith('.jpeg'):
-                content_type = 'image/jpeg'
-            elif file_name.lower().endswith('.bmp'):
-                content_type = 'image/bmp'
-            else:
-                content_type = 'application/octet-stream'
-            
-            # Crear respuesta de archivo
-            response = FileResponse(
-                open(file_path, 'rb'),
-                content_type=content_type,
-                as_attachment=True,
-                filename=escape_uri_path(file_name)
-            )
-            
-            # Agregar headers adicionales
-            response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(file_name)}"'
-            response['Content-Length'] = os.path.getsize(file_path)
+            content_type = self._get_content_type(file_name)
+            response = self._create_file_response(file_path, file_name, content_type)
             
             logger.info(f"Imagen {image_id} ({download_type}) descargada por usuario {request.user.username}")
             

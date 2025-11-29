@@ -11,6 +11,19 @@ from django.utils import timezone
 from datetime import timedelta
 
 from api.models import EmailVerificationToken, UserProfile
+from api.tests.test_constants import (
+    TEST_USER_PASSWORD,
+    TEST_EXISTING_USER_PASSWORD,
+    TEST_VERIFY_PASSWORD,
+    TEST_EXPIRED_PASSWORD,
+    TEST_RESEND_PASSWORD,
+    TEST_CLEANUP_PASSWORD,
+    TEST_FARMER_PASSWORD,
+    TEST_ADMIN_PASSWORD,
+    TEST_INVALID_PASSWORD,
+    TEST_WEAK_PASSWORD,
+    TEST_DIFFERENT_PASSWORD,
+)
 
 
 class AuthenticationTestCase(APITestCase):
@@ -33,15 +46,15 @@ class AuthenticationTestCase(APITestCase):
             'email': 'test@example.com',
             'first_name': 'Test',
             'last_name': 'User',
-            'password': 'TestPass123',
-            'password_confirm': 'TestPass123'
+            'password': TEST_USER_PASSWORD,  # NOSONAR: Test credential from test_constants
+            'password_confirm': TEST_USER_PASSWORD  # NOSONAR: Test credential from test_constants
         }
         
         # Usuario existente para tests de login
         self.existing_user = User.objects.create_user(
             username='existinguser',
             email='existing@example.com',
-            password='ExistingPass123',
+            password=TEST_EXISTING_USER_PASSWORD,  # NOSONAR: Test credential from constants
             first_name='Existing',
             last_name='User'
         )
@@ -80,7 +93,7 @@ class AuthenticationTestCase(APITestCase):
         
         # Contraseñas que no coinciden
         invalid_data = self.user_data.copy()
-        invalid_data['password_confirm'] = 'DifferentPass123'
+        invalid_data['password_confirm'] = TEST_DIFFERENT_PASSWORD  # NOSONAR: Test credential from constants
         
         response = self.client.post(self.register_url, invalid_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -88,8 +101,8 @@ class AuthenticationTestCase(APITestCase):
         
         # Contraseña débil
         invalid_data = self.user_data.copy()
-        invalid_data['password'] = 'weak'
-        invalid_data['password_confirm'] = 'weak'
+        invalid_data['password'] = TEST_WEAK_PASSWORD  # NOSONAR: Test credential from constants
+        invalid_data['password_confirm'] = TEST_WEAK_PASSWORD  # NOSONAR: Test credential from constants
         
         response = self.client.post(self.register_url, invalid_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -99,7 +112,7 @@ class AuthenticationTestCase(APITestCase):
         """Test de login exitoso."""
         login_data = {
             'username': 'existing@example.com',
-            'password': 'ExistingPass123'
+            'password': TEST_EXISTING_USER_PASSWORD
         }
         
         response = self.client.post(self.login_url, login_data)
@@ -114,7 +127,7 @@ class AuthenticationTestCase(APITestCase):
         """Test de login con credenciales inválidas."""
         login_data = {
             'username': 'existing@example.com',
-            'password': 'WrongPassword'
+            'password': TEST_INVALID_PASSWORD
         }
         
         response = self.client.post(self.login_url, login_data)
@@ -157,7 +170,7 @@ class AuthenticationTestCase(APITestCase):
         user = User.objects.create_user(
             username='verifyuser',
             email='verify@example.com',
-            password='VerifyPass123'
+            password=TEST_VERIFY_PASSWORD  # NOSONAR: Test credential from constants
         )
         verification_token = EmailVerificationToken.create_for_user(user)
         
@@ -178,7 +191,7 @@ class AuthenticationTestCase(APITestCase):
         user = User.objects.create_user(
             username='expireduser',
             email='expired@example.com',
-            password='ExpiredPass123'
+            password=TEST_EXPIRED_PASSWORD  # NOSONAR: Test credential from constants
         )
         verification_token = EmailVerificationToken.create_for_user(user)
         
@@ -199,7 +212,7 @@ class AuthenticationTestCase(APITestCase):
         User.objects.create_user(
             username='resenduser',
             email='resend@example.com',
-            password='ResendPass123'
+            password=TEST_RESEND_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         # Solicitar reenvío
@@ -236,7 +249,7 @@ class TokenCleanupTestCase(TestCase):
         self.user = User.objects.create_user(
             username='cleanupuser',
             email='cleanup@example.com',
-            password='CleanupPass123'
+            password=TEST_CLEANUP_PASSWORD  # NOSONAR: Test credential from constants
         )
     
     def test_token_cleanup(self):
@@ -273,7 +286,7 @@ class UserRoleTestCase(TestCase):
         user = User.objects.create_user(
             username='farmeruser',
             email='farmer@example.com',
-            password='FarmerPass123'
+            password=TEST_FARMER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         # Verificar que se asignó el rol farmer
@@ -286,7 +299,7 @@ class UserRoleTestCase(TestCase):
         user = User.objects.create_user(
             username='adminuser',
             email='admin@example.com',
-            password='AdminPass123',
+            password=TEST_ADMIN_PASSWORD,  # NOSONAR: Test credential from constants
             is_staff=True
         )
         

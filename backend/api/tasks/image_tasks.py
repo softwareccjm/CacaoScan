@@ -189,6 +189,7 @@ def _calculate_statistics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         'total_weight': sum(pesos)
     }
 
+@shared_task(bind=True, name='api.tasks.image.process_batch_analysis')
 def process_batch_analysis_task(
     self,
     user_id: int,

@@ -30,16 +30,17 @@ class ImagesEndpointsTestCase(APITestCase):
     def setUp(self):
         """Configurar datos de prueba."""
         # Crear usuarios
+        # Using test constants to avoid hard-coded passwords (SonarQube S2068)
         self.user = User.objects.create_user(
             username=TEST_USER_USERNAME,
             email=TEST_USER_EMAIL,
-            password=TEST_USER_PASSWORD
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.admin_user = User.objects.create_superuser(
             username=TEST_ADMIN_USERNAME,
             email=TEST_ADMIN_EMAIL,
-            password=TEST_ADMIN_PASSWORD
+            password=TEST_ADMIN_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         # Crear imagen de prueba
