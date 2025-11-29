@@ -34,6 +34,72 @@ class AdminImagesListView(PaginationMixin, AdminPermissionMixin, APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    def _apply_filters(self, queryset, user_id, username, region, finca, processed, has_prediction,
+                       search, date_from, date_to, model_version, min_confidence, max_confidence,
+                       filters_applied):
+        """Apply filters to queryset and update filters_applied dict."""
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+            filters_applied['user_id'] = user_id
+        
+        if username:
+            queryset = queryset.filter(user__username__icontains=username)
+            filters_applied['username'] = username
+        
+        if region:
+            queryset = queryset.filter(region__icontains=region)
+            filters_applied['region'] = region
+        
+        if finca:
+            queryset = queryset.filter(finca__icontains=finca)
+            filters_applied['finca'] = finca
+        
+        if processed is not None:
+            processed_bool = processed.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(processed=processed_bool)
+            filters_applied['processed'] = processed_bool
+        
+        if has_prediction is not None:
+            has_pred_bool = has_prediction.lower() in ['true', '1', 'yes']
+            if has_pred_bool:
+                queryset = queryset.filter(prediction__isnull=False)
+            else:
+                queryset = queryset.filter(prediction__isnull=True)
+            filters_applied['has_prediction'] = has_pred_bool
+        
+        if search:
+            queryset = queryset.filter(
+                Q(notas__icontains=search) |
+                Q(finca__icontains=search) |
+                Q(region__icontains=search) |
+                Q(lote_id__icontains=search) |
+                Q(variedad__icontains=search) |
+                Q(user__username__icontains=search)
+            )
+            filters_applied['search'] = search
+        
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+            filters_applied['date_from'] = date_from
+        
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+            filters_applied['date_to'] = date_to
+        
+        if model_version:
+            queryset = queryset.filter(prediction__model_version=model_version)
+            filters_applied['model_version'] = model_version
+        
+        if min_confidence is not None:
+            queryset = queryset.filter(prediction__average_confidence__gte=min_confidence)
+            filters_applied['min_confidence'] = float(min_confidence)
+        
+        if max_confidence is not None:
+            queryset = queryset.filter(prediction__average_confidence__lte=max_confidence)
+            filters_applied['max_confidence'] = float(max_confidence)
+        
+        return queryset
+    
     @swagger_auto_schema(
         operation_description="Obtiene la lista completa de imágenes del sistema con filtros avanzados (solo admins)",
         operation_summary="Lista global de imágenes",
@@ -113,66 +179,12 @@ class AdminImagesListView(PaginationMixin, AdminPermissionMixin, APIView):
             
             # Aplicar filtros
             filters_applied = {}
-            
-            if user_id:
-                queryset = queryset.filter(user_id=user_id)
-                filters_applied['user_id'] = user_id
-            
-            if username:
-                queryset = queryset.filter(user__username__icontains=username)
-                filters_applied['username'] = username
-            
-            if region:
-                queryset = queryset.filter(region__icontains=region)
-                filters_applied['region'] = region
-            
-            if finca:
-                queryset = queryset.filter(finca__icontains=finca)
-                filters_applied['finca'] = finca
-            
-            if processed is not None:
-                processed_bool = processed.lower() in ['true', '1', 'yes']
-                queryset = queryset.filter(processed=processed_bool)
-                filters_applied['processed'] = processed_bool
-            
-            if has_prediction is not None:
-                has_pred_bool = has_prediction.lower() in ['true', '1', 'yes']
-                if has_pred_bool:
-                    queryset = queryset.filter(prediction__isnull=False)
-                else:
-                    queryset = queryset.filter(prediction__isnull=True)
-                filters_applied['has_prediction'] = has_pred_bool
-            
-            if search:
-                queryset = queryset.filter(
-                    Q(notas__icontains=search) |
-                    Q(finca__icontains=search) |
-                    Q(region__icontains=search) |
-                    Q(lote_id__icontains=search) |
-                    Q(variedad__icontains=search) |
-                    Q(user__username__icontains=search)
-                )
-                filters_applied['search'] = search
-            
-            if date_from:
-                queryset = queryset.filter(created_at__date__gte=date_from)
-                filters_applied['date_from'] = date_from
-            
-            if date_to:
-                queryset = queryset.filter(created_at__date__lte=date_to)
-                filters_applied['date_to'] = date_to
-            
-            if model_version:
-                queryset = queryset.filter(prediction__model_version=model_version)
-                filters_applied['model_version'] = model_version
-            
-            if min_confidence is not None:
-                queryset = queryset.filter(prediction__average_confidence__gte=min_confidence)
-                filters_applied['min_confidence'] = float(min_confidence)
-            
-            if max_confidence is not None:
-                queryset = queryset.filter(prediction__average_confidence__lte=max_confidence)
-                filters_applied['max_confidence'] = float(max_confidence)
+            queryset = self._apply_filters(
+                queryset, 
+                user_id, username, region, finca, processed, has_prediction,
+                search, date_from, date_to, model_version, min_confidence, max_confidence,
+                filters_applied
+            )
             
             # Ordenar por fecha de creación (más recientes primero)
             queryset = queryset.order_by('-created_at')

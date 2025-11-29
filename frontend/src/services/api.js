@@ -111,13 +111,13 @@ let failedRequestsQueue = []
 
 // Función para procesar la cola de peticiones fallidas
 const processQueue = (error, token = null) => {
-  failedRequestsQueue.forEach(prom => {
+  for (const prom of failedRequestsQueue) {
     if (error) {
       prom.reject(error)
     } else {
       prom.resolve(token)
     }
-  })
+  }
   failedRequestsQueue = []
 }
 
@@ -450,11 +450,11 @@ api.interceptors.response.use(
 export const createFormDataRequest = (data, progressCallback) => {
   const formData = new FormData()
   
-  Object.keys(data).forEach(key => {
+  for (const key of Object.keys(data)) {
     if (data[key] !== null && data[key] !== undefined) {
       formData.append(key, data[key])
     }
-  })
+  }
 
   const config = {
     headers: {

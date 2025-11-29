@@ -138,7 +138,7 @@ class UserProfile(models.Model):
             if hasattr(self.user, 'auth_email_token'):
                 return self.user.auth_email_token.is_verified
             return False
-        except:
+        except (AttributeError, KeyError, ValueError):
             return False
 
 

@@ -16,7 +16,7 @@ const router = createRouter({
 config.global.plugins = [pinia, router]
 
 // Mock global de window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(globalThis, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation(query => ({
     matches: false,
@@ -31,21 +31,21 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 // Mock global de IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
 
 // Mock global de ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
+globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
 
 // Mock global de fetch
-global.fetch = vi.fn()
+globalThis.fetch = vi.fn()
 
 // Mock global de localStorage
 const localStorageMock = {
@@ -54,7 +54,7 @@ const localStorageMock = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 }
-global.localStorage = localStorageMock
+globalThis.localStorage = localStorageMock
 
 // Mock global de sessionStorage
 const sessionStorageMock = {
@@ -63,4 +63,4 @@ const sessionStorageMock = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 }
-global.sessionStorage = sessionStorageMock
+globalThis.sessionStorage = sessionStorageMock

@@ -374,18 +374,19 @@ class ImprovedCacaoDataset(Dataset):
             expected_mean = [0.485, 0.456, 0.406]
             expected_std = [0.229, 0.224, 0.225]
             
-            if normalize_mean is not None and normalize_std is not None:
-                mean_match = all(abs(m - e) < 0.01 for m, e in zip(normalize_mean, expected_mean))
-                std_match = all(abs(s - e) < 0.01 for s, e in zip(normalize_std, expected_std))
-                
-                if not (mean_match and std_match):
-                    logger.warning(
-                        f"⚠️ Parámetros de normalización diferentes a ImageNet estándar. "
-                        f"Esperado: mean={expected_mean}, std={expected_std}. "
-                        f"Obtenido: mean={normalize_mean}, std={normalize_std}"
-                    )
-                else:
-                    logger.debug("✅ Normalización ImageNet validada correctamente")
+            # Since has_normalize is True, normalize_mean and normalize_std should be set
+            # Validate normalization parameters match ImageNet standard
+            mean_match = all(abs(m - e) < 0.01 for m, e in zip(normalize_mean, expected_mean))
+            std_match = all(abs(s - e) < 0.01 for s, e in zip(normalize_std, expected_std))
+            
+            if not (mean_match and std_match):
+                logger.warning(
+                    f"⚠️ Parámetros de normalización diferentes a ImageNet estándar. "
+                    f"Esperado: mean={expected_mean}, std={expected_std}. "
+                    f"Obtenido: mean={normalize_mean}, std={normalize_std}"
+                )
+            else:
+                logger.debug("✅ Normalización ImageNet validada correctamente")
     
     def __len__(self) -> int:
         return len(self.image_paths)

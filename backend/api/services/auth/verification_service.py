@@ -31,7 +31,7 @@ class VerificationService(BaseService):
         """
         try:
             from ...utils.model_imports import get_models_safely
-            models = get_models_safely({
+            get_models_safely({
                 'EmailVerificationToken': 'auth_app.models.EmailVerificationToken'
             })
             token_obj = EmailVerificationToken.objects.filter(token=token).first()

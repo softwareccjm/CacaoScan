@@ -184,6 +184,10 @@ export default {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 .stat-card:hover {
@@ -202,38 +206,32 @@ export default {
 /* Variantes de tarjetas */
 .stat-card.primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  color: #ffffff;
   border: none;
 }
 
 .stat-card.success {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
+  color: #ffffff;
   border: none;
 }
 
 .stat-card.warning {
   background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  color: white;
+  color: #1f2937;
   border: none;
 }
 
 .stat-card.danger {
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-  color: white;
+  color: #ffffff;
   border: none;
 }
 
 .stat-card.info {
   background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-  color: #374151;
+  color: #1f2937;
   border: none;
-}
-
-.stat-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
 }
 
 .stat-icon {
@@ -245,28 +243,24 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: white;
+  color: #ffffff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.stat-card.primary .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.stat-card.success .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
+.stat-card.primary .stat-icon,
+.stat-card.success .stat-icon,
+.stat-card.danger .stat-icon {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .stat-card.warning .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.stat-card.danger .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(31, 41, 55, 0.2);
+  color: #1f2937;
 }
 
 .stat-card.info .stat-icon {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(31, 41, 55, 0.15);
+  color: #1f2937;
 }
 
 .stat-content {
@@ -290,9 +284,12 @@ export default {
 
 .stat-card.primary .stat-number,
 .stat-card.success .stat-number,
-.stat-card.warning .stat-number,
 .stat-card.danger .stat-number {
-  color: white;
+  color: #ffffff;
+}
+
+.stat-card.warning .stat-number {
+  color: #1f2937;
 }
 
 .stat-suffix {
@@ -303,9 +300,12 @@ export default {
 
 .stat-card.primary .stat-suffix,
 .stat-card.success .stat-suffix,
-.stat-card.warning .stat-suffix,
 .stat-card.danger .stat-suffix {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card.warning .stat-suffix {
+  color: #1f2937;
 }
 
 .stat-label {
@@ -317,9 +317,12 @@ export default {
 
 .stat-card.primary .stat-label,
 .stat-card.success .stat-label,
-.stat-card.warning .stat-label,
 .stat-card.danger .stat-label {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card.warning .stat-label {
+  color: #1f2937;
 }
 
 .stat-change {
@@ -345,9 +348,12 @@ export default {
 
 .stat-card.primary .stat-change,
 .stat-card.success .stat-change,
-.stat-card.warning .stat-change,
 .stat-card.danger .stat-change {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card.warning .stat-change {
+  color: #1f2937;
 }
 
 .change-period {
@@ -363,9 +369,12 @@ export default {
 
 .stat-card.primary .stat-description,
 .stat-card.success .stat-description,
-.stat-card.warning .stat-description,
 .stat-card.danger .stat-description {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-card.warning .stat-description {
+  color: #374151;
 }
 
 .stat-trend {
@@ -429,9 +438,6 @@ export default {
   }
 }
 
-.stat-card {
-  animation: fadeInUp 0.6s ease-out;
-}
 
 .stat-card:nth-child(1) { animation-delay: 0.1s; }
 .stat-card:nth-child(2) { animation-delay: 0.2s; }

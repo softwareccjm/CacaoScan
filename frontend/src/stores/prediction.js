@@ -335,11 +335,11 @@ export const usePredictionStore = defineStore('prediction', {
         };
         
         // Filtrar parámetros vacíos
-        Object.keys(params).forEach(key => {
+        for (const key of Object.keys(params)) {
           if (params[key] === '' || params[key] === null || params[key] === undefined) {
             delete params[key];
           }
-        });
+        }
         
         const response = await getImageHistory(params);
         
@@ -400,16 +400,30 @@ export const usePredictionStore = defineStore('prediction', {
     
     /**
      * Reinicia todo el estado de predicción al estado inicial.
-     * Limpia la predicción actual, imagen y flags de carga.
-     * Útil para resetear el store antes de una nueva predicción.
+     * 
+     * Limpia todos los datos relacionados con predicciones actuales y pasadas,
+     * incluyendo la predicción actual, imagen, errores, historial y filtros.
+     * También resetea la paginación al estado inicial.
+     * 
+     * Este método es útil para resetear el store antes de una nueva predicción
+     * o cuando se necesita limpiar completamente el estado de predicción.
+     * 
+     * @returns {void}
      */
     resetState() {
+      // Reset current prediction state
       this.currentPrediction = null;
       this.currentImage = null;
       this.isLoading = false;
+      
+      // Clear all errors
       this.error = null;
       this.uploadError = null;
+      
+      // Clear prediction history
       this.predictions = [];
+      
+      // Reset filters and pagination
       this.clearFilters();
       this.pagination.currentPage = 1;
     },

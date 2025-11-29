@@ -174,7 +174,7 @@ class ProfileService(BaseService):
         try:
             if hasattr(user, 'auth_email_token'):
                 return user.auth_email_token.is_verified
-        except:
+        except (AttributeError, KeyError, ValueError):
             pass
         return user.is_active
 

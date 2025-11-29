@@ -146,6 +146,56 @@ class ReportGenerationService(BaseService):
                 ValidationServiceError("Error interno generando reporte", details={"original_error": str(e)})
             )
     
+    def _calculate_dimension_stats(self, predictions) -> Dict[str, Dict[str, float]]:
+        """Calculate dimension statistics for predictions."""
+        return {
+            'alto_mm': {
+                'promedio': float(predictions.aggregate(avg=Avg('alto_mm'))['avg'] or 0),
+                'minimo': float(predictions.aggregate(min=Min('alto_mm'))['min'] or 0),
+                'maximo': float(predictions.aggregate(max=Max('alto_mm'))['max'] or 0),
+                'desviacion': self._calculate_std_dev(predictions, 'alto_mm')
+            },
+            'ancho_mm': {
+                'promedio': float(predictions.aggregate(avg=Avg('ancho_mm'))['avg'] or 0),
+                'minimo': float(predictions.aggregate(min=Min('ancho_mm'))['min'] or 0),
+                'maximo': float(predictions.aggregate(max=Max('ancho_mm'))['max'] or 0),
+                'desviacion': self._calculate_std_dev(predictions, 'ancho_mm')
+            },
+            'grosor_mm': {
+                'promedio': float(predictions.aggregate(avg=Avg('grosor_mm'))['avg'] or 0),
+                'minimo': float(predictions.aggregate(min=Min('grosor_mm'))['min'] or 0),
+                'maximo': float(predictions.aggregate(max=Max('grosor_mm'))['max'] or 0),
+                'desviacion': self._calculate_std_dev(predictions, 'grosor_mm')
+            },
+            'peso_g': {
+                'promedio': float(predictions.aggregate(avg=Avg('peso_g'))['avg'] or 0),
+                'minimo': float(predictions.aggregate(min=Min('peso_g'))['min'] or 0),
+                'maximo': float(predictions.aggregate(max=Max('peso_g'))['max'] or 0),
+                'desviacion': self._calculate_std_dev(predictions, 'peso_g')
+            }
+        }
+    
+    def _calculate_confidence_stats(self, predictions) -> Dict[str, Any]:
+        """Calculate confidence statistics for predictions."""
+        return {
+            'promedio': float(predictions.aggregate(avg=Avg('average_confidence'))['avg'] or 0),
+            'minimo': float(predictions.aggregate(min=Min('average_confidence'))['min'] or 0),
+            'maximo': float(predictions.aggregate(max=Max('average_confidence'))['max'] or 0),
+            'distribucion': {
+                'alta': predictions.filter(average_confidence__gte=0.8).count(),
+                'media': predictions.filter(average_confidence__gte=0.6, average_confidence__lt=0.8).count(),
+                'baja': predictions.filter(average_confidence__lt=0.6).count()
+            }
+        }
+    
+    def _calculate_processing_stats(self, predictions) -> Dict[str, float]:
+        """Calculate processing time statistics for predictions."""
+        return {
+            'promedio_ms': float(predictions.aggregate(avg=Avg('processing_time_ms'))['avg'] or 0),
+            'minimo_ms': float(predictions.aggregate(min=Min('processing_time_ms'))['min'] or 0),
+            'maximo_ms': float(predictions.aggregate(max=Max('processing_time_ms'))['max'] or 0)
+        }
+    
     def _generate_general_analysis_report(self, user: User, fecha_inicio: datetime, fecha_fin: datetime) -> Dict[str, Any]:
         """
         Generates general analysis report.
@@ -177,51 +227,13 @@ class ReportGenerationService(BaseService):
             }
         
         # Dimension statistics
-        dimension_stats = {
-            'alto_mm': {
-                'promedio': float(predictions.aggregate(avg=Avg('alto_mm'))['avg'] or 0),
-                'minimo': float(predictions.aggregate(min=Min('alto_mm'))['min'] or 0),
-                'maximo': float(predictions.aggregate(max=Max('alto_mm'))['max'] or 0),
-                'desviacion': self._calculate_std_dev(predictions, 'alto_mm')
-            },
-            'ancho_mm': {
-                'promedio': float(predictions.aggregate(avg=Avg('ancho_mm'))['avg'] or 0),
-                'minimo': float(predictions.aggregate(min=Min('ancho_mm'))['min'] or 0),
-                'maximo': float(predictions.aggregate(max=Max('ancho_mm'))['max'] or 0),
-                'desviacion': self._calculate_std_dev(predictions, 'ancho_mm')
-            },
-            'grosor_mm': {
-                'promedio': float(predictions.aggregate(avg=Avg('grosor_mm'))['avg'] or 0),
-                'minimo': float(predictions.aggregate(min=Min('grosor_mm'))['min'] or 0),
-                'maximo': float(predictions.aggregate(max=Max('grosor_mm'))['max'] or 0),
-                'desviacion': self._calculate_std_dev(predictions, 'grosor_mm')
-            },
-            'peso_g': {
-                'promedio': float(predictions.aggregate(avg=Avg('peso_g'))['avg'] or 0),
-                'minimo': float(predictions.aggregate(min=Min('peso_g'))['min'] or 0),
-                'maximo': float(predictions.aggregate(max=Max('peso_g'))['max'] or 0),
-                'desviacion': self._calculate_std_dev(predictions, 'peso_g')
-            }
-        }
+        dimension_stats = self._calculate_dimension_stats(predictions)
         
         # Confidence statistics
-        confidence_stats = {
-            'promedio': float(predictions.aggregate(avg=Avg('average_confidence'))['avg'] or 0),
-            'minimo': float(predictions.aggregate(min=Min('average_confidence'))['min'] or 0),
-            'maximo': float(predictions.aggregate(max=Max('average_confidence'))['max'] or 0),
-            'distribucion': {
-                'alta': predictions.filter(average_confidence__gte=0.8).count(),
-                'media': predictions.filter(average_confidence__gte=0.6, average_confidence__lt=0.8).count(),
-                'baja': predictions.filter(average_confidence__lt=0.6).count()
-            }
-        }
+        confidence_stats = self._calculate_confidence_stats(predictions)
         
         # Processing time statistics
-        processing_stats = {
-            'promedio_ms': float(predictions.aggregate(avg=Avg('processing_time_ms'))['avg'] or 0),
-            'minimo_ms': float(predictions.aggregate(min=Min('processing_time_ms'))['min'] or 0),
-            'maximo_ms': float(predictions.aggregate(max=Max('processing_time_ms'))['max'] or 0)
-        }
+        processing_stats = self._calculate_processing_stats(predictions)
         
         # Daily analysis
         daily_analysis = self._get_daily_analysis(predictions)

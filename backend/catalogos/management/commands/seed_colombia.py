@@ -1,6 +1,19 @@
 from django.core.management.base import BaseCommand
 from catalogos.models import Departamento, Municipio
 
+# Constants for frequently duplicated municipality names
+MUNICIPALITY_LA_UNION = "La Unión"
+MUNICIPALITY_NARINO = "Nariño"
+MUNICIPALITY_SAN_FRANCISCO = "San Francisco"
+MUNICIPALITY_SAN_ANDRES = "San Andrés"
+MUNICIPALITY_SAN_PEDRO = "San Pedro"
+MUNICIPALITY_SANTA_BARBARA = "Santa Bárbara"
+MUNICIPALITY_BOGOTA_DC = "Bogotá D.C."
+MUNICIPALITY_BOLIVAR = "Bolívar"
+MUNICIPALITY_CORDOBA = "Córdoba"
+MUNICIPALITY_EL_PENON = "El Peñón"
+MUNICIPALITY_LA_VICTORIA = "La Victoria"
+
 
 def _normalize_text(value: str) -> str:
     """
@@ -38,14 +51,14 @@ class Command(BaseCommand):
                 "051", "Fredonia", "052", "Frontino", "053", "Giraldo", "054", "Girardota",
                 "055", "Gómez Plata", "056", "Guadalupe", "057", "Heliconia", "059", "Hispania",
                 "060", "Ituango", "062", "Jericó", "063", "La Estrella", "064", "La Pintada",
-                "065", "La Unión", "066", "Liborina", "067", "Maceo", "069", "Montebello",
+                "065", MUNICIPALITY_LA_UNION, "066", "Liborina", "067", "Maceo", "069", "Montebello",
                 "070", "Mutatá", "071", "Nariño", "072", "Nechí", "073", "Necoclí",
                 "074", "Olaya", "075", "Peque", "076", "Pueblorrico", "077", "Puerto Berrío",
                 "078", "Puerto Nare", "079", "Puerto Triunfo", "080", "Remedios", "081", "Retiro",
                 "082", "Rionegro", "084", "Sabanalarga", "085", "Sabaneta", "086", "Salgar",
-                "087", "San Andrés", "088", "San Carlos", "089", "San Francisco", "090", "San Jerónimo",
+                "087", MUNICIPALITY_SAN_ANDRES, "088", "San Carlos", "089", "San Francisco", "090", "San Jerónimo",
                 "091", "San José de la Montaña", "092", "San Juan de Urabá", "093", "San Luís",
-                "094", "San Pedro", "095", "San Pedro de Urabá", "096", "San Rafael", "097", "San Roque",
+                "094", MUNICIPALITY_SAN_PEDRO, "095", "San Pedro de Urabá", "096", "San Rafael", "097", "San Roque",
                 "098", "San Vicente", "099", "Santa Bárbara", "100", "Santa Fé de Antioquia",
                 "101", "Santa Rosa de Osos", "102", "Santo Domingo", "103", "Santuario",
                 "104", "Segovia", "105", "Sonsón", "106", "Sopetrán", "107", "Támesis",
@@ -65,10 +78,10 @@ class Command(BaseCommand):
                 "019", "Santo Tomás", "020", "Soledad", "021", "Suan",
                 "022", "Tubará", "023", "Usiacurí"
             ]),
-            "11": ("Bogotá D.C.", [
-                "001", "Bogotá D.C."
+            "11": (MUNICIPALITY_BOGOTA_DC, [
+                "001", MUNICIPALITY_BOGOTA_DC
             ]),
-            "13": ("Bolívar", [
+            "13": (MUNICIPALITY_BOLIVAR, [
                 "001", "Cartagena", "002", "Achí", "003", "Altos del Rosario",
                 "004", "Arenal", "005", "Arjona", "006", "Arroyohondo",
                 "007", "Barranco de Loba", "008", "Calamar", "009", "Cantagallo",
@@ -174,7 +187,7 @@ class Command(BaseCommand):
                 "019", "Pueblo Bello", "020", "Río de Oro", "021", "San Alberto",
                 "022", "San Diego", "023", "San Martín", "024", "Tamalameque"
             ]),
-            "23": ("Córdoba", [
+            "23": (MUNICIPALITY_CORDOBA, [
                 "001", "Montería", "002", "Ayapel", "003", "Buenavista",
                 "004", "Canalete", "005", "Cereté", "006", "Chinú",
                 "007", "Ciénaga de Oro", "008", "Cotorra", "009", "La Apartada",
@@ -190,7 +203,7 @@ class Command(BaseCommand):
                 "001", "Agua de Dios", "002", "Albán", "003", "Anapoima",
                 "004", "Anolaima", "005", "Apulo", "006", "Arbeláez",
                 "007", "Beltrán", "008", "Bituima", "009", "Bochalema",
-                "010", "Bogotá D.C.", "011", "Cabrera", "012", "Cachipay",
+                "010", MUNICIPALITY_BOGOTA_DC, "011", "Cabrera", "012", "Cachipay",
                 "013", "Cajicá", "014", "Caparrapí", "015", "Cáqueza",
                 "016", "Carmen de Carupa", "017", "Chaguaní", "018", "Chía",
                 "019", "Chipaque", "020", "Choachí", "021", "Chocontá",
@@ -284,7 +297,7 @@ class Command(BaseCommand):
                 "025", "San Carlos de Guaroa", "026", "San Juan de Arama", "027", "San Juanito",
                 "028", "San Martín", "029", "Vista Hermosa"
             ]),
-            "52": ("Nariño", [
+            "52": (MUNICIPALITY_NARINO, [
                 "001", "Pasto", "002", "Albán", "003", "Aldana",
                 "004", "Ancuyá", "005", "Arboleda", "006", "Barbacoas",
                 "007", "Belén", "008", "Buesaco", "009", "Colón",
@@ -298,7 +311,7 @@ class Command(BaseCommand):
                 "031", "La Llanada", "032", "La Tola", "033", "La Unión",
                 "034", "Leiva", "035", "Linares", "036", "Los Andes",
                 "037", "Magüí", "038", "Mallama", "039", "Mosquera",
-                "040", "Nariño", "041", "Olaya Herrera", "042", "Ospina",
+                "040", MUNICIPALITY_NARINO, "041", "Olaya Herrera", "042", "Ospina",
                 "043", "Policarpa", "044", "Potosí", "045", "Providencia",
                 "046", "Puerres", "047", "Pupiales", "048", "Ricaurte",
                 "049", "Roberto Payán", "050", "Samaniego", "051", "San Bernardo",
@@ -404,7 +417,7 @@ class Command(BaseCommand):
                 "016", "El Cairo", "017", "El Cerrito", "018", "El Dovio",
                 "019", "Florida", "020", "Ginebra", "021", "Guacarí",
                 "022", "Guadalajara de Buga", "023", "Jamundí", "024", "La Cumbre",
-                "025", "La Unión", "026", "La Victoria", "027", "Obando",
+                "025", MUNICIPALITY_LA_UNION, "026", "La Victoria", "027", "Obando",
                 "028", "Palmira", "029", "Pradera", "030", "Restrepo",
                 "031", "Riofrío", "032", "Roldanillo", "033", "San Pedro",
                 "034", "Sevilla", "035", "Toro", "036", "Trujillo",
@@ -434,7 +447,7 @@ class Command(BaseCommand):
                 "013", "Villagarzón"
             ]),
             "88": ("Archipiélago de San Andrés", [
-                "001", "San Andrés", "002", "Providencia"
+                "001", MUNICIPALITY_SAN_ANDRES, "002", "Providencia"
             ]),
             "91": ("Amazonas", [
                 "001", "Leticia", "002", "El Encanto", "003", "La Chorrera",

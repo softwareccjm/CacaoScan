@@ -47,10 +47,10 @@ def _deshadow_alpha(rgb: np.ndarray, alpha: np.ndarray, max_dist: int = 35) -> n
     # Convertir a Lab
     rgb_lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.int16)
     bg_lab = cv2.cvtColor(np.uint8([[bg_color]]), cv2.COLOR_RGB2LAB)[0, 0].astype(np.int16)
-    dL = (rgb_lab[:, :, 0] - bg_lab[0]).astype(np.float32)
-    dA = (rgb_lab[:, :, 1] - bg_lab[1]).astype(np.float32)
-    dB = (rgb_lab[:, :, 2] - bg_lab[2]).astype(np.float32)
-    delta = cv2.magnitude(dL, cv2.magnitude(dA, dB))
+    dl = (rgb_lab[:, :, 0] - bg_lab[0]).astype(np.float32)
+    da = (rgb_lab[:, :, 1] - bg_lab[1]).astype(np.float32)
+    db = (rgb_lab[:, :, 2] - bg_lab[2]).astype(np.float32)
+    delta = cv2.magnitude(dl, cv2.magnitude(da, db))
 
     # Gradiente para evitar comer borde de alto contraste
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)

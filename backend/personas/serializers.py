@@ -521,39 +521,44 @@ class PersonaActualizacionSerializer(serializers.Serializer):
         
         return value
     
-    def validate(self, data):
-        """Validar catálogos y ubicaciones."""
-        # Validar tipo_documento si se proporciona
-        if 'tipo_documento' in data:
-            tipo_doc_codigo = data['tipo_documento']
-            tipo_doc = Parametro.objects.filter(
-                codigo=tipo_doc_codigo,
-                tema__codigo='TIPO_DOC',
-                activo=True
-            ).first()
-            
-            if not tipo_doc:
-                raise serializers.ValidationError({
-                    'tipo_documento': f"Tipo de documento '{tipo_doc_codigo}' no existe o no está activo."
-                })
-            data['tipo_documento_obj'] = tipo_doc
+    def _validate_tipo_documento(self, data):
+        """Validate tipo_documento parameter."""
+        if 'tipo_documento' not in data:
+            return
         
-        # Validar genero si se proporciona
-        if 'genero' in data:
-            genero_codigo = data['genero']
-            genero = Parametro.objects.filter(
-                codigo=genero_codigo,
-                tema__codigo='SEXO',
-                activo=True
-            ).first()
-            
-            if not genero:
-                raise serializers.ValidationError({
-                    'genero': f"Género '{genero_codigo}' no existe o no está activo."
-                })
-            data['genero_obj'] = genero
+        tipo_doc_codigo = data['tipo_documento']
+        tipo_doc = Parametro.objects.filter(
+            codigo=tipo_doc_codigo,
+            tema__codigo='TIPO_DOC',
+            activo=True
+        ).first()
         
-        # Validar ubicaciones
+        if not tipo_doc:
+            raise serializers.ValidationError({
+                'tipo_documento': f"Tipo de documento '{tipo_doc_codigo}' no existe o no está activo."
+            })
+        data['tipo_documento_obj'] = tipo_doc
+    
+    def _validate_genero(self, data):
+        """Validate genero parameter."""
+        if 'genero' not in data:
+            return
+        
+        genero_codigo = data['genero']
+        genero = Parametro.objects.filter(
+            codigo=genero_codigo,
+            tema__codigo='SEXO',
+            activo=True
+        ).first()
+        
+        if not genero:
+            raise serializers.ValidationError({
+                'genero': f"Género '{genero_codigo}' no existe o no está activo."
+            })
+        data['genero_obj'] = genero
+    
+    def _validate_ubicaciones(self, data):
+        """Validate municipio and departamento."""
         if 'municipio' in data and data['municipio']:
             municipio = Municipio.objects.filter(id=data['municipio']).first()
             if not municipio:
@@ -573,7 +578,12 @@ class PersonaActualizacionSerializer(serializers.Serializer):
             data['departamento_obj'] = departamento
         else:
             data['departamento_obj'] = None
-        
+    
+    def validate(self, data):
+        """Validar catálogos y ubicaciones."""
+        self._validate_tipo_documento(data)
+        self._validate_genero(data)
+        self._validate_ubicaciones(data)
         return data
     
     def update(self, instance, validated_data):

@@ -23,8 +23,7 @@
             id="password-current"
             :type="showCurrentPassword ? 'text' : 'password'"
             autocomplete="current-password" 
-            v-model="localPasswordForm.currentPassword"
-            autocomplete="current-password" 
+            v-model="localPasswordForm.currentPassword" 
             @blur="validateField('currentPassword')"
             placeholder="••••••••" 
             class="w-full px-4 py-3 pr-12 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/30 transition-all duration-200"
@@ -59,8 +58,7 @@
             id="password-new"
             :type="showNewPassword ? 'text' : 'password'"
             autocomplete="new-password" 
-            v-model="localPasswordForm.newPassword"
-            autocomplete="new-password" 
+            v-model="localPasswordForm.newPassword" 
             @blur="validateField('newPassword')"
             @input="validateField('newPassword')"
             placeholder="••••••••" 
@@ -125,8 +123,7 @@
           id="password-confirm"
           :type="showNewPassword ? 'text' : 'password'"
           autocomplete="new-password"
-          v-model="localPasswordForm.confirmPassword"
-          autocomplete="new-password" 
+          v-model="localPasswordForm.confirmPassword" 
           @blur="validateField('confirmPassword')"
           @input="validateField('confirmPassword')"
           placeholder="••••••••" 
@@ -290,18 +287,26 @@ const validateField = (fieldName) => {
   }
 }
 
-// Validar todo el formulario antes de enviar
+/**
+ * Valida todo el formulario antes de enviar.
+ * Reinicia todos los errores y valida cada campo del formulario.
+ * 
+ * @returns {boolean} true si el formulario es válido (no hay errores), false en caso contrario
+ */
 const validateForm = () => {
+  // Reset all errors before validation
   errors.value = {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   }
   
+  // Validate each field
   validateField('currentPassword')
   validateField('newPassword')
   validateField('confirmPassword')
   
+  // Return true if no errors exist
   return Object.values(errors.value).every(error => !error)
 }
 

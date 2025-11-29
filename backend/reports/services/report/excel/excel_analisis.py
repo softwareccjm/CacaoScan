@@ -293,7 +293,7 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
         # Statistics data
         data = [
             [EXCEL_COL_METRIC, EXCEL_COL_VALUE],
-            ['Total de Análisis', stats['total_analyses']],
+            [EXCEL_TOTAL_ANALISIS, stats['total_analyses']],
             [EXCEL_AVG_CONFIDENCE, f"{stats['avg_confidence']}%"],
             [EXCEL_AVG_ALTO, f"{stats['avg_dimensions']['alto']} mm"],
             [EXCEL_AVG_ANCHO, f"{stats['avg_dimensions']['ancho']} mm"],
@@ -449,7 +449,7 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
         summary_ws['A6'].font = Font(size=14, bold=True, color="2F4F4F")
         
         key_metrics = [
-            ['Total de Análisis', stats['total_analyses']],
+            [EXCEL_TOTAL_ANALISIS, stats['total_analyses']],
             [EXCEL_AVG_CONFIDENCE, f"{stats['avg_confidence']}%"],
             [EXCEL_AVG_ALTO, f"{stats['avg_dimensions']['alto']} mm"],
             [EXCEL_AVG_ANCHO, f"{stats['avg_dimensions']['ancho']} mm"],

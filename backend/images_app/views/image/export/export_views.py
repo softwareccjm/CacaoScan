@@ -57,7 +57,7 @@ class ImagesExportView(APIView, ImagePermissionMixin):
         try:
             from api.utils.model_imports import get_models_safely
             
-            models = get_models_safely({
+            get_models_safely({
                 'CacaoImage': 'images_app.models.CacaoImage',
             })
             # Obtener parámetros de exportación

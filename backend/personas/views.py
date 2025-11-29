@@ -235,6 +235,33 @@ class AdminPersonaByUserView(APIView):
 
         return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
 
+    def _create_persona_from_validated_data(self, user, validated_data):
+        """Create Persona instance from validated data."""
+        persona = Persona(user=user)
+        
+        # Asignar catálogos
+        if 'tipo_documento_obj' in validated_data:
+            persona.tipo_documento = validated_data['tipo_documento_obj']
+        if 'genero_obj' in validated_data:
+            persona.genero = validated_data['genero_obj']
+        if 'departamento_obj' in validated_data:
+            persona.departamento = validated_data['departamento_obj']
+        if 'municipio_obj' in validated_data:
+            persona.municipio = validated_data['municipio_obj']
+        
+        # Asignar campos simples
+        simple_fields = [
+            'numero_documento', 'primer_nombre', 'segundo_nombre',
+            'primer_apellido', 'segundo_apellido', 'telefono',
+            'direccion', 'fecha_nacimiento'
+        ]
+        
+        for field in simple_fields:
+            if field in validated_data:
+                setattr(persona, field, validated_data[field])
+        
+        return persona
+    
     def post(self, request):
         """
         Crear perfil de persona para un usuario existente.
@@ -261,35 +288,11 @@ class AdminPersonaByUserView(APIView):
         if serializer.is_valid():
             try:
                 validated_data = serializer.validated_data
-                
-                # Crear la persona
-                persona = Persona(user=request.user)
-                
-                # Asignar catálogos
-                if 'tipo_documento_obj' in validated_data:
-                    persona.tipo_documento = validated_data['tipo_documento_obj']
-                if 'genero_obj' in validated_data:
-                    persona.genero = validated_data['genero_obj']
-                if 'departamento_obj' in validated_data:
-                    persona.departamento = validated_data['departamento_obj']
-                if 'municipio_obj' in validated_data:
-                    persona.municipio = validated_data['municipio_obj']
-                
-                # Asignar campos simples
-                simple_fields = [
-                    'numero_documento', 'primer_nombre', 'segundo_nombre',
-                    'primer_apellido', 'segundo_apellido', 'telefono',
-                    'direccion', 'fecha_nacimiento'
-                ]
-                
-                for field in simple_fields:
-                    if field in validated_data:
-                        setattr(persona, field, validated_data[field])
-                
+                persona = self._create_persona_from_validated_data(request.user, validated_data)
                 persona.save()
+                
                 logger.info(f"[OK] Perfil de persona creado exitosamente: {persona.id}")
                 
-                # Devolver los datos creados
                 response_serializer = PersonaSerializer(persona)
                 return Response(
                     {

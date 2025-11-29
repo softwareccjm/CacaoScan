@@ -4,8 +4,9 @@
 import { useAuthStore } from '@/stores/auth'
 
 class ReportsService {
+  baseURL = '/api/reportes'
+  
   constructor() {
-    this.baseURL = '/api/reportes'
   }
 
   /**
@@ -30,11 +31,11 @@ class ReportsService {
       })
 
       // Agregar filtros
-      Object.entries(filters).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(filters)) {
         if (value) {
           params.append(key, value)
         }
-      })
+      }
 
       const response = await fetch(`${this.baseURL}/?${params}`, {
         headers: this.getHeaders()
@@ -255,7 +256,8 @@ class ReportsService {
       let downloadFilename = filename || `reporte_${reportId}`
       
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+        const filenameRegex = /filename="(.+)"/
+        const filenameMatch = filenameRegex.exec(contentDisposition)
         if (filenameMatch) {
           downloadFilename = filenameMatch[1]
         }

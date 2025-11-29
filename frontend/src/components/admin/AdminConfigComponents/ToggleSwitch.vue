@@ -11,14 +11,14 @@
       <button
         :id="id"
         type="button"
+        role="switch"
+        :aria-checked="modelValue ? 'true' : 'false'"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out',
           'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
           modelValue ? 'bg-green-600 border-green-600' : 'bg-gray-200 border-gray-300',
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         ]"
-        role="switch"
-        :aria-checked="modelValue ? 'true' : 'false'"
         :disabled="disabled"
         @click="toggle"
       >
