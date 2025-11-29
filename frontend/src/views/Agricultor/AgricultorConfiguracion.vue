@@ -270,147 +270,227 @@ const handleLogout = async () => {
   }
 }
 
+// Helper functions for profile management
+const prepareProfileData = (formData) => {
+  return {
+    primer_nombre: formData.primer_nombre,
+    segundo_nombre: formData.segundo_nombre || '',
+    primer_apellido: formData.primer_apellido,
+    segundo_apellido: formData.segundo_apellido || '',
+    tipo_documento: formData.tipo_documento,
+    numero_documento: formData.numero_documento,
+    genero: formData.genero,
+    fecha_nacimiento: formData.fecha_nacimiento || null,
+    telefono: formData.telefono,
+    direccion: formData.direccion || '',
+    departamento: formData.departamento || null,
+    municipio: formData.municipio || null
+  }
+}
+
+const isNotFoundError = (error) => {
+  return error.response?.status === 404
+}
+
+const updateOrCreateProfile = async (dataToUpdate) => {
+  try {
+    return await personasApi.actualizarPerfil(dataToUpdate)
+  } catch (updateError) {
+    if (isNotFoundError(updateError)) {
+      console.log('📝 Perfil no existe, creando...')
+      return await personasApi.crearPerfil(dataToUpdate)
+    }
+    throw updateError
+  }
+}
+
+const getFirstErrorValue = (responseData) => {
+  const firstError = Object.values(responseData)[0]
+  if (Array.isArray(firstError)) {
+    return firstError[0]
+  }
+  if (typeof firstError === 'string') {
+    return firstError
+  }
+  return null
+}
+
+const extractStringError = (responseData) => {
+  return typeof responseData === 'string' ? responseData : null
+}
+
+const extractErrorField = (responseData) => {
+  return responseData.error || null
+}
+
+const extractProfileErrorMessage = (error) => {
+  const defaultMessage = 'Error al actualizar el perfil'
+  
+  if (!error.response?.data) {
+    return defaultMessage
+  }
+  
+  const responseData = error.response.data
+  const stringError = extractStringError(responseData)
+  if (stringError) return stringError
+  
+  const errorField = extractErrorField(responseData)
+  if (errorField) return errorField
+  
+  const firstError = getFirstErrorValue(responseData)
+  return firstError || defaultMessage
+}
+
+const handleProfileSuccess = (result) => {
+  if (result.message) {
+    personaData.value = result.data
+    if (profileSectionRef.value) {
+      profileSectionRef.value.setStatusMessage(result.message, 'success')
+    }
+  }
+}
+
+const handleProfileError = (error) => {
+  console.error('Error al guardar perfil:', error)
+  const errorMessage = extractProfileErrorMessage(error)
+  if (profileSectionRef.value) {
+    profileSectionRef.value.setStatusMessage(errorMessage, 'error')
+  }
+}
+
 // Métodos para gestionar el perfil
 const saveProfile = async (formData) => {
   isSaving.value = true
   try {
-    // Preparar datos para envío (solo los campos que pueden modificarse)
-    const dataToUpdate = {
-      primer_nombre: formData.primer_nombre,
-      segundo_nombre: formData.segundo_nombre || '',
-      primer_apellido: formData.primer_apellido,
-      segundo_apellido: formData.segundo_apellido || '',
-      tipo_documento: formData.tipo_documento,
-      numero_documento: formData.numero_documento,
-      genero: formData.genero,
-      fecha_nacimiento: formData.fecha_nacimiento || null,
-      telefono: formData.telefono,
-      direccion: formData.direccion || '',
-      departamento: formData.departamento || null,
-      municipio: formData.municipio || null
-    }
-
-    let result
-    
-    // Intentar actualizar, si falla con 404, intentar crear
-    try {
-      result = await personasApi.actualizarPerfil(dataToUpdate)
-    } catch (updateError) {
-      if (updateError.response?.status === 404) {
-        // Si no existe, crear el perfil
-        console.log('📝 Perfil no existe, creando...')
-        result = await personasApi.crearPerfil(dataToUpdate)
-      } else {
-        throw updateError
-      }
-    }
-    
-    if (result.message) {
-      // Actualizar los datos locales
-      personaData.value = result.data
-      
-      // Mostrar mensaje de éxito en el componente
-      if (profileSectionRef.value) {
-        profileSectionRef.value.setStatusMessage(result.message, 'success')
-      }
-    }
+    const dataToUpdate = prepareProfileData(formData)
+    const result = await updateOrCreateProfile(dataToUpdate)
+    handleProfileSuccess(result)
   } catch (error) {
-    console.error('Error al guardar perfil:', error)
-    
-    // Extraer mensaje de error
-    let errorMessage = 'Error al actualizar el perfil'
-    if (error.response?.data) {
-      const responseData = error.response.data
-      if (typeof responseData === 'string') {
-        errorMessage = responseData
-      } else if (responseData.error) {
-        errorMessage = responseData.error
-      } else {
-        // Si hay errores de campo específicos, tomar el primero
-        const firstError = Object.values(responseData)[0]
-        if (Array.isArray(firstError)) {
-          errorMessage = firstError[0]
-        } else if (typeof firstError === 'string') {
-          errorMessage = firstError
-        }
-      }
-    }
-    
-    // Mostrar mensaje de error en el componente
-    if (profileSectionRef.value) {
-      profileSectionRef.value.setStatusMessage(errorMessage, 'error')
-    }
+    handleProfileError(error)
   } finally {
     isSaving.value = false
+  }
+}
+
+/**
+ * Extract error message from field error (array or string)
+ * @param {string|Array<string>} fieldError - Field error value
+ * @returns {string} - Error message
+ */
+function extractFieldErrorMessage(fieldError) {
+  return Array.isArray(fieldError) ? fieldError[0] : fieldError
+}
+
+/**
+ * Extract first error from object with field errors
+ * @param {Object} errorObject - Object with field errors
+ * @returns {string|null} - First error message or null
+ */
+function extractFirstFieldError(errorObject) {
+  const errorKeys = Object.keys(errorObject)
+  if (errorKeys.length === 0) {
+    return null
+  }
+  const firstKey = errorKeys[0]
+  const fieldError = errorObject[firstKey]
+  return extractFieldErrorMessage(fieldError)
+}
+
+/**
+ * Extract error message from API error response
+ * @param {Object} error - Error object from API call
+ * @returns {string} - Error message
+ */
+function extractErrorMessage(error) {
+  const defaultMessage = 'Error al cambiar la contraseña'
+  
+  if (error.message) {
+    return error.message
+  }
+  
+  if (!error.response?.data) {
+    return defaultMessage
+  }
+  
+  const responseData = error.response.data
+  
+  if (responseData.message) {
+    return responseData.message
+  }
+  
+  if (typeof responseData === 'string') {
+    return responseData
+  }
+  
+  if (responseData.error) {
+    return responseData.error
+  }
+  
+  if (responseData.details) {
+    const detailsError = extractFirstFieldError(responseData.details)
+    if (detailsError) {
+      return detailsError
+    }
+  }
+  
+  const fieldError = extractFirstFieldError(responseData)
+  if (fieldError) {
+    return fieldError
+  }
+  
+  return defaultMessage
+}
+
+/**
+ * Show success message in password section component
+ * @param {string} message - Success message
+ */
+function showPasswordSuccess(message) {
+  if (passwordSectionRef.value) {
+    passwordSectionRef.value.setSuccess(message)
+  }
+}
+
+/**
+ * Show error message in password section component
+ * @param {string} message - Error message
+ */
+function showPasswordError(message) {
+  if (passwordSectionRef.value) {
+    passwordSectionRef.value.setError(message)
+  }
+}
+
+/**
+ * Clear error messages in password section component
+ */
+function clearPasswordErrors() {
+  if (passwordSectionRef.value) {
+    passwordSectionRef.value.setError('')
   }
 }
 
 // Método para cambio de contraseña
 const handlePasswordChange = async (passwordData) => {
   isChangingPassword.value = true
-  
-  // Limpiar mensajes previos
-  if (passwordSectionRef.value) {
-    passwordSectionRef.value.setError('')
-  }
+  clearPasswordErrors()
   
   try {
-    // Llamar directamente a la API
     const result = await authApi.changePassword({
       oldPassword: passwordData.currentPassword,
       newPassword: passwordData.newPassword,
       confirmPassword: passwordData.confirmPassword
     })
     
-    // Verificar si el resultado es exitoso
     if (result.success || result.message) {
-      // Mostrar mensaje de éxito en el componente
-      if (passwordSectionRef.value) {
-        passwordSectionRef.value.setSuccess(result.message || 'Contraseña cambiada exitosamente')
-      }
+      showPasswordSuccess(result.message || 'Contraseña cambiada exitosamente')
     } else {
       throw new Error(result.error || 'Error al cambiar la contraseña')
     }
   } catch (error) {
     console.error('Error al cambiar contraseña:', error)
-    
-    // Extraer mensaje de error del backend
-    let errorMessage = 'Error al cambiar la contraseña'
-    
-    if (error.response?.data) {
-      const responseData = error.response.data
-      
-      // Si hay un mensaje general
-      if (responseData.message) {
-        errorMessage = responseData.message
-      } else if (typeof responseData === 'string') {
-        errorMessage = responseData
-      } else if (responseData.error) {
-        errorMessage = responseData.error
-      } else if (responseData.details) {
-        // Si hay detalles, extraer el primer error
-        const firstKey = Object.keys(responseData.details)[0]
-        if (firstKey) {
-          const fieldError = responseData.details[firstKey]
-          errorMessage = Array.isArray(fieldError) ? fieldError[0] : fieldError
-        }
-      } else {
-        // Si hay errores de campo específicos, tomar el primero
-        const errorKeys = Object.keys(responseData)
-        if (errorKeys.length > 0) {
-          const firstKey = errorKeys[0]
-          const fieldError = responseData[firstKey]
-          errorMessage = Array.isArray(fieldError) ? fieldError[0] : fieldError
-        }
-      }
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-    
-    // Mostrar error en el componente
-    if (passwordSectionRef.value) {
-      passwordSectionRef.value.setError(errorMessage)
-    }
+    const errorMessage = extractErrorMessage(error)
+    showPasswordError(errorMessage)
   } finally {
     isChangingPassword.value = false
   }

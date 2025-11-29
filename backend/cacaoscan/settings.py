@@ -5,8 +5,14 @@ Django settings for cacaoscan project.
 import os
 import warnings
 from typing import Optional
-from warnings import SecurityWarning
 from pathlib import Path
+
+# Django 5.2 eliminó SecurityWarning, así que creamos uno propio
+class SecurityWarning(UserWarning):
+    """Custom Security Warning compatible with Django 5.x"""
+    pass
+
+
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -585,6 +591,9 @@ SWAGGER_SETTINGS = {
 REDOC_SETTINGS = {
     'LAZY_RENDERING': False,
 }
+
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
 # Logging configuration
 LOGGING = {

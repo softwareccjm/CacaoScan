@@ -57,14 +57,19 @@ export const useConfigStore = defineStore('config', {
   },
 
   actions: {
-    async _loadAuthStore() {
-      try {
-        const { useAuthStore } = await import('@/stores/auth')
-        return useAuthStore()
-      } catch (err) {
-        console.warn('No se pudo cargar authStore, usando permisos mínimos')
+    _handleAuthStoreImportError(err) {
+      if (err.code === 'MODULE_NOT_FOUND' || err.message?.includes('Cannot find module')) {
+        console.warn('No se pudo cargar authStore, usando permisos mínimos:', err.message)
         return null
       }
+      throw err
+    },
+
+    async _loadAuthStore() {
+      const importPromise = import('@/stores/auth')
+      return importPromise
+        .then(({ useAuthStore }) => useAuthStore())
+        .catch((err) => this._handleAuthStoreImportError(err))
     },
 
     _canAccessConfig(authStore) {

@@ -12,9 +12,11 @@ COPY package.json ./
 COPY pnpm-lock.yaml ./
 
 # Instalar pnpm y dependencias
-# S6505: Use --ignore-scripts to prevent execution of arbitrary shell scripts
-# during package installation (e.g., postinstall hooks from malicious packages).
-RUN npm install -g pnpm --ignore-scripts && \
+# SECURITY: Use corepack (included with Node.js 20) to enable pnpm instead of npm install -g
+# This avoids the security risk of executing arbitrary scripts during package installation.
+# Corepack is the official package manager manager from Node.js and doesn't execute user scripts.
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate && \
     pnpm install --frozen-lockfile --ignore-scripts || pnpm install --ignore-scripts
 
 # Copiar únicamente los archivos necesarios para el build (evita copiar

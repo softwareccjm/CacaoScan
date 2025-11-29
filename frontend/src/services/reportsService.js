@@ -5,9 +5,6 @@ import { useAuthStore } from '@/stores/auth'
 
 class ReportsService {
   baseURL = '/api/reportes'
-  
-  constructor() {
-  }
 
   /**
    * Obtener headers de autenticación

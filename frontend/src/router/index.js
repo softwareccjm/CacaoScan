@@ -572,7 +572,27 @@ router.beforeEach(async (to, from) => {
 
     return true
   } catch (error) {
-    return { path: '/acceso-denegado', replace: true }
+    // Handle navigation guard errors by logging and redirecting to error page
+    // This catch is necessary to prevent navigation failures from breaking the router
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    console.error('Navigation guard error:', {
+      message: errorMessage,
+      stack: errorStack,
+      route: to.path,
+      error
+    })
+    
+    // Redirect to access denied page with error context
+    return { 
+      path: '/acceso-denegado', 
+      replace: true,
+      query: {
+        reason: 'navigation_error',
+        error: errorMessage
+      }
+    }
   } finally {
     navigationTimeout = setTimeout(() => {
       isNavigating = false
