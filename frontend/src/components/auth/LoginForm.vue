@@ -84,8 +84,8 @@
         <div class="relative">
           <input
             id="password"
-            v-model="form.password"
             :type="showPassword ? 'text' : 'password'"
+            v-model="form.password"
             autocomplete="current-password"
             required
             :disabled="isLoading"

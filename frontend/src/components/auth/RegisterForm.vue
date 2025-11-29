@@ -274,8 +274,8 @@
             </label>
             <input 
               id="direccion" 
-              v-model="form.direccion" 
               type="text" 
+              v-model="form.direccion" 
               autocomplete="street-address"
               :disabled="isLoading"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
@@ -325,8 +325,8 @@
             <div class="relative">
               <input 
                 id="password" 
-                v-model="form.password" 
                 :type="showPassword ? 'text' : buildPasswordType()"
+                v-model="form.password" 
                 autocomplete="new-password" 
                 required 
                 :disabled="isLoading"
@@ -408,8 +408,8 @@
             <div class="relative">
               <input 
                 id="confirmPassword" 
-                v-model="form.confirmPassword" 
                 :type="showPassword ? 'text' : buildPasswordType()"
+                v-model="form.confirmPassword" 
                 autocomplete="new-password" 
                 required 
                 :disabled="isLoading"

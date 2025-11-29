@@ -22,8 +22,8 @@
           <input 
             id="password-current"
             :type="showCurrentPassword ? 'text' : 'password'"
-            autocomplete="current-password" 
             v-model="localPasswordForm.currentPassword" 
+            autocomplete="current-password" 
             @blur="validateField('currentPassword')"
             placeholder="••••••••" 
             class="w-full px-4 py-3 pr-12 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/30 transition-all duration-200"
@@ -57,8 +57,8 @@
           <input 
             id="password-new"
             :type="showNewPassword ? 'text' : 'password'"
-            autocomplete="new-password" 
             v-model="localPasswordForm.newPassword" 
+            autocomplete="new-password" 
             @blur="validateField('newPassword')"
             @input="validateField('newPassword')"
             placeholder="••••••••" 
@@ -122,8 +122,8 @@
           <input 
           id="password-confirm"
           :type="showNewPassword ? 'text' : 'password'"
-          autocomplete="new-password"
           v-model="localPasswordForm.confirmPassword" 
+          autocomplete="new-password"
           @blur="validateField('confirmPassword')"
           @input="validateField('confirmPassword')"
           placeholder="••••••••" 

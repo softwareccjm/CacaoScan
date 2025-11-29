@@ -212,8 +212,8 @@
                   <input 
                     id="create-farmer-direccion"
                     type="text"
-                    autocomplete="street-address"
                     v-model="form.direccion" 
+                    autocomplete="street-address"
                     placeholder="Calle 10 #5-20" 
                     :disabled="isSubmitting" 
                     class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500" 
@@ -246,8 +246,8 @@
                     <input 
                       id="create-farmer-password"
                       :type="showPassword ? 'text' : 'password'"
-                      autocomplete="new-password"
                       v-model="form.password" 
+                      autocomplete="new-password"
                       placeholder="••••••••••••"
                       required 
                       :disabled="isSubmitting"
@@ -311,8 +311,8 @@
                   <div class="relative">
                     <input 
                       id="create-farmer-confirm-password"
+                      :type="showPassword ? 'text' : 'password'"
                       v-model="form.confirmPassword" 
-                      :type="showPassword ? 'text' : 'password'" 
                       autocomplete="new-password"
                       required 
                       :disabled="isSubmitting" 
