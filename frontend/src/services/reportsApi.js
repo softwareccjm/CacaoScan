@@ -4,6 +4,41 @@
  */
 import api from './api'
 
+/**
+ * Parse error response from blob JSON
+ * @param {Blob} errorBlob - The error response blob
+ * @returns {Promise<string>} The error message from the JSON
+ * @throws {Error} If parsing fails or error message cannot be extracted
+ */
+const parseErrorBlob = async (errorBlob) => {
+  try {
+    const errorText = await errorBlob.text()
+    const errorJson = JSON.parse(errorText)
+    return errorJson.error || errorJson.message || 'Error al generar el reporte'
+  } catch (parseError) {
+    // Handle JSON parsing errors when reading error response
+    // If parsing fails, we can't extract the server error message
+    // Log the parse error for debugging and throw a descriptive error
+    const parseErrorMessage = parseError instanceof Error ? parseError.message : String(parseError)
+    const parseErrorStack = parseError instanceof Error ? parseError.stack : undefined
+    
+    console.error('Error parsing error response JSON:', {
+      parseError,
+      message: parseErrorMessage,
+      stack: parseErrorStack,
+      blobType: errorBlob?.type,
+      blobSize: errorBlob?.size
+    })
+    
+    // Throw error with parse error context
+    const reportError = new Error(`Error al generar el reporte Excel: no se pudo parsear la respuesta de error del servidor (${parseErrorMessage})`)
+    if (parseError instanceof Error) {
+      reportError.cause = parseError
+    }
+    throw reportError
+  }
+}
+
 const reportsApi = {
   /**
    * Descargar reporte Excel de agricultores con sus fincas
@@ -59,13 +94,8 @@ const reportsApi = {
       if (error.response) {
         // Si la respuesta es un blob con un JSON de error, leerlo
         if (error.response.data instanceof Blob && error.response.data.type === 'application/json') {
-          try {
-            const errorText = await error.response.data.text()
-            const errorJson = JSON.parse(errorText)
-            throw new Error(errorJson.error || errorJson.message || 'Error al generar el reporte')
-          } catch (parseError) {
-            throw new Error('Error al generar el reporte Excel')
-          }
+          const errorMessage = await parseErrorBlob(error.response.data)
+          throw new Error(errorMessage)
         }
         
         throw new Error(error.response.data?.error || error.response.data?.message || 'Error al generar el reporte')

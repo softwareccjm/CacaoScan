@@ -274,9 +274,10 @@
             </label>
             <input 
               id="direccion" 
+            name="direccion"
               type="text" 
               v-model="form.direccion" 
-              autocomplete="street-address"
+            autocomplete="address-line1"
               :disabled="isLoading"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
               placeholder="Calle 10 #5-20" 
@@ -325,9 +326,10 @@
             <div class="relative">
               <input 
                 id="password" 
-                :type="showPassword ? 'text' : buildPasswordType()"
+                name="password"
+                :type="showPassword ? 'text' : 'password'"
                 v-model="form.password" 
-                autocomplete="new-password" 
+                :autocomplete="showPassword ? 'off' : 'new-password'" 
                 required 
                 :disabled="isLoading"
                 class="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
@@ -408,9 +410,10 @@
             <div class="relative">
               <input 
                 id="confirmPassword" 
-                :type="showPassword ? 'text' : buildPasswordType()"
+                name="confirmPassword"
+                :type="showPassword ? 'text' : 'password'"
                 v-model="form.confirmPassword" 
-                autocomplete="new-password" 
+                :autocomplete="showPassword ? 'off' : 'new-password'" 
                 required 
                 :disabled="isLoading"
                 class="w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"

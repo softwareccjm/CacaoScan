@@ -145,6 +145,70 @@ export const getFincasByAgricultor = (id, params = {}) => {
 }
 
 /**
+ * Validate required string field with max length
+ * @param {string|undefined} value - Field value
+ * @param {string} fieldName - Field name for error message
+ * @param {number} maxLength - Maximum allowed length
+ * @returns {string|null} - Error message or null if valid
+ */
+function validateRequiredString(value, fieldName, maxLength) {
+  if (!value || value.trim().length === 0) {
+    return `${fieldName} es requerido`
+  }
+  if (value.length > maxLength) {
+    return `${fieldName} no puede exceder ${maxLength} caracteres`
+  }
+  return null
+}
+
+/**
+ * Validate number range
+ * @param {number|undefined} value - Number value
+ * @param {string} fieldName - Field name for error message
+ * @param {number} min - Minimum value (exclusive)
+ * @param {number} max - Maximum value (inclusive)
+ * @returns {string|null} - Error message or null if valid
+ */
+function validateNumberRange(value, fieldName, min, max) {
+  if (!value || value <= min) {
+    return `${fieldName} debe ser un número mayor que ${min}`
+  }
+  if (value > max) {
+    return `${fieldName} no puede exceder ${max}`
+  }
+  return null
+}
+
+/**
+ * Validate coordinate value
+ * @param {number|null|undefined} value - Coordinate value
+ * @param {string} coordinateName - Coordinate name for error message
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
+ * @returns {string|null} - Error message or null if valid
+ */
+function validateCoordinate(value, coordinateName, min, max) {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (value < min || value > max) {
+    return `${coordinateName} debe estar entre ${min} y ${max} grados`
+  }
+  return null
+}
+
+/**
+ * Add error to array if error message exists
+ * @param {Array<string>} errors - Errors array
+ * @param {string|null} error - Error message or null
+ */
+function addErrorIfExists(errors, error) {
+  if (error) {
+    errors.push(error)
+  }
+}
+
+/**
  * Validar datos de finca antes de envío
  * @param {Object} fincaData - Datos de la finca
  * @returns {Object} - Objeto con isValid y errors
@@ -152,52 +216,14 @@ export const getFincasByAgricultor = (id, params = {}) => {
 export function validateFincaData(fincaData) {
   const errors = []
 
-  // Validar campos requeridos
-  if (!fincaData.nombre || fincaData.nombre.trim().length === 0) {
-    errors.push('El nombre de la finca es requerido')
-  } else if (fincaData.nombre.length > 200) {
-    errors.push('El nombre de la finca no puede exceder 200 caracteres')
-  }
+  addErrorIfExists(errors, validateRequiredString(fincaData.nombre, 'El nombre de la finca', 200))
+  addErrorIfExists(errors, validateRequiredString(fincaData.ubicacion, 'La ubicación', 300))
+  addErrorIfExists(errors, validateRequiredString(fincaData.municipio, 'El municipio', 100))
+  addErrorIfExists(errors, validateRequiredString(fincaData.departamento, 'El departamento', 100))
+  addErrorIfExists(errors, validateNumberRange(fincaData.hectareas, 'Las hectáreas', 0, 999999.99))
+  addErrorIfExists(errors, validateCoordinate(fincaData.coordenadas_lat, 'La latitud', -90, 90))
+  addErrorIfExists(errors, validateCoordinate(fincaData.coordenadas_lng, 'La longitud', -180, 180))
 
-  if (!fincaData.ubicacion || fincaData.ubicacion.trim().length === 0) {
-    errors.push('La ubicación es requerida')
-  } else if (fincaData.ubicacion.length > 300) {
-    errors.push('La ubicación no puede exceder 300 caracteres')
-  }
-
-  if (!fincaData.municipio || fincaData.municipio.trim().length === 0) {
-    errors.push('El municipio es requerido')
-  } else if (fincaData.municipio.length > 100) {
-    errors.push('El municipio no puede exceder 100 caracteres')
-  }
-
-  if (!fincaData.departamento || fincaData.departamento.trim().length === 0) {
-    errors.push('El departamento es requerido')
-  } else if (fincaData.departamento.length > 100) {
-    errors.push('El departamento no puede exceder 100 caracteres')
-  }
-
-  // Validar hectáreas
-  if (!fincaData.hectareas || fincaData.hectareas <= 0) {
-    errors.push('Las hectáreas deben ser un número positivo')
-  } else if (fincaData.hectareas > 999999.99) {
-    errors.push('Las hectáreas no pueden exceder 999,999.99')
-  }
-
-  // Validar coordenadas si se proporcionan
-  if (fincaData.coordenadas_lat !== null && fincaData.coordenadas_lat !== undefined) {
-    if (fincaData.coordenadas_lat < -90 || fincaData.coordenadas_lat > 90) {
-      errors.push('La latitud debe estar entre -90 y 90 grados')
-    }
-  }
-
-  if (fincaData.coordenadas_lng !== null && fincaData.coordenadas_lng !== undefined) {
-    if (fincaData.coordenadas_lng < -180 || fincaData.coordenadas_lng > 180) {
-      errors.push('La longitud debe estar entre -180 y 180 grados')
-    }
-  }
-
-  // Validar descripción si se proporciona
   if (fincaData.descripcion && fincaData.descripcion.length > 1000) {
     errors.push('La descripción no puede exceder 1000 caracteres')
   }
@@ -209,6 +235,75 @@ export function validateFincaData(fincaData) {
 }
 
 /**
+ * Trim string value if it exists
+ * @param {string|undefined} value - String value to trim
+ * @returns {string|undefined} - Trimmed string or undefined
+ */
+function trimString(value) {
+  return value ? value.trim() : value
+}
+
+/**
+ * Convert coordinate value to number or null
+ * @param {string|number|null|undefined} value - Coordinate value
+ * @returns {number|null} - Parsed number or null
+ */
+function parseCoordinate(value) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+  const parsed = Number.parseFloat(value)
+  if (Number.isNaN(parsed)) {
+    return null
+  }
+  return parsed
+}
+
+/**
+ * Convert hectares to number if valid
+ * @param {string|number|null|undefined} value - Hectares value
+ * @returns {number|undefined} - Parsed number or undefined
+ */
+function parseHectareas(value) {
+  if (value === '' || value === null || value === undefined) {
+    return value
+  }
+  return Number.parseFloat(value)
+}
+
+/**
+ * Remove fields that don't exist in the model
+ * @param {Object} data - Data object
+ */
+function removeInvalidFields(data) {
+  const invalidFields = ['id', 'created_at', 'updated_at', 'total_lotes', 'total_analisis', 'calidad_promedio']
+  invalidFields.forEach(field => {
+    delete data[field]
+  })
+}
+
+/**
+ * Clean string fields in finca data
+ * @param {Object} formatted - Formatted data object
+ */
+function cleanStringFields(formatted) {
+  formatted.nombre = trimString(formatted.nombre)
+  formatted.ubicacion = trimString(formatted.ubicacion)
+  formatted.municipio = trimString(formatted.municipio)
+  formatted.departamento = trimString(formatted.departamento)
+  formatted.descripcion = trimString(formatted.descripcion)
+}
+
+/**
+ * Format coordinate fields in finca data
+ * @param {Object} formatted - Formatted data object
+ */
+function formatCoordinateFields(formatted) {
+  formatted.coordenadas_lat = parseCoordinate(formatted.coordenadas_lat)
+  formatted.coordenadas_lng = parseCoordinate(formatted.coordenadas_lng)
+}
+
+/**
  * Formatear datos de finca para envío
  * @param {Object} fincaData - Datos de la finca
  * @returns {Object} - Datos formateados
@@ -216,63 +311,15 @@ export function validateFincaData(fincaData) {
 export function formatFincaData(fincaData) {
   const formatted = { ...fincaData }
 
-  // Limpiar strings
-  if (formatted.nombre) {
-    formatted.nombre = formatted.nombre.trim()
-  }
-  if (formatted.ubicacion) {
-    formatted.ubicacion = formatted.ubicacion.trim()
-  }
-  if (formatted.municipio) {
-    formatted.municipio = formatted.municipio.trim()
-  }
-  if (formatted.departamento) {
-    formatted.departamento = formatted.departamento.trim()
-  }
-  if (formatted.descripcion) {
-    formatted.descripcion = formatted.descripcion.trim()
-  }
+  cleanStringFields(formatted)
+  formatted.hectareas = parseHectareas(formatted.hectareas)
+  formatCoordinateFields(formatted)
 
-  // Convertir hectáreas a número
-  if (formatted.hectareas !== '' && formatted.hectareas !== null && formatted.hectareas !== undefined) {
-    formatted.hectareas = Number.parseFloat(formatted.hectareas)
-  }
-
-  // Convertir coordenadas a número si se proporcionan (no vacías)
-  if (formatted.coordenadas_lat && formatted.coordenadas_lat !== '') {
-    const lat = Number.parseFloat(formatted.coordenadas_lat)
-    if (!Number.isNaN(lat)) {
-      formatted.coordenadas_lat = lat
-    } else {
-      formatted.coordenadas_lat = null
-    }
-  } else {
-    formatted.coordenadas_lat = null
-  }
-  
-  if (formatted.coordenadas_lng && formatted.coordenadas_lng !== '') {
-    const lng = Number.parseFloat(formatted.coordenadas_lng)
-    if (!Number.isNaN(lng)) {
-      formatted.coordenadas_lng = lng
-    } else {
-      formatted.coordenadas_lng = null
-    }
-  } else {
-    formatted.coordenadas_lng = null
-  }
-
-  // Establecer activa por defecto
   if (formatted.activa === undefined) {
     formatted.activa = true
   }
 
-  // Eliminar campos que no existen en el modelo
-  delete formatted.id
-  delete formatted.created_at
-  delete formatted.updated_at
-  delete formatted.total_lotes
-  delete formatted.total_analisis
-  delete formatted.calidad_promedio
+  removeInvalidFields(formatted)
 
   return formatted
 }
