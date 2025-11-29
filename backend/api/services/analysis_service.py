@@ -405,6 +405,136 @@ class AnalysisService(BaseService):
                 ValidationServiceError("Internal error getting statistics", details={"original_error": str(e)})
             )
     
+    def _validate_dataset_step(self, steps_completed: list) -> ServiceResult | None:
+        """Validate dataset step. Returns error ServiceResult or None if success."""
+        self.log_info("Step 1: Validating dataset...")
+        try:
+            from ml.data.dataset_loader import CacaoDatasetLoader
+        except ImportError:
+            return ServiceResult.error(
+                ValidationServiceError("Dataset loader not available")
+            )
+        
+        try:
+            loader = CacaoDatasetLoader()
+            stats = loader.get_dataset_stats()
+            
+            if stats['valid_records'] == 0:
+                return ServiceResult.validation_error(
+                    "No valid records in dataset. Verify CSV and images."
+                )
+            
+            steps_completed.append("[OK] Dataset validated")
+            self.log_info(f"Dataset validated: {stats['valid_records']} valid records")
+            return None
+            
+        except Exception as e:
+            self.log_error(f"Error validating dataset: {e}")
+            return ServiceResult.error(
+                ValidationServiceError(f"Error validating dataset: {str(e)}")
+            )
+    
+    def _generate_crops_step(self, steps_completed: list):
+        """Generate crops step if needed."""
+        self.log_info("Step 2: Checking crops...")
+        try:
+            from ml.utils.paths import get_crops_dir
+            crops_dir = get_crops_dir()
+            
+            if not crops_dir.exists() or len(list(crops_dir.glob("*.png"))) == 0:
+                self.log_info("Generating crops automatically...")
+                from api.management.commands.make_cacao_crops import Command as CropCommand
+                
+                crop_command = CropCommand()
+                crop_command.handle(
+                    conf=0.5,
+                    limit=0,
+                    overwrite=False
+                )
+                
+                steps_completed.append("[OK] Crops generated")
+                self.log_info("Crops generated successfully")
+            else:
+                steps_completed.append("[OK] Crops already exist")
+                self.log_info("Crops already exist, skipping generation")
+                
+        except Exception as e:
+            self.log_warning(f"Warning in crop generation: {e}")
+            steps_completed.append("[WARNING] Crops with warnings")
+    
+    def _train_models_step(self, steps_completed: list) -> ServiceResult | None:
+        """Train models step if needed. Returns error ServiceResult or None if success."""
+        self.log_info("Step 3: Checking models...")
+        try:
+            from ml.utils.paths import get_regressors_artifacts_dir
+            artifacts_dir = get_regressors_artifacts_dir()
+            
+            models_exist = all(
+                (artifacts_dir / f"{target}.pt").exists() 
+                for target in ['alto', 'ancho', 'grosor', 'peso']
+            )
+            
+            if not models_exist:
+                self.log_info("Training models automatically...")
+                from ml.pipeline.train_all import run_training_pipeline
+                
+                success = run_training_pipeline(
+                    epochs=20,
+                    batch_size=16,
+                    learning_rate=0.001,
+                    multi_head=False,
+                    model_type='resnet18',
+                    img_size=224,
+                    early_stopping_patience=8,
+                    save_best_only=True
+                )
+                
+                if success:
+                    steps_completed.append("[OK] Models trained")
+                    self.log_info("Models trained successfully")
+                else:
+                    return ServiceResult.error(
+                        ValidationServiceError("Error in model training")
+                    )
+            else:
+                steps_completed.append("[OK] Models already exist")
+                self.log_info("Models already exist, skipping training")
+            
+            return None
+                
+        except Exception as e:
+            self.log_error(f"Error in model training: {e}")
+            return ServiceResult.error(
+                ValidationServiceError(f"Error training models: {str(e)}")
+            )
+    
+    def _load_models_step(self, steps_completed: list) -> ServiceResult | None:
+        """Load models step. Returns error ServiceResult or None if success."""
+        self.log_info("Step 4: Loading models...")
+        try:
+            from training.services import MLService
+            
+            ml_service = MLService()
+            load_result = ml_service.load_models(force=False)
+            
+            if load_result.success:
+                steps_completed.append("[OK] Models loaded")
+                self.log_info("Models loaded successfully")
+                return None
+            else:
+                return ServiceResult.error(
+                    ValidationServiceError(
+                        load_result.error.message,
+                        details=load_result.error.details
+                    )
+                )
+                
+        except Exception as e:
+            self.log_error(f"Error loading models: {e}")
+            return ServiceResult.error(
+                ValidationServiceError(f"Error loading models: {str(e)}")
+            )
+    
     def initialize_ml_system(self) -> ServiceResult:
         """
         Automatically initializes the complete ML system.
@@ -421,7 +551,6 @@ class AnalysisService(BaseService):
         """
         try:
             import time
-            from pathlib import Path
             
             start_time = time.time()
             steps_completed = []
@@ -429,126 +558,22 @@ class AnalysisService(BaseService):
             self.log_info("[START] Starting complete automatic system initialization")
             
             # Step 1: Validate dataset
-            self.log_info("Step 1: Validating dataset...")
-            try:
-                from ml.data.dataset_loader import CacaoDatasetLoader
-            except ImportError:
-                return ServiceResult.error(
-                    ValidationServiceError("Dataset loader not available")
-                )
-            
-            try:
-                loader = CacaoDatasetLoader()
-                stats = loader.get_dataset_stats()
-                
-                if stats['valid_records'] == 0:
-                    return ServiceResult.validation_error(
-                        "No valid records in dataset. Verify CSV and images."
-                    )
-                
-                steps_completed.append("[OK] Dataset validated")
-                self.log_info(f"Dataset validated: {stats['valid_records']} valid records")
-                
-            except Exception as e:
-                self.log_error(f"Error validating dataset: {e}")
-                return ServiceResult.error(
-                    ValidationServiceError(f"Error validating dataset: {str(e)}")
-                )
+            error_result = self._validate_dataset_step(steps_completed)
+            if error_result:
+                return error_result
             
             # Step 2: Generate crops (if they don't exist)
-            self.log_info("Step 2: Checking crops...")
-            try:
-                from ml.utils.paths import get_crops_dir
-                crops_dir = get_crops_dir()
-                
-                if not crops_dir.exists() or len(list(crops_dir.glob("*.png"))) == 0:
-                    self.log_info("Generating crops automatically...")
-                    from api.management.commands.make_cacao_crops import Command as CropCommand
-                    
-                    crop_command = CropCommand()
-                    crop_command.handle(
-                        conf=0.5,
-                        limit=0,
-                        overwrite=False
-                    )
-                    
-                    steps_completed.append("[OK] Crops generated")
-                    self.log_info("Crops generated successfully")
-                else:
-                    steps_completed.append("[OK] Crops already exist")
-                    self.log_info("Crops already exist, skipping generation")
-                    
-            except Exception as e:
-                self.log_warning(f"Warning in crop generation: {e}")
-                steps_completed.append("[WARNING] Crops with warnings")
+            self._generate_crops_step(steps_completed)
             
             # Step 3: Verify/Train models
-            self.log_info("Step 3: Checking models...")
-            try:
-                from ml.utils.paths import get_regressors_artifacts_dir
-                artifacts_dir = get_regressors_artifacts_dir()
-                
-                models_exist = all(
-                    (artifacts_dir / f"{target}.pt").exists() 
-                    for target in ['alto', 'ancho', 'grosor', 'peso']
-                )
-                
-                if not models_exist:
-                    self.log_info("Training models automatically...")
-                    from ml.pipeline.train_all import run_training_pipeline
-                    
-                    success = run_training_pipeline(
-                        epochs=20,
-                        batch_size=16,
-                        learning_rate=0.001,
-                        multi_head=False,
-                        model_type='resnet18',
-                        img_size=224,
-                        early_stopping_patience=8,
-                        save_best_only=True
-                    )
-                    
-                    if success:
-                        steps_completed.append("[OK] Models trained")
-                        self.log_info("Models trained successfully")
-                    else:
-                        return ServiceResult.error(
-                            ValidationServiceError("Error in model training")
-                        )
-                else:
-                    steps_completed.append("[OK] Models already exist")
-                    self.log_info("Models already exist, skipping training")
-                    
-            except Exception as e:
-                self.log_error(f"Error in model training: {e}")
-                return ServiceResult.error(
-                    ValidationServiceError(f"Error training models: {str(e)}")
-                )
+            error_result = self._train_models_step(steps_completed)
+            if error_result:
+                return error_result
             
             # Step 4: Load models
-            self.log_info("Step 4: Loading models...")
-            try:
-                from training.services import MLService
-                
-                ml_service = MLService()
-                load_result = ml_service.load_models(force=False)
-                
-                if load_result.success:
-                    steps_completed.append("[OK] Models loaded")
-                    self.log_info("Models loaded successfully")
-                else:
-                    return ServiceResult.error(
-                        ValidationServiceError(
-                            load_result.error.message,
-                            details=load_result.error.details
-                        )
-                    )
-                    
-            except Exception as e:
-                self.log_error(f"Error loading models: {e}")
-                return ServiceResult.error(
-                    ValidationServiceError(f"Error loading models: {str(e)}")
-                )
+            error_result = self._load_models_step(steps_completed)
+            if error_result:
+                return error_result
             
             # Step 5: System ready
             total_time = time.time() - start_time

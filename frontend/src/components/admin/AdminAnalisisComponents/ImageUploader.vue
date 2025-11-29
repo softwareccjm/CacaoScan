@@ -126,8 +126,13 @@ const getImageAlt = (file) => {
   if (!file || !file.name) {
     return 'Archivo subido'
   }
-  const altText = file.name.replace(/\bimage\b\s*/gi, '').trim()
-  return altText || 'Archivo subido'
+  // Remove redundant word "image" and clean up the filename
+  let altText = file.name.replace(/\bimage\b\s*/gi, '').trim()
+  // Remove file extension for cleaner alt text
+  altText = altText.replace(/\.[^/.]+$/, '')
+  // Remove any remaining redundant words
+  altText = altText.replace(/^\s*(imagen|imagenes|picture|pic)\s*/gi, '')
+  return altText.trim() || 'Archivo subido'
 }
 
 const validateFile = (file) => {

@@ -61,6 +61,72 @@ class PixelFeatureExtractor:
         self._loaded = False
         self._fitted = False
     
+    def _extract_record_values(self, record: dict) -> tuple:
+        """Extract and return raw values from calibration record."""
+        pixel_meas = record.get("pixel_measurements", {})
+        scale_factors = record.get("scale_factors", {})
+        bg_info = record.get("background_info", {})
+        
+        return (
+            float(scale_factors.get("average_mm_per_pixel", 0.0)),
+            float(pixel_meas.get("width_pixels", 0.0)),
+            float(pixel_meas.get("height_pixels", 0.0)),
+            float(pixel_meas.get("grain_area_pixels", 0.0)),
+            float(pixel_meas.get("bbox_area_pixels", 0.0)),
+            float(pixel_meas.get("aspect_ratio", 0.0)),
+            float(bg_info.get("background_ratio", 0.0))
+        )
+    
+    def _calculate_features(self, avg_mm_per_pixel: float, width_pixels: float, height_pixels: float,
+                           grain_area_pixels: float, bbox_area_pixels: float, aspect_ratio: float,
+                           background_ratio: float) -> np.ndarray:
+        """Calculate and return feature vector from pixel measurements."""
+        area_mm2 = grain_area_pixels * (avg_mm_per_pixel ** 2)
+        width_mm = width_pixels * avg_mm_per_pixel
+        height_mm = height_pixels * avg_mm_per_pixel
+        perimeter_mm = (width_pixels + height_pixels) * avg_mm_per_pixel * 2
+        bbox_to_area_ratio = (
+            grain_area_pixels / bbox_area_pixels
+            if bbox_area_pixels > 0 else 0.0
+        )
+        
+        return np.array([
+            area_mm2,
+            width_mm,
+            height_mm,
+            perimeter_mm,
+            aspect_ratio,
+            bbox_to_area_ratio,
+            background_ratio,
+            avg_mm_per_pixel
+        ], dtype=np.float32)
+    
+    def _process_calibration_record(self, record: dict) -> tuple:
+        """Process a single calibration record. Returns (record_id, features) or (None, None) if invalid."""
+        try:
+            record_id = int(record["id"])
+            
+            avg_mm_per_pixel, width_pixels, height_pixels, grain_area_pixels, \
+                bbox_area_pixels, aspect_ratio, background_ratio = self._extract_record_values(record)
+            
+            if avg_mm_per_pixel <= 0 or width_pixels <= 0 or height_pixels <= 0:
+                return None, None
+            
+            features = self._calculate_features(
+                avg_mm_per_pixel, width_pixels, height_pixels,
+                grain_area_pixels, bbox_area_pixels, aspect_ratio, background_ratio
+            )
+            
+            if not np.all(np.isfinite(features)):
+                logger.warning(f"Invalid features for ID {record_id}")
+                return None, None
+            
+            return record_id, features
+            
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning(f"Error processing record {record.get('id', 'unknown')}: {e}")
+            return None, None
+    
     def load(self) -> bool:
         """
         Load calibration data and extract features.
@@ -88,61 +154,11 @@ class PixelFeatureExtractor:
             valid_ids = []
             
             for record in calibration_records:
-                try:
-                    record_id = int(record["id"])
-                    
-                    # Extract measurements
-                    pixel_meas = record.get("pixel_measurements", {})
-                    scale_factors = record.get("scale_factors", {})
-                    bg_info = record.get("background_info", {})
-                    
-                    # Get raw values
-                    avg_mm_per_pixel = float(scale_factors.get("average_mm_per_pixel", 0.0))
-                    width_pixels = float(pixel_meas.get("width_pixels", 0.0))
-                    height_pixels = float(pixel_meas.get("height_pixels", 0.0))
-                    grain_area_pixels = float(pixel_meas.get("grain_area_pixels", 0.0))
-                    bbox_area_pixels = float(pixel_meas.get("bbox_area_pixels", 0.0))
-                    aspect_ratio = float(pixel_meas.get("aspect_ratio", 0.0))
-                    background_ratio = float(bg_info.get("background_ratio", 0.0))
-                    
-                    # Validate
-                    if avg_mm_per_pixel <= 0 or width_pixels <= 0 or height_pixels <= 0:
-                        continue
-                    
-                    # Calculate features
-                    area_mm2 = grain_area_pixels * (avg_mm_per_pixel ** 2)
-                    width_mm = width_pixels * avg_mm_per_pixel
-                    height_mm = height_pixels * avg_mm_per_pixel
-                    perimeter_mm = (width_pixels + height_pixels) * avg_mm_per_pixel * 2
-                    bbox_to_area_ratio = (
-                        grain_area_pixels / bbox_area_pixels
-                        if bbox_area_pixels > 0 else 0.0
-                    )
-                    
-                    # Build feature vector (9 features)
-                    features = np.array([
-                        area_mm2,
-                        width_mm,
-                        height_mm,
-                        perimeter_mm,
-                        aspect_ratio,
-                        bbox_to_area_ratio,
-                        background_ratio,
-                        avg_mm_per_pixel
-                    ], dtype=np.float32)
-                    
-                    # Validate features
-                    if not np.all(np.isfinite(features)):
-                        logger.warning(f"Invalid features for ID {record_id}")
-                        continue
-                    
+                record_id, features = self._process_calibration_record(record)
+                if record_id is not None and features is not None:
                     self.features_by_id[record_id] = features
                     all_features.append(features)
                     valid_ids.append(record_id)
-                    
-                except (KeyError, ValueError, TypeError) as e:
-                    logger.warning(f"Error processing record {record.get('id', 'unknown')}: {e}")
-                    continue
             
             # Fit scaler
             if all_features:

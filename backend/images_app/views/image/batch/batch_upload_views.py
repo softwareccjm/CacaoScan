@@ -79,6 +79,66 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
         },
         tags=['Análisis']
     )
+    
+    def _validate_batch_input(self, data) -> Response | None:
+        """Validate batch upload input data. Returns error Response or None if valid."""
+        name = data.get('name', '').strip()
+        farm_name = data.get('farm', '').strip()
+        genetics = data.get('genetics', '').strip()
+        collection_date = data.get('collectionDate', '').strip()
+        
+        if not name:
+            return Response({
+                'error': 'El nombre del lote es requerido',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not farm_name:
+            return Response({
+                'error': 'La finca es requerida',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not genetics:
+            return Response({
+                'error': 'La genética es requerida',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not collection_date:
+            return Response({
+                'error': 'La fecha de recolección es requerida',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return None
+    
+    def _save_images_temporarily(self, images, lote_id: int) -> list:
+        """Save images to temporary directory and return image data list."""
+        media_root = Path(settings.MEDIA_ROOT)
+        temp_dir = media_root / 'temp' / f'batch_{lote_id}_{int(time.time())}'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        images_data = []
+        for idx, image_file in enumerate(images):
+            try:
+                temp_path = temp_dir / f"{idx}_{image_file.name}"
+                with open(temp_path, 'wb+') as destination:
+                    for chunk in image_file.chunks():
+                        destination.write(chunk)
+                
+                images_data.append({
+                    'file_name': image_file.name,
+                    'file_size': image_file.size,
+                    'file_type': image_file.content_type,
+                    'temp_path': str(temp_path)
+                })
+            except Exception as e:
+                logger.error(f"Error saving temporary image {idx}: {e}")
+                continue
+        
+        return images_data
+    
     def post(self, request):
         """
         Processes a lote with multiple images using ML asynchronously.
@@ -88,6 +148,10 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
         """
         try:
             # 1. Validate input data
+            validation_error = self._validate_batch_input(request.data)
+            if validation_error:
+                return validation_error
+            
             name = request.data.get('name', '').strip()
             farm_name = request.data.get('farm', '').strip()
             genetics = request.data.get('genetics', '').strip()
@@ -95,31 +159,6 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
             origin_place = request.data.get('originPlace', '').strip()
             origin = request.data.get('origin', '').strip()
             notes = request.data.get('notes', '').strip()
-            
-            # Validations
-            if not name:
-                return Response({
-                    'error': 'El nombre del lote es requerido',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not farm_name:
-                return Response({
-                    'error': 'La finca es requerida',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not genetics:
-                return Response({
-                    'error': 'La genética es requerida',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not collection_date:
-                return Response({
-                    'error': 'La fecha de recolección es requerida',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
             
             # 2. Get or create finca
             finca = self._get_or_create_finca(request, farm_name, origin_place, origin)
@@ -152,28 +191,7 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # 5. Save images temporarily and prepare data for task
-            media_root = Path(settings.MEDIA_ROOT)
-            temp_dir = media_root / 'temp' / f'batch_{lote.id}_{int(time.time())}'
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            
-            images_data = []
-            for idx, image_file in enumerate(images):
-                try:
-                    # Save image to temporary location
-                    temp_path = temp_dir / f"{idx}_{image_file.name}"
-                    with open(temp_path, 'wb+') as destination:
-                        for chunk in image_file.chunks():
-                            destination.write(chunk)
-                    
-                    images_data.append({
-                        'file_name': image_file.name,
-                        'file_size': image_file.size,
-                        'file_type': image_file.content_type,
-                        'temp_path': str(temp_path)
-                    })
-                except Exception as e:
-                    logger.error(f"Error saving temporary image {idx}: {e}")
-                    continue
+            images_data = self._save_images_temporarily(images, lote.id)
             
             if not images_data:
                 return Response({
@@ -279,7 +297,7 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
             fecha_recoleccion = None
             try:
                 fecha_recoleccion = datetime.strptime(collection_date, '%Y-%m-%d').date()
-            except:
+            except (ValueError, TypeError):
                 fecha_recoleccion = date.today()
             
             # Use collection date as planting date (since that's what we have)

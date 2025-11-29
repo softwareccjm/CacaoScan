@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from django.db import transaction
+from django.template import TemplateDoesNotExist, TemplateSyntaxError
 
 from ..base import BaseService, ServiceResult, ValidationServiceError
 from audit.models import LoginHistory
@@ -576,7 +577,7 @@ Si no creaste esta cuenta, puedes ignorar este correo.
                     'user_name': user_name,
                     'frontend_url': settings.FRONTEND_URL
                 })
-            except:
+            except (TemplateDoesNotExist, TemplateSyntaxError, Exception):
                 # Fallback to simple HTML if template doesn't exist
                 html_content = f"""
                 <html>

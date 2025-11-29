@@ -87,7 +87,7 @@ class Finca(TimeStampedModel):
             return self.lotes.aggregate(
                 total=Count('cacao_images__prediction', distinct=True)
             )['total'] or 0
-        except:
+        except (ValueError, TypeError, AttributeError):
             return 0
     
     @property
@@ -215,7 +215,7 @@ class Lote(TimeStampedModel):
         """Obtener número total de análisis realizados en el lote."""
         try:
             return self.cacao_images.count()
-        except:
+        except (ValueError, TypeError, AttributeError):
             return 0
     
     @property
@@ -223,7 +223,7 @@ class Lote(TimeStampedModel):
         """Obtener número de análisis procesados en el lote."""
         try:
             return self.cacao_images.filter(processed=True).count()
-        except:
+        except (ValueError, TypeError, AttributeError):
             return 0
     
     @property
@@ -235,7 +235,7 @@ class Lote(TimeStampedModel):
                 avg_quality=Avg('prediction__average_confidence')
             )['avg_quality']
             return round(float(avg_confidence or 0) * 100, 2)
-        except:
+        except (ValueError, TypeError, AttributeError):
             return 0.0
     
     @property

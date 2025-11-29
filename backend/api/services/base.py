@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.paginator import EmptyPage, InvalidPage, PageNotAnInteger
 
 logger = logging.getLogger("cacaoscan.services")
 
@@ -215,7 +216,7 @@ class BaseService:
         
         try:
             page_obj = paginator.page(page)
-        except:
+        except (EmptyPage, InvalidPage, PageNotAnInteger):
             page_obj = paginator.page(1)
         
         return {

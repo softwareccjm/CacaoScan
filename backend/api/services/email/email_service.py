@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional, Union
 from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
+from django.template import TemplateDoesNotExist, TemplateSyntaxError
 from django.utils.html import strip_tags
 from django.utils import timezone
 from django.core.mail.backends.smtp import EmailBackend
@@ -267,7 +268,7 @@ class EmailService:
             text_template = f"emails/{template_name}.txt"
             try:
                 text_content = render_to_string(text_template, context)
-            except:
+            except (TemplateDoesNotExist, TemplateSyntaxError):
                 # Si no existe template de texto, generar desde HTML
                 text_content = strip_tags(html_content)
             
@@ -518,7 +519,7 @@ def send_email_notification(
             # Intentar obtener asunto del servicio de notificaciones
             try:
                 subject = email_notification_service._get_default_subject(notification_type, context)
-            except:
+            except (AttributeError, KeyError, ValueError):
                 subject = f"{subject_prefix} Notificacin de CacaoScan"
 
         # Seleccin automtica de template

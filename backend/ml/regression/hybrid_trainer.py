@@ -270,6 +270,41 @@ class HybridTrainer:
         
         return avg_loss, metrics, sigmas, pearson_corrs
     
+    def _update_training_history(self, train_loss: float, val_loss: float, current_lr: float,
+                                avg_r2: float, max_grad: float, avg_gating: float,
+                                metrics: Dict[str, Dict[str, float]], pearson_corrs: Dict[str, float],
+                                sigmas: Dict[str, float]):
+        """Update training history with epoch metrics."""
+        self.history['train_loss'].append(train_loss)
+        self.history['val_loss'].append(val_loss)
+        self.history['learning_rate'].append(current_lr)
+        self.history['avg_r2'].append(avg_r2)
+        self.history['max_gradient'].append(max_grad)
+        self.history['gating_percentage'].append(avg_gating * 100)
+        
+        for target in self.TARGETS:
+            self.history[f'val_r2_{target}'].append(metrics[target]['r2'])
+            self.history[f'val_mae_{target}'].append(metrics[target]['mae'])
+            self.history[f'val_rmse_{target}'].append(metrics[target]['rmse'])
+            self.history[f'pearson_{target}'].append(pearson_corrs[target])
+            self.history[f'sigma_{target}'].append(sigmas[target])
+    
+    def _log_epoch_metrics(self, epoch: int, epochs: int, train_loss: float, val_loss: float,
+                          avg_r2: float, current_lr: float, epoch_time: float,
+                          metrics: Dict[str, Dict[str, float]], sigmas: Dict[str, float],
+                          pearson_corrs: Dict[str, float], max_grad: float, avg_gating: float):
+        """Log comprehensive epoch metrics."""
+        logger.info(
+            f"Epoch {epoch+1}/{epochs} - "
+            f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
+            f"Avg R²: {avg_r2:.4f}, LR: {current_lr:.2e}, Time: {epoch_time:.2f}s"
+        )
+        
+        print_metrics_summary(metrics, epoch=epoch+1)
+        logger.info(f"  Sigmas: {sigmas}")
+        logger.info(f"  Pearson: {pearson_corrs}")
+        logger.info(f"  Max Gradient: {max_grad:.4f}, Gating %: {avg_gating*100:.2f}%")
+    
     def train(self, epochs: int) -> Dict[str, List[float]]:
         """
         Train the model for multiple epochs.
@@ -296,43 +331,19 @@ class HybridTrainer:
             self.scheduler.step()
             current_lr = self.optimizer.param_groups[0]['lr']
             
-            # Calculate average R²
+            # Calculate average R² and update history
             avg_r2 = np.mean([metrics[target]['r2'] for target in self.TARGETS])
-            
-            # Update history
-            self.history['train_loss'].append(train_loss)
-            self.history['val_loss'].append(val_loss)
-            self.history['learning_rate'].append(current_lr)
-            self.history['avg_r2'].append(avg_r2)
-            self.history['max_gradient'].append(max_grad)
-            self.history['gating_percentage'].append(avg_gating * 100)
-            
-            for target in self.TARGETS:
-                self.history[f'val_r2_{target}'].append(metrics[target]['r2'])
-                self.history[f'val_mae_{target}'].append(metrics[target]['mae'])
-                self.history[f'val_rmse_{target}'].append(metrics[target]['rmse'])
-                self.history[f'pearson_{target}'].append(pearson_corrs[target])
-                self.history[f'sigma_{target}'].append(sigmas[target])
+            self._update_training_history(
+                train_loss, val_loss, current_lr, avg_r2, max_grad, avg_gating,
+                metrics, pearson_corrs, sigmas
+            )
             
             # Log comprehensive metrics
             epoch_time = time.time() - epoch_start
-            logger.info(
-                f"Epoch {epoch+1}/{epochs} - "
-                f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
-                f"Avg R²: {avg_r2:.4f}, LR: {current_lr:.2e}, Time: {epoch_time:.2f}s"
+            self._log_epoch_metrics(
+                epoch, epochs, train_loss, val_loss, avg_r2, current_lr, epoch_time,
+                metrics, sigmas, pearson_corrs, max_grad, avg_gating
             )
-            
-            # Print detailed metrics
-            print_metrics_summary(metrics, epoch=epoch+1)
-            
-            # Log sigmas
-            logger.info(f"  Sigmas: {sigmas}")
-            
-            # Log Pearson correlations
-            logger.info(f"  Pearson: {pearson_corrs}")
-            
-            # Log gradient and gating
-            logger.info(f"  Max Gradient: {max_grad:.4f}, Gating %: {avg_gating*100:.2f}%")
             
             # Check early stopping
             r2_scores = {target: metrics[target]['r2'] for target in self.TARGETS}
