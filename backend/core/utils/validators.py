@@ -94,7 +94,7 @@ def validate_password_different(old_password: str, new_password: str) -> None:
     """
     if old_password == new_password:
         raise serializers.ValidationError({
-            'new_password': 'La nueva contraseña debe ser diferente a la contraseña actual.'
+            'new_password': 'La nueva contraseña debe ser diferente a la contraseña actual.'  # noqa: S2068
         })
 
 

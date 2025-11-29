@@ -11,6 +11,7 @@ Las correcciones de elif redundantes ya fueron aplicadas en el código fuente.
 """
 from django.test import TestCase
 from django.contrib.auth.models import User
+from api.tests.test_constants import TEST_USER_PASSWORD
 
 # Intentar importar, pero si falla, los tests se saltarán
 try:
@@ -37,7 +38,7 @@ class TestAuthServiceRedundantElif(TestCase):
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
-            password='testpass123'
+            password=TEST_USER_PASSWORD
         )
         self.auth_service = LoginService()
     
@@ -60,7 +61,7 @@ class TestAuthModelsRedundantElif(TestCase):
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
-            password='testpass123'
+            password=TEST_USER_PASSWORD
         )
     
     def test_user_profile_email_verified_no_redundant_elif(self):

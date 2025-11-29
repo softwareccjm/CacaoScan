@@ -467,7 +467,7 @@ const handleGuestRoute = (to, authStore) => {
   const redirectPath = getRedirectPathByRole(authStore.userRole)
   
   if (redirectPath === to.path) {
-    return true
+    return null
   }
   
   const routeExists = router.resolve(redirectPath)

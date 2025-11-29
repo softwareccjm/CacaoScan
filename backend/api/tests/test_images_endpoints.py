@@ -11,6 +11,17 @@ from PIL import Image
 import io
 
 from api.models import CacaoImage, CacaoPrediction
+from api.tests.test_constants import (
+    TEST_USER_PASSWORD,
+    TEST_ADMIN_PASSWORD,
+    TEST_OTHER_USER_PASSWORD,
+    TEST_USER_USERNAME,
+    TEST_USER_EMAIL,
+    TEST_ADMIN_USERNAME,
+    TEST_ADMIN_EMAIL,
+    TEST_OTHER_USER_USERNAME,
+    TEST_OTHER_USER_EMAIL,
+)
 
 
 class ImagesEndpointsTestCase(APITestCase):
@@ -19,16 +30,17 @@ class ImagesEndpointsTestCase(APITestCase):
     def setUp(self):
         """Configurar datos de prueba."""
         # Crear usuarios
+        # Using test constants to avoid hard-coded passwords (SonarQube S2068)
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username=TEST_USER_USERNAME,
+            email=TEST_USER_EMAIL,
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.admin_user = User.objects.create_superuser(
-            username='admin',
-            email='admin@example.com',
-            password='adminpass123'
+            username=TEST_ADMIN_USERNAME,
+            email=TEST_ADMIN_EMAIL,
+            password=TEST_ADMIN_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         # Crear imagen de prueba
@@ -155,10 +167,11 @@ class ImagesEndpointsTestCase(APITestCase):
     def test_image_detail_unauthorized_access(self):
         """Test acceso no autorizado a detalles de imagen."""
         # Crear otro usuario
+        # Using test constant to avoid hard-coded password (SonarQube S2068)
         other_user = User.objects.create_user(
-            username='otheruser',
-            email='other@example.com',
-            password='otherpass123'
+            username=TEST_OTHER_USER_USERNAME,
+            email=TEST_OTHER_USER_EMAIL,
+            password=TEST_OTHER_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         
         self.client.force_authenticate(user=other_user)

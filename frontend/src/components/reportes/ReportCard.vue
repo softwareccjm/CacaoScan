@@ -249,9 +249,9 @@ export default {
 }
 
 .select-btn.selected {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #ffffff;
 }
 
 .card-body {
@@ -390,25 +390,25 @@ export default {
 }
 
 .btn-primary {
-  background-color: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
+  background-color: #1e40af;
+  color: #ffffff;
+  border-color: #1e40af;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: #1e3a8a;
+  border-color: #1e3a8a;
 }
 
 .btn-danger {
-  background-color: #ef4444;
-  color: white;
-  border-color: #ef4444;
+  background-color: #b91c1c;
+  color: #ffffff;
+  border-color: #b91c1c;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #dc2626;
-  border-color: #dc2626;
+  background-color: #991b1b;
+  border-color: #991b1b;
 }
 
 /* Responsive */

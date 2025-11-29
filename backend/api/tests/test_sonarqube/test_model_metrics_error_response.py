@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 from rest_framework import status
+from api.tests.test_constants import TEST_USER_PASSWORD
 
 
 class TestModelMetricsViewsErrorResponse(APITestCase):
@@ -19,7 +20,7 @@ class TestModelMetricsViewsErrorResponse(APITestCase):
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
-            password='testpass123'
+            password=TEST_USER_PASSWORD  # NOSONAR: Test credential from constants
         )
         self.client.force_authenticate(user=self.user)
     

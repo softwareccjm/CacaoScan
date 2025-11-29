@@ -1103,8 +1103,8 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #4c63d2 0%, #5a3d8a 100%);
+  color: #ffffff;
 }
 
 .header-content {
@@ -1137,9 +1137,9 @@ export default {
 }
 
 .close-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.25);
   border: none;
-  color: white;
+  color: #ffffff;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
@@ -1206,13 +1206,13 @@ export default {
 }
 
 .progress-step.active .step-number {
-  background: #3b82f6;
-  color: white;
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .progress-step.completed .step-number {
-  background: #10b981;
-  color: white;
+  background: #059669;
+  color: #ffffff;
 }
 
 .step-label {
@@ -1603,9 +1603,9 @@ input:checked + .toggle-label .toggle-slider:before {
 }
 
 .btn-primary {
-  background-color: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
 }
 
 .btn-primary:hover:not(:disabled) {

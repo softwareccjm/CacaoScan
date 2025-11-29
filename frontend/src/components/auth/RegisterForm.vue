@@ -639,59 +639,94 @@ const statusMessageClass = computed(() => {
 })
 
 // Functions
-const validateForm = () => {
-  clearErrors()
-
-  if (!form.value.firstName.trim()) {
-    errors.firstName = 'El nombre es requerido'
-  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(form.value.firstName)) {
-    errors.firstName = 'El nombre solo puede contener letras'
+const validateNameField = (value, fieldName) => {
+  if (!value.trim()) {
+    errors[fieldName] = `El ${fieldName === 'firstName' ? 'nombre' : 'apellido'} es requerido`
+    return false
   }
-
-  if (!form.value.lastName.trim()) {
-    errors.lastName = 'El apellido es requerido'
-  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(form.value.lastName)) {
-    errors.lastName = 'El apellido solo puede contener letras'
+  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(value)) {
+    errors[fieldName] = `El ${fieldName === 'firstName' ? 'nombre' : 'apellido'} solo puede contener letras`
+    return false
   }
+  return true
+}
 
+const validateDocumentField = () => {
   if (!form.value.numeroDocumento.trim()) {
     errors.numeroDocumento = 'El número de documento es requerido'
-  } else if (!isValidDocument(form.value.numeroDocumento)) {
-    errors.numeroDocumento = 'El documento debe tener entre 6 y 11 dígitos'
+    return false
   }
+  if (!isValidDocument(form.value.numeroDocumento)) {
+    errors.numeroDocumento = 'El documento debe tener entre 6 y 11 dígitos'
+    return false
+  }
+  return true
+}
 
+const validatePhoneField = () => {
   const cleanPhone = form.value.phoneNumber.replaceAll(/[\s\-()]/g, '')
   if (cleanPhone && !isValidPhone(form.value.phoneNumber)) {
     errors.phoneNumber = 'El teléfono debe tener entre 7 y 15 dígitos'
+    return false
   }
+  return true
+}
+
+const validateEmailField = () => {
+  if (!form.value.email.trim()) {
+    errors.email = 'El email es requerido'
+    return false
+  }
+  if (!isValidEmail(form.value.email)) {
+    errors.email = 'Ingresa un email válido'
+    return false
+  }
+  return true
+}
+
+const validatePasswordFields = () => {
+  if (!form.value.password) {
+    errors.password = 'La contraseña es requerida'
+    return false
+  }
+  if (!isPasswordValid.value) {
+    errors.password = 'La contraseña debe cumplir todos los requisitos'
+    return false
+  }
+  if (!form.value.confirmPassword) {
+    errors.confirmPassword = 'Confirma tu contraseña'
+    return false
+  }
+  if (form.value.password !== form.value.confirmPassword) {
+    errors.confirmPassword = 'Las contraseñas no coinciden'
+    return false
+  }
+  return true
+}
+
+const validateForm = () => {
+  clearErrors()
+
+  const validations = [
+    validateNameField(form.value.firstName, 'firstName'),
+    validateNameField(form.value.lastName, 'lastName'),
+    validateDocumentField(),
+    validatePhoneField(),
+    validateEmailField(),
+    validatePasswordFields()
+  ]
 
   if (form.value.fechaNacimiento && !isValidBirthdate(form.value.fechaNacimiento)) {
     errors.fechaNacimiento = 'Debes tener al menos 14 años'
-  }
-
-  if (!form.value.email.trim()) {
-    errors.email = 'El email es requerido'
-  } else if (!isValidEmail(form.value.email)) {
-    errors.email = 'Ingresa un email válido'
-  }
-
-  if (!form.value.password) {
-    errors.password = 'La contraseña es requerida'
-  } else if (!isPasswordValid.value) {
-    errors.password = 'La contraseña debe cumplir todos los requisitos'
-  }
-
-  if (!form.value.confirmPassword) {
-    errors.confirmPassword = 'Confirma tu contraseña'
-  } else if (form.value.password !== form.value.confirmPassword) {
-    errors.confirmPassword = 'Las contraseñas no coinciden'
+    validations.push(false)
   }
 
   if (!form.value.acceptTerms) {
     errors.acceptTerms = 'Debes aceptar los términos y condiciones'
+    validations.push(false)
   }
 
-  return Object.keys(errors).length === 0
+  return validations.every(v => v === true) && Object.keys(errors).length === 0
 }
 
 const onDepartamentoChange = async () => {
@@ -726,6 +761,97 @@ const setStatusMessage = (message, type = 'info') => {
   }, 5000)
 }
 
+const buildRegistrationPayload = () => {
+  const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.value.departamento)
+  const municipioSeleccionado = municipios.value.find(m => m.id == form.value.municipio)
+  
+  return {
+    email: form.value.email.trim(),
+    password: form.value.password,
+    primer_nombre: form.value.firstName.trim(),
+    segundo_nombre: form.value.segundoNombre.trim() || '',
+    primer_apellido: form.value.lastName.trim(),
+    segundo_apellido: form.value.segundoApellido.trim() || '',
+    tipo_documento: form.value.tipoDocumento,
+    numero_documento: form.value.numeroDocumento.trim() || '',
+    telefono: form.value.phoneNumber.trim() || '',
+    direccion: form.value.direccion.trim() || '',
+    genero: form.value.genero,
+    fecha_nacimiento: form.value.fechaNacimiento || '',
+    municipio: municipioSeleccionado?.id || null,
+    departamento: departamentoSeleccionado?.id || null
+  }
+}
+
+const handleRegistrationSuccess = async (result) => {
+  const email = result.data?.email || form.value.email.trim()
+  
+  try {
+    await authApi.sendOtp(email)
+  } catch (error) {
+    console.error('Error enviando código OTP:', error)
+  }
+  
+  router.push({ 
+    name: 'VerifyEmailOTP', 
+    query: { email } 
+  })
+}
+
+const extractErrorMessage = (responseData) => {
+  if (responseData.detail) return responseData.detail
+  if (responseData.error) return responseData.error
+  if (typeof responseData === 'string') return responseData
+  if (responseData.non_field_errors) return responseData.non_field_errors[0]
+  return null
+}
+
+const mapFieldErrors = (responseData) => {
+  const fieldMapping = {
+    'email': 'email',
+    'password': 'password',
+    'primer_nombre': 'firstName',
+    'primer_apellido': 'lastName',
+    'numero_documento': 'numeroDocumento',
+    'telefono': 'phoneNumber',
+    'phone_number': 'phoneNumber',
+    'fecha_nacimiento': 'fechaNacimiento',
+    'tipo_documento': 'tipoDocumento',
+    'genero': 'genero',
+    'departamento': 'departamento',
+    'municipio': 'municipio'
+  }
+  
+  for (const key of Object.keys(responseData)) {
+    const fieldError = responseData[key]
+    const errorText = Array.isArray(fieldError) ? fieldError[0] : fieldError
+    const frontendField = fieldMapping[key] || key
+    errors[frontendField] = errorText
+  }
+  
+  const firstKey = Object.keys(responseData)[0]
+  const firstError = responseData[firstKey]
+  return Array.isArray(firstError) ? firstError[0] : firstError
+}
+
+const handleRegistrationError = (error) => {
+  console.error('Error en registro:', error)
+  clearErrors()
+  
+  if (!error.response?.data) {
+    return error.message || 'Error inesperado. Intenta nuevamente.'
+  }
+  
+  const responseData = error.response.data
+  const directMessage = extractErrorMessage(responseData)
+  
+  if (directMessage) {
+    return directMessage
+  }
+  
+  return mapFieldErrors(responseData)
+}
+
 const handleSubmit = async () => {
   if (!validateForm()) {
     return
@@ -738,92 +864,16 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.value.departamento)
-    const municipioSeleccionado = municipios.value.find(m => m.id == form.value.municipio)
-    
-    const payload = {
-      email: form.value.email.trim(),
-      password: form.value.password,
-      primer_nombre: form.value.firstName.trim(),
-      segundo_nombre: form.value.segundoNombre.trim() || '',
-      primer_apellido: form.value.lastName.trim(),
-      segundo_apellido: form.value.segundoApellido.trim() || '',
-      tipo_documento: form.value.tipoDocumento,
-      numero_documento: form.value.numeroDocumento.trim() || '',
-      telefono: form.value.phoneNumber.trim() || '',
-      direccion: form.value.direccion.trim() || '',
-      genero: form.value.genero,
-      fecha_nacimiento: form.value.fechaNacimiento || '',
-      municipio: municipioSeleccionado?.id || null,
-      departamento: departamentoSeleccionado?.id || null
-    }
-    
+    const payload = buildRegistrationPayload()
     const result = await authStore.register(payload)
 
     if (result.success) {
-      const email = result.data?.email || form.value.email.trim()
-      
-      try {
-        await authApi.sendOtp(email)
-      } catch (error) {
-        console.error('Error enviando código OTP:', error)
-      }
-      
-      router.push({ 
-        name: 'VerifyEmailOTP', 
-        query: { email } 
-      })
+      await handleRegistrationSuccess(result)
     } else {
       setStatusMessage(result.error || 'Error al crear la cuenta', 'error')
     }
   } catch (error) {
-    console.error('Error en registro:', error)
-
-    let errorMessage = 'Error inesperado. Intenta nuevamente.'
-    clearErrors()
-    
-    if (error.response?.data) {
-      const responseData = error.response.data
-      
-      if (responseData.detail) {
-        errorMessage = responseData.detail
-      } else if (responseData.error) {
-        errorMessage = responseData.error
-      } else if (typeof responseData === 'string') {
-        errorMessage = responseData
-      } else if (responseData.non_field_errors) {
-        errorMessage = responseData.non_field_errors[0]
-      } else {
-        const fieldMapping = {
-          'email': 'email',
-          'password': 'password',
-          'primer_nombre': 'firstName',
-          'primer_apellido': 'lastName',
-          'numero_documento': 'numeroDocumento',
-          'telefono': 'phoneNumber',
-          'phone_number': 'phoneNumber',
-          'fecha_nacimiento': 'fechaNacimiento',
-          'tipo_documento': 'tipoDocumento',
-          'genero': 'genero',
-          'departamento': 'departamento',
-          'municipio': 'municipio'
-        }
-        
-        for (const key of Object.keys(responseData)) {
-          const fieldError = responseData[key]
-          const errorText = Array.isArray(fieldError) ? fieldError[0] : fieldError
-          const frontendField = fieldMapping[key] || key
-          errors[frontendField] = errorText
-        }
-        
-        const firstKey = Object.keys(responseData)[0]
-        const firstError = responseData[firstKey]
-        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError
-      }
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-
+    const errorMessage = handleRegistrationError(error)
     setStatusMessage(errorMessage, 'error')
   } finally {
     isLoading.value = false

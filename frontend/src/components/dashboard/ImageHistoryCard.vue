@@ -50,7 +50,6 @@
               :src="image.image_url" 
               :alt="`Granos de cacao del análisis ${image.id}`"
               @error="handleImageError"
-              role="img"
             />
             <div v-else class="no-image">
               <span>📷</span>

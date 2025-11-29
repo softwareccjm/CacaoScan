@@ -5,6 +5,7 @@ Handles lote/finca creation and image upload for batch processing.
 import logging
 import time
 from pathlib import Path
+from typing import Optional, Tuple
 from datetime import datetime, date
 from django.db import transaction, connection as db_conn
 from django.conf import settings
@@ -279,141 +280,168 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
             logger.error(f"Error obteniendo/creando finca: {e}", exc_info=True)
             return None
     
+    def _parse_collection_date(self, collection_date: str) -> date:
+        """Parsea la fecha de recolección."""
+        try:
+            return datetime.strptime(collection_date, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return date.today()
+    
+    def _validate_finca(self, finca) -> Tuple[Optional[object], Optional[None]]:
+        """Valida que la finca existe y es válida."""
+        if not finca or not finca.id:
+            logger.error(f"Error: Finca no válida al crear lote. Finca={finca}")
+            return None, None
+        
+        try:
+            finca_verificada = Finca.objects.get(id=finca.id)
+            logger.debug(f"Finca verificada: ID={finca_verificada.id}, nombre={finca_verificada.nombre}, tabla={Finca._meta.db_table}")
+            return finca_verificada, None
+        except Finca.DoesNotExist:
+            logger.error(f"Error: Finca con ID={finca.id} no existe en la base de datos. Tabla esperada: {Finca._meta.db_table}")
+            return None, None
+    
+    def _verify_table_consistency(self, finca_verificada) -> bool:
+        """Verifica la consistencia de las tablas."""
+        lote_finca_model = Lote._meta.get_field('finca').remote_field.model
+        lote_finca_table = lote_finca_model._meta.db_table
+        finca_table = Finca._meta.db_table
+        
+        if lote_finca_table != finca_table:
+            logger.error(
+                f"Error: Desajuste de tablas - Lote referencia '{lote_finca_table}' "
+                f"pero Finca está en '{finca_table}'"
+            )
+            return False
+        return True
+    
+    def _verify_finca_in_db(self, finca_verificada) -> Tuple[Optional[int], Optional[str]]:
+        """Verifica que la finca existe en la BD usando SQL directo."""
+        with db_conn.cursor() as cursor:
+            cursor.execute("SELECT id, nombre FROM api_finca WHERE id = %s", [finca_verificada.id])
+            finca_row = cursor.fetchone()
+            
+            if not finca_row:
+                logger.error(f"Error crítico: Finca ID={finca_verificada.id} no existe en tabla api_finca")
+                return None, None
+            
+            finca_id_bd, finca_nombre_bd = finca_row
+            logger.debug(f"Verificación SQL: Finca ID={finca_id_bd} existe en api_finca: {finca_nombre_bd}")
+            return finca_id_bd, finca_nombre_bd
+    
+    def _create_lote_with_orm(self, finca_id_bd: int, name: str, genetics: str, fecha_plantacion: date, fecha_recoleccion: date, notes: str) -> Tuple[Optional[object], Optional[Exception]]:
+        """Intenta crear el lote usando ORM."""
+        try:
+            lote = Lote.objects.create(
+                finca_id=finca_id_bd,
+                identificador=name,
+                variedad=genetics,
+                fecha_plantacion=fecha_plantacion,
+                fecha_cosecha=fecha_recoleccion,
+                area_hectareas=0.1,
+                estado='activo',
+                descripcion=notes if notes else '',
+                activo=True
+            )
+            return lote, None
+        except Exception as orm_error:
+            return None, orm_error
+    
+    def _is_foreign_key_error(self, error: Exception) -> bool:
+        """Verifica si el error es de foreign key."""
+        error_msg = str(error).lower()
+        return 'foreign key' in error_msg or 'viola la llave foránea' in error_msg
+    
+    def _create_lote_with_sql(self, finca_id_bd: int, name: str, genetics: str, fecha_plantacion: date, fecha_recoleccion: date, notes: str) -> Tuple[Optional[object], Optional[None]]:
+        """Crea el lote usando SQL directo."""
+        with db_conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO fincas_app_lote 
+                (finca_id, identificador, variedad, fecha_plantacion, fecha_cosecha, 
+                 area_hectareas, estado, descripcion, activo, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING id;
+            """, [
+                finca_id_bd, name, genetics, fecha_plantacion, fecha_recoleccion,
+                0.1, 'activo', notes if notes else '', True
+            ])
+            lote_id = cursor.fetchone()[0]
+            lote = Lote.objects.get(id=lote_id)
+            return lote, None
+    
+    def _verify_db_schema(self):
+        """Verifica el esquema de la BD para foreign keys."""
+        try:
+            with db_conn.cursor() as cur:
+                cur.execute("""
+                    SELECT constraint_name, ccu.table_name
+                    FROM information_schema.table_constraints AS tc
+                    JOIN information_schema.key_column_usage AS kcu
+                        ON tc.constraint_name = kcu.constraint_name
+                    JOIN information_schema.constraint_column_usage AS ccu
+                        ON ccu.constraint_name = tc.constraint_name
+                    WHERE tc.constraint_type = 'FOREIGN KEY'
+                        AND tc.table_name = 'fincas_app_lote'
+                        AND kcu.column_name = 'finca_id';
+                """)
+                fk_info = cur.fetchall()
+                for fk_constraint, fk_table in fk_info:
+                    logger.error(f"FK en BD: {fk_constraint} -> {fk_table}")
+        except Exception as schema_error:
+            logger.error(f"Error verificando esquema: {schema_error}")
+    
     def _get_or_create_lote(self, request, finca, name, genetics, collection_date, notes):
         """Get or create lote."""
         try:
-            # Search existing lote
-            lote = Lote.objects.filter(
-                finca=finca,
-                identificador=name
-            ).first()
-            
+            lote = Lote.objects.filter(finca=finca, identificador=name).first()
             if lote:
                 logger.debug(f"Lote existente encontrado: ID={lote.id}, identificador={lote.identificador}")
                 return lote
             
-            # Create new lote
-            # Convert date string to date
-            fecha_recoleccion = None
-            try:
-                fecha_recoleccion = datetime.strptime(collection_date, '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                fecha_recoleccion = date.today()
-            
-            # Use collection date as planting date (since that's what we have)
+            fecha_recoleccion = self._parse_collection_date(collection_date)
             fecha_plantacion = fecha_recoleccion
             
-            # Verify finca exists before creating lote
-            if not finca or not finca.id:
-                logger.error(f"Error: Finca no válida al crear lote. Finca={finca}")
+            finca_verificada, _ = self._validate_finca(finca)
+            if not finca_verificada:
                 return None
             
-            # Verify finca exists in database and reload it to ensure consistency
-            try:
-                finca_verificada = Finca.objects.get(id=finca.id)
-                logger.debug(f"Finca verificada: ID={finca_verificada.id}, nombre={finca_verificada.nombre}, tabla={Finca._meta.db_table}")
-            except Finca.DoesNotExist:
-                logger.error(f"Error: Finca con ID={finca.id} no existe en la base de datos. Tabla esperada: {Finca._meta.db_table}")
+            if not self._verify_table_consistency(finca_verificada):
                 return None
             
-            # Verify reference table of Lote model
-            lote_finca_model = Lote._meta.get_field('finca').remote_field.model
-            lote_finca_table = lote_finca_model._meta.db_table
-            finca_table = Finca._meta.db_table
-            
-            if lote_finca_table != finca_table:
-                logger.error(
-                    f"Error: Desajuste de tablas - Lote referencia '{lote_finca_table}' "
-                    f"pero Finca está en '{finca_table}'"
-                )
+            finca_id_bd, finca_nombre_bd = self._verify_finca_in_db(finca_verificada)
+            if not finca_id_bd:
                 return None
             
             logger.debug(f"Creando lote con finca_id={finca_verificada.id}, nombre={name}")
-            logger.debug(f"Lote tabla: {Lote._meta.db_table}, Finca referencia: {lote_finca_table}")
-            
-            # Verify once more that finca exists directly in DB using raw SQL
-            with db_conn.cursor() as cursor:
-                cursor.execute("SELECT id, nombre FROM api_finca WHERE id = %s", [finca_verificada.id])
-                finca_row = cursor.fetchone()
-                
-                if not finca_row:
-                    logger.error(f"Error crítico: Finca ID={finca_verificada.id} no existe en tabla api_finca")
-                    return None
-                
-                finca_id_bd, finca_nombre_bd = finca_row
-                logger.debug(f"Verificación SQL: Finca ID={finca_id_bd} existe en api_finca: {finca_nombre_bd}")
             
             try:
                 with transaction.atomic():
-                    # Try with Django ORM first
-                    try:
-                        lote = Lote.objects.create(
-                            finca_id=finca_id_bd,  # Use ID directly from DB
-                            identificador=name,
-                            variedad=genetics,
-                            fecha_plantacion=fecha_plantacion,
-                            fecha_cosecha=fecha_recoleccion,
-                            area_hectareas=0.1,
-                            estado='activo',
-                            descripcion=notes if notes else '',
-                            activo=True
-                        )
+                    lote, orm_error = self._create_lote_with_orm(
+                        finca_id_bd, name, genetics, fecha_plantacion, fecha_recoleccion, notes
+                    )
+                    
+                    if lote:
                         logger.info(f"Lote '{name}' (ID={lote.id}) creado para finca {finca_nombre_bd} (ID={finca_id_bd})")
                         return lote
-                    except Exception as orm_error:
-                        # If fails with ORM, verify if it's a foreign key problem
-                        error_msg = str(orm_error)
-                        if 'foreign key' in error_msg.lower() or 'viola la llave foránea' in error_msg.lower():
-                            logger.warning(f"Error con ORM: {error_msg}. Intentando con SQL directo...")
-                            
-                            # Insert directly with SQL
-                            with db_conn.cursor() as cursor:
-                                cursor.execute("""
-                                    INSERT INTO fincas_app_lote 
-                                    (finca_id, identificador, variedad, fecha_plantacion, fecha_cosecha, 
-                                     area_hectareas, estado, descripcion, activo, created_at, updated_at)
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-                                    RETURNING id;
-                                """, [
-                                    finca_id_bd, name, genetics, fecha_plantacion, fecha_recoleccion,
-                                    0.1, 'activo', notes if notes else '', True
-                                ])
-                                lote_id = cursor.fetchone()[0]
-                                
-                                # Reload object from DB
-                                lote = Lote.objects.get(id=lote_id)
-                                logger.info(f"Lote '{name}' (ID={lote.id}) creado con SQL directo para finca {finca_nombre_bd} (ID={finca_id_bd})")
-                                return lote
-                        else:
-                            raise
+                    
+                    if self._is_foreign_key_error(orm_error):
+                        logger.warning(f"Error con ORM: {orm_error}. Intentando con SQL directo...")
+                        lote, _ = self._create_lote_with_sql(
+                            finca_id_bd, name, genetics, fecha_plantacion, fecha_recoleccion, notes
+                        )
+                        if lote:
+                            logger.info(f"Lote '{name}' (ID={lote.id}) creado con SQL directo para finca {finca_nombre_bd} (ID={finca_id_bd})")
+                            return lote
+                    else:
+                        raise orm_error
             except Exception as db_error:
-                # Capture specifically foreign key errors
-                error_msg = str(db_error)
-                if 'foreign key' in error_msg.lower() or 'viola la llave foránea' in error_msg.lower():
+                if self._is_foreign_key_error(db_error):
                     logger.error(
-                        f"Error de foreign key al crear lote: {error_msg}. "
+                        f"Error de foreign key al crear lote: {db_error}. "
                         f"Finca ID={finca_id_bd} existe en tabla api_finca. "
                         f"Verificando esquema de BD..."
                     )
-                    # Verify DB schema directly
-                    try:
-                        with db_conn.cursor() as cur:
-                            cur.execute("""
-                                SELECT constraint_name, ccu.table_name
-                                FROM information_schema.table_constraints AS tc
-                                JOIN information_schema.key_column_usage AS kcu
-                                    ON tc.constraint_name = kcu.constraint_name
-                                JOIN information_schema.constraint_column_usage AS ccu
-                                    ON ccu.constraint_name = tc.constraint_name
-                                WHERE tc.constraint_type = 'FOREIGN KEY'
-                                    AND tc.table_name = 'fincas_app_lote'
-                                    AND kcu.column_name = 'finca_id';
-                            """)
-                            fk_info = cur.fetchall()
-                            for fk_constraint, fk_table in fk_info:
-                                logger.error(f"FK en BD: {fk_constraint} -> {fk_table}")
-                    except Exception as schema_error:
-                        logger.error(f"Error verificando esquema: {schema_error}")
+                    self._verify_db_schema()
                 raise
             
         except Exception as e:

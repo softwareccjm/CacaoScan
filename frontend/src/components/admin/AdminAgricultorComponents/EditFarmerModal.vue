@@ -494,7 +494,7 @@
 
 <script setup>
 // 1. Vue core
-import { ref, reactive, watch, computed } from 'vue'
+import { ref, reactive, watch } from 'vue'
 
 // 2. Services
 import { createFinca, getFincas } from '@/services/fincasApi'

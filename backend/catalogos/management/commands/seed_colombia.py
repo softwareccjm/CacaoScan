@@ -478,45 +478,61 @@ class Command(BaseCommand):
         total_mun = 0
         
         for codigo, (nombre_dept, municipios) in data.items():
-            # Crear o obtener el departamento
-            nombre_dept = _normalize_text(nombre_dept)
-            departamento, created = Departamento.objects.get_or_create(
-                codigo=codigo,
-                defaults={'nombre': nombre_dept}
-            )
-
-            if not created and departamento.nombre != nombre_dept:
-                Departamento.objects.filter(pk=departamento.pk).update(nombre=nombre_dept)
-                departamento.refresh_from_db()
-                self.stdout.write(self.style.WARNING(f'• Departamento actualizado: {departamento.nombre}'))
+            departamento, created = self._create_or_update_departamento(codigo, nombre_dept)
             
             if created:
                 self.stdout.write(self.style.SUCCESS(f'" Departamento: {nombre_dept}'))
                 total_dept += 1
             
-            # Crear municipios del departamento (código y nombre están intercalados)
-            i = 0
-            while i < len(municipios):
-                codigo_mun = municipios[i]
-                nombre_mun = municipios[i + 1] if i + 1 < len(municipios) else ""
-                
-                if nombre_mun:  # Solo si hay nombre disponible
-                    nombre_mun = _normalize_text(nombre_mun)
-                    municipio, mun_created = Municipio.objects.get_or_create(
-                        departamento=departamento,
-                        codigo=codigo_mun,
-                        defaults={'nombre': nombre_mun}
-                    )
-
-                    if not mun_created and municipio.nombre != nombre_mun:
-                        Municipio.objects.filter(pk=municipio.pk).update(nombre=nombre_mun)
-                        self.stdout.write(self.style.WARNING(f'  • Municipio actualizado: {nombre_mun}'))
-                    
-                    if mun_created:
-                        total_mun += 1
-                
-                i += 2  # Avanzar dos posiciones (código y nombre)
+            total_mun += self._process_municipios(departamento, municipios)
 
         self.stdout.write(self.style.SUCCESS(f'\n" Seed completado: {total_dept} departamentos, {total_mun} municipios creados.'))
 
+    def _create_or_update_departamento(self, codigo: str, nombre_dept: str) -> tuple:
+        """Crea o actualiza un departamento."""
+        nombre_dept = _normalize_text(nombre_dept)
+        departamento, created = Departamento.objects.get_or_create(
+            codigo=codigo,
+            defaults={'nombre': nombre_dept}
+        )
 
+        if not created and departamento.nombre != nombre_dept:
+            Departamento.objects.filter(pk=departamento.pk).update(nombre=nombre_dept)
+            departamento.refresh_from_db()
+            self.stdout.write(self.style.WARNING(f'• Departamento actualizado: {departamento.nombre}'))
+        
+        return departamento, created
+    
+    def _create_or_update_municipio(self, departamento, codigo_mun: str, nombre_mun: str) -> bool:
+        """Crea o actualiza un municipio."""
+        if not nombre_mun:
+            return False
+        
+        nombre_mun = _normalize_text(nombre_mun)
+        municipio, mun_created = Municipio.objects.get_or_create(
+            departamento=departamento,
+            codigo=codigo_mun,
+            defaults={'nombre': nombre_mun}
+        )
+
+        if not mun_created and municipio.nombre != nombre_mun:
+            Municipio.objects.filter(pk=municipio.pk).update(nombre=nombre_mun)
+            self.stdout.write(self.style.WARNING(f'  • Municipio actualizado: {nombre_mun}'))
+        
+        return mun_created
+    
+    def _process_municipios(self, departamento, municipios: list) -> int:
+        """Procesa los municipios de un departamento."""
+        total_mun = 0
+        i = 0
+        
+        while i < len(municipios):
+            codigo_mun = municipios[i]
+            nombre_mun = municipios[i + 1] if i + 1 < len(municipios) else ""
+            
+            if self._create_or_update_municipio(departamento, codigo_mun, nombre_mun):
+                total_mun += 1
+            
+            i += 2
+        
+        return total_mun
