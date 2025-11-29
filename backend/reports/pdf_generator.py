@@ -343,7 +343,6 @@ class CacaoReportPDFGenerator:
         
         today = timezone.now().date()
         week_ago = today - timedelta(days=7)
-        month_ago = today - timedelta(days=30)
         
         daily_stats = images_queryset.filter(
             created_at__date__gte=week_ago

@@ -295,7 +295,7 @@ class CacaoDatasetLoader:
         records = []
         target_values = []
         
-        for _, row in valid_df.iterrows():
+        for _, row in filtered_df.iterrows():
             # Construir ruta absoluta
             image_path = MEDIA_ROOT / row['image_path']
             records.append({

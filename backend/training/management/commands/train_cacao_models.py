@@ -869,7 +869,7 @@ class Command(BaseCommand):
                             creationflags=subprocess.CREATE_NO_WINDOW
                         )
                     else:
-                        process = subprocess.Popen(
+                        subprocess.Popen(
                             [redis_path],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
@@ -921,7 +921,7 @@ class Command(BaseCommand):
                     creationflags=subprocess.CREATE_NO_WINDOW
                 )
             else:
-                process = subprocess.Popen(
+                subprocess.Popen(
                     celery_cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,

@@ -617,7 +617,7 @@ const handleSubmit = async () => {
         'direccion': 'direccion'
       }
       
-      Object.keys(data).forEach(key => {
+      for (const key of Object.keys(data)) {
         if (key === 'message' || key === 'error' || key === 'detail' || key === 'non_field_errors') {
           return
         }
@@ -630,7 +630,7 @@ const handleSubmit = async () => {
         } else if (typeof errorValue === 'string') {
           errors[frontendField] = errorValue
         }
-      })
+      }
       
       if (data.detail) {
         errorMessage = data.detail

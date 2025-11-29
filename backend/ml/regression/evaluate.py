@@ -311,7 +311,7 @@ class RegressionEvaluator:
         
         # Crear figura
         n_targets = len(self.results)
-        fig, axes = plt.subplots(2, 2, figsize=figsize)
+        _, axes = plt.subplots(2, 2, figsize=figsize)
         axes = axes.flatten()
         
         for idx, (target, metrics) in enumerate(self.results.items()):
@@ -383,7 +383,7 @@ class RegressionEvaluator:
         
         # Crear figura
         n_targets = len(self.results)
-        fig, axes = plt.subplots(2, 2, figsize=figsize)
+        _, axes = plt.subplots(2, 2, figsize=figsize)
         axes = axes.flatten()
         
         for idx, (target, metrics) in enumerate(self.results.items()):

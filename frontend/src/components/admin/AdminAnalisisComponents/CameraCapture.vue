@@ -208,7 +208,9 @@ const startCamera = async () => {
 const stopCamera = () => {
   if (stream.value) {
     const tracks = stream.value.getTracks()
-    tracks.forEach(track => track.stop())
+    for (const track of tracks) {
+      track.stop()
+    }
     stream.value = null
   }
   isCameraReady.value = false

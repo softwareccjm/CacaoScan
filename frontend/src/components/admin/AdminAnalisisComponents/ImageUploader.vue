@@ -173,12 +173,12 @@ const processFiles = (files) => {
   let hasError = false
   const validFiles = []
 
-  files.forEach(file => {
+  for (const file of files) {
     const validationError = validateFile(file)
     if (validationError) {
       error.value = validationError
       hasError = true
-      return
+      continue
     }
     validFiles.push(file)
   })
