@@ -126,27 +126,21 @@ describe('Navegación - Flujos Completos', () => {
     cy.get('[data-cy="total-users"]').should('be.visible')
   })
 
-  it('debe completar flujo de verificación de email', () => {
-    // 1. Registrarse
-    cy.visit('/registro')
-    
-    const newUser = {
-      firstName: 'Nuevo',
-      lastName: 'Usuario',
-      email: 'nuevo.usuario@test.com',
-      password: 'Password123!',
-      confirmPassword: 'Password123!',
-      role: 'farmer'
-    }
-    
-    cy.get('[data-cy="first-name-input"]').type(newUser.firstName)
-    cy.get('[data-cy="last-name-input"]').type(newUser.lastName)
-    cy.get('[data-cy="email-input"]').type(newUser.email)
-    cy.get('[data-cy="password-input"]').type(newUser.password)
-    cy.get('[data-cy="confirm-password-input"]').type(newUser.confirmPassword)
-    cy.get('[data-cy="role-select"]').select(newUser.role)
-    cy.get('[data-cy="terms-checkbox"]').check()
-    cy.get('[data-cy="register-button"]').click()
+  it('debe completar flujo de verificación de email', function() {
+    cy.fixture('testCredentials').then((credentials) => {
+      // 1. Registrarse
+      cy.visit('/registro')
+      
+      const newUser = credentials.testUsers.farmer
+      
+      cy.get('[data-cy="first-name-input"]').type(newUser.firstName)
+      cy.get('[data-cy="last-name-input"]').type(newUser.lastName)
+      cy.get('[data-cy="email-input"]').type(newUser.email)
+      cy.get('[data-cy="password-input"]').type(newUser.password)
+      cy.get('[data-cy="confirm-password-input"]').type(newUser.confirmPassword)
+      cy.get('[data-cy="role-select"]').select(newUser.role)
+      cy.get('[data-cy="terms-checkbox"]').check()
+      cy.get('[data-cy="register-button"]').click()
     
     cy.checkNotification('Usuario registrado exitosamente', 'success')
     
@@ -184,23 +178,30 @@ describe('Navegación - Flujos Completos', () => {
     
     // 4. Simular reset de contraseña
     cy.visit('/reset-password?token=valid-token-123')
-    cy.get('[data-cy="new-password-input"]').type('NewPassword123!')
-    cy.get('[data-cy="confirm-password-input"]').type('NewPassword123!')
-    cy.get('[data-cy="reset-button"]').click()
-    
-    cy.checkNotification('Contraseña actualizada exitosamente', 'success')
+    cy.fixture('testCredentials').then((credentials) => {
+      // NOSONAR: Test credential from fixtures
+      const newPassword = credentials.newPassword
+      cy.get('[data-cy="new-password-input"]').type(newPassword)
+      cy.get('[data-cy="confirm-password-input"]').type(newPassword)
+      cy.get('[data-cy="reset-button"]').click()
+      
+      cy.checkNotification('Contraseña actualizada exitosamente', 'success')
+    })
     
     // 5. Hacer login con nueva contraseña
     cy.visit('/login')
-    cy.fixture('users').then((users) => {
-      const user = users.farmer
-      cy.get('[data-cy="email-input"]').type(user.email)
-      cy.get('[data-cy="password-input"]').type('NewPassword123!')
-      cy.get('[data-cy="login-button"]').click()
-      
-      cy.url().should('include', '/agricultor-dashboard')
+    cy.fixture('testCredentials').then((credentials) => {
+      // NOSONAR: Test credential from fixtures
+      const newPassword = credentials.newPassword
+      cy.fixture('users').then((users) => {
+        const user = users.farmer
+        cy.get('[data-cy="email-input"]').type(user.email)
+        cy.get('[data-cy="password-input"]').type(newPassword)
+        cy.get('[data-cy="login-button"]').click()
+        
+        cy.url().should('include', '/agricultor-dashboard')
+      })
     })
-  })
 
   it('debe completar flujo de navegación entre roles', () => {
     // Test como agricultor

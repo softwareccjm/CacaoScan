@@ -1,6 +1,7 @@
 describe('Autenticación - Registro', () => {
   beforeEach(() => {
     cy.visit('/registro')
+    cy.fixture('testCredentials').as('credentials')
   })
 
   it('debe mostrar el formulario de registro correctamente', () => {
@@ -16,15 +17,8 @@ describe('Autenticación - Registro', () => {
     cy.get('[data-cy="login-link"]').should('be.visible')
   })
 
-  it('debe registrar un nuevo agricultor exitosamente', () => {
-    const newUser = {
-      firstName: 'Juan',
-      lastName: 'Pérez',
-      email: 'juan.perez@test.com',
-      password: 'Password123!',
-      confirmPassword: 'Password123!',
-      role: 'farmer'
-    }
+  it('debe registrar un nuevo agricultor exitosamente', function() {
+    const newUser = this.credentials.testUsers.farmer
 
     cy.get('[data-cy="first-name-input"]').type(newUser.firstName)
     cy.get('[data-cy="last-name-input"]').type(newUser.lastName)
@@ -46,15 +40,8 @@ describe('Autenticación - Registro', () => {
       .and('contain', 'Verifica tu email')
   })
 
-  it('debe registrar un nuevo analista exitosamente', () => {
-    const newUser = {
-      firstName: 'Ana',
-      lastName: 'García',
-      email: 'ana.garcia@test.com',
-      password: 'Password123!',
-      confirmPassword: 'Password123!',
-      role: 'analyst'
-    }
+  it('debe registrar un nuevo analista exitosamente', function() {
+    const newUser = this.credentials.testUsers.analyst
 
     cy.get('[data-cy="first-name-input"]').type(newUser.firstName)
     cy.get('[data-cy="last-name-input"]').type(newUser.lastName)
@@ -70,15 +57,16 @@ describe('Autenticación - Registro', () => {
       .and('contain', 'Usuario registrado exitosamente')
   })
 
-  it('debe mostrar error si el email ya existe', () => {
+  it('debe mostrar error si el email ya existe', function() {
     cy.fixture('users').then((users) => {
       const existingUser = users.farmer
+      const testPassword = this.credentials.testUsers.farmer.password
 
       cy.get('[data-cy="first-name-input"]').type('Nuevo')
       cy.get('[data-cy="last-name-input"]').type('Usuario')
       cy.get('[data-cy="email-input"]').type(existingUser.email)
-      cy.get('[data-cy="password-input"]').type('Password123!')
-      cy.get('[data-cy="confirm-password-input"]').type('Password123!')
+      cy.get('[data-cy="password-input"]').type(testPassword)
+      cy.get('[data-cy="confirm-password-input"]').type(testPassword)
       cy.get('[data-cy="role-select"]').select('farmer')
       cy.get('[data-cy="terms-checkbox"]').check()
       cy.get('[data-cy="register-button"]').click()
@@ -89,12 +77,14 @@ describe('Autenticación - Registro', () => {
     })
   })
 
-  it('debe validar que las contraseñas coincidan', () => {
+  it('debe validar que las contraseñas coincidan', function() {
+    const credentials = this.credentials
+
     cy.get('[data-cy="first-name-input"]').type('Juan')
     cy.get('[data-cy="last-name-input"]').type('Pérez')
     cy.get('[data-cy="email-input"]').type('juan@test.com')
-    cy.get('[data-cy="password-input"]').type('Password123!')
-    cy.get('[data-cy="confirm-password-input"]').type('DifferentPassword123!')
+    cy.get('[data-cy="password-input"]').type(credentials.strongPassword)
+    cy.get('[data-cy="confirm-password-input"]').type(credentials.mismatchPassword)
     cy.get('[data-cy="role-select"]').select('farmer')
     cy.get('[data-cy="terms-checkbox"]').check()
     cy.get('[data-cy="register-button"]').click()
@@ -104,8 +94,9 @@ describe('Autenticación - Registro', () => {
       .and('contain', 'Las contraseñas no coinciden')
   })
 
-  it('debe validar fortaleza de la contraseña', () => {
-    const weakPasswords = ['123', 'password', '12345678']
+  it('debe validar fortaleza de la contraseña', function() {
+    const credentials = this.credentials
+    const weakPasswords = credentials.weakPasswords
 
     weakPasswords.forEach(password => {
       cy.get('[data-cy="password-input"]').clear().type(password)
@@ -115,19 +106,21 @@ describe('Autenticación - Registro', () => {
     })
 
     // Verificar contraseña fuerte
-    cy.get('[data-cy="password-input"]').clear().type('StrongPassword123!')
+    cy.get('[data-cy="password-input"]').clear().type(credentials.strongPassword)
     cy.get('[data-cy="password-strength"]')
       .should('be.visible')
       .and('contain', 'Contraseña fuerte')
   })
 
-  it('debe requerir aceptar términos y condiciones', () => {
-    cy.get('[data-cy="first-name-input"]').type('Juan')
-    cy.get('[data-cy="last-name-input"]').type('Pérez')
-    cy.get('[data-cy="email-input"]').type('juan@test.com')
-    cy.get('[data-cy="password-input"]').type('Password123!')
-    cy.get('[data-cy="confirm-password-input"]').type('Password123!')
-    cy.get('[data-cy="role-select"]').select('farmer')
+  it('debe requerir aceptar términos y condiciones', function() {
+    const credentials = this.credentials.testUsers.farmer
+
+    cy.get('[data-cy="first-name-input"]').type(credentials.firstName)
+    cy.get('[data-cy="last-name-input"]').type(credentials.lastName)
+    cy.get('[data-cy="email-input"]').type(credentials.email)
+    cy.get('[data-cy="password-input"]').type(credentials.password)
+    cy.get('[data-cy="confirm-password-input"]').type(credentials.confirmPassword)
+    cy.get('[data-cy="role-select"]').select(credentials.role)
     // No marcar términos y condiciones
     cy.get('[data-cy="register-button"]').click()
 
@@ -156,8 +149,10 @@ describe('Autenticación - Registro', () => {
       .and('contain', 'Formato de email inválido')
   })
 
-  it('debe mostrar/ocultar contraseña', () => {
-    cy.get('[data-cy="password-input"]').type('Password123!')
+  it('debe mostrar/ocultar contraseña', function() {
+    const credentials = this.credentials
+
+    cy.get('[data-cy="password-input"]').type(credentials.strongPassword)
     cy.get('[data-cy="password-input"]').should('have.attr', 'type', 'password')
 
     cy.get('[data-cy="toggle-password"]').click()
