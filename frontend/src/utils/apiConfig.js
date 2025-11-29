@@ -20,27 +20,28 @@ export const getApiBaseUrl = () => {
   const PRODUCTION_BACKEND_URL = 'https://cacaoscan-backend.onrender.com/api/v1'
   
   // Prioridad 1: Runtime injection (mejor para producción, permite cambios sin rebuild)
-  if (typeof window !== 'undefined' && window.__API_BASE_URL__) {
-    let url = window.__API_BASE_URL__
+  if (typeof globalThis !== 'undefined' && globalThis.__API_BASE_URL__) {
+    let url = globalThis.__API_BASE_URL__
     console.log('🌐 [API Config] Runtime API URL encontrada:', url)
     
     // Validar y corregir si es relativa
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      console.error('❌ [API Config] Runtime URL es relativa, corrigiendo...')
-      // Si es relativa, construir URL absoluta
-      if (url.startsWith('/')) {
-        // Es una ruta absoluta relativa al dominio actual
-        url = `https://${window.location.hostname}${url}`
-        console.warn('⚠️ [API Config] Construida URL desde ruta relativa:', url)
-      } else {
-        // Usar fallback de producción
-        console.warn('⚠️ [API Config] Usando fallback de producción:', PRODUCTION_BACKEND_URL)
-        return PRODUCTION_BACKEND_URL
-      }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      console.log('✅ [API Config] Using runtime API URL:', url)
+      return url
     }
     
-    console.log('✅ [API Config] Using runtime API URL:', url)
-    return url
+    console.error('❌ [API Config] Runtime URL es relativa, corrigiendo...')
+    // Si es relativa, construir URL absoluta
+    if (url.startsWith('/')) {
+      // Es una ruta absoluta relativa al dominio actual
+      url = `https://${globalThis.location.hostname}${url}`
+      console.warn('⚠️ [API Config] Construida URL desde ruta relativa:', url)
+      return url
+    }
+    
+    // Usar fallback de producción
+    console.warn('⚠️ [API Config] Usando fallback de producción:', PRODUCTION_BACKEND_URL)
+    return PRODUCTION_BACKEND_URL
   }
   
   // Prioridad 2: Build-time variable (Vite inyecta esto durante el build)
@@ -49,17 +50,17 @@ export const getApiBaseUrl = () => {
     console.log('🔧 [API Config] Build-time API URL encontrada:', url)
     
     // Validar y corregir si es relativa
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      console.error('❌ [API Config] Build-time URL es relativa, usando fallback')
-      return PRODUCTION_BACKEND_URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      console.log('✅ [API Config] Using build-time API URL:', url)
+      return url
     }
     
-    console.log('✅ [API Config] Using build-time API URL:', url)
-    return url
+    console.error('❌ [API Config] Build-time URL es relativa, usando fallback')
+    return PRODUCTION_BACKEND_URL
   }
   
   // Prioridad 3: Detectar si estamos en producción y usar URL absoluta
-  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+  if (typeof globalThis !== 'undefined' && globalThis.location && globalThis.location.hostname.includes('localhost') === false) {
     console.log('🌍 [API Config] Detectado entorno de producción, usando URL absoluta del backend')
     return PRODUCTION_BACKEND_URL
   }
@@ -67,9 +68,10 @@ export const getApiBaseUrl = () => {
   // Prioridad 4: Fallback para desarrollo local
   const devUrl = 'http://localhost:8000/api/v1'
   console.warn('⚠️ [API Config] Using development fallback URL:', devUrl)
-  console.warn('⚠️ [API Config] window.__API_BASE_URL__:', typeof window !== 'undefined' ? window.__API_BASE_URL__ : 'N/A')
+  console.warn('⚠️ [API Config] globalThis.__API_BASE_URL__:', typeof globalThis !== 'undefined' ? globalThis.__API_BASE_URL__ : 'N/A')
   console.warn('⚠️ [API Config] VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL || 'N/A')
-  console.warn('⚠️ [API Config] window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'N/A')
+  const hostname = typeof globalThis !== 'undefined' && globalThis.location ? globalThis.location.hostname : 'N/A'
+  console.warn('⚠️ [API Config] globalThis.location.hostname:', hostname)
   return devUrl
 }
 
@@ -106,7 +108,7 @@ export const getApiBaseUrlWithPath = () => {
 export const isDevelopment = () => {
   return import.meta.env.DEV || 
          import.meta.env.MODE === 'development' ||
-         (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+         (typeof globalThis !== 'undefined' && globalThis.location && globalThis.location.hostname === 'localhost')
 }
 
 /**
@@ -116,7 +118,7 @@ export const isDevelopment = () => {
 export const isProduction = () => {
   return import.meta.env.PROD || 
          import.meta.env.MODE === 'production' ||
-         (typeof window !== 'undefined' && !window.location.hostname.includes('localhost'))
+         (typeof globalThis !== 'undefined' && globalThis.location && globalThis.location.hostname.includes('localhost') === false)
 }
 
 // Exportar configuración actual para debugging
@@ -126,7 +128,7 @@ export const API_CONFIG = {
   baseUrlWithPath: getApiBaseUrlWithPath(),
   isDev: isDevelopment(),
   isProd: isProduction(),
-  runtimeUrl: typeof window !== 'undefined' ? window.__API_BASE_URL__ : null,
+  runtimeUrl: typeof globalThis !== 'undefined' ? globalThis.__API_BASE_URL__ : null,
   buildTimeUrl: import.meta.env.VITE_API_BASE_URL || null,
 }
 

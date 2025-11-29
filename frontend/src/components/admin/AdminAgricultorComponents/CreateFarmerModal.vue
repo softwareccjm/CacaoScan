@@ -538,6 +538,91 @@ const validateForm = () => {
   return Object.keys(errors).length === 0
 }
 
+const buildFarmerData = () => {
+  const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.departamento)
+  const municipioSeleccionado = municipios.value.find(m => m.id == form.municipio)
+  
+  return {
+    email: form.email.trim(),
+    password: form.password,
+    primer_nombre: form.firstName.trim(),
+    segundo_nombre: (form.segundoNombre || '').trim(),
+    primer_apellido: form.lastName.trim(),
+    segundo_apellido: (form.segundoApellido || '').trim(),
+    tipo_documento: form.tipoDocumento,
+    numero_documento: form.numeroDocumento.trim(),
+    telefono: (form.phoneNumber || '').trim(),
+    direccion: (form.direccion || '').trim(),
+    genero: form.genero,
+    fecha_nacimiento: form.fechaNacimiento || '',
+    municipio: municipioSeleccionado?.id || null,
+    departamento: departamentoSeleccionado?.id || null
+  }
+}
+
+const handleConnectionError = () => {
+  Swal.fire({
+    icon: 'error',
+    title: 'Error de conexión',
+    text: 'Error de conexión con el servidor. Verifica que el endpoint esté disponible.',
+    confirmButtonColor: '#ef4444'
+  })
+}
+
+const processFieldErrors = (data) => {
+  const fieldMapping = {
+    'email': 'email',
+    'password': 'password',
+    'primer_nombre': 'firstName',
+    'primer_apellido': 'lastName',
+    'numero_documento': 'numeroDocumento',
+    'telefono': 'phoneNumber',
+    'phone_number': 'phoneNumber',
+    'fecha_nacimiento': 'fechaNacimiento',
+    'tipo_documento': 'tipoDocumento',
+    'genero': 'genero',
+    'departamento': 'departamento',
+    'municipio': 'municipio',
+    'segundo_nombre': 'segundoNombre',
+    'segundo_apellido': 'segundoApellido',
+    'direccion': 'direccion'
+  }
+  
+  for (const key of Object.keys(data)) {
+    if (key === 'message' || key === 'error' || key === 'detail' || key === 'non_field_errors') {
+      continue
+    }
+    
+    const frontendField = fieldMapping[key] || key
+    const errorValue = data[key]
+    
+    if (Array.isArray(errorValue) && errorValue.length > 0) {
+      errors[frontendField] = errorValue[0]
+    } else if (typeof errorValue === 'string') {
+      errors[frontendField] = errorValue
+    }
+  }
+}
+
+const extractErrorMessage = (data) => {
+  if (data.detail) {
+    return data.detail
+  }
+  if (data.message) {
+    return data.message
+  }
+  if (data.error) {
+    return data.error
+  }
+  if (data.non_field_errors) {
+    return Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors
+  }
+  if (Object.keys(errors).length > 0) {
+    return errors[Object.keys(errors)[0]]
+  }
+  return 'Error al crear el agricultor'
+}
+
 const handleSubmit = async () => {
   if (!validateForm()) {
     return
@@ -546,26 +631,7 @@ const handleSubmit = async () => {
   isSubmitting.value = true
 
   try {
-    const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.departamento)
-    const municipioSeleccionado = municipios.value.find(m => m.id == form.municipio)
-    
-    const farmerData = {
-      email: form.email.trim(),
-      password: form.password,
-      primer_nombre: form.firstName.trim(),
-      segundo_nombre: (form.segundoNombre || '').trim(),
-      primer_apellido: form.lastName.trim(),
-      segundo_apellido: (form.segundoApellido || '').trim(),
-      tipo_documento: form.tipoDocumento,
-      numero_documento: form.numeroDocumento.trim(),
-      telefono: (form.phoneNumber || '').trim(),
-      direccion: (form.direccion || '').trim(),
-      genero: form.genero,
-      fecha_nacimiento: form.fechaNacimiento || '',
-      municipio: municipioSeleccionado?.id || null,
-      departamento: departamentoSeleccionado?.id || null
-    }
-
+    const farmerData = buildFarmerData()
     const response = await authApi.register(farmerData)
 
     Swal.fire({
@@ -583,77 +649,31 @@ const handleSubmit = async () => {
     
     clearErrors()
     
-    let errorMessage = 'Error al crear el agricultor'
-    
     if (error.response?.data) {
       const data = error.response.data
       
       if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
-        errorMessage = 'Error de conexión con el servidor. Verifica que el endpoint esté disponible.'
-        Swal.fire({
-          icon: 'error',
-          title: 'Error de conexión',
-          text: errorMessage,
-          confirmButtonColor: '#ef4444'
-        })
+        handleConnectionError()
         return
       }
       
-      const fieldMapping = {
-        'email': 'email',
-        'password': 'password',
-        'primer_nombre': 'firstName',
-        'primer_apellido': 'lastName',
-        'numero_documento': 'numeroDocumento',
-        'telefono': 'phoneNumber',
-        'phone_number': 'phoneNumber',
-        'fecha_nacimiento': 'fechaNacimiento',
-        'tipo_documento': 'tipoDocumento',
-        'genero': 'genero',
-        'departamento': 'departamento',
-        'municipio': 'municipio',
-        'segundo_nombre': 'segundoNombre',
-        'segundo_apellido': 'segundoApellido',
-        'direccion': 'direccion'
-      }
+      processFieldErrors(data)
+      const errorMessage = extractErrorMessage(data)
       
-      for (const key of Object.keys(data)) {
-        if (key === 'message' || key === 'error' || key === 'detail' || key === 'non_field_errors') {
-          return
-        }
-        
-        const frontendField = fieldMapping[key] || key
-        const errorValue = data[key]
-        
-        if (Array.isArray(errorValue) && errorValue.length > 0) {
-          errors[frontendField] = errorValue[0]
-        } else if (typeof errorValue === 'string') {
-          errors[frontendField] = errorValue
-        }
-      }
-      
-      if (data.detail) {
-        errorMessage = data.detail
-      } else if (data.message) {
-        errorMessage = data.message
-      } else if (data.error) {
-        errorMessage = data.error
-      } else if (data.non_field_errors) {
-        errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors
-      } else if (Object.keys(errors).length > 0) {
-        const firstErrorField = Object.keys(errors)[0]
-        errorMessage = errors[firstErrorField]
-      }
-    } else if (error.message) {
-      errorMessage = error.message
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al crear el agricultor',
+        html: errorMessage.replaceAll('\n', '<br>'),
+        confirmButtonColor: '#ef4444'
+      })
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al crear el agricultor',
+        html: (error.message || 'Error al crear el agricultor').replaceAll('\n', '<br>'),
+        confirmButtonColor: '#ef4444'
+      })
     }
-    
-    Swal.fire({
-      icon: 'error',
-      title: 'Error al crear el agricultor',
-      html: errorMessage.replaceAll('\n', '<br>'),
-      confirmButtonColor: '#ef4444'
-    })
   } finally {
     isSubmitting.value = false
   }

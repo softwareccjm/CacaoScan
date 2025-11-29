@@ -335,11 +335,11 @@ export const usePredictionStore = defineStore('prediction', {
         };
         
         // Filtrar parámetros vacíos
-        Object.keys(params).forEach(key => {
+        for (const key of Object.keys(params)) {
           if (params[key] === '' || params[key] === null || params[key] === undefined) {
             delete params[key];
           }
-        });
+        }
         
         const response = await getImageHistory(params);
         

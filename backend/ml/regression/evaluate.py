@@ -339,7 +339,7 @@ class RegressionEvaluator:
             
             # Añadir texto con métricas
             textstr = f'MAE: {metrics["mae"]:.3f}\\nRMSE: {metrics["rmse"]:.3f}\\nMAPE: {metrics["mape"]:.1f}%'
-            props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+            props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.8}
             ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=10,
                    verticalalignment='top', bbox=props)
         
@@ -409,7 +409,7 @@ class RegressionEvaluator:
             mean_residual = np.mean(residuals)
             std_residual = np.std(residuals)
             textstr = f'Media: {mean_residual:.3f}\\nStd: {std_residual:.3f}'
-            props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+            props = {'boxstyle': 'round', 'facecolor': 'wheat', 'alpha': 0.8}
             ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=10,
                    verticalalignment='top', bbox=props)
         

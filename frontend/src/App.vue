@@ -9,7 +9,7 @@ const sessionExpiredModalRef = ref(null)
 
 // Exponer el modal globalmente
 onMounted(() => {
-  window.showSessionExpiredModal = () => {
+  globalThis.showSessionExpiredModal = () => {
     if (sessionExpiredModalRef.value) {
       sessionExpiredModalRef.value.show()
     }

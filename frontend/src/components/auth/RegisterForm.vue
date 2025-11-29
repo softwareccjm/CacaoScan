@@ -809,12 +809,12 @@ const handleSubmit = async () => {
           'municipio': 'municipio'
         }
         
-        Object.keys(responseData).forEach(key => {
+        for (const key of Object.keys(responseData)) {
           const fieldError = responseData[key]
           const errorText = Array.isArray(fieldError) ? fieldError[0] : fieldError
           const frontendField = fieldMapping[key] || key
           errors[frontendField] = errorText
-        })
+        }
         
         const firstKey = Object.keys(responseData)[0]
         const firstError = responseData[firstKey]

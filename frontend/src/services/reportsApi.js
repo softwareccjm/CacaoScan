@@ -19,7 +19,7 @@ const reportsApi = {
       
       // Verificar que la respuesta sea un blob
       if (!(response.data instanceof Blob)) {
-        throw new Error('La respuesta del servidor no es un archivo válido')
+        throw new TypeError('La respuesta del servidor no es un archivo válido')
       }
       
       // Intentar obtener el nombre del archivo desde el Content-Disposition header
@@ -90,7 +90,7 @@ const reportsApi = {
       // Crear elemento link y configurarlo
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `reporte_usuarios_${new Date().getTime()}.xlsx`)
+      link.setAttribute('download', `reporte_usuarios_${Date.now()}.xlsx`)
       
       // Agregar al DOM, hacer click y remover
       document.body.appendChild(link)

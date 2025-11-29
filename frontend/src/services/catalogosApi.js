@@ -14,21 +14,21 @@ const catalogosApi = {
       // Ruta principal: query por tema
       const response = await api.get('/parametros/', { params: { tema: codigoTema } })
       return response.data
-    } catch (errorPrimario) {
-      console.warn(`[catalogosApi] Fallback 1 para tema ${codigoTema} tras error:`, errorPrimario?.response?.status)
+    } catch (error_) {
+      console.warn(`[catalogosApi] Fallback 1 para tema ${codigoTema} tras error:`, error_?.response?.status)
       try {
         // Fallback 1: endpoint REST por tema
         const respAlt1 = await api.get(`/parametros/tema/${codigoTema}/`)
         return respAlt1.data
-      } catch (errorSecundario) {
-        console.warn(`[catalogosApi] Fallback 2 para tema ${codigoTema} tras error:`, errorSecundario?.response?.status)
+      } catch (error_) {
+        console.warn(`[catalogosApi] Fallback 2 para tema ${codigoTema} tras error:`, error_?.response?.status)
         try {
           // Fallback 2: parámetros anidados bajo tema
           const respAlt2 = await api.get(`/temas/${codigoTema}/parametros/`)
           return respAlt2.data
-        } catch (errorTerciario) {
-          console.error(`Error obteniendo parámetros del tema ${codigoTema}:`, errorTerciario)
-          throw errorTerciario
+        } catch (error_) {
+          console.error(`Error obteniendo parámetros del tema ${codigoTema}:`, error_)
+          throw error_
         }
       }
     }

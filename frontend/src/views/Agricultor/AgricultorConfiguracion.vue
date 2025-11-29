@@ -425,9 +425,9 @@ const toggleFincaStatus = (id) => {
 }
 
 const setPrimaryFinca = (id) => {
-  fincas.value.forEach(f => {
+  for (const f of fincas.value) {
     f.isPrimary = f.id === id
-  })
+  }
 }
 
 // Métodos para preferencias de escaneo

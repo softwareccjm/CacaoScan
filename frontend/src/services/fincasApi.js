@@ -239,7 +239,7 @@ export function formatFincaData(fincaData) {
   }
 
   // Convertir coordenadas a número si se proporcionan (no vacías)
-  if (formatted.coordenadas_lat !== '' && formatted.coordenadas_lat !== null && formatted.coordenadas_lat !== undefined) {
+  if (formatted.coordenadas_lat && formatted.coordenadas_lat !== '') {
     const lat = Number.parseFloat(formatted.coordenadas_lat)
     if (!Number.isNaN(lat)) {
       formatted.coordenadas_lat = lat
@@ -250,7 +250,7 @@ export function formatFincaData(fincaData) {
     formatted.coordenadas_lat = null
   }
   
-  if (formatted.coordenadas_lng !== '' && formatted.coordenadas_lng !== null && formatted.coordenadas_lng !== undefined) {
+  if (formatted.coordenadas_lng && formatted.coordenadas_lng !== '') {
     const lng = Number.parseFloat(formatted.coordenadas_lng)
     if (!Number.isNaN(lng)) {
       formatted.coordenadas_lng = lng

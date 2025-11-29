@@ -55,7 +55,6 @@ import { useImageStats } from '@/composables/useImageStats'
 
 // 5. Components
 import Sidebar from '@/components/layout/Common/Sidebar.vue'
-import ImageHistoryCard from '@/components/dashboard/ImageHistoryCard.vue'
 import WelcomeHeader from '@/components/agricultor/WelcomeHeader.vue'
 import StatsCards from '@/components/agricultor/StatsCards.vue'
 import RecentActivity from '@/components/agricultor/RecentActivity.vue'

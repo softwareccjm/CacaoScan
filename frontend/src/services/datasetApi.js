@@ -64,11 +64,11 @@ const handleResponse = async (response) => {
 const buildQueryParams = (filters = {}) => {
   const params = new URLSearchParams();
   
-  Object.entries(filters).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== '') {
       params.append(key, value);
     }
-  });
+  }
   
   return params;
 };
@@ -225,11 +225,11 @@ export const uploadDatasetImages = async (files, metadata = {}, onProgress = nul
       formData.append('image', file);
       
       // Agregar metadatos
-      Object.entries(metadata).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(metadata)) {
         if (value !== undefined && value !== null && value !== '') {
           formData.append(key, value);
         }
-      });
+      }
       
       // Subir archivo
       const response = await fetch(`${API_BASE_URL}/api/images/predict/`, {

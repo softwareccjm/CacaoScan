@@ -7,7 +7,7 @@ import App from './App.vue'
 import router from './router'
 
 // Verificar configuración del API al iniciar
-if (typeof window !== 'undefined') {
+if (typeof globalThis !== 'undefined') {
   console.log('🔍 [Main] Verificando configuración del API...')
   console.log('🔍 [Main] globalThis.__API_BASE_URL__:', globalThis.__API_BASE_URL__)
   console.log('🔍 [Main] import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)

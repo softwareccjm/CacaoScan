@@ -278,8 +278,7 @@ def train_hybrid_model(
             pixel_features = pixel_features.to(device)
             
             outputs = model(images, pixel_features)
-            loss = trainer.criterion(outputs, targets_batch)
-            test_loss += loss.item()
+            trainer.criterion(outputs, targets_batch)
             
             outputs_np = outputs.cpu().numpy()
             targets_np = targets_batch.cpu().numpy()

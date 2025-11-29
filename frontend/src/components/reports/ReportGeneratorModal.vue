@@ -955,6 +955,39 @@ export default {
       return Object.keys(errors.value).length === 0
     }
 
+    const cleanEmptyValues = (obj) => {
+      const cleaned = { ...obj }
+      for (const key of Object.keys(cleaned)) {
+        if (cleaned[key] === '' || cleaned[key] === null) {
+          delete cleaned[key]
+        }
+      }
+      return cleaned
+    }
+
+    const buildReportData = () => {
+      return {
+        tipo_reporte: formData.tipo_reporte,
+        formato: formData.formato,
+        titulo: formData.titulo.trim(),
+        descripcion: formData.descripcion.trim(),
+        parametros: cleanEmptyValues(formData.parametros),
+        filtros: cleanEmptyValues(formData.filtros)
+      }
+    }
+
+    const processReportErrors = (errorData) => {
+      if (errorData.tipo_reporte) {
+        errors.value.tipo_reporte = Array.isArray(errorData.tipo_reporte) ? errorData.tipo_reporte[0] : errorData.tipo_reporte
+      }
+      if (errorData.formato) {
+        errors.value.formato = Array.isArray(errorData.formato) ? errorData.formato[0] : errorData.formato
+      }
+      if (errorData.titulo) {
+        errors.value.titulo = Array.isArray(errorData.titulo) ? errorData.titulo[0] : errorData.titulo
+      }
+    }
+
     const generateReport = async () => {
       if (!validateForm()) {
         return
@@ -964,28 +997,7 @@ export default {
       errors.value = {}
 
       try {
-        const reportData = {
-          tipo_reporte: formData.tipo_reporte,
-          formato: formData.formato,
-          titulo: formData.titulo.trim(),
-          descripcion: formData.descripcion.trim(),
-          parametros: { ...formData.parametros },
-          filtros: { ...formData.filtros }
-        }
-
-        // Clean empty values
-        for (const key of Object.keys(reportData.parametros)) {
-          if (reportData.parametros[key] === '' || reportData.parametros[key] === null) {
-            delete reportData.parametros[key]
-          }
-        }
-
-        for (const key of Object.keys(reportData.filtros)) {
-          if (reportData.filtros[key] === '' || reportData.filtros[key] === null) {
-            delete reportData.filtros[key]
-          }
-        }
-
+        const reportData = buildReportData()
         const response = await reportsStore.createReport(reportData)
 
         Swal.fire({
@@ -1003,19 +1015,8 @@ export default {
         
         if (error.response?.data) {
           const errorData = error.response.data
+          processReportErrors(errorData)
           
-          // Handle field-specific errors
-          if (errorData.tipo_reporte) {
-            errors.value.tipo_reporte = Array.isArray(errorData.tipo_reporte) ? errorData.tipo_reporte[0] : errorData.tipo_reporte
-          }
-          if (errorData.formato) {
-            errors.value.formato = Array.isArray(errorData.formato) ? errorData.formato[0] : errorData.formato
-          }
-          if (errorData.titulo) {
-            errors.value.titulo = Array.isArray(errorData.titulo) ? errorData.titulo[0] : errorData.titulo
-          }
-          
-          // Show general error if no specific field errors
           if (Object.keys(errors.value).length === 0) {
             Swal.fire({
               icon: 'error',

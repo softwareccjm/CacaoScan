@@ -196,7 +196,7 @@ class AuthenticationTestCase(APITestCase):
     def test_resend_verification(self):
         """Test de reenvío de verificación."""
         # Crear usuario
-        user = User.objects.create_user(
+        User.objects.create_user(
             username='resenduser',
             email='resend@example.com',
             password='ResendPass123'

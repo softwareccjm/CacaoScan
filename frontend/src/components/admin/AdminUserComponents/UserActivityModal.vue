@@ -259,9 +259,9 @@ export default {
       if (activities.value.length === 0) return 'N/A'
       
       const actionCounts = {}
-      activities.value.forEach(activity => {
+      for (const activity of activities.value) {
         actionCounts[activity.accion] = (actionCounts[activity.accion] || 0) + 1
-      })
+      }
       
       const mostCommon = Object.entries(actionCounts)
         .sort(([,a], [,b]) => b - a)[0]
@@ -358,14 +358,14 @@ export default {
         const blob = new Blob([response.data], { 
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
         })
-        const url = window.URL.createObjectURL(blob)
+        const url = globalThis.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
         link.download = `actividad_${props.user.username}_${new Date().toISOString().split('T')[0]}.xlsx`
         document.body.appendChild(link)
         link.click()
         link.remove()
-        window.URL.revokeObjectURL(url)
+        globalThis.URL.revokeObjectURL(url)
         
       } catch (error) {
         console.error('Error exporting activities:', error)

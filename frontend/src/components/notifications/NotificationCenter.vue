@@ -568,6 +568,10 @@ export default {
   padding: 20px;
   border-bottom: 1px solid #ecf0f1;
   background: #f8f9fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 5px;
 }
 
 .header-content {
@@ -705,12 +709,6 @@ export default {
   flex: 1;
 }
 
-.notification-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 5px;
-}
 
 .notification-title {
   margin: 0;

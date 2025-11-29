@@ -119,7 +119,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 
 // 2. Vue router
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 // 3. Components
 import AdminSidebar from '@/components/layout/Common/Sidebar.vue'
@@ -140,7 +140,6 @@ import reportsApi from '@/services/reportsApi'
 
 // 6. Utils
 import Swal from 'sweetalert2'
-import { useRoute } from 'vue-router'
 
 // Router y store
 const router = useRouter()
@@ -199,115 +198,114 @@ const editFarmerModalRef = ref(null)
 const selectedFarmer = ref(null)
 const selectedFarmerForEdit = ref(null)
 
+// Helper functions
+const getUserInitials = (user) => {
+  const names = user.first_name?.split(' ') || user.username?.split(' ') || []
+  return names.length >= 2 
+    ? `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase()
+    : user.username?.substring(0, 2).toUpperCase() || 'AA'
+}
+
+const createFarmerFromUser = (user) => ({
+  id: user.id,
+  initials: getUserInitials(user),
+  name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+  email: user.email,
+  farm: 'Sin finca',
+  hectares: '0 hectáreas',
+  region: user.region || 'No especificada',
+  status: user.is_active ? 'Activo' : 'Inactivo',
+  is_active: user.is_active || false,
+  isUpdating: false,
+  fincas: []
+})
+
+const isFarmer = (user) => {
+  return user.role === 'farmer' || (!user.is_superuser && !user.is_staff && !user.is_admin)
+}
+
+const addUsersToMap = (users, agricultoresMap) => {
+  if (!users) return
+  
+  for (const user of users) {
+    if (isFarmer(user)) {
+      agricultoresMap.set(user.id, createFarmerFromUser(user))
+    }
+  }
+}
+
+const getAgricultorIdsFromFincas = (fincas) => {
+  if (!fincas) return []
+  
+  return Array.from(new Set(
+    fincas
+      .map(f => f.agricultor_id || (f.agricultor?.id) || (typeof f.agricultor === 'number' ? f.agricultor : null))
+      .filter(Boolean)
+  ))
+}
+
+const loadUsersFallback = async (fincas, agricultoresMap) => {
+  const ids = getAgricultorIdsFromFincas(fincas)
+  if (!ids.length) return
+  
+  try {
+    const usersById = await Promise.all(ids.map(id => authApi.getUser(id).catch(() => null)))
+    for (const user of usersById) {
+      if (user) {
+        agricultoresMap.set(user.id, createFarmerFromUser(user))
+      }
+    }
+  } catch (e) {
+    console.warn('Fallback getUser por ID falló parcialmente', e)
+  }
+}
+
+const getAgricultorIdFromFinca = (finca) => {
+  return finca.agricultor_id || finca.agricultor?.id || (typeof finca.agricultor === 'number' ? finca.agricultor : null)
+}
+
+const updateFarmerWithFinca = (existingFarmer, finca) => {
+  if (existingFarmer.fincas.length === 0) {
+    existingFarmer.farm = finca.nombre
+    existingFarmer.hectares = `${finca.hectareas} hectáreas`
+    existingFarmer.region = finca.departamento || existingFarmer.region
+    existingFarmer.status = finca.activa ? 'Activo' : 'Inactivo'
+  }
+  existingFarmer.fincas.push(finca)
+}
+
+const updateFarmersWithFincas = (fincas, agricultoresMap) => {
+  if (!fincas) return
+  
+  for (const finca of fincas) {
+    const agricultorId = getAgricultorIdFromFinca(finca)
+    if (!agricultorId) continue
+    
+    const existingFarmer = agricultoresMap.get(agricultorId)
+    if (existingFarmer) {
+      updateFarmerWithFinca(existingFarmer, finca)
+    }
+  }
+}
+
 // Función para cargar agricultores desde el backend
 const loadFarmers = async () => {
   loading.value = true
   try {
-    // Obtener usuarios y fincas simultáneamente
     const [usersResponse, fincasResponse] = await Promise.all([
       authApi.getUsers({ role: 'farmer' }),
       getFincas({ page_size: 100 })
     ])
     
-    // Crear un mapa de agricultores
     const agricultoresMap = new Map()
     
-    // Primero, agregar todos los agricultores (con o sin fincas)
-    if (usersResponse.results) {
-      for (const user of usersResponse.results) {
-        // Filtrar solo agricultores (no admin, no staff)
-        if (user.role === 'farmer' || (!user.is_superuser && !user.is_staff && !user.is_admin)) {
-          // Obtener iniciales
-          const names = user.first_name?.split(' ') || user.username?.split(' ') || []
-          const initials = names.length >= 2 
-            ? `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase()
-            : user.username?.substring(0, 2).toUpperCase() || 'AA'
-          
-          agricultoresMap.set(user.id, {
-            id: user.id,
-            initials,
-            name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
-            email: user.email,
-            farm: 'Sin finca',
-            hectares: '0 hectáreas',
-            region: user.region || 'No especificada',
-            status: user.is_active ? 'Activo' : 'Inactivo',
-            is_active: user.is_active || false,
-            isUpdating: false,
-            fincas: []
-          })
-        }
-      }
-    }
+    addUsersToMap(usersResponse.results, agricultoresMap)
     
-    // Fallback: si no llegaron usuarios por error 500, obtenerlos por ID desde fincas
-    if ((!usersResponse || !usersResponse.results || usersResponse.results.length === 0) && fincasResponse.results) {
-      const ids = Array.from(new Set(
-        fincasResponse.results
-          .map(f => (f.agricultor_id || (f.agricultor && f.agricultor.id) || (typeof f.agricultor === 'number' ? f.agricultor : null)))
-          .filter(Boolean)
-      ))
-      if (ids.length) {
-        try {
-          const usersById = await Promise.all(ids.map(id => authApi.getUser(id).catch(() => null)))
-          for (const user of usersById) {
-            if (!user) continue
-            const names = user.first_name?.split(' ') || user.username?.split(' ') || []
-            const initials = names.length >= 2 
-              ? `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase()
-              : user.username?.substring(0, 2).toUpperCase() || 'AA'
-            agricultoresMap.set(user.id, {
-              id: user.id,
-              initials,
-              name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
-              email: user.email,
-              farm: 'Sin finca',
-              hectares: '0 hectáreas',
-              region: user.region || 'No especificada',
-              status: user.is_active ? 'Activo' : 'Inactivo',
-              is_active: user.is_active || false,
-              isUpdating: false,
-              fincas: []
-            })
-          }
-        } catch (e) {
-          console.warn('Fallback getUser por ID falló parcialmente', e)
-        }
-      }
+    if ((!usersResponse?.results?.length) && fincasResponse.results) {
+      await loadUsersFallback(fincasResponse.results, agricultoresMap)
     }
 
-    // Luego, actualizar con información de fincas
-    if (fincasResponse.results) {
-      for (const finca of fincasResponse.results) {
-        // Intentar obtener el ID del agricultor de diferentes maneras
-        let agricultorId = null
-        
-        if (finca.agricultor_id) {
-          agricultorId = finca.agricultor_id
-        } else if (finca.agricultor && finca.agricultor.id) {
-          agricultorId = finca.agricultor.id
-        } else if (typeof finca.agricultor === 'number') {
-          agricultorId = finca.agricultor
-        }
-        
-        if (!agricultorId) {
-          continue
-        }
-        
-        const existingFarmer = agricultoresMap.get(agricultorId)
-        if (existingFarmer) {
-          // Actualizar información con la primera finca
-          if (existingFarmer.fincas.length === 0) {
-            existingFarmer.farm = finca.nombre
-            existingFarmer.hectares = `${finca.hectareas} hectáreas`
-            existingFarmer.region = finca.departamento || existingFarmer.region
-            existingFarmer.status = finca.activa ? 'Activo' : 'Inactivo'
-          }
-          
-          existingFarmer.fincas.push(finca)
-        }
-      }
-    }
+    updateFarmersWithFincas(fincasResponse.results, agricultoresMap)
     
     farmers.value = Array.from(agricultoresMap.values())
     allFincas.value = fincasResponse.results || []

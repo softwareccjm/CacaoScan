@@ -469,7 +469,7 @@ def validate_crop_quality(image_rgb: np.ndarray, mask: np.ndarray, min_aspect_ra
     
     # Usar el contorno ms grande
     largest_contour = max(contours, key=cv2.contourArea)
-    x, y, w, h = cv2.boundingRect(largest_contour)
+    _, _, w, h = cv2.boundingRect(largest_contour)
     
     # Validar que el recorte tenga un rea mnima (ms flexible)
     area = w * h

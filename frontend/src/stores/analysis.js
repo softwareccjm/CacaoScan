@@ -77,16 +77,16 @@ export const useAnalysisStore = defineStore('analysis', {
         const formData = new FormData();
 
         // Add batch data
-        Object.entries(this.batch).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(this.batch)) {
           if (value) {
             formData.append(key, value);
           }
-        });
+        }
 
         // Add images
-        this.images.forEach((file) => {
+        for (const file of this.images) {
           formData.append('images', file);
-        });
+        }
 
         // Upload with progress tracking
         // Timeout aumentado a 120 segundos para análisis batch con múltiples imágenes

@@ -458,16 +458,93 @@ const router = createRouter({
 let isNavigating = false
 let navigationTimeout = null
 
+// Helper functions for navigation guard
+const handleGuestRoute = (to, authStore) => {
+  if (!authStore.isAuthenticated) {
+    return null
+  }
+  
+  const redirectPath = getRedirectPathByRole(authStore.userRole)
+  
+  if (redirectPath === to.path) {
+    return true
+  }
+  
+  const routeExists = router.resolve(redirectPath)
+  if (!routeExists.matched.length) {
+    return { path: '/', replace: true }
+  }
+  
+  return { path: redirectPath, replace: true }
+}
+
+const handleAuthRequired = async (to, authStore) => {
+  if (!authStore.accessToken) {
+    return {
+      name: 'Login',
+      replace: true,
+      query: {
+        redirect: to.fullPath,
+        message: 'Debes iniciar sesión para acceder a esta página',
+      },
+    }
+  }
+
+  if (!authStore.user) {
+    try {
+      await authStore.getCurrentUser()
+    } catch (error) {
+      console.error('Error obteniendo usuario en guard:', error)
+      authStore.clearAll()
+      return {
+        name: 'Login',
+        replace: true,
+        query: {
+          redirect: to.fullPath,
+          message: 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+          expired: 'true',
+        },
+      }
+    }
+  }
+
+  if (authStore.checkSessionTimeout()) {
+    return false
+  }
+
+      const requiredRole = to.meta.requiresRole
+      if (requiredRole) {
+        const userRole = authStore.userRole?.toLowerCase().trim()
+        const normalizedRequiredRole = typeof requiredRole === 'string' 
+          ? requiredRole.toLowerCase().trim()
+          : String(requiredRole).toLowerCase().trim()
+    const normalizedUserRole = normalizeRole(userRole)
+
+    if (normalizedUserRole !== normalizedRequiredRole) {
+      return {
+        path: '/acceso-denegado',
+        replace: true,
+        query: {
+          reason: 'insufficient_role',
+          required: normalizedRequiredRole,
+          current: normalizedUserRole,
+        },
+      }
+    }
+  }
+
+  authStore.updateLastActivity()
+  return null
+}
+
 // Guardián global para títulos, loading y configuraciones generales
 // Usando formato moderno "return-based" de Vue Router 4
 router.beforeEach(async (to, from) => {
-  // Limpiar timeout previo si existe
   if (navigationTimeout) {
     clearTimeout(navigationTimeout)
     navigationTimeout = null
   }
 
-  // Prevenir navegación múltiple simultánea (solo si es la misma ruta)
   if (isNavigating && to.path === from.path) {
     return false
   }
@@ -475,125 +552,31 @@ router.beforeEach(async (to, from) => {
   isNavigating = true
 
   try {
-    // Actualizar el título de la página
     document.title = to.meta?.title || 'CacaoScan'
 
-
-    // Mostrar loading SOLO para carga de datos, NO para cambios de vista
-    // COMENTADO: loading durante navegación entre vistas
-    // if (to.path !== from.path && from.name) {
-    //   // Emit loading event
-    //   window.dispatchEvent(
-    //     new CustomEvent('route-loading-start', {
-    //       detail: { to, from },
-    //     }),
-    //   )
-    // }
-
-    // Usar store de autenticación (ya importado estáticamente)
     const authStore = useAuthStore()
 
-    // PRIMERO: Verificar rutas públicas que requieren que el usuario NO esté autenticado
-    // Esto debe ir ANTES de verificar requiresAuth para evitar conflictos
     if (to.meta.requiresGuest || to.matched.some((record) => record.meta.requiresGuest)) {
-      if (authStore.isAuthenticated) {
-        // Redirigir según rol
-        const redirectPath = getRedirectPathByRole(authStore.userRole)
-
-        // Evitar bucle infinito: si la ruta de redirección es la misma que la actual
-        if (redirectPath === to.path) {
-          return true
-        }
-
-        // Verificar que la ruta de redirección existe
-        const routeExists = router.resolve(redirectPath)
-        if (!routeExists.matched.length) {
-          return { path: '/', replace: true }
-        }
-
-        return { path: redirectPath, replace: true }
+      const guestResult = handleGuestRoute(to, authStore)
+      if (guestResult !== null) {
+        return guestResult
       }
     }
 
-    // SEGUNDO: Verificar estado de autenticación si se requiere
     if (to.meta.requiresAuth || to.matched.some((record) => record.meta.requiresAuth)) {
-      // Si no hay token, redirigir al login
-      if (!authStore.accessToken) {
-        return {
-          name: 'Login',
-          replace: true,
-          query: {
-            redirect: to.fullPath,
-            message: 'Debes iniciar sesión para acceder a esta página',
-          },
-        }
+      const authResult = await handleAuthRequired(to, authStore)
+      if (authResult !== null) {
+        return authResult
       }
-
-      // Si hay token pero no hay usuario, intentar obtenerlo
-      if (!authStore.user) {
-        try {
-          await authStore.getCurrentUser()
-        } catch (error) {
-          // Error al obtener usuario: limpiar estado y redirigir al login
-          // Esto previene estados inconsistentes cuando el token es inválido
-          console.error('Error obteniendo usuario en guard:', error)
-          authStore.clearAll()
-          return {
-            name: 'Login',
-            replace: true,
-            query: {
-              redirect: to.fullPath,
-              message: 'Tu sesión ha expirado. Inicia sesión nuevamente.',
-              expired: 'true',
-            },
-          }
-        }
-      }
-
-      // Verificar si la sesión ha expirado por inactividad
-      if (authStore.checkSessionTimeout()) {
-        // La sesión ha expirado, abortar navegación
-        return false
-      }
-
-      // NUEVO: Verificar rol requerido si la ruta lo especifica
-      // Solo verificar el requiresRole de la ruta actual, no de las rutas padres
-      const requiredRole = to.meta.requiresRole
-      if (requiredRole) {
-        const userRole = authStore.userRole?.toLowerCase().trim()
-        const roleString = typeof requiredRole === 'string' ? requiredRole : String(requiredRole)
-        const normalizedRequiredRole = roleString.toLowerCase().trim()
-
-        const normalizedUserRole = normalizeRole(userRole)
-
-        // Verificar si el usuario tiene el rol requerido
-        if (normalizedUserRole !== normalizedRequiredRole) {
-          return {
-            path: '/acceso-denegado',
-            replace: true,
-            query: {
-              reason: 'insufficient_role',
-              required: normalizedRequiredRole,
-              current: normalizedUserRole,
-            },
-          }
-        }
-      }
-
-      // Actualizar actividad del usuario
-      authStore.updateLastActivity()
     }
 
-    // Permitir navegación (return undefined o true)
     return true
   } catch (error) {
     return { path: '/acceso-denegado', replace: true }
   } finally {
-    // Pequeño delay para mejor UX y resetear flag
     navigationTimeout = setTimeout(() => {
       isNavigating = false
       navigationTimeout = null
-      // Emit loading end event
       globalThis.dispatchEvent(new CustomEvent('route-loading-end'))
     }, 100)
   }

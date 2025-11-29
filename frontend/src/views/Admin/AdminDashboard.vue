@@ -120,7 +120,6 @@ import KPICards from '@/components/admin/AdminDashboardComponents/KPICards.vue'
 import DashboardCharts from '@/components/admin/AdminDashboardComponents/DashboardCharts.vue'
 import DashboardTables from '@/components/admin/AdminDashboardComponents/DashboardTables.vue'
 import DashboardAlerts from '@/components/admin/AdminDashboardComponents/DashboardAlerts.vue'
-import LoadingSpinner from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 // 4. Stores
 import { useAuthStore } from '@/stores/auth'

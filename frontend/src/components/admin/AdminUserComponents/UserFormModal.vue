@@ -387,7 +387,7 @@ const initializeForm = () => {
     formData.is_superuser = props.user.is_superuser || false
     formData.notes = props.user.notes || ''
   } else {
-    Object.keys(formData).forEach(key => {
+    for (const key of Object.keys(formData)) {
       if (key === 'is_active') {
         formData[key] = true
       } else if (key.startsWith('is_')) {
@@ -395,13 +395,11 @@ const initializeForm = () => {
       } else {
         formData[key] = ''
       }
-    })
+    }
   }
 }
 
-const validateForm = () => {
-  clearErrors()
-
+const validateBasicFields = () => {
   if (!formData.username.trim()) {
     setError('username', 'El nombre de usuario es requerido')
   } else if (formData.username.length < 3) {
@@ -425,31 +423,47 @@ const validateForm = () => {
   if (!formData.role) {
     setError('role', 'El rol es requerido')
   }
+}
 
-  if (props.mode === 'create') {
-    if (!formData.password) {
-      setError('password', 'La contraseña es requerida')
-    } else if (formData.password.length < 8) {
-      setError('password', 'La contraseña debe tener al menos 8 caracteres')
-    }
-
-    if (!formData.password_confirm) {
-      setError('password_confirm', 'La confirmación de contraseña es requerida')
-    } else if (formData.password !== formData.password_confirm) {
-      setError('password_confirm', 'Las contraseñas no coinciden')
-    }
+const validateCreatePassword = () => {
+  if (!formData.password) {
+    setError('password', 'La contraseña es requerida')
+  } else if (formData.password.length < 8) {
+    setError('password', 'La contraseña debe tener al menos 8 caracteres')
   }
 
-  if (props.mode === 'edit' && formData.new_password) {
-    if (formData.new_password.length < 8) {
-      setError('new_password', 'La contraseña debe tener al menos 8 caracteres')
-    }
+  if (!formData.password_confirm) {
+    setError('password_confirm', 'La confirmación de contraseña es requerida')
+  } else if (formData.password !== formData.password_confirm) {
+    setError('password_confirm', 'Las contraseñas no coinciden')
+  }
+}
 
-    if (!formData.new_password_confirm) {
-      setError('new_password_confirm', 'La confirmación de contraseña es requerida')
-    } else if (formData.new_password !== formData.new_password_confirm) {
-      setError('new_password_confirm', 'Las contraseñas no coinciden')
-    }
+const validateEditPassword = () => {
+  if (!formData.new_password) {
+    return
+  }
+
+  if (formData.new_password.length < 8) {
+    setError('new_password', 'La contraseña debe tener al menos 8 caracteres')
+  }
+
+  if (!formData.new_password_confirm) {
+    setError('new_password_confirm', 'La confirmación de contraseña es requerida')
+  } else if (formData.new_password !== formData.new_password_confirm) {
+    setError('new_password_confirm', 'Las contraseñas no coinciden')
+  }
+}
+
+const validateForm = () => {
+  clearErrors()
+
+  validateBasicFields()
+
+  if (props.mode === 'create') {
+    validateCreatePassword()
+  } else {
+    validateEditPassword()
   }
 
   if (formData.phone && !isValidPhone(formData.phone)) {
@@ -457,6 +471,43 @@ const validateForm = () => {
   }
 
   return Object.keys(errors).length === 0
+}
+
+const buildUserData = () => {
+  const userData = {
+    username: formData.username.trim(),
+    email: formData.email.trim(),
+    first_name: formData.first_name.trim(),
+    last_name: formData.last_name.trim(),
+    role: formData.role,
+    phone: formData.phone.trim(),
+    location: formData.location.trim(),
+    organization: formData.organization.trim(),
+    is_active: formData.is_active,
+    is_staff: formData.is_staff,
+    is_superuser: formData.is_superuser,
+    notes: formData.notes.trim()
+  }
+
+  if (props.mode === 'create') {
+    userData.password = formData.password
+  } else if (formData.new_password) {
+    userData.password = formData.new_password
+  }
+
+  return userData
+}
+
+const processUserErrors = (errorData) => {
+  if (errorData.username) {
+    setError('username', Array.isArray(errorData.username) ? errorData.username[0] : errorData.username)
+  }
+  if (errorData.email) {
+    setError('email', Array.isArray(errorData.email) ? errorData.email[0] : errorData.email)
+  }
+  if (errorData.password) {
+    setError('password', Array.isArray(errorData.password) ? errorData.password[0] : errorData.password)
+  }
 }
 
 const saveUser = async () => {
@@ -468,35 +519,10 @@ const saveUser = async () => {
   clearErrors()
 
   try {
-    const userData = {
-      username: formData.username.trim(),
-      email: formData.email.trim(),
-      first_name: formData.first_name.trim(),
-      last_name: formData.last_name.trim(),
-      role: formData.role,
-      phone: formData.phone.trim(),
-      location: formData.location.trim(),
-      organization: formData.organization.trim(),
-      is_active: formData.is_active,
-      is_staff: formData.is_staff,
-      is_superuser: formData.is_superuser,
-      notes: formData.notes.trim()
-    }
-
-    if (props.mode === 'create') {
-      userData.password = formData.password
-    }
-
-    if (props.mode === 'edit' && formData.new_password) {
-      userData.password = formData.new_password
-    }
-
-    let response
-    if (props.mode === 'create') {
-      response = await adminStore.createUser(userData)
-    } else {
-      response = await adminStore.updateUser(props.user.id, userData)
-    }
+    const userData = buildUserData()
+    const response = props.mode === 'create'
+      ? await adminStore.createUser(userData)
+      : await adminStore.updateUser(props.user.id, userData)
 
     await Swal.fire({
       icon: 'success',
@@ -511,16 +537,7 @@ const saveUser = async () => {
     
     if (error.response?.data) {
       const errorData = error.response.data
-      
-      if (errorData.username) {
-        setError('username', Array.isArray(errorData.username) ? errorData.username[0] : errorData.username)
-      }
-      if (errorData.email) {
-        setError('email', Array.isArray(errorData.email) ? errorData.email[0] : errorData.email)
-      }
-      if (errorData.password) {
-        setError('password', Array.isArray(errorData.password) ? errorData.password[0] : errorData.password)
-      }
+      processUserErrors(errorData)
       
       if (Object.keys(errors).length === 0) {
         await Swal.fire({

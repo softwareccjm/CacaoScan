@@ -235,7 +235,6 @@ import UserActivityModal from '@/components/admin/AdminUserComponents/UserActivi
 import UsersStatsCards from '@/components/admin/AdminUserComponents/UsersStatsCards.vue'
 import UsersSearchBar from '@/components/admin/AdminUserComponents/UsersSearchBar.vue'
 import UsersTable from '@/components/admin/AdminUserComponents/UsersTable.vue'
-import LoadingSpinner from '@/components/admin/AdminGeneralComponents/LoadingSpinner.vue'
 
 // 7. Libraries
 import Swal from 'sweetalert2'
@@ -556,11 +555,11 @@ const loadUserStats = async () => {
         await Promise.all(promises)
 
         // Update local state
-        users.value.forEach(user => {
+        for (const user of users.value) {
           if (selectedUsers.value.includes(user.id)) {
             user.is_active = true
           }
-        })
+        }
 
         selectedUsers.value = []
         selectAll.value = false
@@ -590,11 +589,11 @@ const loadUserStats = async () => {
         await Promise.all(promises)
 
         // Update local state
-        users.value.forEach(user => {
+        for (const user of users.value) {
           if (selectedUsers.value.includes(user.id)) {
             user.is_active = false
           }
-        })
+        }
 
         selectedUsers.value = []
         selectAll.value = false

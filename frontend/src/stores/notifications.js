@@ -111,10 +111,10 @@ export const useNotificationsStore = defineStore('notifications', {
         await api.post('/notifications/mark-all-read/')
         
         // Actualizar estado local
-        this.notifications.forEach(notification => {
+        for (const notification of this.notifications) {
           notification.leida = true
           notification.fecha_lectura = new Date().toISOString()
-        })
+        }
         this.unreadCount = 0
         
         return true
@@ -166,7 +166,7 @@ export const useNotificationsStore = defineStore('notifications', {
       // Verificar si la notificación ya existe
       const existingIndex = this.notifications.findIndex(n => n.id === notification.id)
       
-      if (existingIndex !== -1) {
+      if (existingIndex >= 0) {
         // Actualizar notificación existente
         this.notifications[existingIndex] = notification
       } else {

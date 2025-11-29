@@ -862,7 +862,7 @@ class Command(BaseCommand):
                 try:
                     # En Windows, ejecutar en segundo plano sin mostrar ventana
                     if platform.system() == 'Windows':
-                        process = subprocess.Popen(
+                        subprocess.Popen(
                             [redis_path],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
