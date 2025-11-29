@@ -57,98 +57,115 @@ export const useConfigStore = defineStore('config', {
   },
 
   actions: {
+    async _loadAuthStore() {
+      try {
+        const { useAuthStore } = await import('@/stores/auth')
+        return useAuthStore()
+      } catch (err) {
+        console.warn('No se pudo cargar authStore, usando permisos mínimos')
+        return null
+      }
+    },
+
+    _canAccessConfig(authStore) {
+      const isAdmin = authStore?.isAdmin || false
+      const isAnalyst = authStore?.isAnalyst || false
+      return isAdmin || isAnalyst
+    },
+
+    _buildConfigPromises(canAccessConfig) {
+      const promises = [configApi.getSystemConfig()]
+      if (canAccessConfig) {
+        promises.push(
+          configApi.getGeneralConfig(),
+          configApi.getSecurityConfig(),
+          configApi.getMLConfig()
+        )
+      }
+      return promises
+    },
+
+    _processConfigResults(results, canAccessConfig) {
+      if (canAccessConfig && results.length === 4) {
+        return {
+          general: results[0],
+          security: results[1],
+          ml: results[2],
+          system: results[3]
+        }
+      }
+      return {
+        general: null,
+        security: null,
+        ml: null,
+        system: results[0]
+      }
+    },
+
+    _updateConfigState(general, security, ml, system) {
+      if (general && typeof general === 'object' && Object.keys(general).length > 0) {
+        this.general = {
+          nombre_sistema: general.nombre_sistema || 'CacaoScan',
+          email_contacto: general.email_contacto || 'contacto@cacaoscan.com',
+          lema: general.lema || 'La mejor plataforma para el control de calidad del cacao',
+          logo_url: general.logo_url
+        }
+      }
+      
+      if (security && typeof security === 'object' && Object.keys(security).length > 0) {
+        this.security = {
+          recaptcha_enabled: security.recaptcha_enabled ?? true,
+          session_timeout: security.session_timeout || 60,
+          login_attempts: security.login_attempts || 5,
+          two_factor_auth: security.two_factor_auth ?? false
+        }
+      }
+      
+      if (ml && typeof ml === 'object' && Object.keys(ml).length > 0) {
+        this.ml = {
+          active_model: ml.active_model || 'yolov8',
+          last_training: ml.last_training || null
+        }
+      }
+      
+      if (system && typeof system === 'object' && Object.keys(system).length > 0) {
+        this.system = {
+          version: system.version || '1.0.0',
+          server_status: system.server_status || 'online',
+          backend_version: system.backend_version || '4.2.7',
+          frontend_version: system.frontend_version || '3.5.3',
+          database: system.database || 'PostgreSQL 16'
+        }
+      }
+    },
+
     // Cargar todas las configuraciones (respetando permisos por rol)
     async loadAll() {
       this.loading = true
       try {
-        // Importar dinámicamente el authStore para evitar dependencias circulares
-        let authStore = null
-        try {
-          const { useAuthStore } = await import('@/stores/auth')
-          authStore = useAuthStore()
-        } catch (err) {
-          // Si no se puede cargar el store, asumir rol mínimo
-          console.warn('No se pudo cargar authStore, usando permisos mínimos')
-        }
+        const authStore = await this._loadAuthStore()
+        const canAccessConfig = this._canAccessConfig(authStore)
 
-        // Determinar qué permisos tiene el usuario
-        const isAdmin = authStore?.isAdmin || false
-        const isAnalyst = authStore?.isAnalyst || false
-        const canAccessConfig = isAdmin || isAnalyst
+        console.log('🔐 Cargando configuración con permisos:', {
+          isAdmin: authStore?.isAdmin || false,
+          isAnalyst: authStore?.isAnalyst || false,
+          canAccessConfig
+        })
 
-        console.log('🔐 Cargando configuración con permisos:', { isAdmin, isAnalyst, canAccessConfig })
-
-        // Cargar configuraciones según permisos
-        const promises = [configApi.getSystemConfig()] // Siempre cargar sistema
-
-        // Solo admin/analyst pueden acceder a configuraciones avanzadas
-        if (canAccessConfig) {
-          promises.push(
-            configApi.getGeneralConfig(),
-            configApi.getSecurityConfig(),
-            configApi.getMLConfig()
-          )
-        }
-
+        const promises = this._buildConfigPromises(canAccessConfig)
         const results = await Promise.all(promises)
+        const configs = this._processConfigResults(results, canAccessConfig)
         
-        // Procesar resultados según cantidad
-        let general, security, ml, system
-        if (canAccessConfig && results.length === 4) {
-          [general, security, ml, system] = results
-        } else {
-          system = results[0]
-          general = null
-          security = null
-          ml = null
-        }
-        
-        // Actualizar estado si hay datos (ignorar si es null)
-        if (general && typeof general === 'object' && Object.keys(general).length > 0) {
-          this.general = {
-            nombre_sistema: general.nombre_sistema || 'CacaoScan',
-            email_contacto: general.email_contacto || 'contacto@cacaoscan.com',
-            lema: general.lema || 'La mejor plataforma para el control de calidad del cacao',
-            logo_url: general.logo_url
-          }
-        }
-        
-        if (security && typeof security === 'object' && Object.keys(security).length > 0) {
-          this.security = {
-            recaptcha_enabled: security.recaptcha_enabled ?? true,
-            session_timeout: security.session_timeout || 60,
-            login_attempts: security.login_attempts || 5,
-            two_factor_auth: security.two_factor_auth ?? false
-          }
-        }
-        
-        if (ml && typeof ml === 'object' && Object.keys(ml).length > 0) {
-          this.ml = {
-            active_model: ml.active_model || 'yolov8',
-            last_training: ml.last_training || null
-          }
-        }
-        
-        if (system && typeof system === 'object' && Object.keys(system).length > 0) {
-          this.system = {
-            version: system.version || '1.0.0',
-            server_status: system.server_status || 'online',
-            backend_version: system.backend_version || '4.2.7',
-            frontend_version: system.frontend_version || '3.5.3',
-            database: system.database || 'PostgreSQL 16'
-          }
-        }
+        this._updateConfigState(configs.general, configs.security, configs.ml, configs.system)
         
         this.lastUpdate = new Date()
         console.log('✅ Configuración del sistema cargada:', this.brandName)
         
         return { success: true, loaded: true }
       } catch (error) {
-        // Solo registrar errores inesperados (no 403 o 500)
         if (error.response?.status !== 403 && error.response?.status !== 500) {
           console.error('Error inesperado cargando configuración:', error)
         }
-        // Usar valores por defecto en caso de error
         return { success: false, loaded: false, error: error.message }
       } finally {
         this.loading = false

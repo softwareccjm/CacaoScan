@@ -341,52 +341,50 @@ class ImprovedCacaoDataset(Dataset):
         
         logger.info(f"Formato de imágenes: {bmp_count} .bmp, {png_count} .png, {other_count} otros")
     
+    def _find_normalize_transform(self, transforms_list) -> Optional[transforms.Normalize]:
+        """Busca una transformación Normalize en la lista de transformaciones."""
+        transform_items = transforms_list.transforms if hasattr(transforms_list, 'transforms') else [transforms_list]
+        
+        for t in transform_items:
+            if isinstance(t, transforms.Compose):
+                found = self._find_normalize_transform(t)
+                if found is not None:
+                    return found
+            elif isinstance(t, transforms.Normalize):
+                return t
+        
+        return None
+    
+    def _validate_normalization_params(self, normalize_transform: transforms.Normalize) -> bool:
+        """Valida que los parámetros de normalización coincidan con ImageNet estándar."""
+        expected_mean = [0.485, 0.456, 0.406]
+        expected_std = [0.229, 0.224, 0.225]
+        
+        mean_match = all(abs(m - e) < 0.01 for m, e in zip(normalize_transform.mean, expected_mean))
+        std_match = all(abs(s - e) < 0.01 for s, e in zip(normalize_transform.std, expected_std))
+        
+        return mean_match and std_match
+    
     def _validate_transform(self) -> None:
         """Valida que las transformaciones incluyan normalización ImageNet."""
-        # Buscar normalización ImageNet en las transformaciones
-        has_normalize = False
-        normalize_mean = None
-        normalize_std = None
+        normalize_transform = self._find_normalize_transform(self.transform)
         
-        def check_transform(t):
-            nonlocal has_normalize, normalize_mean, normalize_std
-            if isinstance(t, transforms.Normalize):
-                has_normalize = True
-                normalize_mean = t.mean
-                normalize_std = t.std
-        
-        def traverse_transforms(transforms_list):
-            for t in transforms_list.transforms if hasattr(transforms_list, 'transforms') else [transforms_list]:
-                if isinstance(t, transforms.Compose):
-                    traverse_transforms(t)
-                else:
-                    check_transform(t)
-        
-        traverse_transforms(self.transform)
-        
-        if not has_normalize:
+        if normalize_transform is None:
             logger.warning(
                 "⚠️ Las transformaciones no incluyen normalización ImageNet. "
                 "Se recomienda agregar transforms.Normalize con mean=[0.485, 0.456, 0.406], "
                 "std=[0.229, 0.224, 0.225]"
             )
+            return
+        
+        if not self._validate_normalization_params(normalize_transform):
+            logger.warning(
+                f"⚠️ Parámetros de normalización diferentes a ImageNet estándar. "
+                f"Esperado: mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]. "
+                f"Obtenido: mean={normalize_transform.mean}, std={normalize_transform.std}"
+            )
         else:
-            expected_mean = [0.485, 0.456, 0.406]
-            expected_std = [0.229, 0.224, 0.225]
-            
-            # Since has_normalize is True, normalize_mean and normalize_std should be set
-            # Validate normalization parameters match ImageNet standard
-            mean_match = all(abs(m - e) < 0.01 for m, e in zip(normalize_mean, expected_mean))
-            std_match = all(abs(s - e) < 0.01 for s, e in zip(normalize_std, expected_std))
-            
-            if not (mean_match and std_match):
-                logger.warning(
-                    f"⚠️ Parámetros de normalización diferentes a ImageNet estándar. "
-                    f"Esperado: mean={expected_mean}, std={expected_std}. "
-                    f"Obtenido: mean={normalize_mean}, std={normalize_std}"
-                )
-            else:
-                logger.debug("✅ Normalización ImageNet validada correctamente")
+            logger.debug("✅ Normalización ImageNet validada correctamente")
     
     def __len__(self) -> int:
         return len(self.image_paths)

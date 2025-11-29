@@ -793,14 +793,14 @@ export default {
 }
 
 .btn-primary {
-  background-color: #3b82f6;
+  background-color: #2563eb;
   color: #ffffff;
-  border-color: #3b82f6;
+  border-color: #2563eb;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: #1e3a8a;
+  border-color: #1e3a8a;
 }
 
 .btn-outline {
@@ -815,15 +815,15 @@ export default {
 }
 
 .btn-success {
-  background-color: #10b981;
+  background-color: #047857;
   color: #ffffff;
-  border-color: #10b981;
+  border-color: #047857;
   position: relative;
 }
 
 .btn-success:hover:not(:disabled) {
-  background-color: #059669;
-  border-color: #059669;
+  background-color: #065f46;
+  border-color: #065f46;
 }
 
 /* Responsive */

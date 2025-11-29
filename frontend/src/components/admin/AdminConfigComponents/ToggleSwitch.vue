@@ -12,7 +12,7 @@
         :id="id"
         type="button"
         role="switch"
-        :aria-checked="modelValue ? 'true' : 'false'"
+        :aria-checked="ariaChecked"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out',
           'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
@@ -36,6 +36,8 @@
 </template>
 
 <script>
+import { computed } from 'vue'
+
 export default {
   name: 'ToggleSwitch',
   props: {
@@ -72,13 +74,17 @@ export default {
   setup(props, { emit }) {
     const id = `toggle-${Math.random().toString(36).substr(2, 9)}`
     
+    const ariaChecked = computed(() => {
+      return props.modelValue === true ? 'true' : 'false'
+    })
+    
     const toggle = () => {
       if (!props.disabled) {
         emit('update:modelValue', !props.modelValue)
       }
     }
     
-    return { id, toggle }
+    return { id, toggle, ariaChecked }
   }
 }
 </script>

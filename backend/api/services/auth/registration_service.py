@@ -253,6 +253,50 @@ class RegistrationService(BaseService):
                 ValidationServiceError("Error interno durante el registro", details={"original_error": str(e)})
             )
     
+    def _validate_pre_registration_data(self, user_data: Dict[str, Any]) -> ServiceResult:
+        """Valida los datos de pre-registro."""
+        email = user_data.get('email')
+        password = user_data.get('password')
+        
+        if not email or not password:
+            return ServiceResult.validation_error(
+                "Email y contraseña son requeridos",
+                details={"field": "email" if not email else "password"}
+            )
+        
+        try:
+            from core.utils import validate_password_strength
+            validate_password_strength(password, raise_serializer_error=False)
+        except Exception as e:
+            from core.utils import PasswordValidationError
+            if isinstance(e, PasswordValidationError):
+                return ServiceResult.validation_error(
+                    e.message,
+                    details={"field": "password"}
+                )
+            raise
+        
+        if User.objects.filter(email=email).exists():
+            return ServiceResult.validation_error(
+                ERROR_EMAIL_ALREADY_REGISTERED,
+                details={"field": "email"}
+            )
+        
+        return None
+    
+    def _handle_existing_pending_registration(self, existing_pending, email: str) -> Optional[ServiceResult]:
+        """Maneja un registro pendiente existente."""
+        if not existing_pending.is_expired():
+            email_result = self._send_pre_registration_verification_email(existing_pending)
+            if email_result.get('success'):
+                return ServiceResult.success(
+                    data={'email': email},
+                    message="Se ha reenviado el enlace de verificación a tu correo electrónico."
+                )
+        else:
+            existing_pending.delete()
+        return None
+    
     def pre_register_user(self, user_data: Dict[str, Any], request=None) -> ServiceResult:
         """
         Pre-registers a user (creates pending registration without creating final user).
@@ -265,66 +309,29 @@ class RegistrationService(BaseService):
         Returns:
             ServiceResult with pending registration data
         """
-        # Suppress unused parameter warning - request reservado para uso futuro
         _ = request
         try:
             from personas.models import PendingRegistration
             
-            # Validate required fields
+            validation_error = self._validate_pre_registration_data(user_data)
+            if validation_error:
+                return validation_error
+            
             email = user_data.get('email')
-            password = user_data.get('password')
             
-            if not email or not password:
-                return ServiceResult.validation_error(
-                    "Email y contraseña son requeridos",
-                    details={"field": "email" if not email else "password"}
-                )
-            
-            # Validate password strength
-            try:
-                from core.utils import validate_password_strength
-                validate_password_strength(password, raise_serializer_error=False)
-            except Exception as e:
-                from core.utils import PasswordValidationError
-                if isinstance(e, PasswordValidationError):
-                    return ServiceResult.validation_error(
-                        e.message,
-                        details={"field": "password"}
-                    )
-                raise
-            
-            # Validate unique email
-            if User.objects.filter(email=email).exists():
-                return ServiceResult.validation_error(
-                    ERROR_EMAIL_ALREADY_REGISTERED,
-                    details={"field": "email"}
-                )
-            
-            # Check if pending registration already exists
             existing_pending = PendingRegistration.objects.filter(email=email, is_verified=False).first()
             if existing_pending:
-                # If token hasn't expired, resend email
-                if not existing_pending.is_expired():
-                    email_result = self._send_pre_registration_verification_email(existing_pending)
-                    if email_result.get('success'):
-                        return ServiceResult.success(
-                            data={'email': email},
-                            message="Se ha reenviado el enlace de verificación a tu correo electrónico."
-                        )
-                else:
-                    # Delete expired registration
-                    existing_pending.delete()
+                result = self._handle_existing_pending_registration(existing_pending, email)
+                if result:
+                    return result
             
-            # Create new pending registration
             pending_reg = PendingRegistration.objects.create(
                 email=email,
                 data=user_data
             )
             
-            # Send verification email
             email_result = self._send_pre_registration_verification_email(pending_reg)
             if not email_result.get('success'):
-                # Delete pending registration if email fails
                 pending_reg.delete()
                 return ServiceResult.error(
                     ValidationServiceError(

@@ -621,6 +621,7 @@ export default {
 
 .filter-tab:hover {
   background-color: #e9ecef;
+  color: #212529;
 }
 
 .filter-tab.active {
@@ -741,7 +742,7 @@ export default {
 
 .extra-item {
   font-size: 0.8rem;
-  color: #6c757d;
+  color: #495057;
   background: #f8f9fa;
   padding: 2px 6px;
   border-radius: 3px;
@@ -787,7 +788,7 @@ export default {
 }
 
 .page-link:hover {
-  color: #2980b9;
+  color: #1e5a8a;
   background-color: #e9ecef;
   border-color: #dee2e6;
 }

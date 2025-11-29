@@ -52,6 +52,88 @@ class CacaoCropper:
         if self.save_masks:
             ensure_dir_exists(get_masks_dir())
     
+    def _should_skip_processing(self, crop_path: Path, image_path: Path, force_process: bool) -> bool:
+        """Determina si se debe saltar el procesamiento."""
+        if force_process or self.overwrite or not crop_path.exists():
+            return False
+        return not self._should_reprocess(image_path, crop_path)
+    
+    def _get_yolo_prediction_with_fallback(self, image_path: Path) -> Optional[Dict[str, Any]]:
+        """Obtiene predicción YOLO, intentando con umbrales más bajos si es necesario."""
+        prediction = self.yolo_inference.get_best_prediction(image_path)
+        
+        if prediction:
+            return prediction
+        
+        logger.warning(f"YOLO no detectó grano en {image_path.name}. Intentando con umbrales más bajos...")
+        lower_thresholds = [0.25, 0.2, 0.15, 0.1]
+        
+        for lower_threshold in lower_thresholds:
+            predictions_low = self.yolo_inference.predict(image_path, conf_threshold=lower_threshold)
+            if predictions_low:
+                best_pred = max(predictions_low, key=lambda p: p['confidence'] * p.get('area', 1))
+                if best_pred['confidence'] >= lower_threshold * 0.7:
+                    logger.info(f"Detección encontrada con umbral {lower_threshold}, confianza: {best_pred['confidence']:.2f}")
+                    return best_pred
+        
+        return None
+    
+    def _validate_prediction_quality(self, prediction: Dict[str, Any], image_path: Path) -> None:
+        """Valida la calidad de la predicción y emite advertencias si es necesario."""
+        if prediction['confidence'] < 0.5:
+            logger.warning(
+                f"Predicción YOLO con confianza baja ({prediction['confidence']:.2f}) para {image_path.name}. "
+                f"Se recomienda mejorar la imagen o el modelo YOLO."
+            )
+        
+        mask_area = np.sum(prediction['mask'] > 0.5) if prediction.get('mask') is not None else 0
+        if mask_area < 100:
+            logger.warning(f"Máscara muy pequeña ({mask_area} píxeles) para {image_path.name}")
+    
+    def _prepare_mask(self, mask: np.ndarray, image_height: int, image_width: int) -> np.ndarray:
+        """Redimensiona y normaliza la máscara al tamaño de la imagen."""
+        mask_height, mask_width = mask.shape[:2]
+        
+        if mask_height != image_height or mask_width != image_width:
+            mask = cv2.resize(mask, (image_width, image_height), interpolation=cv2.INTER_LINEAR)
+            logger.debug(f"Máscara redimensionada de {mask_width}x{mask_height} a {image_width}x{image_height}")
+        
+        if mask.dtype != np.uint8:
+            if mask.max() <= 1.0:
+                mask = (mask * 255).astype(np.uint8)
+            else:
+                mask = mask.astype(np.uint8)
+        elif mask.max() > 1:
+            mask = np.clip(mask, 0, 255).astype(np.uint8)
+        
+        return mask
+    
+    def _create_and_save_crop(self, image_rgb: np.ndarray, mask: np.ndarray, crop_path: Path, mask_path: Optional[Path]) -> None:
+        """Crea y guarda el crop y la máscara si es necesario."""
+        from ..data.transforms import validate_crop_quality, create_transparent_crop
+        
+        try:
+            is_valid = validate_crop_quality(
+                image_rgb, 
+                mask, 
+                min_aspect_ratio=0.05,
+                max_aspect_ratio=20.0,
+                min_area=50
+            )
+            if not is_valid:
+                logger.warning(f"Validación de crop falló, pero continuando...")
+        except Exception as e:
+            logger.warning(f"Error en validación de crop: {e}, continuando...")
+        
+        transparent_crop = create_transparent_crop(image_rgb, mask, padding=0, crop_only=True)
+        pil_crop = Image.fromarray(transparent_crop, 'RGBA')
+        save_image(pil_crop, crop_path)
+        
+        if self.save_masks and mask_path:
+            mask_normalized = (mask * 255).astype(np.uint8)
+            pil_mask = Image.fromarray(mask_normalized, 'L')
+            save_image(pil_mask, mask_path)
+    
     def process_image(
         self,
         image_path: Path,
@@ -72,131 +154,43 @@ class CacaoCropper:
         crop_path = get_crops_dir() / f"{image_id}.png"
         mask_path = get_masks_dir() / f"{image_id}.png" if self.save_masks else None
         
-        if not force_process and not self.overwrite and crop_path.exists():
-            # Verificar si la imagen original es más nueva
-            if not self._should_reprocess(image_path, crop_path):
-                logger.debug(f"Crop ya existe para ID {image_id}, saltando")
-                return {
-                    'success': True,
-                    'skipped': True,
-                    'crop_path': crop_path,
-                    'mask_path': mask_path,
-                    'message': 'Crop ya existe y no necesita reprocesamiento'
-                }
+        if self._should_skip_processing(crop_path, image_path, force_process):
+            logger.debug(f"Crop ya existe para ID {image_id}, saltando")
+            return {
+                'success': True,
+                'skipped': True,
+                'crop_path': crop_path,
+                'mask_path': mask_path,
+                'message': 'Crop ya existe y no necesita reprocesamiento'
+            }
         
         try:
-            # --- INICIO DE CORRECCIÓN ---
-            # Si YOLO está desactivado o no se inicializó, saltar al fallback
             if not self.yolo_inference or not self.enable_yolo:
                 logger.info(f"YOLO desactivado para ID {image_id}. Usando fallback OpenCV...")
                 return self._process_with_opencv_fallback(image_path, image_id)
-            # --- FIN DE CORRECCIÓN ---
 
-            # Realizar inferencia YOLO
             if self.yolo_inference is None:
                 raise ValueError("YOLO inference no está inicializado")
             
-            prediction = self.yolo_inference.get_best_prediction(image_path)
-            
+            prediction = self._get_yolo_prediction_with_fallback(image_path)
             if not prediction:
-                # Intentar con umbrales progresivamente ms bajos
-                logger.warning(f"YOLO no detect grano en {image_path.name}. Intentando con umbrales ms bajos...")
-                lower_thresholds = [0.25, 0.2, 0.15, 0.1]
-                
-                for lower_threshold in lower_thresholds:
-                    predictions_low = self.yolo_inference.predict(image_path, conf_threshold=lower_threshold)
-                    if predictions_low:
-                        # Filtrar la mejor prediccin (ms confianza y mayor rea)
-                        best_pred = max(predictions_low, key=lambda p: p['confidence'] * p.get('area', 1))
-                        
-                        # Solo aceptar si tiene un mnimo de confianza
-                        if best_pred['confidence'] >= lower_threshold * 0.7:
-                            prediction = best_pred
-                            logger.info(f"Deteccin encontrada con umbral {lower_threshold}, confianza: {best_pred['confidence']:.2f}")
-                            break
-                
-                if not prediction:
-                    return {
-                        'success': False,
-                        'error': 'No se encontraron detecciones incluso con umbral mnimo (0.1)',
-                        'crop_path': None,
-                        'mask_path': None
-                    }
+                return {
+                    'success': False,
+                    'error': 'No se encontraron detecciones incluso con umbral mínimo (0.1)',
+                    'crop_path': None,
+                    'mask_path': None
+                }
             
-            # Validar calidad de la prediccin
-            # Aceptar predicciones con confianza razonable, pero advertir si es baja
-            if prediction['confidence'] < 0.5:
-                logger.warning(
-                    f"Prediccin YOLO con confianza baja ({prediction['confidence']:.2f}) para {image_path.name}. "
-                    f"Se recomienda mejorar la imagen o el modelo YOLO."
-                )
-            
-            # Verificar que la mscara tenga contenido significativo
-            mask_area = np.sum(prediction['mask'] > 0.5) if prediction.get('mask') is not None else 0
-            if mask_area < 100:  # Mnimo de pxeles
-                logger.warning(f"Mscara muy pequea ({mask_area} pxeles) para {image_path.name}")
+            self._validate_prediction_quality(prediction, image_path)
             
             image = cv2.imread(str(image_path))
             if image is None:
                 raise ValueError(f"No se pudo cargar la imagen: {image_path}")
             
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            mask = self._prepare_mask(prediction['mask'], image_rgb.shape[0], image_rgb.shape[1])
             
-            # Obtener máscara de la predicción
-            mask = prediction['mask']
-            
-            # Redimensionar y normalizar mscara al tamao de la imagen original si es necesario
-            image_height, image_width = image_rgb.shape[:2]
-            mask_height, mask_width = mask.shape[:2]
-            
-            # Redimensionar mscara si es necesario
-            if mask_height != image_height or mask_width != image_width:
-                # Redimensionar mscara al tamao de la imagen original
-                mask = cv2.resize(mask, (image_width, image_height), interpolation=cv2.INTER_LINEAR)
-                logger.debug(f"Mscara redimensionada de {mask_width}x{mask_height} a {image_width}x{image_height}")
-            
-            # Normalizar mscara a valores 0-255 si es necesario
-            if mask.dtype != np.uint8:
-                if mask.max() <= 1.0:
-                    mask = (mask * 255).astype(np.uint8)
-                else:
-                    mask = mask.astype(np.uint8)
-            elif mask.max() > 1:
-                # Asegurar que est en rango 0-255
-                mask = np.clip(mask, 0, 255).astype(np.uint8)
-            
-            # Importar funciones necesarias (import dinmico para evitar problemas de cach)
-            from ..data.transforms import validate_crop_quality, create_transparent_crop
-            
-            # Validar calidad del recorte (con validacin ms permisiva)
-            # Usar rangos ms amplios para granos de cacao variados
-            try:
-                is_valid = validate_crop_quality(
-                    image_rgb, 
-                    mask, 
-                    min_aspect_ratio=0.05,  # Muy permisivo (1:20)
-                    max_aspect_ratio=20.0,  # Muy permisivo (20:1)
-                    min_area=50  # rea mnima pequea
-                )
-                if not is_valid:
-                    # Si falla la validacin, continuar de todos modos con advertencia
-                    logger.warning(f"Validacin de crop fall para {image_path}, pero continuando...")
-            except Exception as e:
-                # Si hay error en la validacin, continuar de todos modos
-                logger.warning(f"Error en validacin de crop para {image_path}: {e}, continuando...")
-            
-            transparent_crop = create_transparent_crop(
-                image_rgb, mask, padding=0, crop_only=True
-            )
-            
-            pil_crop = Image.fromarray(transparent_crop, 'RGBA')
-            save_image(pil_crop, crop_path)
-            
-            # Guardar máscara si se solicita
-            if self.save_masks and mask_path:
-                mask_normalized = (mask * 255).astype(np.uint8)
-                pil_mask = Image.fromarray(mask_normalized, 'L')
-                save_image(pil_mask, mask_path)
+            self._create_and_save_crop(image_rgb, mask, crop_path, mask_path)
             
             logger.debug(f"Procesado exitosamente ID {image_id} (con YOLO)")
             
@@ -208,8 +202,8 @@ class CacaoCropper:
                 'confidence': prediction['confidence'],
                 'area': prediction['area'],
                 'bbox': prediction['bbox'],
-                'mask': prediction.get('mask'),  # Incluir mscara de YOLO para refinamiento
-                'original_image_path': str(image_path)  # Para refinamiento con imagen original
+                'mask': prediction.get('mask'),
+                'original_image_path': str(image_path)
             }
             
         except Exception as e:
@@ -218,7 +212,7 @@ class CacaoCropper:
                 logger.warning("Intentando fallback OpenCV después de error en YOLO...")
                 return self._process_with_opencv_fallback(image_path, image_id)
             except Exception as fallback_error:
-                logger.error(f"Fallback OpenCV tambin fall: {fallback_error}")
+                logger.error(f"Fallback OpenCV también falló: {fallback_error}")
                 return {
                     'success': False,
                     'error': f"YOLO: {str(e)}; OpenCV fallback: {str(fallback_error)}",

@@ -60,7 +60,7 @@ export const getApiBaseUrl = () => {
   }
   
   // Prioridad 3: Detectar si estamos en producción y usar URL absoluta
-  if (typeof globalThis !== 'undefined' && globalThis.location && globalThis.location.hostname.includes('localhost') === false) {
+  if (typeof globalThis !== 'undefined' && globalThis.location?.hostname?.includes('localhost') === false) {
     console.log('🌍 [API Config] Detectado entorno de producción, usando URL absoluta del backend')
     return PRODUCTION_BACKEND_URL
   }
@@ -70,7 +70,7 @@ export const getApiBaseUrl = () => {
   console.warn('⚠️ [API Config] Using development fallback URL:', devUrl)
   console.warn('⚠️ [API Config] globalThis.__API_BASE_URL__:', typeof globalThis !== 'undefined' ? globalThis.__API_BASE_URL__ : 'N/A')
   console.warn('⚠️ [API Config] VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL || 'N/A')
-  const hostname = typeof globalThis !== 'undefined' && globalThis.location ? globalThis.location.hostname : 'N/A'
+  const hostname = globalThis.location?.hostname ?? 'N/A'
   console.warn('⚠️ [API Config] globalThis.location.hostname:', hostname)
   return devUrl
 }
@@ -108,7 +108,7 @@ export const getApiBaseUrlWithPath = () => {
 export const isDevelopment = () => {
   return import.meta.env.DEV || 
          import.meta.env.MODE === 'development' ||
-         (typeof globalThis !== 'undefined' && globalThis.location && globalThis.location.hostname === 'localhost')
+         (typeof globalThis !== 'undefined' && globalThis.location?.hostname === 'localhost')
 }
 
 /**

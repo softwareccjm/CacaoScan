@@ -19,52 +19,61 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
     password = serializers.CharField(write_only=True)
     
-    def validate(self, attrs):
+    def _normalize_username_email(self, attrs):
+        """Normaliza username y email, usando email como username si es necesario."""
         username = attrs.get('username')
         email = attrs.get('email')
-        password = attrs.get('password')
         
-        # If email is provided, use it as username
         if email and not username:
             username = email
             attrs['username'] = email
         
-        # Validate that at least one is present
         if not username and not email:
             raise serializers.ValidationError('Debe incluir username o email.')
         
-        if username and password:
-            # Try to authenticate with username
-            user = authenticate(username=username, password=password)
-            
-            # If it doesn't work, try with email
-            if not user and email:
-                try:
-                    # Use .first() instead of .get() to avoid error if there are multiple users
-                    user_obj = User.objects.filter(email=email).first()
-                    if user_obj:
-                        user = authenticate(username=user_obj.username, password=password)
-                    else:
-                        user = None
-                except Exception:
-                    user = None
-            
-            if user:
-                if not user.is_active:
-                    # Check if there's a pending verification token
-                    if hasattr(user, 'auth_email_token') and not user.auth_email_token.is_verified:
-                        raise serializers.ValidationError(
-                            'Tu cuenta no está verificada. Por favor verifica tu correo electrónico antes de iniciar sesión. '
-                            'Si no recibiste el correo, puedes solicitar uno nuevo desde la página de registro.'
-                        )
-                    else:
-                        raise serializers.ValidationError('Usuario inactivo.')
-                attrs['user'] = user
-                return attrs
-            else:
-                raise serializers.ValidationError('Credenciales inválidas.')
-        else:
+        return username, email
+    
+    def _authenticate_user(self, username: str, email: str, password: str):
+        """Intenta autenticar al usuario con username o email."""
+        user = authenticate(username=username, password=password)
+        
+        if user:
+            return user
+        
+        if email:
+            try:
+                user_obj = User.objects.filter(email=email).first()
+                if user_obj:
+                    return authenticate(username=user_obj.username, password=password)
+            except Exception:
+                pass
+        
+        return None
+    
+    def _validate_user_active(self, user):
+        """Valida que el usuario esté activo y verificado."""
+        if not user.is_active:
+            if hasattr(user, 'auth_email_token') and not user.auth_email_token.is_verified:
+                raise serializers.ValidationError(
+                    'Tu cuenta no está verificada. Por favor verifica tu correo electrónico antes de iniciar sesión. '
+                    'Si no recibiste el correo, puedes solicitar uno nuevo desde la página de registro.'
+                )
+            raise serializers.ValidationError('Usuario inactivo.')
+    
+    def validate(self, attrs):
+        username, email = self._normalize_username_email(attrs)
+        password = attrs.get('password')
+        
+        if not username or not password:
             raise serializers.ValidationError('Debe incluir username/email y password.')
+        
+        user = self._authenticate_user(username, email, password)
+        if not user:
+            raise serializers.ValidationError('Credenciales inválidas.')
+        
+        self._validate_user_active(user)
+        attrs['user'] = user
+        return attrs
 
 
 class RegisterSerializer(serializers.ModelSerializer):

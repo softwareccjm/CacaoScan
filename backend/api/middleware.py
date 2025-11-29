@@ -67,39 +67,41 @@ class AuditMiddleware:
             ip = request.META.get('REMOTE_ADDR')
         return ip
     
+    def _determine_post_action(self, path: str) -> str:
+        """Determina la acción para métodos POST."""
+        if '/login/' in path:
+            return 'login'
+        if '/register/' in path:
+            return 'create'
+        if '/upload/' in path or '/images/' in path:
+            return 'upload'
+        if '/train/' in path:
+            return 'training'
+        if '/report/' in path:
+            return 'report'
+        return 'create'
+    
+    def _determine_get_action(self, path: str) -> str:
+        """Determina la acción para métodos GET."""
+        if '/download/' in path:
+            return 'download'
+        if '/stats/' in path or '/analytics/' in path:
+            return 'view'
+        return 'view'
+    
     def determine_action(self, request):
         """Determinar la acción basada en el método HTTP y path."""
         method = request.method
         path = request.path
         
-        # Mapeo de acciones basado en patrones de URL
         if method == 'POST':
-            if '/login/' in path:
-                return 'login'
-            elif '/register/' in path:
-                return 'create'
-            elif '/upload/' in path or '/images/' in path and method == 'POST':
-                return 'upload'
-            elif '/train/' in path:
-                return 'training'
-            elif '/report/' in path:
-                return 'report'
-            else:
-                return 'create'
-        
-        elif method == 'PUT' or method == 'PATCH':
+            return self._determine_post_action(path)
+        if method in ('PUT', 'PATCH'):
             return 'update'
-        
-        elif method == 'DELETE':
+        if method == 'DELETE':
             return 'delete'
-        
-        elif method == 'GET':
-            if '/download/' in path:
-                return 'download'
-            elif '/stats/' in path or '/analytics/' in path:
-                return 'view'
-            else:
-                return 'view'
+        if method == 'GET':
+            return self._determine_get_action(path)
         
         return None
     

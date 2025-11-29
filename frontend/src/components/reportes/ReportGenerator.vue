@@ -416,8 +416,8 @@ export default {
 }
 
 .btn-primary {
-  background-color: #3b82f6;
-  color: white;
+  background-color: #2563eb;
+  color: #ffffff;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -452,7 +452,7 @@ export default {
 .alert-danger {
   background-color: #fef2f2;
   border: 1px solid #fecaca;
-  color: #dc2626;
+  color: #991b1b;
 }
 
 .alert i {

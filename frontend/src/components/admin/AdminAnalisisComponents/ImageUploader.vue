@@ -126,13 +126,51 @@ const getImageAlt = (file) => {
   if (!file || !file.name) {
     return 'Archivo subido'
   }
-  // Remove redundant word "image" and clean up the filename
-  let altText = file.name.replace(/\bimage\b\s*/gi, '').trim()
-  // Remove file extension for cleaner alt text
-  altText = altText.replace(/\.[^/.]+$/, '')
-  // Remove any remaining redundant words
-  altText = altText.replace(/^\s*(imagen|imagenes|picture|pic)\s*/gi, '')
-  return altText.trim() || 'Archivo subido'
+  // Remove file extension first
+  let altText = file.name.replace(/\.[^/.]+$/, '')
+  
+  // Convert to lowercase for checking
+  const lowerText = altText.toLowerCase().trim()
+  
+  // Redundant words that should not appear in alt text
+  const redundantWords = ['image', 'imagen', 'imagenes', 'picture', 'pic']
+  
+  // If filename is just a redundant word, return default
+  if (redundantWords.includes(lowerText)) {
+    return 'Archivo subido'
+  }
+  
+  // Remove all redundant words from the text (case-insensitive, word boundaries)
+  let cleanedText = altText
+  for (const word of redundantWords) {
+    // Remove word boundaries (case-insensitive) - ensures 'image' is removed even if standalone
+    const wordBoundaryPattern = String.raw`\b${word}\b`
+    const regex = new RegExp(wordBoundaryPattern, 'gi')
+    cleanedText = cleanedText.replace(regex, '')
+    // Also handle cases where word might be at start/end without boundary
+    const startPattern = new RegExp(`^${word}\\s+`, 'gi')
+    const endPattern = new RegExp(`\\s+${word}$`, 'gi')
+    cleanedText = cleanedText.replace(startPattern, '').replace(endPattern, '')
+  }
+  
+  // Clean up multiple spaces and trim
+  cleanedText = cleanedText.replace(/\s+/g, ' ').trim()
+  
+  // Final check: ensure no redundant words remain (case-insensitive)
+  const cleanedLower = cleanedText.toLowerCase()
+  for (const word of redundantWords) {
+    if (cleanedLower.includes(word)) {
+      // If any redundant word is still present, return default
+      return 'Archivo subido'
+    }
+  }
+  
+  // Return default if empty
+  if (!cleanedText) {
+    return 'Archivo subido'
+  }
+  
+  return cleanedText
 }
 
 const validateFile = (file) => {
@@ -186,7 +224,7 @@ const processFiles = (files) => {
       continue
     }
     validFiles.push(file)
-  })
+  }
 
   if (hasError && validFiles.length === 0) return
 

@@ -328,6 +328,46 @@ class AnalysisService(BaseService):
                 ValidationServiceError("Internal error deleting analysis", details={"original_error": str(e)})
             )
     
+    def _apply_date_filters(self, queryset, filters: Dict[str, Any]):
+        """Aplica filtros de fecha al queryset."""
+        if not filters:
+            return queryset
+        if 'date_from' in filters:
+            queryset = queryset.filter(created_at__gte=filters['date_from'])
+        if 'date_to' in filters:
+            queryset = queryset.filter(created_at__lte=filters['date_to'])
+        return queryset
+    
+    def _calculate_average_dimensions(self, queryset):
+        """Calcula las dimensiones promedio."""
+        from django.db.models import Avg
+        return {
+            'alto_mm': float(queryset.aggregate(avg=Avg('alto_mm'))['avg'] or 0),
+            'ancho_mm': float(queryset.aggregate(avg=Avg('ancho_mm'))['avg'] or 0),
+            'grosor_mm': float(queryset.aggregate(avg=Avg('grosor_mm'))['avg'] or 0),
+            'peso_g': float(queryset.aggregate(avg=Avg('peso_g'))['avg'] or 0)
+        }
+    
+    def _calculate_confidence_distribution(self, queryset):
+        """Calcula la distribución de confianza."""
+        return {
+            'high': queryset.filter(average_confidence__gte=0.8).count(),
+            'medium': queryset.filter(average_confidence__gte=0.6, average_confidence__lt=0.8).count(),
+            'low': queryset.filter(average_confidence__lt=0.6).count()
+        }
+    
+    def _calculate_dimension_ranges(self, queryset):
+        """Calcula los rangos de dimensiones."""
+        from django.db.models import Min, Max
+        dimensions = ['alto_mm', 'ancho_mm', 'grosor_mm', 'peso_g']
+        ranges = {}
+        for dim in dimensions:
+            ranges[dim] = {
+                'min': float(queryset.aggregate(min=Min(dim))['min'] or 0),
+                'max': float(queryset.aggregate(max=Max(dim))['max'] or 0)
+            }
+        return ranges
+    
     def get_analysis_statistics(self, user: User, filters: Dict[str, Any] = None) -> ServiceResult:
         """
         Gets analysis statistics for a user.
@@ -341,57 +381,23 @@ class AnalysisService(BaseService):
         """
         try:
             from ...utils.model_imports import get_models_safely
-            from django.db.models import Avg, Min, Max
+            from django.db.models import Avg
             
             models = get_models_safely({
                 'CacaoPrediction': CACAO_PREDICTION_MODEL_PATH
             })
             cacao_prediction_model = models['CacaoPrediction']
             
-            # Build base queryset
             queryset = cacao_prediction_model.objects.filter(image__user=user)
+            queryset = self._apply_date_filters(queryset, filters)
             
-            # Apply filters
-            if filters:
-                if 'date_from' in filters:
-                    queryset = queryset.filter(created_at__gte=filters['date_from'])
-                if 'date_to' in filters:
-                    queryset = queryset.filter(created_at__lte=filters['date_to'])
-            
-            # Calculate statistics
             stats = {
                 'total_analyses': queryset.count(),
-                'average_dimensions': {
-                    'alto_mm': float(queryset.aggregate(avg=Avg('alto_mm'))['avg'] or 0),
-                    'ancho_mm': float(queryset.aggregate(avg=Avg('ancho_mm'))['avg'] or 0),
-                    'grosor_mm': float(queryset.aggregate(avg=Avg('grosor_mm'))['avg'] or 0),
-                    'peso_g': float(queryset.aggregate(avg=Avg('peso_g'))['avg'] or 0)
-                },
+                'average_dimensions': self._calculate_average_dimensions(queryset),
                 'average_confidence': float(queryset.aggregate(avg=Avg('average_confidence'))['avg'] or 0),
                 'average_processing_time_ms': float(queryset.aggregate(avg=Avg('processing_time_ms'))['avg'] or 0),
-                'confidence_distribution': {
-                    'high': queryset.filter(average_confidence__gte=0.8).count(),
-                    'medium': queryset.filter(average_confidence__gte=0.6, average_confidence__lt=0.8).count(),
-                    'low': queryset.filter(average_confidence__lt=0.6).count()
-                },
-                'dimension_ranges': {
-                    'alto_mm': {
-                        'min': float(queryset.aggregate(min=Min('alto_mm'))['min'] or 0),
-                        'max': float(queryset.aggregate(max=Max('alto_mm'))['max'] or 0)
-                    },
-                    'ancho_mm': {
-                        'min': float(queryset.aggregate(min=Min('ancho_mm'))['min'] or 0),
-                        'max': float(queryset.aggregate(max=Max('ancho_mm'))['max'] or 0)
-                    },
-                    'grosor_mm': {
-                        'min': float(queryset.aggregate(min=Min('grosor_mm'))['min'] or 0),
-                        'max': float(queryset.aggregate(max=Max('grosor_mm'))['max'] or 0)
-                    },
-                    'peso_g': {
-                        'min': float(queryset.aggregate(min=Min('peso_g'))['min'] or 0),
-                        'max': float(queryset.aggregate(max=Max('peso_g'))['max'] or 0)
-                    }
-                }
+                'confidence_distribution': self._calculate_confidence_distribution(queryset),
+                'dimension_ranges': self._calculate_dimension_ranges(queryset)
             }
             
             return ServiceResult.success(
