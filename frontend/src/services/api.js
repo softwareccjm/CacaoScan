@@ -414,7 +414,8 @@ api.interceptors.response.use(
         authStore.updateLastActivity()
       }
     } catch (error) {
-      // Ignorar errores del store en caso de que no esté disponible
+      // Log error for debugging transparency - activity update is non-critical
+      console.warn('⚠️ [API] Failed to update user activity:', error.message, error)
     }
 
     return response

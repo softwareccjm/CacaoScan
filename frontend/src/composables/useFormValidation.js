@@ -7,6 +7,21 @@ export function useFormValidation() {
   const errors = reactive({})
 
   /**
+   * Valida las etiquetas del dominio
+   * @param {string[]} labels - Etiquetas del dominio
+   * @returns {boolean}
+   */
+  const isValidDomainLabels = (labels) => {
+    for (const label of labels) {
+      if (label.length === 0 || label.length > 63) return false
+      // Allow only letters, digits and hyphen in each label; no leading/trailing hyphen
+      if (!/^[A-Za-z0-9-]+$/.test(label)) return false
+      if (label.startsWith('-') || label.endsWith('-')) return false
+    }
+    return true
+  }
+
+  /**
    * Valida un email
    * @param {string} email - Email a validar
    * @returns {boolean}
@@ -31,14 +46,9 @@ export function useFormValidation() {
     if (/\s/.test(local) || /\s/.test(domain)) return false
 
     // Domain must contain at least one dot and consist of valid labels
-    if (domain.indexOf('.') === -1) return false
+    if (!domain.includes('.')) return false
     const labels = domain.split('.')
-    for (const label of labels) {
-      if (label.length === 0 || label.length > 63) return false
-      // Allow only letters, digits and hyphen in each label; no leading/trailing hyphen
-      if (!/^[A-Za-z0-9-]+$/.test(label)) return false
-      if (label.startsWith('-') || label.endsWith('-')) return false
-    }
+    if (!isValidDomainLabels(labels)) return false
 
     // Local part: allow common unquoted atoms (letters, digits and a small set of symbols)
     // Keep regex simple (no nested quantifiers) and bounded by local length check above.
