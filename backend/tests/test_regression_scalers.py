@@ -73,7 +73,7 @@ class TestCacaoScalers:
             # Faltan grosor y peso
         })
         
-        with pytest.raises(ValueError, match="Columnas faltantes"):
+        with pytest.raises(ValueError, match="no encontrado"):
             self.scalers.fit(df)
     
     def test_transform(self):

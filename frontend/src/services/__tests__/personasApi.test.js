@@ -29,7 +29,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.getPerfil()
 
-      expect(api.get).toHaveBeenCalledWith('/api/personas/perfil/')
+      expect(api.get).toHaveBeenCalledWith('/api/personas/perfil/', { params: {} })
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -56,7 +56,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.crearPerfil(profileData)
 
-      expect(api.post).toHaveBeenCalledWith('/api/personas/perfil/', profileData)
+      expect(api.post).toHaveBeenCalledWith('/api/personas/perfil/', profileData, {})
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -81,7 +81,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.actualizarPerfil(profileData)
 
-      expect(api.patch).toHaveBeenCalledWith('/api/personas/perfil/', profileData)
+      expect(api.patch).toHaveBeenCalledWith('/api/personas/perfil/', profileData, {})
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -107,7 +107,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.getPersonaByUserId(1)
 
-      expect(api.get).toHaveBeenCalledWith('/personas/admin/1/')
+      expect(api.get).toHaveBeenCalledWith('/personas/admin/1/', { params: {} })
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -132,7 +132,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.updatePersonaByUserId(1, personaData)
 
-      expect(api.patch).toHaveBeenCalledWith('/personas/admin/1/', personaData)
+      expect(api.patch).toHaveBeenCalledWith('/personas/admin/1/', personaData, {})
       expect(result).toEqual(mockResponse.data)
     })
 

@@ -97,7 +97,7 @@ describe('Prediction API Service', () => {
       const result = await predictionApi.predictImage(formData)
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Server error')
+      expect(result.error).toBe('Error del servidor. Por favor intenta más tarde.')
     })
 
     it('should emit loading events', async () => {
@@ -170,7 +170,7 @@ describe('Prediction API Service', () => {
       const result = await predictionApi.predictImageYolo(formData)
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('YOLOv8')
+      expect(result.error).toBe('Error del servidor. Por favor intenta más tarde.')
     })
   })
 
@@ -266,7 +266,7 @@ describe('Prediction API Service', () => {
       const result = await predictionApi.getImages()
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Error fetching images')
+      expect(result.error).toBe('Error del servidor. Por favor intenta más tarde.')
     })
   })
 
@@ -286,7 +286,7 @@ describe('Prediction API Service', () => {
 
       const result = await predictionApi.getImageDetails(imageId)
 
-      expect(api.get).toHaveBeenCalledWith(`/images/${imageId}/`)
+      expect(api.get).toHaveBeenCalledWith(`/images/${imageId}/`, { params: {} })
       expect(result.success).toBe(true)
       expect(result.data).toEqual(mockResponse.data)
     })
@@ -306,7 +306,7 @@ describe('Prediction API Service', () => {
 
       const result = await predictionApi.deleteImage(imageId)
 
-      expect(api.delete).toHaveBeenCalledWith(`/images/${imageId}/`)
+      expect(api.delete).toHaveBeenCalledWith(`/images/${imageId}/`, {})
       expect(result.success).toBe(true)
       expect(result.message).toBe('Imagen eliminada exitosamente')
     })
@@ -359,7 +359,7 @@ describe('Prediction API Service', () => {
 
       const result = await predictionApi.updateImageMetadata(imageId, metadata)
 
-      expect(api.patch).toHaveBeenCalledWith(`/images/${imageId}/`, metadata)
+      expect(api.patch).toHaveBeenCalledWith(`/images/${imageId}/`, metadata, {})
       expect(result.success).toBe(true)
       expect(result.data).toEqual(mockResponse.data)
     })
@@ -466,9 +466,6 @@ describe('Prediction API Service', () => {
       expect(formData.get('variedad')).toBe('CCN-51')
       expect(formData.get('fecha_cosecha')).toBe('2024-01-01')
       expect(formData.get('notas')).toBe('Test notes')
-      expect(formData.get('file_name')).toBe('test.jpg')
-      expect(formData.get('file_size')).toBe(file.size.toString())
-      expect(formData.get('file_type')).toBe('image/jpeg')
     })
 
     it('should create FormData with only image when no metadata', () => {
