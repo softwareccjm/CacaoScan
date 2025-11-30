@@ -64,8 +64,9 @@ export function useFileUpload(options = {}) {
       reader.onload = (e) => {
         resolve(e.target.result)
       }
-      reader.onerror = (err) => {
-        const error = err instanceof Error ? err : new Error(String(err))
+      reader.onerror = (event) => {
+        const errorMessage = event?.target?.error?.message || 'FileReader error occurred'
+        const error = new Error(errorMessage)
         reject(error)
       }
       reader.readAsDataURL(file)

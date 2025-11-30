@@ -135,11 +135,14 @@ export function formatJson(data) {
     }
     
     // Only stringify primitive types that are safe
-    if (type === 'string' || type === 'number' || type === 'boolean') {
-      if (type === 'string') {
-        return data
-      }
-      return String(data)
+    if (type === 'string') {
+      return data
+    }
+    if (type === 'number') {
+      return data.toString()
+    }
+    if (type === 'boolean') {
+      return data.toString()
     }
     // For other types (symbol, function, etc.), return a safe representation
     return '[Unknown]'
