@@ -45,9 +45,9 @@ export function useQuickActions() {
       // If action has an external URL, open it
       if (action.url) {
         if (action.external) {
-          window.open(action.url, '_blank')
+          globalThis.open(action.url, '_blank')
         } else {
-          window.location.href = action.url
+          globalThis.location.href = action.url
         }
         return
       }

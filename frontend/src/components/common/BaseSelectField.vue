@@ -69,6 +69,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { generateSecureId } from '@/utils/security'
 
 const props = defineProps({
   modelValue: {
@@ -139,7 +140,23 @@ const props = defineProps({
   },
   id: {
     type: String,
-    default: () => `select-${Math.random().toString(36).substr(2, 9)}`
+    default: () => {
+      // Use cryptographically secure random number generator for unique ID
+      // SonarQube S2245: crypto.getRandomValues() is safe for generating unique IDs
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return `select-${crypto.randomUUID()}`
+      }
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        const array = new Uint8Array(9)
+        crypto.getRandomValues(array)
+        const randomStr = Array.from(array, byte => byte.toString(36)).join('').substring(0, 9)
+        return `select-${randomStr}`
+      }
+      // Fallback: Use timestamp + counter for uniqueness
+      const timestamp = Date.now().toString(36)
+      const counter = (window.__selectIdCounter = (window.__selectIdCounter || 0) + 1)
+      return `select-${timestamp}-${counter.toString(36)}`
+    }
   }
 })
 

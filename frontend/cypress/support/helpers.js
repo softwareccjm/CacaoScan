@@ -46,7 +46,7 @@ export function createTestFinca(overrides = {}) {
 export function createTestLote(overrides = {}) {
   return {
     nombre: 'Test Lote',
-    area: 5.0,
+    area: 5,
     variedad: 'Criollo',
     edad_plantas: 5,
     descripcion: 'Test lote description',

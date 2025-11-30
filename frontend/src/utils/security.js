@@ -3,6 +3,30 @@
  */
 
 /**
+ * Generates a cryptographically secure unique ID
+ * Uses crypto.getRandomValues() for security instead of Math.random()
+ * This prevents security warnings from static analysis tools (SonarQube S2245)
+ * 
+ * @param {string} prefix - Prefix for the ID (default: 'id')
+ * @returns {string} Unique ID in format: prefix-randomstring
+ */
+export function generateSecureId(prefix = 'id') {
+  // Use crypto.getRandomValues() if available (cryptographically secure)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(9)
+    crypto.getRandomValues(array)
+    // Convert to base36 string (similar to Math.random().toString(36))
+    const randomStr = Array.from(array, byte => byte.toString(36)).join('').substring(0, 9)
+    return `${prefix}-${randomStr}`
+  }
+  
+  // Fallback: use timestamp and counter (not cryptographically secure but acceptable for DOM IDs)
+  const timestamp = Date.now().toString(36)
+  const counter = (generateSecureId.counter = (generateSecureId.counter || 0) + 1)
+  return `${prefix}-${timestamp}-${counter.toString(36)}`
+}
+
+/**
  * Sanitizes HTML content to prevent XSS attacks.
  * Uses DOMParser to create a safe DOM structure and extracts text content.
  * For more complex HTML, consider using DOMPurify library.
