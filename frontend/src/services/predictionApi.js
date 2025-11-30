@@ -7,6 +7,7 @@
 
 import api from './api'
 import { validateImageFile, getImageValidationError } from '@/utils/imageValidationUtils'
+import { handleApiError, getErrorMessage } from './apiErrorHandler'
 
 // Endpoints de la API
 const API_ENDPOINTS = {
@@ -68,16 +69,13 @@ export async function predictImage(formData) {
     }
 
   } catch (error) {
-    console.error('❌ Error en predicción:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error inesperado al procesar la imagen'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   } finally {
     // Emitir evento de fin de loading
@@ -136,16 +134,13 @@ export async function predictImageYolo(formData) {
     }
 
   } catch (error) {
-    console.error('❌ Error en predicción YOLOv8:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error inesperado al procesar la imagen con YOLOv8'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   } finally {
     // Emitir evento de fin de loading
@@ -214,16 +209,13 @@ export async function predictImageSmart(formData, options = {}) {
     }
 
   } catch (error) {
-    console.error('❌ Error en predicción con recorte inteligente:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error inesperado al procesar la imagen con recorte inteligente'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   } finally {
     // Emitir evento de fin de loading
@@ -253,16 +245,13 @@ export async function getImages(params = {}) {
     }
 
   } catch (error) {
-    console.error('❌ Error obteniendo imágenes:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al obtener el historial de imágenes'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }
@@ -304,16 +293,13 @@ export async function getImageDetails(imageId) {
     }
     
   } catch (error) {
-    console.error('❌ Error obteniendo detalles de imagen:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al obtener los detalles de la imagen'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }
@@ -341,16 +327,13 @@ export async function deleteImage(imageId) {
     }
 
   } catch (error) {
-    console.error('❌ Error eliminando imagen:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al eliminar la imagen'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }
@@ -374,16 +357,13 @@ export async function getStats(params = {}) {
     }
 
   } catch (error) {
-    console.error('❌ Error obteniendo estadísticas:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al obtener las estadísticas'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }
@@ -412,16 +392,13 @@ export async function updateImageMetadata(imageId, data) {
     }
 
   } catch (error) {
-    console.error('❌ Error actualizando metadatos:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al actualizar los metadatos'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }
@@ -479,16 +456,13 @@ export async function downloadImage(imageId, type = 'original') {
     }
 
   } catch (error) {
-    console.error('❌ Error descargando imagen:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al descargar la imagen'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }
@@ -534,16 +508,13 @@ export async function exportResults(options = {}) {
     }
 
   } catch (error) {
-    console.error('❌ Error exportando resultados:', error)
-    
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Error al exportar los resultados'
+    const errorInfo = handleApiError(error, {
+      logError: true
+    })
 
     return {
       success: false,
-      error: errorMessage
+      error: errorInfo.message
     }
   }
 }

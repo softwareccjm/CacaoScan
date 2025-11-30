@@ -55,6 +55,59 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
    - Eliminada lógica duplicada de headers y manejo de errores
    - Reducción de ~80 líneas de código
 
+3. **`fincasApi.js`** ✅
+   - Migrado de api.get/post/put/delete a `apiGet`, `apiPost`, `apiPut`, `apiDelete`
+   - Eliminados try-catch duplicados
+   - Reducción de ~60 líneas de código
+
+4. **`lotesApi.js`** ✅
+   - Migrado de api.get/post/put/delete a `apiGet`, `apiPost`, `apiPut`, `apiDelete`
+   - Eliminados try-catch duplicados
+   - Reducción de ~40 líneas de código
+
+5. **`personasApi.js`** ✅
+   - Migrado de api.get/post/patch a `apiGet`, `apiPost`, `apiPatch`
+   - Eliminados try-catch duplicados
+   - Reducción de ~30 líneas de código
+
+6. **`configApi.js`** ✅
+   - Migrado de api.get/put a `apiGet`, `apiPut`
+   - Mantiene lógica especial de manejo de errores (403/500)
+   - Reducción de ~40 líneas de código
+
+7. **`datasetApi.js`** ✅
+   - Migrado parcialmente a `apiClient` (funciones que no requieren FormData)
+   - Funciones con FormData mantienen fetch directo
+   - Reducción de ~100 líneas de código
+
+8. **`adminApi.js`** ✅
+   - Migrado parcialmente a `apiClient` (funciones simples)
+   - Eliminada función `makeRequest` duplicada
+   - Funciones complejas mantienen su lógica especial
+   - Reducción de ~80 líneas de código
+
+### Componentes Base Creados
+
+1. **`BaseFormField.vue`** ✅
+   - Componente reutilizable para campos de formulario
+   - Maneja labels, errores, help text
+   - Soporta múltiples tipos de input
+
+2. **`BaseTable.vue`** ✅
+   - Tabla genérica reutilizable
+   - Integra useTable y usePagination
+   - Soporta sorting, selection, pagination
+
+3. **`BaseModal.vue`** ✅
+   - Modal reutilizable con slots
+   - Maneja transiciones y overlay
+   - Consistente en toda la aplicación
+
+4. **`BaseTimeline.vue`** ✅
+   - Componente timeline genérico
+   - Estructura común para cronologías
+   - Soporta slots para personalización
+
 ### Ejemplos Creados
 
 1. **`BaseFormField.example.vue`** ✅
@@ -180,8 +233,9 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
    - ✅ `UserDetailsModal.vue`
    - `ReportGeneratorModal.vue` (complejo, wizard multi-paso - requiere más trabajo)
 
-2. Demostrar uso de BaseFormField:
-   - Crear ejemplo en un formulario pequeño
+2. ✅ Demostrar uso de BaseFormField:
+   - ✅ Ejemplo creado en `BaseFormField.example.vue`
+   - ✅ Migración parcial en `UserFormModal.vue` (4 campos)
    - Documentar patrones de uso
 
 3. Migrar más componentes a usar BaseTable:
@@ -208,15 +262,33 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
 - **BaseModal**: ~100-200 líneas por modal migrado
 - **useAuditHelpers**: ~20-30 líneas por componente de auditoría
 
+### Vistas Migradas a usePagination
+
+1. **`AdminAgricultores.vue`** ✅
+   - Migrado de paginación local a `usePagination` composable
+   - Reducción de ~15 líneas de código
+
+2. **`AdminUsuarios.vue`** ✅
+   - Migrado de paginación local a `usePagination` composable
+   - Integrado con respuesta API del store
+   - Reducción de ~20 líneas de código
+
+3. **`FincaLotesView.vue`** ✅
+   - Migrado de paginación local a `usePagination` composable
+   - Reducción de ~15 líneas de código
+
 ### Total Estimado Reducido Hasta Ahora
 
 - **FASE 1**: ~200-300 líneas
-- **FASE 2 (Parcial)**: ~1200-1400 líneas
-- **Total**: ~1400-1700 líneas de código duplicado eliminadas
+- **FASE 2**: ~1800-2200 líneas
+- **Total**: ~2000-2500 líneas de código duplicado eliminadas
 
 **Desglose detallado:**
 - Modales migrados: ~1000-1150 líneas (10 modales × ~100-115 líneas cada uno)
-- Servicios unificados: ~120-150 líneas (2 servicios migrados)
+- Servicios unificados: ~470-530 líneas (8 servicios migrados)
+- Vistas migradas a usePagination: ~50 líneas (3 vistas)
+- Componentes base creados: ~200-300 líneas (BaseModal, BaseTable, BaseFormField, BaseTimeline)
+- Campos de formulario migrados a BaseFormField: ~30-40 líneas (4 campos en UserFormModal)
 - Componentes de auditoría mejorados: ~50-100 líneas
 - Composables y utilidades: ~50-100 líneas
 

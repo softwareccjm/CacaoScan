@@ -23,10 +23,12 @@
     <form @submit.prevent="saveUser" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <!-- Nombre de Usuario -->
-          <div>
-            <label for="username" class="block text-sm font-semibold text-gray-700 mb-2">
-              Nombre de Usuario <span class="text-red-500">*</span>
-            </label>
+          <BaseFormField
+            name="username"
+            label="Nombre de Usuario"
+            :required="true"
+            :error="errors.username"
+          >
             <input 
               type="text" 
               id="username"
@@ -34,15 +36,16 @@
               class="w-full rounded-lg border-2 px-4 py-3 shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-500/30 transition-all duration-200"
               :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/30': errors.username }"
               required
-            >
-            <p v-if="errors.username" class="mt-1 text-sm text-red-600">{{ errors.username }}</p>
-          </div>
+            />
+          </BaseFormField>
           
           <!-- Email -->
-          <div>
-            <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
-              Email <span class="text-red-500">*</span>
-            </label>
+          <BaseFormField
+            name="email"
+            label="Email"
+            :required="true"
+            :error="errors.email"
+          >
             <input 
               type="email" 
               id="email"
@@ -50,15 +53,16 @@
               class="w-full rounded-lg border-2 px-4 py-3 shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-500/30 transition-all duration-200"
               :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/30': errors.email }"
               required
-            >
-            <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
-          </div>
+            />
+          </BaseFormField>
 
           <!-- Nombre -->
-          <div>
-            <label for="first_name" class="block text-sm font-semibold text-gray-700 mb-2">
-              Nombre <span class="text-red-500">*</span>
-            </label>
+          <BaseFormField
+            name="first_name"
+            label="Nombre"
+            :required="true"
+            :error="errors.first_name"
+          >
             <input 
               type="text" 
               id="first_name"
@@ -66,15 +70,16 @@
               class="w-full rounded-lg border-2 px-4 py-3 shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-500/30 transition-all duration-200"
               :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/30': errors.first_name }"
               required
-            >
-            <p v-if="errors.first_name" class="mt-1 text-sm text-red-600">{{ errors.first_name }}</p>
-          </div>
+            />
+          </BaseFormField>
           
           <!-- Apellido -->
-          <div>
-            <label for="last_name" class="block text-sm font-semibold text-gray-700 mb-2">
-              Apellido <span class="text-red-500">*</span>
-            </label>
+          <BaseFormField
+            name="last_name"
+            label="Apellido"
+            :required="true"
+            :error="errors.last_name"
+          >
             <input 
               type="text" 
               id="last_name"
@@ -82,9 +87,8 @@
               class="w-full rounded-lg border-2 px-4 py-3 shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-500/30 transition-all duration-200"
               :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/30': errors.last_name }"
               required
-            >
-            <p v-if="errors.last_name" class="mt-1 text-sm text-red-600">{{ errors.last_name }}</p>
-          </div>
+            />
+          </BaseFormField>
 
           <!-- Rol -->
           <div>
@@ -313,6 +317,7 @@ import { useAuthStore } from '@/stores/auth'
 // 3. Composables
 import { useFormValidation } from '@/composables/useFormValidation'
 import BaseModal from '@/components/common/BaseModal.vue'
+import BaseFormField from '@/components/common/BaseFormField.vue'
 
 // 4. Libraries
 import Swal from 'sweetalert2'

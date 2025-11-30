@@ -15,385 +15,266 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, watch, computed, onUnmounted, nextTick } from 'vue'
+<script setup>
+import { ref, onMounted, watch, computed, onUnmounted, nextTick, useAttrs } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { useChartConfig } from '@/composables/useChartConfig'
 
 Chart.register(...registerables)
 
-export default {
-  name: 'AdvancedChart',
-  props: {
-    chartData: {
-      type: Object,
-      required: true
-    },
-    options: {
-      type: Object,
-      default: () => ({})
-    },
-    type: {
-      type: String,
-      default: 'line',
-      validator: (value) => ['line', 'bar', 'pie', 'doughnut', 'radar', 'polarArea', 'scatter', 'bubble'].includes(value)
-    },
-    title: {
-      type: String,
-      default: ''
-    },
-    height: {
-      type: [String, Number],
-      default: '300px'
-    },
-    responsive: {
-      type: Boolean,
-      default: true
-    },
-    maintainAspectRatio: {
-      type: Boolean,
-      default: false
-    },
-    showControls: {
-      type: Boolean,
-      default: false
-    },
-    showLegend: {
-      type: Boolean,
-      default: true
-    },
-    legendPosition: {
-      type: String,
-      default: 'top',
-      validator: (value) => ['top', 'bottom', 'left', 'right'].includes(value)
-    },
-    animation: {
-      type: Boolean,
-      default: true
-    },
-    animationDuration: {
-      type: Number,
-      default: 1000
-    },
-    colors: {
-      type: Array,
-      default: () => [
-        '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
-        '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#f1c40f'
-      ]
-    },
-    gradient: {
-      type: Boolean,
-      default: false
-    },
-    theme: {
-      type: String,
-      default: 'light',
-      validator: (value) => ['light', 'dark'].includes(value)
-    }
+const props = defineProps({
+  chartData: {
+    type: Object,
+    required: true
   },
-  emits: ['chart-click', 'chart-hover', 'chart-loaded'],
-  setup(props, { emit, attrs }) {
+  options: {
+    type: Object,
+    default: () => ({})
+  },
+  type: {
+    type: String,
+    default: 'line',
+    validator: (value) => ['line', 'bar', 'pie', 'doughnut', 'radar', 'polarArea', 'scatter', 'bubble'].includes(value)
+  },
+  title: {
+    type: String,
+    default: ''
+  },
+  height: {
+    type: [String, Number],
+    default: '300px'
+  },
+  responsive: {
+    type: Boolean,
+    default: true
+  },
+  maintainAspectRatio: {
+    type: Boolean,
+    default: false
+  },
+  showControls: {
+    type: Boolean,
+    default: false
+  },
+  showLegend: {
+    type: Boolean,
+    default: true
+  },
+  legendPosition: {
+    type: String,
+    default: 'top',
+    validator: (value) => ['top', 'bottom', 'left', 'right'].includes(value)
+  },
+  animation: {
+    type: Boolean,
+    default: true
+  },
+  animationDuration: {
+    type: Number,
+    default: 1000
+  },
+  colors: {
+    type: Array,
+    default: () => [
+      '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+      '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#f1c40f'
+    ]
+  },
+  gradient: {
+    type: Boolean,
+    default: false
+  },
+  theme: {
+    type: String,
+    default: 'light',
+    validator: (value) => ['light', 'dark'].includes(value)
+  }
+})
+
+const emit = defineEmits(['chart-click', 'chart-hover', 'chart-loaded'])
+
+const attrs = useAttrs()
+
+// Use chart config composable
+const chartConfig = useChartConfig({
+  theme: props.theme,
+  type: props.type,
+  responsive: props.responsive,
+  maintainAspectRatio: props.maintainAspectRatio,
+  animation: props.animation,
+  animationDuration: props.animationDuration,
+  showLegend: props.showLegend,
+  legendPosition: props.legendPosition,
+  colors: props.colors
+})
     const chart = ref(null)
     let chartInstance = null
     let resizeObserver = null
 
-    // Estilos del contenedor
-    const containerStyle = computed(() => {
-      const hasHeightClass = Object.keys(attrs).some(key => String(attrs[key]).includes('h-'))
-      return hasHeightClass ? {} : { height: props.height }
-    })
+// Estilos del contenedor
+const containerStyle = computed(() => {
+  const hasHeightClass = Object.keys(attrs).some(key => String(attrs[key]).includes('h-'))
+  return hasHeightClass ? {} : { height: props.height }
+})
 
-    // Configuración por defecto del tema
-    const defaultOptions = computed(() => {
-      const isDark = props.theme === 'dark'
-      const textColor = isDark ? '#ffffff' : '#333333'
-      const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-
-      return {
-        responsive: props.responsive,
-        maintainAspectRatio: props.maintainAspectRatio,
-        animation: props.animation ? {
-          duration: props.animationDuration,
-          easing: 'easeInOutQuart'
-        } : false,
-        plugins: {
-          legend: {
-            display: props.showLegend,
-            position: props.legendPosition,
-            labels: {
-              color: textColor,
-              usePointStyle: true,
-              boxWidth: 12,
-              padding: 15,
-              font: {
-                size: 12,
-                family: "'Inter', sans-serif"
-              }
-            }
-          },
-          tooltip: {
-            enabled: true,
-            mode: 'index',
-            intersect: false,
-            backgroundColor: isDark ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.8)',
-            titleColor: '#ffffff',
-            bodyColor: '#ffffff',
-            borderColor: 'rgba(255, 255, 255, 0.2)',
-            borderWidth: 1,
-            cornerRadius: 8,
-            displayColors: true,
-            callbacks: {
-              title: (context) => {
-                return context[0]?.label || ''
-              },
-              label: (context) => {
-                const label = context.dataset.label || ''
-                const value = context.parsed.y || context.parsed || context.raw
-                const formattedValue = typeof value === 'number' ? value.toLocaleString() : value
-                return `${label}: ${formattedValue}`
-              }
-            }
-          }
-        },
-        scales: props.type !== 'pie' && props.type !== 'doughnut' ? {
-          x: {
-            grid: {
-              display: true,
-              color: gridColor,
-              drawBorder: false
-            },
-            ticks: {
-              color: textColor,
-              font: {
-                size: 11,
-                family: "'Inter', sans-serif"
-              },
-              padding: 8,
-              maxRotation: 45,
-              minRotation: 0
-            }
-          },
-          y: {
-            beginAtZero: true,
-            grid: {
-              display: true,
-              color: gridColor,
-              drawBorder: false
-            },
-            ticks: {
-              color: textColor,
-              font: {
-                size: 11,
-                family: "'Inter', sans-serif"
-              },
-              padding: 8,
-              callback: (value) => {
-                return typeof value === 'number' ? value.toLocaleString() : value
-              }
-            }
-          }
-        } : {},
-        interaction: {
-          mode: 'nearest',
-          axis: 'x',
-          intersect: false
-        },
-        onClick: (event, elements) => {
-          if (elements.length > 0) {
-            emit('chart-click', {
-              element: elements[0],
-              datasetIndex: elements[0].datasetIndex,
-              index: elements[0].index,
-              value: elements[0].element.$context.parsed
-            })
-          }
-        },
-        onHover: (event, elements) => {
-          emit('chart-hover', {
-            element: elements[0],
-            datasetIndex: elements[0]?.datasetIndex,
-            index: elements[0]?.index
-          })
-        }
+// Get default options from composable
+const defaultOptions = computed(() => {
+  const options = chartConfig.getDefaultOptions.value
+  return {
+    ...options,
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        emit('chart-click', {
+          element: elements[0],
+          datasetIndex: elements[0].datasetIndex,
+          index: elements[0].index,
+          value: elements[0].element.$context.parsed
+        })
       }
-    })
-
-    // Aplicar colores a los datasets
-    const processedChartData = computed(() => {
-      if (!props.chartData || !props.chartData.datasets) {
-        return props.chartData
-      }
-
-      const data = { ...props.chartData }
-      data.datasets = data.datasets.map((dataset, index) => {
-        const processedDataset = { ...dataset }
-        
-        // Aplicar colores si no están definidos
-        if (!processedDataset.backgroundColor) {
-          if (props.type === 'pie' || props.type === 'doughnut') {
-            processedDataset.backgroundColor = props.colors.slice(0, data.labels?.length || 10)
-          } else {
-            processedDataset.backgroundColor = props.gradient 
-              ? createGradient(props.colors[index % props.colors.length])
-              : props.colors[index % props.colors.length]
-          }
-        }
-
-        if (!processedDataset.borderColor && props.type !== 'pie' && props.type !== 'doughnut') {
-          processedDataset.borderColor = props.colors[index % props.colors.length]
-        }
-
-        // Configuración por defecto para diferentes tipos de gráfico
-        if (props.type === 'line') {
-          processedDataset.fill = false
-          processedDataset.tension = 0.4
-          processedDataset.borderWidth = 2
-          processedDataset.pointRadius = 4
-          processedDataset.pointHoverRadius = 6
-        } else if (props.type === 'bar') {
-          processedDataset.borderWidth = 1
-          processedDataset.borderRadius = 4
-          processedDataset.borderSkipped = false
-        }
-
-        return processedDataset
+    },
+    onHover: (event, elements) => {
+      emit('chart-hover', {
+        element: elements[0],
+        datasetIndex: elements[0]?.datasetIndex,
+        index: elements[0]?.index
       })
-
-      return data
-    })
-
-    // Crear gradiente
-    const createGradient = (color) => {
-      if (!chart.value) return color
-      
-      const ctx = chart.value.getContext('2d')
-      const gradient = ctx.createLinearGradient(0, 0, 0, 400)
-      gradient.addColorStop(0, color + '80')
-      gradient.addColorStop(1, color + '20')
-      return gradient
-    }
-
-    // Renderizar gráfico
-    const renderChart = async () => {
-      if (chartInstance) {
-        chartInstance.destroy()
-      }
-
-      if (chart.value && processedChartData.value) {
-        await nextTick()
-        
-        const ctx = chart.value.getContext('2d')
-        chartInstance = new Chart(ctx, {
-          type: props.type,
-          data: processedChartData.value,
-          options: {
-            ...defaultOptions.value,
-            ...props.options
-          }
-        })
-
-        emit('chart-loaded', chartInstance)
-      }
-    }
-
-    // Manejar redimensionamiento
-    const handleResize = () => {
-      if (chartInstance) {
-        chartInstance.resize()
-      }
-    }
-
-    // Lifecycle
-    onMounted(async () => {
-      await renderChart()
-      
-      // Observador de cambios de tamaño
-      if (globalThis.ResizeObserver) {
-        resizeObserver = new ResizeObserver(() => {
-          handleResize()
-        })
-        if (chart.value) {
-          resizeObserver.observe(chart.value)
-        }
-      }
-
-      // Listeners para cambios de orientación
-      globalThis.addEventListener('orientationchange', handleResize)
-      globalThis.addEventListener('resize', handleResize)
-    })
-
-    onUnmounted(() => {
-      if (chartInstance) {
-        chartInstance.destroy()
-      }
-      if (resizeObserver) {
-        resizeObserver.disconnect()
-      }
-      globalThis.removeEventListener('orientationchange', handleResize)
-      globalThis.removeEventListener('resize', handleResize)
-    })
-
-    // Watchers
-    watch(() => props.chartData, () => {
-      renderChart()
-    }, { deep: true })
-
-    watch(() => props.options, () => {
-      renderChart()
-    }, { deep: true })
-
-    watch(() => props.type, () => {
-      renderChart()
-    })
-
-    watch(() => props.theme, () => {
-      renderChart()
-    })
-
-    // Métodos públicos
-    const updateChart = (newData) => {
-      if (chartInstance) {
-        chartInstance.data = newData
-        chartInstance.update()
-      }
-    }
-
-    const addData = (data, label) => {
-      if (chartInstance) {
-        chartInstance.data.labels.push(label)
-        for (const [index, dataset] of chartInstance.data.datasets.entries()) {
-          dataset.data.push(data[index] || 0)
-        }
-        chartInstance.update()
-      }
-    }
-
-    const removeData = (index) => {
-      if (chartInstance) {
-        chartInstance.data.labels.splice(index, 1)
-        for (const dataset of chartInstance.data.datasets) {
-          dataset.data.splice(index, 1)
-        }
-        chartInstance.update()
-      }
-    }
-
-    const exportChart = (format = 'png') => {
-      if (chartInstance) {
-        return chartInstance.toBase64Image(format)
-      }
-      return null
-    }
-
-    return {
-      chart,
-      containerStyle,
-      updateChart,
-      addData,
-      removeData,
-      exportChart
     }
   }
+})
+
+// Aplicar colores a los datasets
+const processedChartData = computed(() => {
+  if (!props.chartData || !props.chartData.datasets) {
+    return props.chartData
+  }
+
+  const createGradientFn = (color) => {
+    if (!chart.value) return color
+    
+    return chartConfig.createGradient(chart.value.getContext('2d'), color, 400)
+  }
+
+  return chartConfig.processChartData(
+    props.chartData,
+    props.gradient,
+    createGradientFn
+  )
+})
+
+const chart = ref(null)
+let chartInstance = null
+let resizeObserver = null
+
+// Renderizar gráfico
+const renderChart = async () => {
+  if (chartInstance) {
+    chartInstance.destroy()
+  }
+
+  if (chart.value && processedChartData.value) {
+    await nextTick()
+    
+    const ctx = chart.value.getContext('2d')
+    chartInstance = new Chart(ctx, {
+      type: props.type,
+      data: processedChartData.value,
+      options: {
+        ...defaultOptions.value,
+        ...props.options
+      }
+    })
+
+    emit('chart-loaded', chartInstance)
+  }
+}
+
+// Manejar redimensionamiento
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize()
+  }
+}
+
+// Lifecycle
+onMounted(async () => {
+  await renderChart()
+  
+  // Observador de cambios de tamaño
+  if (globalThis.ResizeObserver) {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    if (chart.value) {
+      resizeObserver.observe(chart.value)
+    }
+  }
+
+  // Listeners para cambios de orientación
+  globalThis.addEventListener('orientationchange', handleResize)
+  globalThis.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.destroy()
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
+  globalThis.removeEventListener('orientationchange', handleResize)
+  globalThis.removeEventListener('resize', handleResize)
+})
+
+// Watchers
+watch(() => props.chartData, () => {
+  renderChart()
+}, { deep: true })
+
+watch(() => props.options, () => {
+  renderChart()
+}, { deep: true })
+
+watch(() => props.type, () => {
+  renderChart()
+})
+
+watch(() => props.theme, () => {
+  renderChart()
+})
+
+// Métodos públicos
+const updateChart = (newData) => {
+  if (chartInstance) {
+    chartInstance.data = newData
+    chartInstance.update()
+  }
+}
+
+const addData = (data, label) => {
+  if (chartInstance) {
+    chartInstance.data.labels.push(label)
+    for (const [index, dataset] of chartInstance.data.datasets.entries()) {
+      dataset.data.push(data[index] || 0)
+    }
+    chartInstance.update()
+  }
+}
+
+const removeData = (index) => {
+  if (chartInstance) {
+    chartInstance.data.labels.splice(index, 1)
+    for (const dataset of chartInstance.data.datasets) {
+      dataset.data.splice(index, 1)
+    }
+    chartInstance.update()
+  }
+}
+
+const exportChart = (format = 'png') => {
+  if (chartInstance) {
+    return chartInstance.toBase64Image(format)
+  }
+  return null
 }
 </script>
 

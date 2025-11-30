@@ -93,73 +93,72 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed } from 'vue'
 import { useTable } from '@/composables/useTable'
+import { formatReportStatus, getReportStatusClass } from '@/composables/useReports'
+import { useDateFormatting } from '@/composables/useDateFormatting'
 
-export default {
-  name: 'ReportsTable',
-  props: {
-    reports: {
-      type: Array,
-      required: true
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    }
+const props = defineProps({
+  reports: {
+    type: Array,
+    required: true
   },
-  emits: ['sort', 'view', 'download', 'delete'],
-  setup(props, { emit }) {
-    // Use table composable for sorting
-    const table = useTable({
-      initialSortKey: 'createdAt',
-      initialSortOrder: 'desc',
-      enableSelection: false
-    })
-
-    const columns = [
-      { key: 'name', label: 'Nombre del Reporte', mobileHidden: false },
-      { key: 'type', label: 'Tipo', mobileHidden: true },
-      { key: 'period', label: 'Período', mobileHidden: true },
-      { key: 'createdAt', label: 'Fecha de Creación', mobileHidden: false },
-      { key: 'status', label: 'Estado', mobileHidden: false }
-    ]
-
-    const handleSort = (key) => {
-      table.handleSort(key)
-      emit('sort', {
-        key: table.sortKey.value,
-        order: table.sortOrder.value
-      })
-    }
-
-    return {
-      ...table,
-      columns,
-      handleSort
-    }
-  },
-  methods: {
-    getStatusClasses(status) {
-      const classes = {
-        'Completado': 'bg-green-100 text-green-800',
-        'En Proceso': 'bg-yellow-100 text-yellow-800',
-        'Pendiente': 'bg-gray-100 text-gray-800',
-        'Error': 'bg-red-100 text-red-800'
-      };
-      return classes[status] || classes['Pendiente'];
-    },
-    handleView(report) {
-      this.$emit('view', report);
-    },
-    handleDownload(report) {
-      this.$emit('download', report);
-    },
-    handleDelete(report) {
-      this.$emit('delete', report);
-    }
+  loading: {
+    type: Boolean,
+    default: false
   }
-};
+})
+
+defineEmits(['sort', 'view', 'download', 'delete'])
+
+const { formatDate } = useDateFormatting()
+
+// Use table composable for sorting
+const table = useTable({
+  initialSortKey: 'createdAt',
+  initialSortOrder: 'desc',
+  enableSelection: false
+})
+
+const columns = [
+  { key: 'name', label: 'Nombre del Reporte', mobileHidden: false },
+  { key: 'type', label: 'Tipo', mobileHidden: true },
+  { key: 'period', label: 'Período', mobileHidden: true },
+  { key: 'createdAt', label: 'Fecha de Creación', mobileHidden: false },
+  { key: 'status', label: 'Estado', mobileHidden: false }
+]
+
+const handleSort = (key) => {
+  table.handleSort(key)
+}
+
+const getStatusClasses = (status) => {
+  const statusClass = getReportStatusClass(status)
+  const classMap = {
+    'status-completed': 'bg-green-100 text-green-800',
+    'status-processing': 'bg-yellow-100 text-yellow-800',
+    'status-generating': 'bg-yellow-100 text-yellow-800',
+    'status-pending': 'bg-gray-100 text-gray-800',
+    'status-error': 'bg-red-100 text-red-800'
+  }
+  return classMap[statusClass] || classMap['status-pending']
+}
+
+const handleView = (report) => {
+  emit('view', report)
+}
+
+const handleDownload = (report) => {
+  emit('download', report)
+}
+
+const handleDelete = (report) => {
+  emit('delete', report)
+}
+
+const formatReportDate = (dateString) => formatDate(dateString)
+const formatReportStatusLabel = (status) => formatReportStatus(status)
 </script>
 
 <style scoped>
