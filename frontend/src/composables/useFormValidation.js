@@ -148,6 +148,42 @@ export function useFormValidation() {
   }
 
   /**
+   * Checks if a field name should be skipped (non-field errors)
+   * @param {string} fieldName - Field name to check
+   * @returns {boolean}
+   */
+  const shouldSkipField = (fieldName) => {
+    const nonFieldKeys = new Set(['error', 'status', 'error_detail'])
+    return nonFieldKeys.has(fieldName)
+  }
+
+  /**
+   * Extracts error message from different error value formats
+   * @param {*} errorValue - Error value (can be array, string, or object)
+   * @returns {string|null} - Extracted error message or null
+   */
+  const extractErrorMessage = (errorValue) => {
+    if (Array.isArray(errorValue) && errorValue.length > 0) {
+      return errorValue[0]
+    }
+    
+    if (typeof errorValue === 'string') {
+      return errorValue
+    }
+    
+    if (errorValue && typeof errorValue === 'object') {
+      const firstKey = Object.keys(errorValue)[0]
+      if (firstKey && errorValue[firstKey]) {
+        return Array.isArray(errorValue[firstKey]) 
+          ? errorValue[firstKey][0] 
+          : errorValue[firstKey]
+      }
+    }
+    
+    return null
+  }
+
+  /**
    * Maps server validation errors to form fields
    * @param {Object} serverErrors - Server error response
    * @param {Object} fieldMapping - Optional mapping from server field names to form field names
@@ -161,25 +197,15 @@ export function useFormValidation() {
     }
 
     for (const [serverField, errorValue] of Object.entries(serverErrors)) {
-      // Skip non-field errors
-      if (serverField === 'error' || serverField === 'status' || serverField === 'error_detail') {
+      if (shouldSkipField(serverField)) {
         continue
       }
 
       const formField = fieldMapping[serverField] || serverField
+      const errorMessage = extractErrorMessage(errorValue)
       
-      // Handle different error formats
-      if (Array.isArray(errorValue) && errorValue.length > 0) {
-        errors[formField] = errorValue[0]
-      } else if (typeof errorValue === 'string') {
-        errors[formField] = errorValue
-      } else if (errorValue && typeof errorValue === 'object') {
-        // If nested object, extract first message
-        const firstKey = Object.keys(errorValue)[0]
-        if (firstKey && errorValue[firstKey]) {
-          const msg = Array.isArray(errorValue[firstKey]) ? errorValue[firstKey][0] : errorValue[firstKey]
-          errors[formField] = msg
-        }
+      if (errorMessage) {
+        errors[formField] = errorMessage
       }
     }
   }
