@@ -170,6 +170,9 @@
 <script setup>
 import { reactive } from 'vue'
 import BaseFormField from './BaseFormField.vue'
+import { useFormValidation } from '@/composables/useFormValidation'
+
+const { isValidEmail } = useFormValidation()
 
 const form = reactive({
   nombre: '',
@@ -203,7 +206,8 @@ const handleSubmit = () => {
   }
 
   if (form.email) {
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    // Use secure email validation function to prevent ReDoS attacks
+    if (isValidEmail(form.email)) {
       errors.email = ''
     } else {
       errors.email = 'Ingresa un email válido'

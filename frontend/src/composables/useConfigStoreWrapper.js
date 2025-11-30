@@ -5,6 +5,85 @@ import { computed } from 'vue'
 import { useConfigStore } from '@/stores/config'
 
 /**
+ * Secure email validation function that prevents ReDoS attacks
+ * Uses bounded checks instead of complex regex to avoid catastrophic backtracking
+ * 
+ * SECURITY: This validation avoids ReDoS by:
+ * - Using length bounds before regex checks
+ * - Splitting validation into multiple simple checks
+ * - Using simple regex patterns without nested quantifiers
+ * - Bounding all regex operations to prevent exponential backtracking
+ * 
+ * @param {string} email - Email to validate
+ * @returns {boolean} True if email is valid
+ */
+const isValidEmailSecure = (email) => {
+  // Avoid complex/ambiguous regexes that can exhibit catastrophic backtracking
+  // Implement simple, bounded checks instead
+  if (!email || typeof email !== 'string') {
+    return false
+  }
+  
+  // Overall length limits per RFC guidance (prevents DoS from extremely long strings)
+  if (email.length > 320) {
+    return false
+  }
+
+  const parts = email.split('@')
+  if (parts.length !== 2) {
+    return false
+  }
+
+  const [local, domain] = parts
+
+  // Length checks for local and domain parts (bounds regex operations)
+  if (local.length === 0 || local.length > 64) {
+    return false
+  }
+  if (domain.length === 0 || domain.length > 255) {
+    return false
+  }
+
+  // No whitespace allowed (simple regex check on bounded strings)
+  if (/\s/.test(local) || /\s/.test(domain)) {
+    return false
+  }
+
+  // Domain must contain at least one dot and consist of valid labels
+  if (!domain.includes('.')) {
+    return false
+  }
+  
+  const labels = domain.split('.')
+  for (const label of labels) {
+    if (label.length === 0 || label.length > 63) {
+      return false
+    }
+    // Simple regex without nested quantifiers - bounded by length check
+    // This prevents ReDoS as the regex is applied to bounded strings (max 63 chars)
+    if (!/^[A-Za-z0-9-]+$/.test(label)) {
+      return false
+    }
+    if (label.startsWith('-') || label.endsWith('-')) {
+      return false
+    }
+  }
+
+  // Local part: allow common unquoted atoms (letters, digits and a small set of symbols)
+  // Keep regex simple (no nested quantifiers) and bounded by local length check above (max 64 chars)
+  if (!/^[A-Za-z0-9!#$%&'*+\-/=?^_`{|}~.]+$/.test(local)) {
+    return false
+  }
+
+  // Reject consecutive dots in local or domain (simple string check, no regex)
+  if (local.includes('..') || domain.includes('..')) {
+    return false
+  }
+
+  return true
+}
+
+/**
  * Provides config store wrapper with helpers
  * @returns {Object} Config store wrapper with helpers
  */
@@ -105,8 +184,10 @@ export function useConfigStoreWrapper() {
         if (!val || typeof val !== 'string') {
           return 'El email de contacto es requerido'
         }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(val)) {
+        // Use secure email validation to prevent ReDoS attacks
+        // This validation uses bounded checks instead of vulnerable regex patterns
+        // SonarQube S5852: ReDoS protection - regex operations are bounded by length checks
+        if (!isValidEmailSecure(val)) {
           return 'El email de contacto no es válido'
         }
         return null

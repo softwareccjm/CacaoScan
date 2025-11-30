@@ -20,7 +20,7 @@ export * as adminApi from '../adminApi'
 export * as configApi from '../configApi'
 
 // Export HTTP client for advanced usage
-export { httpClient }
+export { httpClient } from '../httpClient'
 
 // Import for default export (needed for namespace access)
 import * as fincasApiModule from '../fincasApi'

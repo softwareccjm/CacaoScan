@@ -43,27 +43,27 @@ export function useWebSocketManager(options = {}) {
    * Connect all connections
    */
   const connectAll = () => {
-    Object.values(connectionInstances.value).forEach(connection => {
+    for (const connection of Object.values(connectionInstances.value)) {
       connection.connect()
-    })
+    }
   }
 
   /**
    * Disconnect all connections
    */
   const disconnectAll = () => {
-    Object.values(connectionInstances.value).forEach(connection => {
+    for (const connection of Object.values(connectionInstances.value)) {
       connection.disconnect()
-    })
+    }
   }
 
   /**
    * Reconnect all connections
    */
   const reconnectAll = () => {
-    Object.values(connectionInstances.value).forEach(connection => {
+    for (const connection of Object.values(connectionInstances.value)) {
       connection.reconnect()
-    })
+    }
   }
 
   /**
@@ -93,9 +93,9 @@ export function useWebSocketManager(options = {}) {
 
   const connectionStatuses = computed(() => {
     const statuses = {}
-    Object.entries(connectionInstances.value).forEach(([name, conn]) => {
+    for (const [name, conn] of Object.entries(connectionInstances.value)) {
       statuses[name] = conn.connectionStatus.value
-    })
+    }
     return statuses
   })
 

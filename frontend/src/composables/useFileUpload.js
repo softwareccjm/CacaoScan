@@ -202,11 +202,11 @@ export function useFileUpload(options = {}) {
     }
 
     // Add metadata
-    Object.entries(metadata).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(metadata)) {
       if (value !== null && value !== undefined && value !== '') {
         formData.append(key, value)
       }
-    })
+    }
 
     return formData
   }

@@ -166,7 +166,7 @@ Cypress.Commands.add('mockApiResponse', (method, url, response, statusCode = 200
   cy.intercept(method, url, {
     statusCode,
     body: response
-  }).as(`mock-${method.toLowerCase()}-${url.replace(/\//g, '-')}`)
+  }).as(`mock-${method.toLowerCase()}-${url.replaceAll('/', '-')}`)
 })
 
 // Generic CRUD helpers
@@ -174,7 +174,7 @@ Cypress.Commands.add('mockApiResponse', (method, url, response, statusCode = 200
 // Create entity (generic)
 Cypress.Commands.add('createEntity', (entityType, data, options = {}) => {
   const { useApi = false, waitForResponse = true } = options
-  const entityTypeStr = String(entityType)
+  const entityTypeStr = typeof entityType === 'string' ? entityType : JSON.stringify(entityType)
   
   if (useApi) {
     return cy.request({
@@ -206,7 +206,7 @@ Cypress.Commands.add('createEntity', (entityType, data, options = {}) => {
 // Update entity (generic)
 Cypress.Commands.add('updateEntity', (entityType, id, data, options = {}) => {
   const { useApi = false } = options
-  const entityTypeStr = String(entityType)
+  const entityTypeStr = typeof entityType === 'string' ? entityType : JSON.stringify(entityType)
   
   if (useApi) {
     return cy.request({
@@ -232,7 +232,7 @@ Cypress.Commands.add('updateEntity', (entityType, id, data, options = {}) => {
 // Delete entity (generic)
 Cypress.Commands.add('deleteEntity', (entityType, id, options = {}) => {
   const { useApi = false, confirm = true } = options
-  const entityTypeStr = String(entityType)
+  const entityTypeStr = typeof entityType === 'string' ? entityType : JSON.stringify(entityType)
   
   if (useApi) {
     return cy.request({

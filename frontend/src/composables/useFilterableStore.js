@@ -37,7 +37,7 @@ export function useFilterableStore(options = {}) {
     // Default filter implementation
     return items.filter(item => {
       return Object.entries(filters).every(([key, value]) => {
-        if (value == null || value === '') {
+        if (value === null || value === undefined || value === '') {
           return true
         }
 
@@ -78,9 +78,9 @@ export function useFilterableStore(options = {}) {
    * Clear all filters
    */
   const clearFilters = () => {
-    Object.keys(filters).forEach(key => {
+    for (const key of Object.keys(filters)) {
       filters[key] = initialFilters[key] || null
-    })
+    }
   }
 
   /**

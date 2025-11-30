@@ -88,8 +88,8 @@ export function mockApiResponses(responses) {
   }
 
   for (const [endpoint, response] of Object.entries(defaultResponses)) {
-    cy.intercept('GET', endpoint, { statusCode: 200, body: response }).as(`api-${endpoint.replace(/\//g, '-')}`)
-    cy.intercept('POST', endpoint, { statusCode: 201, body: response }).as(`api-post-${endpoint.replace(/\//g, '-')}`)
+    cy.intercept('GET', endpoint, { statusCode: 200, body: response }).as(`api-${endpoint.replaceAll('/', '-')}`)
+    cy.intercept('POST', endpoint, { statusCode: 201, body: response }).as(`api-post-${endpoint.replaceAll('/', '-')}`)
   }
 }
 
