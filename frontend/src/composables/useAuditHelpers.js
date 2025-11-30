@@ -107,18 +107,62 @@ export function getAuditStatusClass(item, auditType) {
 }
 
 /**
+ * Format primitive value to string safely
+ * @param {*} value - Value to format
+ * @returns {string} Formatted string
+ */
+function formatPrimitiveValue(value) {
+  const type = typeof value
+  if (type === 'string') {
+    return value
+  }
+  if (type === 'number') {
+    return String(value)
+  }
+  if (type === 'boolean') {
+    return String(value)
+  }
+  return '[Unknown]'
+}
+
+/**
+ * Try to stringify object safely
+ * @param {Object} obj - Object to stringify
+ * @returns {string} Stringified object or fallback
+ */
+function safeStringifyObject(obj) {
+  try {
+    return JSON.stringify(obj, null, 2)
+  } catch {
+    return '[Object]'
+  }
+}
+
+/**
  * Format JSON data for display
  * @param {Object|string} data - Data to format
  * @returns {string} Formatted JSON string
  */
 export function formatJson(data) {
+  // Handle null and undefined first
+  if (data === null) return 'null'
+  if (data === undefined) return 'undefined'
+  
+  // Try to format as JSON
   try {
-    if (typeof data === 'string') {
-      return JSON.stringify(JSON.parse(data), null, 2)
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data
+    if (typeof parsed === 'object' && parsed !== null) {
+      return JSON.stringify(parsed, null, 2)
     }
-    return JSON.stringify(data, null, 2)
+    return String(parsed)
   } catch {
-    return String(data)
+    // Fallback: convert primitive types to string
+    const type = typeof data
+    if (type === 'object' && data !== null) {
+      return safeStringifyObject(data)
+    }
+    
+    return formatPrimitiveValue(data)
   }
 }
 

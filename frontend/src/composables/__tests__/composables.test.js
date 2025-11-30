@@ -1,4 +1,6 @@
-// Tests unitarios para composables de CacaoScan.
+/**
+ * Tests unitarios para composables de CacaoScan.
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useImageStats } from '../useImageStats.js'
 import { useWebSocket } from '../useWebSocket.js'
