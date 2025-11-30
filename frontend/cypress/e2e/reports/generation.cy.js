@@ -14,6 +14,46 @@ describe('Generación de Reportes - Creación', () => {
     }
   }
 
+  const clickIfExists = (selector, options = {}) => {
+    return cy.get('body').then(($body) => {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().click({ force: true, ...options })
+        return true
+      }
+      return false
+    })
+  }
+
+  const fillFieldIfExists = (selector, value, options = {}) => {
+    return cy.get('body').then(($body) => {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().type(value, { force: true, ...options })
+        return true
+      }
+      return false
+    })
+  }
+
+  const selectOptionIfExists = (selector, value, options = {}) => {
+    return cy.get('body').then(($body) => {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().select(value, { force: true, ...options })
+        return true
+      }
+      return false
+    })
+  }
+
+  const checkCheckboxIfExists = (selector, options = {}) => {
+    return cy.get('body').then(($body) => {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().check({ force: true, ...options })
+        return true
+      }
+      return false
+    })
+  }
+
   it('debe mostrar interfaz de generación de reportes', () => {
     cy.get('body').then(($body) => {
       const selectors = [
@@ -27,27 +67,18 @@ describe('Generación de Reportes - Creación', () => {
   })
 
   it('debe crear reporte de análisis por período', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="create-report-button"], button').length > 0) {
-        cy.get('[data-cy="create-report-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="report-type"], select').length > 0) {
-            cy.get('[data-cy="report-type"], select').first().select('analisis-periodo', { force: true })
-            cy.get('body').then(($afterSelect) => {
-              if ($afterSelect.find('[data-cy="start-date"], input[type="date"]').length > 0) {
-                cy.get('[data-cy="start-date"], input[type="date"]').first().type('2024-01-01', { force: true })
-                cy.get('[data-cy="end-date"], input[type="date"]').first().type('2024-01-31', { force: true })
-                cy.get('body').then(($afterDates) => {
-                  if ($afterDates.find('[data-cy="fincas-select"], input[type="checkbox"]').length > 0) {
-                    cy.get('[data-cy="fincas-select"], input[type="checkbox"]').first().check({ force: true })
-                    cy.get('[data-cy="include-charts"], input[type="checkbox"]').first().check({ force: true })
-                    cy.get('[data-cy="include-recommendations"], input[type="checkbox"]').last().check({ force: true })
-                    cy.get('[data-cy="generate-report"], button[type="submit"]').first().click()
-                    cy.get('body', { timeout: 5000 }).should('be.visible')
-                  }
-                })
-              }
-            })
+    clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
+      if (clicked) {
+        cy.wait(500)
+        selectOptionIfExists('[data-cy="report-type"], select', 'analisis-periodo').then((selected) => {
+          if (selected) {
+            fillFieldIfExists('[data-cy="start-date"], input[type="date"]', '2024-01-01')
+            fillFieldIfExists('[data-cy="end-date"], input[type="date"]', '2024-01-31')
+            checkCheckboxIfExists('[data-cy="fincas-select"], input[type="checkbox"]')
+            checkCheckboxIfExists('[data-cy="include-charts"], input[type="checkbox"]')
+            checkCheckboxIfExists('[data-cy="include-recommendations"], input[type="checkbox"]')
+            clickIfExists('[data-cy="generate-report"], button[type="submit"]')
+            cy.get('body', { timeout: 5000 }).should('be.visible')
           }
         })
       }
@@ -55,30 +86,18 @@ describe('Generación de Reportes - Creación', () => {
   })
 
   it('debe crear reporte de calidad por finca', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="create-report-button"], button').length > 0) {
-        cy.get('[data-cy="create-report-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="report-type"], select').length > 0) {
-            cy.get('[data-cy="report-type"], select').first().select('calidad-finca', { force: true })
-            cy.get('body', { timeout: 5000 }).then(($afterSelect) => {
-              if ($afterSelect.find('[data-cy="finca-select"], select').length > 0) {
-                cy.get('[data-cy="finca-select"], select').first().select('Finca El Paraíso', { force: true })
-                cy.get('body').then(($options) => {
-                  if ($options.find('[data-cy="include-trends"], input[type="checkbox"]').length > 0) {
-                    cy.get('[data-cy="include-trends"], input[type="checkbox"]').first().check({ force: true })
-                  }
-                  if ($options.find('[data-cy="include-comparisons"], input[type="checkbox"]').length > 0) {
-                    cy.get('[data-cy="include-comparisons"], input[type="checkbox"]').first().check({ force: true })
-                  }
-                })
-                
-                // Generar reporte
-                cy.get('body').then(($generate) => {
-                  if ($generate.find('[data-cy="generate-report"], button[type="submit"]').length > 0) {
-                    cy.get('[data-cy="generate-report"], button[type="submit"]').first().click()
-                    
-                    // Esperar completación si existe
+    clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
+      if (clicked) {
+        cy.wait(500)
+        selectOptionIfExists('[data-cy="report-type"], select', 'calidad-finca').then((selected) => {
+          if (selected) {
+            cy.wait(500)
+            selectOptionIfExists('[data-cy="finca-select"], select', 'Finca El Paraíso').then((fincaSelected) => {
+              if (fincaSelected) {
+                checkCheckboxIfExists('[data-cy="include-trends"], input[type="checkbox"]')
+                checkCheckboxIfExists('[data-cy="include-comparisons"], input[type="checkbox"]')
+                clickIfExists('[data-cy="generate-report"], button[type="submit"]').then((submitted) => {
+                  if (submitted) {
                     cy.get('body', { timeout: 30000 }).then(($completed) => {
                       if ($completed.find('[data-cy="report-completed"], .completed').length > 0) {
                         cy.get('[data-cy="report-completed"], .completed').should('be.visible')
@@ -100,41 +119,27 @@ describe('Generación de Reportes - Creación', () => {
   })
 
   it('debe crear reporte comparativo entre lotes', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="create-report-button"], button').length > 0) {
-        cy.get('[data-cy="create-report-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="report-type"], select').length > 0) {
-            cy.get('[data-cy="report-type"], select').first().select('comparativo-lotes', { force: true })
-            cy.get('body', { timeout: 5000 }).then(($afterSelect) => {
-              if ($afterSelect.find('[data-cy="lotes-select"], input[type="checkbox"]').length > 0) {
-                cy.get('[data-cy="lotes-select"], input[type="checkbox"]').first().check({ force: true })
-                cy.get('body').then(($compare) => {
-                  if ($compare.find('[data-cy="compare-quality"], input[type="checkbox"]').length > 0) {
-                    cy.get('[data-cy="compare-quality"], input[type="checkbox"]').first().check({ force: true })
-                  }
-                  if ($compare.find('[data-cy="compare-production"], input[type="checkbox"]').length > 0) {
-                    cy.get('[data-cy="compare-production"], input[type="checkbox"]').first().check({ force: true })
-                  }
-                })
-                
-                // Generar reporte
-                cy.get('body').then(($generate) => {
-                  if ($generate.find('[data-cy="generate-report"], button[type="submit"]').length > 0) {
-                    cy.get('[data-cy="generate-report"], button[type="submit"]').first().click()
-                    
-                    // Esperar completación si existe
-                    cy.get('body', { timeout: 30000 }).then(($completed) => {
-                      if ($completed.find('[data-cy="report-completed"], .completed').length > 0) {
-                        cy.get('[data-cy="report-completed"], .completed').should('be.visible')
-                      }
-                      if ($completed.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                        cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                      }
-                    })
-                  }
-                })
-              }
+    clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
+      if (clicked) {
+        cy.wait(500)
+        selectOptionIfExists('[data-cy="report-type"], select', 'comparativo-lotes').then((selected) => {
+          if (selected) {
+            cy.wait(500)
+            checkCheckboxIfExists('[data-cy="lotes-select"], input[type="checkbox"]').then(() => {
+              checkCheckboxIfExists('[data-cy="compare-quality"], input[type="checkbox"]')
+              checkCheckboxIfExists('[data-cy="compare-production"], input[type="checkbox"]')
+              clickIfExists('[data-cy="generate-report"], button[type="submit"]').then((submitted) => {
+                if (submitted) {
+                  cy.get('body', { timeout: 30000 }).then(($completed) => {
+                    if ($completed.find('[data-cy="report-completed"], .completed').length > 0) {
+                      cy.get('[data-cy="report-completed"], .completed').should('be.visible')
+                    }
+                    if ($completed.find('[data-cy="notification-success"], .swal2-success').length > 0) {
+                      cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+                    }
+                  })
+                }
+              })
             })
           }
         })

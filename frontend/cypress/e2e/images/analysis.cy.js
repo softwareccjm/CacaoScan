@@ -4,6 +4,15 @@ describe('Análisis de Imágenes - Procesamiento', () => {
     cy.visit('/nuevo-analisis')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
+  
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
 
   it('debe iniciar análisis después de cargar imagen', () => {
     cy.get('body').then(($body) => {
@@ -70,11 +79,7 @@ describe('Análisis de Imágenes - Procesamiento', () => {
                 '[data-cy="quality-grade"]',
                 '[data-cy="defects-list"]'
               ]
-              for (const selector of sectionSelectors) {
-                if ($results.find(selector).length > 0) {
-                  cy.get(selector, { timeout: 3000 }).should('exist')
-                }
-              }
+          verifySelectorsExist(sectionSelectors, $results, 3000)
             })
           }
         })
@@ -279,11 +284,7 @@ describe('Análisis de Imágenes - Procesamiento', () => {
                 '[data-cy="previous-analysis"]',
                 '[data-cy="improvement-indicator"]'
               ]
-              for (const selector of comparisonSelectors) {
-                if ($results.find(selector).length > 0) {
-                  cy.get(selector, { timeout: 3000 }).should('exist')
-                }
-              }
+          verifySelectorsExist(comparisonSelectors, $results, 3000)
             })
           }
         })

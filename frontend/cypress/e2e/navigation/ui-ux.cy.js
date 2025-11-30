@@ -2,6 +2,16 @@ describe('Navegación - UI y UX', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
+
+
 
   it('debe mostrar navegación principal correctamente', () => {
     cy.visit('/agricultor-dashboard')
@@ -15,11 +25,7 @@ describe('Navegación - UI y UX', () => {
         '[data-cy="user-menu"]',
         '[data-cy="nav-link"]'
       ]
-      for (const selector of selectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(selectors, $body, 5000)
     })
   })
 

@@ -4,6 +4,15 @@ describe('Gestión de Fincas - CRUD', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
+  
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
 
   it('debe mostrar lista de fincas del usuario', () => {
     cy.get('body').then(($body) => {
@@ -85,11 +94,7 @@ describe('Gestión de Fincas - CRUD', () => {
                 '[data-cy="finca-ubicacion-error"]',
                 '[data-cy="finca-area-error"]'
               ]
-              for (const selector of errorSelectors) {
-                if ($errors.find(selector).length > 0) {
-                  cy.get(selector).should('exist')
-                }
-              }
+          verifySelectorsExist(errorSelectors, $errors, 3000)
             })
           }
         })
@@ -141,11 +146,7 @@ describe('Gestión de Fincas - CRUD', () => {
             '[data-cy="finca-description"]',
             '[data-cy="finca-map"]'
           ]
-          for (const selector of detailSelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(detailSelectors, $details, 3000)
         })
       } else {
         cy.get('body').should('be.visible')
@@ -254,11 +255,7 @@ describe('Gestión de Fincas - CRUD', () => {
         '[data-cy="total-area"]',
         '[data-cy="average-area"]'
       ]
-      for (const selector of statsSelectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
@@ -378,11 +375,7 @@ describe('Gestión de Fincas - CRUD', () => {
             '[data-cy="lotes-count"]',
             '[data-cy="add-lote-button"]'
           ]
-          for (const selector of loteSelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(loteSelectors, $details, 3000)
         })
       } else {
         cy.get('body').should('be.visible')

@@ -193,11 +193,14 @@ class TestRegistrationService:
         mock_pending = Mock()
         mock_pending_reg.objects.create.return_value = mock_pending
         
-        with patch.object(registration_service, '_send_pre_registration_verification_email', 
+        # Mock _validate_pre_registration_data to return None (no errors)
+        with patch.object(registration_service, '_validate_pre_registration_data', return_value=None), \
+             patch.object(registration_service, '_send_pre_registration_verification_email', 
                          return_value={'success': True}):
             result = registration_service.pre_register_user(user_data)
             
             assert result.success is True
+            assert result.data is not None
             assert 'email' in result.data
     
     @patch('personas.models.PendingRegistration')

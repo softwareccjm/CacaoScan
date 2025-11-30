@@ -3,6 +3,16 @@ describe('Manejo de Errores - Validación y Formularios', () => {
     setupAuth('farmer')
     cy.fixture('testCredentials').as('credentials')
   })
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
+
+
 
   it('debe validar campos requeridos en formulario de finca', () => {
     cy.visit('/mis-fincas')
@@ -22,11 +32,7 @@ describe('Manejo de Errores - Validación y Formularios', () => {
                 '[data-cy="finca-ubicacion-error"]',
                 '[data-cy="finca-area-error"]'
               ]
-              for (const selector of errorSelectors) {
-                if ($afterSubmit.find(selector).length > 0) {
-                  cy.get(selector, { timeout: 3000 }).should('exist')
-                }
-              }
+          verifySelectorsExist(errorSelectors, $afterSubmit, 3000)
             })
           }
         })
@@ -522,11 +528,7 @@ describe('Manejo de Errores - Validación y Formularios', () => {
                 '[data-cy="finca-area-error"]',
                 '[data-cy="finca-ubicacion-error"]'
               ]
-              for (const selector of errorSelectors) {
-                if ($error.find(selector).length > 0) {
-                  cy.get(selector).should('exist')
-                }
-              }
+          verifySelectorsExist(errorSelectors, $error, 3000)
             })
           }
         })

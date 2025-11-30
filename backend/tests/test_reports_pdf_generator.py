@@ -169,11 +169,17 @@ class TestCacaoReportPDFGenerator:
                                           pdf_generator, mock_user, mock_finca):
         """Test successful finca report generation."""
         mock_finca_model.objects.get.return_value = mock_finca
+        # Add calidad_promedio to mock_finca
+        mock_finca.calidad_promedio = 75.0
         
         mock_doc = Mock()
+        mock_buffer = Mock()
+        mock_buffer.getvalue.return_value = b"pdf_content"
+        mock_buffer.seek = Mock()
         mock_doc_template.return_value = mock_doc
         
-        result = pdf_generator.generate_finca_report(1, mock_user)
+        with patch('reports.services.report.pdf_generator.io.BytesIO', return_value=mock_buffer):
+            result = pdf_generator.generate_finca_report(1, mock_user)
         
         assert isinstance(result, bytes)
         assert len(result) > 0
@@ -207,6 +213,11 @@ class TestCacaoReportPDFGenerator:
         mock_filtered_failed = Mock()
         mock_filtered_failed.count = Mock(return_value=1)
         mock_login_queryset.filter = Mock(side_effect=lambda **kwargs: mock_filtered_success if kwargs.get('success') == True else mock_filtered_failed)
+        # Make queryset subscriptable for [:50]
+        mock_activity_queryset_subset = []
+        mock_activity_queryset.__getitem__ = Mock(return_value=mock_activity_queryset_subset)
+        mock_activity_model.objects.select_related.return_value.order_by.return_value = mock_activity_queryset
+        
         mock_login_model.objects.all.return_value = mock_login_queryset
         mock_login_model.objects.select_related.return_value.order_by.return_value = []
         

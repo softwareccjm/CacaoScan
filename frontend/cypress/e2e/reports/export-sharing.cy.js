@@ -4,6 +4,15 @@ describe('Reportes - Exportación y Compartir', () => {
     cy.visit('/reportes')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
+  
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
 
   it('debe exportar reporte como PDF', () => {
     cy.get('body').then(($body) => {
@@ -309,11 +318,7 @@ describe('Reportes - Exportación y Compartir', () => {
                     '[data-cy="sharing-method"]',
                     '[data-cy="sharing-recipients"]'
                   ]
-                  for (const selector of sharingSelectors) {
-                    if ($item.find(selector).length > 0) {
-                      cy.get(selector).should('exist')
-                    }
-                  }
+          verifySelectorsExist(sharingSelectors, $item, 3000)
                 })
               }
             })
@@ -457,11 +462,7 @@ describe('Reportes - Exportación y Compartir', () => {
                     '[data-cy="preview-content"]',
                     '[data-cy="preview-pages"]'
                   ]
-                  for (const selector of previewSelectors) {
-                    if ($content.find(selector).length > 0) {
-                      cy.get(selector).should('exist')
-                    }
-                  }
+          verifySelectorsExist(previewSelectors, $content, 3000)
                   
                   // Navegar por páginas si existen los botones
                   if ($content.find('[data-cy="next-page"], button').length > 0) {

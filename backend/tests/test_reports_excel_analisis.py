@@ -195,7 +195,11 @@ class TestExcelAnalisisGenerator:
         
         # Mock activity queryset
         mock_activity_queryset = Mock()
-        mock_activity_queryset.select_related.return_value.order_by.return_value = []
+        # Make queryset subscriptable for [:100]
+        mock_activity_queryset_subset = []
+        mock_activity_queryset.__getitem__ = Mock(return_value=mock_activity_queryset_subset)
+        mock_activity_queryset.__iter__ = Mock(return_value=iter([]))
+        mock_activity_queryset.select_related.return_value.order_by.return_value = mock_activity_queryset
         mock_activity_model.objects.select_related.return_value.order_by.return_value = mock_activity_queryset
         
         # Mock login queryset

@@ -2,7 +2,17 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
   beforeEach(() => {
     cy.login('analyst')
     cy.visit('/reportes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    cy.get('body', { timeout: 10000 })
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
+
+.should('be.visible')
   })
 
   it('debe mostrar lista de reportes generados', () => {
@@ -42,11 +52,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
             '[data-cy="report-metadata"]',
             '[data-cy="report-content"]'
           ]
-          for (const selector of detailSelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(detailSelectors, $details, 3000)
         })
       } else {
         cy.get('body').should('be.visible')
@@ -65,11 +71,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
             '[data-cy="recommendations"]',
             '[data-cy="conclusions"]'
           ]
-          for (const selector of summarySelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(summarySelectors, $details, 3000)
         })
       } else {
         cy.get('body').should('be.visible')
@@ -88,11 +90,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
             '[data-cy="trend-chart"]',
             '[data-cy="comparison-chart"]'
           ]
-          for (const selector of chartSelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(chartSelectors, $details, 3000)
         })
       } else {
         cy.get('body').should('be.visible')
@@ -115,11 +113,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
                 '[data-cy="download-excel"]',
                 '[data-cy="download-powerpoint"]'
               ]
-              for (const selector of downloadSelectors) {
-                if ($download.find(selector).length > 0) {
-                  cy.get(selector).should('exist')
-                }
-              }
+          verifySelectorsExist(downloadSelectors, $download, 3000)
               
               // Descargar PDF si existe
               if ($download.find('[data-cy="download-pdf"], button, a').length > 0) {
@@ -307,11 +301,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
         '[data-cy="reports-this-month"]',
         '[data-cy="average-generation-time"]'
       ]
-      for (const selector of statsSelectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
@@ -364,11 +354,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
                     '[data-cy="version-date"]',
                     '[data-cy="version-changes"]'
                   ]
-                  for (const selector of versionSelectors) {
-                    if ($item.find(selector).length > 0) {
-                      cy.get(selector).should('exist')
-                    }
-                  }
+          verifySelectorsExist(versionSelectors, $item, 3000)
                 })
               }
             })
@@ -476,11 +462,7 @@ describe('Visualización de Reportes - Lista y Detalles', () => {
             '[data-cy="data-source"]',
             '[data-cy="report-size"]'
           ]
-          for (const selector of metadataSelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(metadataSelectors, $details, 3000)
         })
       } else {
         cy.get('body').should('be.visible')

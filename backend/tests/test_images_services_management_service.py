@@ -160,9 +160,11 @@ class TestImageManagementService:
     def test_get_image_details_success(self, mock_get_model, management_service, 
                                        mock_user, mock_cacao_image):
         """Test getting image details."""
-        # Create a proper queryset mock that is iterable - use a list directly
+        # Create a proper queryset mock that is iterable - return empty list directly
         mock_predictions_queryset = Mock()
-        mock_predictions_queryset.order_by = Mock(return_value=[])  # Return empty list directly
+        mock_predictions_queryset.order_by = Mock(return_value=[])
+        # Make it iterable by making order_by return a list directly
+        mock_predictions_queryset.order_by.return_value = []
         mock_cacao_image.predictions = Mock()
         mock_cacao_image.predictions.all.return_value = mock_predictions_queryset
         

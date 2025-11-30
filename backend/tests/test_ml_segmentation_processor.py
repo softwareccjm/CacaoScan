@@ -194,7 +194,6 @@ class TestSegmentationProcessor:
             assert result.shape == alpha.shape
     
     @patch('ml.segmentation.processor._HAS_XIMGPROC', True)
-    @patch('ml.segmentation.processor._HAS_XIMGPROC', True)
     @patch('ml.segmentation.processor.ximgproc')
     def test_guided_refine_with_ximgproc(self, mock_ximgproc_module, mock_image_path):
         """Test guided_refine with ximgproc available."""

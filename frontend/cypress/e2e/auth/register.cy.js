@@ -3,6 +3,15 @@ describe('Autenticación - Registro', () => {
     cy.visit('/registro')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
+  
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
 
   it('debe mostrar el formulario de registro correctamente', () => {
     cy.get('body').then(($body) => {
@@ -15,11 +24,7 @@ describe('Autenticación - Registro', () => {
         '[data-cy="password-input"]', '[data-cy="confirm-password-input"]', '[data-cy="role-select"]',
         '[data-cy="terms-checkbox"]', '[data-cy="register-button"]', '[data-cy="login-link"]'
       ]
-      for (const selector of selectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
@@ -327,11 +332,7 @@ describe('Autenticación - Registro', () => {
             '[data-cy="first-name-error"]', '[data-cy="last-name-error"]', '[data-cy="email-error"]',
             '[data-cy="password-error"]', '[data-cy="confirm-password-error"]', '[data-cy="role-error"]'
           ]
-          for (const selector of errorSelectors) {
-            if ($errors.find(selector).length > 0) {
-              cy.get(selector).should('exist')
-            }
-          }
+          verifySelectorsExist(errorSelectors, $errors, 3000)
         })
       }
     })

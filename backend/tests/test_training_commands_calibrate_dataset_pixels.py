@@ -165,18 +165,24 @@ class TestCalibrateDatasetPixelsCommand:
         mock_df.__len__ = Mock(return_value=0)
         mock_df.__iter__ = Mock(return_value=iter([]))
         mock_df.iterrows.return_value = []
-        mock_loader.load_dataset.return_value = mock_df
-        mock_loader.validate_images_exist.return_value = (mock_df, [])
-        # Return valid records so segmentation is called
+        # Create a valid DataFrame with the record
+        import pandas as pd
+        valid_df = pd.DataFrame([{'id': 1, 'alto': 10.5, 'ancho': 8.3, 'grosor': 6.1, 'peso': 2.3}])
         mock_loader.get_valid_records.return_value = [
             {'id': 1, 'raw_image_path': test_image_path}
         ]
+        mock_loader.load_dataset.return_value = valid_df
+        mock_loader.validate_images_exist.return_value = (valid_df, [])
         mock_loader_class.return_value = mock_loader
         
-        with patch.object(command, 'stdout'):
+        # Mock _segment_image_primary to verify it's called
+        with patch.object(command, '_segment_image_primary') as mock_primary, \
+             patch.object(command, 'stdout'):
+            mock_primary.return_value = (Image.new('RGBA', (100, 100)), processed_png, 0.95)
             command.handle(**mock_options)
         
-        mock_segment.assert_called()
+        # Verify that _segment_image_primary was called, which uses segment_and_crop_cacao_bean
+        mock_primary.assert_called()
     
     @patch('ml.segmentation.cropper.create_cacao_cropper')
     @patch('training.management.commands.calibrate_dataset_pixels.segment_and_crop_cacao_bean')
@@ -215,15 +221,25 @@ class TestCalibrateDatasetPixelsCommand:
         test_image_path = tmp_path / "test_image.bmp"
         test_image = Image.new('RGB', (512, 512), color='red')
         test_image.save(test_image_path)
+        # Create a valid DataFrame with the record
+        import pandas as pd
+        valid_df = pd.DataFrame([{'id': 1, 'alto': 10.5, 'ancho': 8.3, 'grosor': 6.1, 'peso': 2.3}])
         mock_loader.get_valid_records.return_value = [
             {'id': 1, 'raw_image_path': test_image_path}
         ]
+        mock_loader.load_dataset.return_value = valid_df
+        mock_loader.validate_images_exist.return_value = (valid_df, [])
         mock_loader_class.return_value = mock_loader
         
-        with patch.object(command, 'stdout'):
+        # Mock _segment_image_primary to fail, triggering fallback
+        with patch.object(command, '_segment_image_primary', side_effect=Exception("Primary failed")), \
+             patch.object(command, '_segment_image_fallback') as mock_fallback, \
+             patch.object(command, 'stdout'):
+            mock_fallback.return_value = (Image.new('RGBA', (100, 100)), processed_png, 0.9)
             command.handle(**mock_options)
         
-        mock_create_cropper.assert_called_once()
+        # Verify that _segment_image_fallback was called, which uses create_cacao_cropper
+        mock_fallback.assert_called()
     
     @patch('training.management.commands.calibrate_dataset_pixels.CacaoDatasetLoader')
     @patch('training.management.commands.calibrate_dataset_pixels.get_crop_image_path')
