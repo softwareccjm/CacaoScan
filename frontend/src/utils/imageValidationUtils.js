@@ -77,3 +77,31 @@ export function getImageValidationError(file, options = {}) {
   return errors.length > 0 ? errors[0] : null
 }
 
+/**
+ * Validate image file and return object format (for compatibility)
+ * @param {File} file - File to validate
+ * @param {Object} options - Validation options
+ * @returns {Object} Object with isValid and errors properties
+ */
+export function validateImageFileObject(file, options = {}) {
+  const errors = validateImageFile(file, options)
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
+/**
+ * Validate image file and return object format with single error (for compatibility)
+ * @param {File} file - File to validate
+ * @param {Object} options - Validation options
+ * @returns {Object} Object with isValid and error properties
+ */
+export function validateImageFileSingleError(file, options = {}) {
+  const errors = validateImageFile(file, options)
+  return {
+    isValid: errors.length === 0,
+    error: errors.length > 0 ? errors[0] : undefined
+  }
+}
+
