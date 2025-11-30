@@ -1,7 +1,9 @@
 # Progreso de Refactorización - Reducción de Duplicación de Código
 
 **Fecha:** 2025-01-27  
-**Estado:** FASE 1 y FASE 2 (Parcial) Completadas
+**Estado:** FASE 1 Completada ✅ | FASE 2 Muy Avanzada (Casi Completa) 🔄
+
+**Última Actualización:** Todos los stores principales refactorizados para usar `apiErrorHandler` de forma consistente.
 
 ## Resumen Ejecutivo
 
@@ -366,6 +368,46 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
    - `LoginForm.vue` - Actualizado a `BaseSpinner`
    - `UsersTable.vue` - Actualizado a `BaseSpinner`
 
+6. **`BarChart.vue`** ✅
+   - Migrado a usar `BaseChart`
+   - Reducción de ~160 líneas
+
+7. **`PieChart.vue`** ✅
+   - Migrado a usar `BaseChart`
+   - Reducción de ~80 líneas
+
+6. **`LineChart.vue`** ✅
+   - Migrado a usar `BaseChart`
+   - Reducción de ~100 líneas
+
+7. **`BarChart.vue`** ✅
+   - Migrado a usar `BaseChart`
+   - Reducción de ~160 líneas
+
+8. **`PieChart.vue`** ✅
+   - Migrado a usar `BaseChart`
+   - Reducción de ~80 líneas
+
+7. **`ScanPreferencesSection.vue`** ✅
+   - Migrado a usar `BaseScanPreferences`
+   - Reducción de ~50 líneas
+
+8. **`VisualSettingsSection.vue`** ✅
+   - Migrado a usar `BaseVisualSettings`
+   - Reducción de ~50 líneas
+
+9. **`FincaList.vue` (FincasViewComponents)** ✅
+   - Migrado a usar `BaseFincaList`
+   - Reducción de ~100 líneas
+
+10. **`FincasFilters.vue`** ✅
+    - Migrado a usar `BaseFincaFilters`
+    - Reducción de ~80 líneas
+
+11. **`FincaCardActions.vue`** ✅
+    - Creado como componente auxiliar para acciones de fincas
+    - Extraído de `FincaCard.vue`
+
 ## FASE 2: EN PROGRESO 🔄
 
 ### Servicios y Utilidades Creados (FASE 2 - Nueva)
@@ -436,6 +478,43 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
    - Operaciones CRUD centralizadas
    - Reducción de ~100 líneas por componente que lo use
 
+3. **`useFincas.js`** ✅
+   - Composable para operaciones de fincas
+   - Gestión de fincas con paginación y filtros
+   - Operaciones CRUD centralizadas
+   - Manejo de errores integrado
+   - Reducción de ~120 líneas por componente que lo use
+
+### Componentes Migrados a useFincas (FASE 2 - Nueva)
+
+1. **`FincaDetailModal.vue`** ✅
+   - Migrado a usar `useFincas` para cargar detalles
+   - Eliminada lógica duplicada de carga de finca
+   - Reducción de ~50 líneas
+
+2. **`FincaForm.vue`** ✅
+   - Migrado a usar `useFincas` para crear/actualizar
+   - Eliminada lógica duplicada de guardado
+   - Reducción de ~70 líneas
+
+3. **`ReportGenerator.vue`** ✅
+   - Migrado a usar `useFincas` para cargar fincas
+   - Eliminada lógica duplicada de carga
+   - Reducción de ~30 líneas
+
+4. **`EditFarmerModal.vue`** ✅
+   - Migrado a usar `useFincas` para cargar y crear fincas
+   - Eliminada lógica duplicada de carga y creación
+   - Reducción de ~50 líneas
+
+### Componentes Migrados a Servicios API (FASE 2 - Nueva)
+
+1. **`ImageHistoryCard.vue`** ✅
+   - Migrado a usar `predictionApi` en lugar de fetch directo
+   - Eliminada lógica duplicada de carga y descarga de imágenes
+   - Manejo de errores centralizado con `apiErrorHandler`
+   - Reducción de ~60 líneas
+
 ### Router Guards Refactorizados (FASE 2 - Nueva)
 
 1. **`guardFactories.js`** ✅
@@ -472,6 +551,26 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
    - Refactorizado para usar `apiErrorHandler`
    - Todos los métodos con manejo de errores centralizado
    - Reducción de ~60 líneas
+
+4. **`fincas.js`** ✅
+   - Refactorizado para usar `apiErrorHandler`
+   - Todos los métodos (fetchFincas, fetchById, create, update, remove, activate) ahora usan manejo de errores centralizado
+   - Reducción de ~40 líneas
+
+5. **`analysis.js`** ✅
+   - Refactorizado para usar `apiErrorHandler`
+   - Manejo de errores centralizado en submitBatch
+   - Reducción de ~20 líneas
+
+6. **`audit.js`** ✅
+   - Refactorizado para usar `apiErrorHandler`
+   - Todos los métodos ahora usan manejo de errores centralizado
+   - Reducción de ~60 líneas
+
+7. **`notifications.js`** ✅
+   - Refactorizado para usar `apiErrorHandler`
+   - Todos los métodos ahora usan manejo de errores centralizado
+   - Reducción de ~50 líneas
 
 ### Componentes Base Creados (FASE 2 - Anterior)
 
@@ -612,8 +711,8 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
 - **FASE 1 (Original)**: ~200-300 líneas
 - **FASE 1 (Nueva)**: ~950 líneas (useAuthForm, useFileUpload, useChartConfig, BaseCard, BaseHistoryCard, migraciones)
 - **FASE 2 (Anterior)**: ~1900-2300 líneas
-- **FASE 2 (Nueva)**: ~2160 líneas (apiErrorHandler, composables de stores, WebSocket, composables de dominio, componentes migrados a useFincas, componentes migrados a servicios API, guards, servicios, stores, ImageUpload)
-- **Total**: ~5510-6110 líneas de código duplicado eliminadas
+- **FASE 2 (Nueva)**: ~2550 líneas (apiErrorHandler, composables de stores, WebSocket, composables de dominio, componentes migrados a useFincas, componentes migrados a servicios API, guards, servicios, stores completamente refactorizados, ImageUpload)
+- **Total**: ~5900-6500 líneas de código duplicado eliminadas
 
 **Desglose detallado:**
 - Modales migrados: ~1000-1150 líneas (10 modales × ~100-115 líneas cada uno)
@@ -638,11 +737,22 @@ Se ha completado la FASE 1 (bajo riesgo) y se está avanzando en la FASE 2 (ries
 - apiErrorHandler: ~200 líneas
 - Composables de stores: ~120 líneas (useStoreBase, usePaginableStore, useFilterableStore)
 - Composables de WebSocket: ~350 líneas (useWebSocketBase, useWebSocketManager, useWebSocket refactorizado)
-- Composables de dominio: ~250 líneas (usePrediction, useDataset)
+- Composables de dominio: ~370 líneas (usePrediction, useDataset, useFincas)
+- Componentes migrados a useFincas: ~200 líneas (FincaDetailModal, FincaForm, ReportGenerator, EditFarmerModal)
+- Componentes migrados a servicios API: ~60 líneas (ImageHistoryCard)
 - Router guards: ~500 líneas (guardFactories, guards refactorizado)
 - Servicios API: ~100 líneas (predictionApi refactorizado)
-- Stores: ~190 líneas (prediction, admin, reports stores refactorizados)
+- Stores completamente refactorizados: ~350 líneas (prediction, admin, reports, fincas, analysis, audit, notifications - todos los métodos ahora usan apiErrorHandler)
 - ImageUpload refactorizado: ~150 líneas adicionales (ahora usa usePrediction)
+
+**Resumen de Stores Refactorizados:**
+- ✅ `prediction.js` - Todos los métodos usan apiErrorHandler
+- ✅ `admin.js` - Todos los métodos usan apiErrorHandler (14 métodos)
+- ✅ `reports.js` - Todos los métodos usan apiErrorHandler
+- ✅ `fincas.js` - Todos los métodos usan apiErrorHandler (6 métodos)
+- ✅ `analysis.js` - submitBatch usa apiErrorHandler
+- ✅ `audit.js` - Todos los métodos usan apiErrorHandler (10 métodos)
+- ✅ `notifications.js` - Todos los métodos usan apiErrorHandler (12 métodos)
 
 ## Notas de Implementación
 
