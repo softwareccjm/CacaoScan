@@ -507,39 +507,26 @@ class CacaoTrainingPipeline:
 
         logger.info(f"Pipeline inicializado con configuración: {config}")
 
-    def load_data(
-        self,
-    ) -> Tuple[List[Path], Dict[str, np.ndarray], Optional[Dict[str, np.ndarray]]]:
-        """
-        Carga y prepara los datos, incluyendo features de píxeles si están disponibles.
-        """
-        logger.info("Cargando datos...")
-
-        # Intentar cargar calibración de píxeles (pixel_calibration.json)
-        pixel_calibration: Optional[Dict[str, Any]] = None
+    def _load_pixel_calibration(self) -> Optional[Dict[str, Any]]:
+        """Load pixel calibration from JSON file."""
         calibration_file = get_datasets_dir() / "pixel_calibration.json"
-        if calibration_file.exists():
-            try:
-                pixel_calibration = load_json(calibration_file)
-                num_calib = len(pixel_calibration.get("calibration_records", []))
-                logger.info(
-                    f"Calibración de píxeles cargada: {num_calib} registros desde {calibration_file}"
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Error cargando pixel_calibration.json ({calibration_file}): {e}"
-                )
+        if not calibration_file.exists():
+            return None
+        try:
+            pixel_calibration = load_json(calibration_file)
+            num_calib = len(pixel_calibration.get("calibration_records", []))
+            logger.info(
+                f"Calibración de píxeles cargada: {num_calib} registros desde {calibration_file}"
+            )
+            return pixel_calibration
+        except Exception as e:
+            logger.warning(
+                f"Error cargando pixel_calibration.json ({calibration_file}): {e}"
+            )
+            return None
 
-        # Cargar registros válidos
-        loader = CacaoDatasetLoader()
-        valid_records = loader.get_valid_records()
-
-        if not valid_records:
-            raise ValueError("No se encontraron registros válidos")
-
-        logger.info(f"Encontrados {len(valid_records)} registros válidos")
-
-        # Filtrar registros que tienen crops
+    def _filter_records_by_crops(self, valid_records: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Filter records by crop availability."""
         crop_records: List[Dict[str, Any]] = []
         missing_crop_records: List[Dict[str, Any]] = []
 
@@ -561,8 +548,245 @@ class CacaoTrainingPipeline:
 
         logger.info(f"Registros con crops disponibles: {len(crop_records)}")
         logger.info(f"Registros sin crops: {len(missing_crop_records)}")
+        return crop_records, missing_crop_records
 
-        # Validar y regenerar crops de mala calidad si está configurado
+    def _validate_single_crop(self, record: Dict[str, Any]) -> bool:
+        """Validate a single crop image."""
+        import cv2
+        try:
+            crop_path = record["crop_image_path"]
+            crop_img = cv2.imread(str(crop_path))
+            if crop_img is None:
+                return False
+
+            crop_img_rgb = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+            h, w = crop_img_rgb.shape[:2]
+            if h < 100 or w < 100:
+                logger.warning(
+                    f"Crop demasiado pequeño ({w}x{h}) para {crop_path.name}"
+                )
+                return False
+
+            if crop_img_rgb.shape[2] == 4:
+                alpha = crop_img_rgb[:, :, 3]
+                if np.sum(alpha > 128) < (h * w * 0.1):
+                    logger.warning(
+                        f"Crop con muy poco contenido visible para {crop_path.name}"
+                    )
+                    return False
+
+            return True
+        except Exception as e:
+            logger.warning(
+                f"Error validando crop {record.get('id', 'unknown')}: {e}"
+            )
+            return False
+
+    def _validate_and_regenerate_crops(
+        self, crop_records: List[Dict[str, Any]], validate_crops: bool, regenerate_bad: bool
+    ) -> List[Dict[str, Any]]:
+        """Validate crop quality and regenerate bad ones if needed."""
+        if not validate_crops or not crop_records:
+            return crop_records
+
+        logger.info("Validando calidad de crops existentes...")
+        bad_crop_records: List[Dict[str, Any]] = []
+        good_crop_records: List[Dict[str, Any]] = []
+
+        for record in crop_records:
+            if self._validate_single_crop(record):
+                good_crop_records.append(record)
+            else:
+                bad_crop_records.append(record)
+
+        logger.info(
+            "Crops válidos: %d, crops inválidos: %d",
+            len(good_crop_records),
+            len(bad_crop_records),
+        )
+
+        if regenerate_bad and bad_crop_records:
+            logger.info(
+                "Regenerando %d crops de mala calidad...", len(bad_crop_records)
+            )
+            for record in bad_crop_records:
+                crop_path = record["crop_image_path"]
+                if crop_path.exists():
+                    crop_path.unlink()
+
+            new_crop_records = self._generate_crops_for_missing(bad_crop_records)
+            good_crop_records.extend(new_crop_records)
+
+        return good_crop_records
+
+    def _process_calibration_record(
+        self, calib_record: Dict[str, Any], image_id: int
+    ) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float], Dict[str, Any]]:
+        """Process a single calibration record."""
+        pixel_meas = calib_record.get("pixel_measurements", {})
+        scale_factors = calib_record.get("scale_factors", {})
+        bg_info = calib_record.get("background_info", {})
+        real_dims = calib_record.get("real_dimensions", {})
+
+        pixel_features = {
+            "pixel_width": float(pixel_meas.get("width_pixels", 0.0)),
+            "pixel_height": float(pixel_meas.get("height_pixels", 0.0)),
+            "pixel_area": float(pixel_meas.get("grain_area_pixels", 0.0)),
+            "scale_factor": float(scale_factors.get("average_mm_per_pixel", 0.0)),
+            "aspect_ratio": float(pixel_meas.get("aspect_ratio", 0.0)),
+        }
+
+        real_dimensions = {
+            "alto_mm": float(real_dims.get("alto_mm", 0.0)),
+            "ancho_mm": float(real_dims.get("ancho_mm", 0.0)),
+            "grosor_mm": float(real_dims.get("grosor_mm", 0.0)),
+            "peso_g": float(real_dims.get("peso_g", 0.0)),
+        }
+
+        extended_features = {
+            "grain_area_pixels": float(pixel_meas.get("grain_area_pixels", 0.0)),
+            "width_pixels": float(pixel_meas.get("width_pixels", 0.0)),
+            "height_pixels": float(pixel_meas.get("height_pixels", 0.0)),
+            "bbox_area_pixels": float(pixel_meas.get("bbox_area_pixels", 0.0)),
+            "aspect_ratio": float(pixel_meas.get("aspect_ratio", 0.0)),
+            "original_total_pixels": float(bg_info.get("original_total_pixels", 0.0)),
+            "background_pixels": float(bg_info.get("background_pixels", 0.0)),
+            "background_ratio": float(bg_info.get("background_ratio", 0.0)),
+            "alto_mm_per_pixel": float(scale_factors.get("alto_mm_per_pixel", 0.0)),
+            "ancho_mm_per_pixel": float(scale_factors.get("ancho_mm_per_pixel", 0.0)),
+            "average_mm_per_pixel": float(scale_factors.get("average_mm_per_pixel", 0.0)),
+            "segmentation_confidence": float(calib_record.get("segmentation_confidence", 0.0)),
+        }
+
+        metadata = {
+            "id": image_id,
+            "filename": calib_record.get("filename"),
+            "original_image_path": calib_record.get("original_image_path"),
+            "processed_image_path": calib_record.get("processed_image_path"),
+            "real_dimensions": real_dims,
+            "pixel_measurements": pixel_meas,
+            "background_info": bg_info,
+            "scale_factors": scale_factors,
+            "segmentation_confidence": calib_record.get("segmentation_confidence", 0.0),
+        }
+
+        return pixel_features, real_dimensions, extended_features, metadata
+
+    def _process_pixel_calibration_data(
+        self, pixel_calibration: Dict[str, Any], crop_records: List[Dict[str, Any]]
+    ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, np.ndarray], Dict[str, np.ndarray], List[Dict[str, Any]]]:
+        """Process pixel calibration data into features."""
+        calibration_records = pixel_calibration.get("calibration_records", [])
+        if not calibration_records:
+            logger.warning(
+                "[WARN] pixel_calibration.json existe pero no tiene registros"
+            )
+            return None, {}, {}, []
+
+        calibration_by_id: Dict[int, Dict[str, Any]] = {
+            rec["id"]: rec for rec in calibration_records
+        }
+
+        pixel_features_lists = {
+            "pixel_width": [],
+            "pixel_height": [],
+            "pixel_area": [],
+            "scale_factor": [],
+            "aspect_ratio": [],
+        }
+
+        real_dimensions_lists: Dict[str, List[float]] = {
+            "alto_mm": [],
+            "ancho_mm": [],
+            "grosor_mm": [],
+            "peso_g": [],
+        }
+
+        extended_features_lists: Dict[str, List[float]] = {
+            k: [] for k in CALIB_PIXEL_FEATURE_KEYS
+        }
+
+        metadata_list: List[Dict[str, Any]] = []
+
+        for record in crop_records:
+            image_id = record["id"]
+            calib_record = calibration_by_id.get(image_id)
+
+            if calib_record:
+                pixel_feat, real_dims, ext_feat, metadata = self._process_calibration_record(calib_record, image_id)
+                for key, value in pixel_feat.items():
+                    pixel_features_lists[key].append(value)
+                for key, value in real_dims.items():
+                    real_dimensions_lists[key].append(value)
+                for key, value in ext_feat.items():
+                    extended_features_lists[key].append(value)
+                metadata_list.append(metadata)
+            else:
+                pixel_features_lists["pixel_width"].append(0.0)
+                pixel_features_lists["pixel_height"].append(0.0)
+                pixel_features_lists["pixel_area"].append(0.0)
+                pixel_features_lists["scale_factor"].append(0.0)
+                pixel_features_lists["aspect_ratio"].append(1.0)
+
+                for k in SINGLE_DIM_TARGETS:
+                    real_dimensions_lists[k].append(0.0)
+
+                for k in CALIB_PIXEL_FEATURE_KEYS:
+                    extended_features_lists[k].append(0.0)
+
+                metadata_list.append({
+                    "id": image_id,
+                    "real_dimensions": {},
+                    "pixel_measurements": {},
+                    "background_info": {},
+                    "scale_factors": {},
+                    "segmentation_confidence": 0.0,
+                })
+
+        pixel_features = {
+            k: np.array(v, dtype=np.float32) for k, v in pixel_features_lists.items()
+        }
+
+        for key in CALIB_PIXEL_FEATURE_KEYS:
+            if key not in pixel_features and key in extended_features_lists:
+                pixel_features[key] = np.array(extended_features_lists[key], dtype=np.float32)
+
+        real_dimensions = {
+            k: np.array(v, dtype=np.float32) for k, v in real_dimensions_lists.items()
+        }
+
+        extended_features = {
+            k: np.array(v, dtype=np.float32) for k, v in extended_features_lists.items()
+        }
+
+        logger.info(
+            " Features de píxeles cargadas para %d/%d registros",
+            len([r for r in crop_records if calibration_by_id.get(r["id"]) is not None]),
+            len(crop_records),
+        )
+
+        return pixel_features, real_dimensions, extended_features, metadata_list
+
+    def load_data(
+        self,
+    ) -> Tuple[List[Path], Dict[str, np.ndarray], Optional[Dict[str, np.ndarray]]]:
+        """
+        Carga y prepara los datos, incluyendo features de píxeles si están disponibles.
+        """
+        logger.info("Cargando datos...")
+
+        pixel_calibration = self._load_pixel_calibration()
+
+        loader = CacaoDatasetLoader()
+        valid_records = loader.get_valid_records()
+
+        if not valid_records:
+            raise ValueError("No se encontraron registros válidos")
+
+        logger.info(f"Encontrados {len(valid_records)} registros válidos")
+
+        crop_records, missing_crop_records = self._filter_records_by_crops(valid_records)
+
         validate_crops = self.config.get("validate_crops_quality", True)
         regenerate_bad = self.config.get("regenerate_bad_crops", True)
         seg_backend = self.config.get("segmentation_backend", "auto")
@@ -571,70 +795,7 @@ class CacaoTrainingPipeline:
             validate_crops = False
             regenerate_bad = False
 
-        if validate_crops and crop_records:
-            logger.info("Validando calidad de crops existentes...")
-            bad_crop_records: List[Dict[str, Any]] = []
-            good_crop_records: List[Dict[str, Any]] = []
-
-            from ..data.transforms import validate_crop_quality  # noqa: F401
-            import cv2
-
-            for record in crop_records:
-                try:
-                    crop_path = record["crop_image_path"]
-                    _original_path = record["image_path"]
-
-                    crop_img = cv2.imread(str(crop_path))
-                    if crop_img is None:
-                        bad_crop_records.append(record)
-                        continue
-
-                    crop_img_rgb = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
-
-                    h, w = crop_img_rgb.shape[:2]
-                    if h < 100 or w < 100:
-                        logger.warning(
-                            f"Crop demasiado pequeño ({w}x{h}) para {crop_path.name}"
-                        )
-                        bad_crop_records.append(record)
-                        continue
-
-                    if crop_img_rgb.shape[2] == 4:
-                        alpha = crop_img_rgb[:, :, 3]
-                        if np.sum(alpha > 128) < (h * w * 0.1):
-                            logger.warning(
-                                f"Crop con muy poco contenido visible para {crop_path.name}"
-                            )
-                            bad_crop_records.append(record)
-                            continue
-
-                    good_crop_records.append(record)
-
-                except Exception as e:
-                    logger.warning(
-                        f"Error validando crop {record.get('id', 'unknown')}: {e}"
-                    )
-                    bad_crop_records.append(record)
-
-            logger.info(
-                "Crops válidos: %d, crops inválidos: %d",
-                len(good_crop_records),
-                len(bad_crop_records),
-            )
-
-            if regenerate_bad and bad_crop_records:
-                logger.info(
-                    "Regenerando %d crops de mala calidad...", len(bad_crop_records)
-                )
-                for record in bad_crop_records:
-                    crop_path = record["crop_image_path"]
-                    if crop_path.exists():
-                        crop_path.unlink()
-
-                new_crop_records = self._generate_crops_for_missing(bad_crop_records)
-                good_crop_records.extend(new_crop_records)
-
-            crop_records = good_crop_records
+        crop_records = self._validate_and_regenerate_crops(crop_records, validate_crops, regenerate_bad)
 
         if missing_crop_records:
             if seg_backend == "opencv":
@@ -653,9 +814,7 @@ class CacaoTrainingPipeline:
                     "Generando crops para %d imágenes faltantes...",
                     len(missing_crop_records),
                 )
-                new_crop_records = self._generate_crops_for_missing(
-                    missing_crop_records
-                )
+                new_crop_records = self._generate_crops_for_missing(missing_crop_records)
                 crop_records.extend(new_crop_records)
 
                 logger.info(
@@ -671,200 +830,25 @@ class CacaoTrainingPipeline:
         else:
             logger.info("[OK] Todos los crops ya existen y están validados.")
 
-        # Extraer rutas de imágenes y targets clásicos
         image_paths: List[Path] = [record["crop_image_path"] for record in crop_records]
         targets: Dict[str, np.ndarray] = {
             target: np.array([record[target] for record in crop_records])
             for target in TARGETS
         }
 
-        # Extraer features de píxeles base y extendidos
-        pixel_features: Optional[Dict[str, np.ndarray]] = None
-
         self.single_dim_real_dimensions = None
         self.single_dim_pixel_features = None
         self.single_dim_metadata = None
 
+        pixel_features: Optional[Dict[str, np.ndarray]] = None
         if pixel_calibration is not None:
-            calibration_records = pixel_calibration.get("calibration_records", [])
-            if calibration_records:
-                calibration_by_id: Dict[int, Dict[str, Any]] = {
-                    rec["id"]: rec for rec in calibration_records
-                }
-
-                pixel_features = {
-                    "pixel_width": [],
-                    "pixel_height": [],
-                    "pixel_area": [],
-                    "scale_factor": [],
-                    "aspect_ratio": [],
-                }
-
-                real_dimensions: Dict[str, List[float]] = {
-                    "alto_mm": [],
-                    "ancho_mm": [],
-                    "grosor_mm": [],
-                    "peso_g": [],
-                }
-                extended_features: Dict[str, List[float]] = {
-                    k: [] for k in CALIB_PIXEL_FEATURE_KEYS
-                }
-                metadata_list: List[Dict[str, Any]] = []
-
-                for record in crop_records:
-                    image_id = record["id"]
-                    calib_record = calibration_by_id.get(image_id)
-
-                    if calib_record:
-                        pixel_meas = calib_record.get("pixel_measurements", {})
-                        scale_factors = calib_record.get("scale_factors", {})
-                        bg_info = calib_record.get("background_info", {})
-                        real_dims = calib_record.get("real_dimensions", {})
-
-                        pixel_features["pixel_width"].append(
-                            float(pixel_meas.get("width_pixels", 0.0))
-                        )
-                        pixel_features["pixel_height"].append(
-                            float(pixel_meas.get("height_pixels", 0.0))
-                        )
-                        pixel_features["pixel_area"].append(
-                            float(pixel_meas.get("grain_area_pixels", 0.0))
-                        )
-                        pixel_features["scale_factor"].append(
-                            float(scale_factors.get("average_mm_per_pixel", 0.0))
-                        )
-                        pixel_features["aspect_ratio"].append(
-                            float(pixel_meas.get("aspect_ratio", 0.0))
-                        )
-
-                        real_dimensions["alto_mm"].append(
-                            float(real_dims.get("alto_mm", 0.0))
-                        )
-                        real_dimensions["ancho_mm"].append(
-                            float(real_dims.get("ancho_mm", 0.0))
-                        )
-                        real_dimensions["grosor_mm"].append(
-                            float(real_dims.get("grosor_mm", 0.0))
-                        )
-                        real_dimensions["peso_g"].append(
-                            float(real_dims.get("peso_g", 0.0))
-                        )
-
-                        extended_features["grain_area_pixels"].append(
-                            float(pixel_meas.get("grain_area_pixels", 0.0))
-                        )
-                        extended_features["width_pixels"].append(
-                            float(pixel_meas.get("width_pixels", 0.0))
-                        )
-                        extended_features["height_pixels"].append(
-                            float(pixel_meas.get("height_pixels", 0.0))
-                        )
-                        extended_features["bbox_area_pixels"].append(
-                            float(pixel_meas.get("bbox_area_pixels", 0.0))
-                        )
-                        extended_features["aspect_ratio"].append(
-                            float(pixel_meas.get("aspect_ratio", 0.0))
-                        )
-                        extended_features["original_total_pixels"].append(
-                            float(bg_info.get("original_total_pixels", 0.0))
-                        )
-                        extended_features["background_pixels"].append(
-                            float(bg_info.get("background_pixels", 0.0))
-                        )
-                        extended_features["background_ratio"].append(
-                            float(bg_info.get("background_ratio", 0.0))
-                        )
-                        extended_features["alto_mm_per_pixel"].append(
-                            float(scale_factors.get("alto_mm_per_pixel", 0.0))
-                        )
-                        extended_features["ancho_mm_per_pixel"].append(
-                            float(scale_factors.get("ancho_mm_per_pixel", 0.0))
-                        )
-                        extended_features["average_mm_per_pixel"].append(
-                            float(scale_factors.get("average_mm_per_pixel", 0.0))
-                        )
-                        extended_features["segmentation_confidence"].append(
-                            float(calib_record.get("segmentation_confidence", 0.0))
-                        )
-
-                        metadata_list.append(
-                            {
-                                "id": image_id,
-                                "filename": calib_record.get("filename"),
-                                "original_image_path": calib_record.get(
-                                    "original_image_path"
-                                ),
-                                "processed_image_path": calib_record.get(
-                                    "processed_image_path"
-                                ),
-                                "real_dimensions": real_dims,
-                                "pixel_measurements": pixel_meas,
-                                "background_info": bg_info,
-                                "scale_factors": scale_factors,
-                                "segmentation_confidence": calib_record.get(
-                                    "segmentation_confidence", 0.0
-                                ),
-                            }
-                        )
-                    else:
-                        pixel_features["pixel_width"].append(0.0)
-                        pixel_features["pixel_height"].append(0.0)
-                        pixel_features["pixel_area"].append(0.0)
-                        pixel_features["scale_factor"].append(0.0)
-                        pixel_features["aspect_ratio"].append(1.0)
-
-                        for k in SINGLE_DIM_TARGETS:
-                            real_dimensions[k].append(0.0)
-
-                        for k in CALIB_PIXEL_FEATURE_KEYS:
-                            extended_features[k].append(0.0)
-
-                        metadata_list.append(
-                            {
-                                "id": image_id,
-                                "real_dimensions": {},
-                                "pixel_measurements": {},
-                                "background_info": {},
-                                "scale_factors": {},
-                                "segmentation_confidence": 0.0,
-                            }
-                        )
-
-                # Guardar features básicos en pixel_features (para compatibilidad con dataset)
-                pixel_features = {
-                    k: np.array(v, dtype=np.float32) for k, v in pixel_features.items()
-                }
-                
-                # También agregar features extendidos a pixel_features si están disponibles
-                # Esto permite que el dataset use los features extendidos cuando estén disponibles
-                for key in CALIB_PIXEL_FEATURE_KEYS:
-                    if key not in pixel_features and key in extended_features:
-                        pixel_features[key] = np.array(extended_features[key], dtype=np.float32)
-                
-                self.single_dim_real_dimensions = {
-                    k: np.array(v, dtype=np.float32) for k, v in real_dimensions.items()
-                }
-                self.single_dim_pixel_features = {
-                    k: np.array(v, dtype=np.float32)
-                    for k, v in extended_features.items()
-                }
-                self.single_dim_metadata = metadata_list
-
-                logger.info(
-                    " Features de píxeles cargadas para %d/%d registros",
-                    len(
-                        [
-                            r
-                            for r in crop_records
-                            if calibration_by_id.get(r["id"]) is not None
-                        ]
-                    ),
-                    len(crop_records),
-                )
-            else:
-                logger.warning(
-                    "[WARN] pixel_calibration.json existe pero no tiene registros"
-                )
+            pixel_features, real_dims, ext_feat, metadata = self._process_pixel_calibration_data(
+                pixel_calibration, crop_records
+            )
+            if pixel_features is not None:
+                self.single_dim_real_dimensions = real_dims
+                self.single_dim_pixel_features = ext_feat
+                self.single_dim_metadata = metadata
         else:
             logger.info(
                 " Calibración de píxeles no disponible. Entrenando sin features de píxeles."
@@ -1347,7 +1331,7 @@ class CacaoTrainingPipeline:
             try:
                 checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
             except TypeError as exc:
-                raise CommandError(
+                raise ValueError(
                     "La versión de PyTorch instalada no soporta weights_only=True. "
                     "Actualiza a PyTorch 2.1 o superior para cargar checkpoints de forma segura."
                 ) from exc
@@ -1485,7 +1469,7 @@ class CacaoTrainingPipeline:
         try:
             checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
         except TypeError as exc:
-            raise CommandError(
+            raise ValueError(
                 "La versión de PyTorch instalada no soporta weights_only=True. "
                 "Actualiza a PyTorch 2.1 o superior para cargar checkpoints de forma segura."
             ) from exc
