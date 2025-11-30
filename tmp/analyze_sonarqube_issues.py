@@ -80,7 +80,7 @@ def save_organized_issues(by_file: Dict) -> None:
     with open("tmp/sonarqube_issues_organized.json", "w", encoding="utf-8") as f:
         json.dump(organized, f, indent=2, ensure_ascii=False)
     
-    print(f"\n\nOrganized issues saved to: tmp/sonarqube_issues_organized.json")
+    print("\n\nOrganized issues saved to: tmp/sonarqube_issues_organized.json")
 
 
 def print_correction_plan(issues: List[Dict[str, Any]]) -> None:
@@ -118,7 +118,7 @@ def print_correction_plan(issues: List[Dict[str, Any]]) -> None:
     minor = [i for i in issues if i.get("severity") == "MINOR"]
     if minor:
         print(f"\n3. PRIORITY 3: MINOR issues ({len(minor)} total)")
-        print(f"   Will be corrected after BLOCKER, CRITICAL, and MAJOR issues")
+        print("   Will be corrected after BLOCKER, CRITICAL, and MAJOR issues")
 
 
 def analyze_issues():

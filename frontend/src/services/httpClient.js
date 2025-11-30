@@ -18,12 +18,12 @@ function createStandardError(error) {
   const status = error.response?.status || 0
   const data = error.response?.data || {}
 
-  return {
-    message,
-    status,
-    data,
-    originalError: error
-  }
+  const standardError = new Error(message)
+  standardError.status = status
+  standardError.data = data
+  standardError.originalError = error
+  
+  return standardError
 }
 
 /**

@@ -2015,7 +2015,7 @@ class CacaoTrainingPipeline:
                     png_path_str = segment_and_crop_cacao_bean(str(image_path), method=seg_method)
                     
                     if not png_path_str:
-                        raise Exception("Segmentación no devolvió ruta de imagen")
+                        raise ValueError("Segmentación no devolvió ruta de imagen")
                     
                     # Cargar imagen segmentada
                     segmented_image = Image.open(png_path_str)

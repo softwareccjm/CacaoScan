@@ -7,7 +7,7 @@ import subprocess
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 # Constants
 TESTS_DIR = 'tests/'
@@ -51,7 +51,7 @@ def _try_sys_executable() -> Optional[str]:
     _warn_if_python_313(version_str)
     return None
 
-def _try_command(cmd: str) -> Union[str, list[str], None]:
+def _try_command(cmd: str) -> Union[str, List[str], None]:
     """Try a Python command and return it if it's version 3.12."""
     try:
         if ' ' in cmd:
