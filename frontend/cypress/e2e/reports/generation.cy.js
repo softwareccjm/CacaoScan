@@ -4,6 +4,15 @@ describe('Generación de Reportes - Creación', () => {
     cy.visit('/reportes')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
+  
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
 
   it('debe mostrar interfaz de generación de reportes', () => {
     cy.get('body').then(($body) => {
@@ -13,11 +22,7 @@ describe('Generación de Reportes - Creación', () => {
         '[data-cy="reports-list"]',
         '[data-cy="report-filters"]'
       ]
-      for (const selector of selectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
@@ -198,11 +203,7 @@ describe('Generación de Reportes - Creación', () => {
                 '[data-cy="report-type-error"]',
                 '[data-cy="date-range-error"]'
               ]
-              for (const selector of errorSelectors) {
-                if ($errors.find(selector).length > 0) {
-                  cy.get(selector).should('exist')
-                }
-              }
+          verifySelectorsExist(errorSelectors, $errors, 3000)
             })
           }
         })

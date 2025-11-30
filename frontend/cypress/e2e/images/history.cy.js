@@ -2,6 +2,16 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
+  // Helper functions to reduce nesting depth
+  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
+    for (const selector of selectors) {
+      if ($context.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+      }
+    }
+  }
+
+
 
   it('debe mostrar historial de imágenes cargadas', () => {
     cy.visit('/mis-imagenes')
@@ -15,11 +25,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
         '[data-cy="search-images"]',
         '[data-cy="filter-images"]'
       ]
-      for (const selector of selectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
@@ -37,11 +43,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
             '[data-cy="analysis-results"]',
             '[data-cy="upload-date"]'
           ]
-          for (const selector of detailSelectors) {
-            if ($details.find(selector).length > 0) {
-              cy.get(selector, { timeout: 3000 }).should('exist')
-            }
-          }
+          verifySelectorsExist(detailSelectors, $details, 3000)
         })
       }
     })
@@ -175,11 +177,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
         '[data-cy="average-quality"]',
         '[data-cy="images-this-month"]'
       ]
-      for (const selector of statsSelectors) {
-        if ($body.find(selector).length > 0) {
-          cy.get(selector, { timeout: 5000 }).should('exist')
-        }
-      }
+          verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
@@ -293,9 +291,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
                 '[data-cy="quality-badge"]',
                 '[data-cy="analysis-date"]'
               ]
-              for (const selector of infoSelectors) {
-                cy.get(selector, { timeout: 3000 }).should('exist')
-              }
+              verifySelectorsExist(infoSelectors, $details, 3000)
             })
           }
         })
