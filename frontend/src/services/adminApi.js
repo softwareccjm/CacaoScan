@@ -494,4 +494,4 @@ export default {
   
   // Nota: TRAINING_PRESETS, DATA_FILTERS y ADMIN_TRAINING_CONFIG 
   // están disponibles como named exports arriba
-};
+}

@@ -321,7 +321,7 @@ Cypress.Commands.add('applyTableFilter', (filterType, value) => {
   } else if (typeof filterType === 'number' || typeof filterType === 'boolean') {
     filterTypeStr = String(filterType)
   } else {
-    throw new Error(`filterType must be a string, number, or boolean, got: ${typeof filterType}`)
+    throw new TypeError(`filterType must be a string, number, or boolean, got: ${typeof filterType}`)
   }
   cy.get(`[data-cy="filter-${filterTypeStr}"]`).clear().type(value)
   cy.get(SELECTORS.buttons.filter).click()

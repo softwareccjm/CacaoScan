@@ -1,3 +1,6 @@
+import { setupAuth } from '../../support/helpers'
+import { SELECTORS } from '../../support/selectors'
+
 describe('Navegación - Flujos Completos', () => {
   beforeEach(() => {
     setupAuth('farmer')
