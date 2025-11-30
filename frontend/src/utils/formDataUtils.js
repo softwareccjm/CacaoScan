@@ -261,3 +261,27 @@ export function getFormDataDiff(original, current) {
 
   return diff
 }
+
+/**
+ * Creates FormData for image upload with file and metadata
+ * @param {File} file - Image file
+ * @param {Object} metadata - Additional metadata
+ * @returns {FormData} FormData object with image and metadata
+ */
+export function createImageFormData(file, metadata = {}) {
+  const formData = new FormData()
+  
+  // Add image file
+  if (file) {
+    formData.append('image', file)
+  }
+  
+  // Add metadata
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value !== null && value !== undefined && value !== '') {
+      formData.append(key, value)
+    }
+  }
+  
+  return formData
+}

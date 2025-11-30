@@ -80,12 +80,11 @@ export const useReportsStore = defineStore('reports', {
         this.loading = true
         this.error = null
 
-        const page = params.page || this.pagination.currentPage
-        const pageSize = params.page_size || params.itemsPerPage || this.pagination.itemsPerPage
+        // Extract pagination and filters from params
+        const { page: pageParam, page_size: pageSizeParam, itemsPerPage: itemsPerPageParam, ...filters } = params
         
-        // Extract filters from params
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { page, page_size, itemsPerPage, ...filters } = params
+        const page = pageParam || this.pagination.currentPage
+        const pageSize = pageSizeParam || itemsPerPageParam || this.pagination.itemsPerPage
         
         const response = await reportsService.getReports(filters, page, pageSize)
         
