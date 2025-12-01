@@ -1,8 +1,6 @@
 describe('Incremental Training Contribution', () => {
   beforeEach(() => {
-    cy.login('farmer')
-    cy.visit('/entrenamiento-incremental')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    cy.navigateToIncrementalTraining('farmer')
   })
 
   const uploadImageAndProcess = (imageName, callback) => {
@@ -17,11 +15,10 @@ describe('Incremental Training Contribution', () => {
   }
 
   const selectLabelAndAdd = (label, callback) => {
-    cy.get('body').then(($afterUpload) => {
-      if ($afterUpload.find('[data-cy="select-label"], select').length > 0) {
-        cy.get('[data-cy="select-label"], select').first().select(label, { force: true })
+    cy.selectIfExists('[data-cy="select-label"], select', label).then((selected) => {
+      if (selected && callback) {
         cy.get('body').then(($afterSelect) => {
-          if (callback) callback($afterSelect)
+          callback($afterSelect)
         })
       }
     })
@@ -59,23 +56,21 @@ describe('Incremental Training Contribution', () => {
 
   it('should require labeling for uploaded images', () => {
     uploadImageAndProcess('training_sample.jpg', ($afterUpload) => {
-      if ($afterUpload.find('[data-cy="btn-submit-contribution"], button[type="submit"]').length > 0) {
-        cy.get('[data-cy="btn-submit-contribution"], button[type="submit"]').first().click()
+      cy.clickIfExists('[data-cy="btn-submit-contribution"], button[type="submit"]').then(() => {
         cy.get('.error-message, [data-cy="error"]', { timeout: 5000 }).should('satisfy', ($el) => {
           const text = $el.text().toLowerCase()
           return text.includes('etiqueta') || text.includes('label') || text.includes('requerid') || $el.length > 0
         })
-      }
+      })
     })
   })
 
   it('should allow tagging images', () => {
     uploadImageAndProcess('training_sample.jpg', ($afterUpload) => {
       selectLabelAndAdd('Monilia', ($afterSelect) => {
-        if ($afterSelect.find('[data-cy="btn-add-tag"], button').length > 0) {
-          cy.get('[data-cy="btn-add-tag"], button').first().click()
+        cy.clickIfExists('[data-cy="btn-add-tag"], button').then(() => {
           cy.get('.tag-chip, .tag, [data-cy="tag"]', { timeout: 5000 }).should('exist')
-        }
+        })
       })
     })
   })
@@ -83,26 +78,23 @@ describe('Incremental Training Contribution', () => {
   it('should submit contribution successfully', () => {
     uploadImageAndProcess('training_sample.jpg', ($afterUpload) => {
       selectLabelAndAdd('Sana', ($afterSelect) => {
-        if ($afterSelect.find('[data-cy="input-notes"], textarea').length > 0) {
-          cy.get('[data-cy="input-notes"], textarea').first().type('Imagen tomada con buena luz')
-          cy.get('[data-cy="btn-submit-contribution"], button[type="submit"]').first().click()
-          cy.get('body', { timeout: 5000 }).should('be.visible')
-        }
+        cy.typeIfExists('[data-cy="input-notes"], textarea', 'Imagen tomada con buena luz').then(() => {
+          cy.clickIfExists('[data-cy="btn-submit-contribution"], button[type="submit"]').then(() => {
+            cy.get('body', { timeout: 5000 }).should('be.visible')
+          })
+        })
       })
     })
   })
 
   it('should show history of contributions', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-history"], [role="tab"]').length > 0) {
-        cy.get('[data-cy="tab-history"], [role="tab"]').first().click()
-        cy.get('[data-cy="contribution-item"], .contribution-item, .item', { timeout: 5000 }).should('exist')
-        cy.get('body').then(($history) => {
-          if ($history.find('[data-cy="status-badge"], .badge, .status').length > 0) {
-            cy.get('[data-cy="status-badge"], .badge, .status').should('exist')
-          }
-        })
-      }
+    cy.clickIfExists('[data-cy="tab-history"], [role="tab"]').then(() => {
+      cy.get('[data-cy="contribution-item"], .contribution-item, .item', { timeout: 5000 }).should('exist')
+      cy.get('body').then(($history) => {
+        if ($history.find('[data-cy="status-badge"], .badge, .status').length > 0) {
+          cy.get('[data-cy="status-badge"], .badge, .status').should('exist')
+        }
+      })
     })
   })
 })

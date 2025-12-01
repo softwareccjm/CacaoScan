@@ -1,29 +1,7 @@
 describe('Admin Training & Datasets', () => {
   beforeEach(() => {
-    cy.login('admin')
-    cy.visit('/admin/entrenamiento')
-    // Esperar a que la página cargue
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    cy.navigateToTraining('admin')
   })
-
-  const clickIfExists = (selector, callback) => {
-    cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        cy.get(selector).first().click()
-        if (callback) callback()
-      }
-    })
-  }
-
-  const interactWithFirstRow = (rowSelector, rowCallback) => {
-    cy.get('table tbody tr, .table-row, .history-item', { timeout: 5000 }).then(($rows) => {
-      if ($rows.length > 0) {
-        cy.wrap($rows.first()).then(($row) => {
-          rowCallback($row)
-        })
-      }
-    })
-  }
 
   it('should load training dashboard', () => {
     // Verificar que la página cargó correctamente
@@ -73,29 +51,30 @@ describe('Admin Training & Datasets', () => {
   })
 
   it('should start a new training session', () => {
-    clickIfExists('[data-cy="btn-start-training"], button', () => {
+    cy.clickIfExists('[data-cy="btn-start-training"], button').then(() => {
       cy.get('[data-cy="modal-training-config"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
       
       cy.get('body').then(($modal) => {
         if ($modal.find('[data-cy="select-epochs"], select').length > 0) {
-          cy.get('[data-cy="select-epochs"], select').first().select('50', { force: true })
-          cy.get('[data-cy="select-batch-size"], select').last().select('16', { force: true })
-          cy.get('[data-cy="btn-confirm-training"], button[type="submit"]').first().click()
-          cy.get('body', { timeout: 5000 }).should('be.visible')
+          cy.selectIfExists('[data-cy="select-epochs"], select', '50')
+          cy.selectIfExists('[data-cy="select-batch-size"], select', '16')
+          cy.clickIfExists('[data-cy="btn-confirm-training"], button[type="submit"]').then(() => {
+            cy.get('body', { timeout: 5000 }).should('be.visible')
+          })
         }
       })
     })
   })
 
   it('should view training history', () => {
-    clickIfExists('[data-cy="tab-history"], [role="tab"]', () => {
+    cy.clickIfExists('[data-cy="tab-history"], [role="tab"]').then(() => {
       cy.get('table tbody tr, .table-row, .history-item', { timeout: 5000 }).should('have.length.at.least', 0)
     })
   })
 
   it('should view details of a training session', () => {
-    clickIfExists('[data-cy="tab-history"], [role="tab"]', () => {
-      interactWithFirstRow('table tbody tr, .table-row, .history-item', ($row) => {
+    cy.clickIfExists('[data-cy="tab-history"], [role="tab"]').then(() => {
+      cy.interactWithFirstRow('table tbody tr, .table-row, .history-item', ($row) => {
         cy.wrap($row).click({ force: true })
         cy.get('[data-cy="training-metrics"], .metrics, .details', { timeout: 5000 }).should('exist')
       })

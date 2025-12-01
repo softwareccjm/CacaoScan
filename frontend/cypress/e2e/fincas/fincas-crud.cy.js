@@ -1,49 +1,11 @@
+import { verifySelectorsExist, clickIfExists, selectIfExists, typeIfExists } from '../../support/helpers'
+
 describe('Gestión de Fincas - CRUD', () => {
   beforeEach(() => {
     cy.login('farmer')
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
-  
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
-    }
-  }
-
-  const clickIfExists = (selector, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        return cy.get(selector).first().click({ force: true, ...options }).then(() => true)
-      }
-      return cy.wrap(false)
-    })
-  }
-
-  const selectIfExists = (selector, value, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        return cy.get(selector).first().select(value, { force: true, ...options }).then(() => true)
-      }
-      return cy.wrap(false)
-    })
-  }
-
-  const typeIfExists = (selector, text, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        const element = cy.get(selector).first()
-        if (options.clear) {
-          return element.clear().type(text, { ...options, clear: undefined }).then(() => true)
-        }
-        return element.type(text, options).then(() => true)
-      }
-      return cy.wrap(false)
-    })
-  }
 
   const fillFincaForm = (data) => {
     const actions = []
@@ -268,7 +230,7 @@ describe('Gestión de Fincas - CRUD', () => {
         '[data-cy="total-area"]',
         '[data-cy="average-area"]'
       ]
-          verifySelectorsExist(statsSelectors, $body, 5000)
+      verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
@@ -312,7 +274,6 @@ describe('Gestión de Fincas - CRUD', () => {
           if ($apply.find('[data-cy="apply-filter"], button').length > 0) {
             cy.get('[data-cy="apply-filter"], button').first().click()
             
-            // Verificar filtros aplicados
             cy.get('body', { timeout: 3000 }).then(($filters) => {
               if ($filters.find('[data-cy="active-filters"], [data-cy="filtered-results"]').length > 0) {
                 cy.get('[data-cy="active-filters"], [data-cy="filtered-results"]').first().should('exist')
@@ -335,7 +296,6 @@ describe('Gestión de Fincas - CRUD', () => {
           if ($markers.find('[data-cy="map-markers"], [data-cy="map-marker"]').length > 0) {
             cy.get('[data-cy="map-marker"], [data-cy="map-markers"]').first().click({ force: true })
             
-            // Verificar popup con información
             cy.get('body', { timeout: 3000 }).then(($popup) => {
               if ($popup.find('[data-cy="map-popup"], .popup').length > 0) {
                 cy.get('[data-cy="map-popup"], .popup').should('exist')
@@ -355,11 +315,9 @@ describe('Gestión de Fincas - CRUD', () => {
         cy.get('[data-cy="export-fincas"], button').first().click({ force: true })
         
         cy.get('body', { timeout: 5000 }).then(($export) => {
-          // Verificar opciones de exportación
           if ($export.find('[data-cy="export-pdf"], [data-cy="export-excel"]').length > 0) {
             cy.get('[data-cy="export-pdf"], [data-cy="export-excel"]').first().should('exist')
             
-            // Exportar como PDF si existe
             cy.get('body').then(($pdf) => {
               if ($pdf.find('[data-cy="export-pdf"], button').length > 0) {
                 cy.get('[data-cy="export-pdf"], button').first().click()
@@ -396,7 +354,6 @@ describe('Gestión de Fincas - CRUD', () => {
 
   it('debe manejar errores al crear finca', () => {
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error del servidor
     cy.intercept('POST', `${apiBaseUrl}/fincas/`, {
       statusCode: 500,
       body: { error: 'Error del servidor' }
@@ -420,7 +377,6 @@ describe('Gestión de Fincas - CRUD', () => {
           cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
           cy.wait('@createFincaError', { timeout: 10000 })
           
-          // Verificar mensaje de error
           cy.get('body', { timeout: 5000 }).then(($error) => {
             if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
               cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -447,7 +403,6 @@ describe('Gestión de Fincas - CRUD', () => {
             cy.get('[data-cy="finca-area"], input[type="number"]').first().type('10')
             cy.get('[data-cy="finca-descripcion"], textarea').first().type('Test description')
             
-            // Intentar guardar sin seleccionar ubicación en mapa
             cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
             
             cy.get('body', { timeout: 3000 }).then(($error) => {
@@ -470,10 +425,8 @@ describe('Gestión de Fincas - CRUD', () => {
     cy.get('[data-cy="finca-item"]').first().click()
     cy.get('[data-cy="duplicate-finca"]').click()
     
-    // Verificar que se abre formulario con datos prellenados
     cy.get('[data-cy="finca-nombre"]').should('have.value').and('not.be.empty')
     
-    // Modificar nombre
     cy.get('[data-cy="finca-nombre"]').clear().type('Finca Duplicada')
     cy.get('[data-cy="save-finca"]').click()
     
@@ -483,11 +436,9 @@ describe('Gestión de Fincas - CRUD', () => {
   it('debe permitir activar/desactivar finca', () => {
     cy.get('[data-cy="finca-item"]').first().click()
     
-    // Desactivar finca
     cy.get('[data-cy="toggle-finca-status"]').click()
     cy.checkNotification('Finca desactivada', 'success')
     
-    // Activar finca
     cy.get('[data-cy="toggle-finca-status"]').click()
     cy.checkNotification('Finca activada', 'success')
   })

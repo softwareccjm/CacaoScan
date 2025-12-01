@@ -1,58 +1,7 @@
 describe('Generación de Reportes - Creación', () => {
   beforeEach(() => {
-    cy.login('analyst')
-    cy.visit('/reportes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    cy.navigateToReports('analyst')
   })
-  
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
-    }
-  }
-
-  const clickIfExists = (selector, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        cy.get(selector).first().click({ force: true, ...options })
-        return true
-      }
-      return false
-    })
-  }
-
-  const fillFieldIfExists = (selector, value, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        cy.get(selector).first().type(value, { force: true, ...options })
-        return true
-      }
-      return false
-    })
-  }
-
-  const selectOptionIfExists = (selector, value, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        cy.get(selector).first().select(value, { force: true, ...options })
-        return true
-      }
-      return false
-    })
-  }
-
-  const checkCheckboxIfExists = (selector, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        cy.get(selector).first().check({ force: true, ...options })
-        return true
-      }
-      return false
-    })
-  }
 
   it('debe mostrar interfaz de generación de reportes', () => {
     cy.get('body').then(($body) => {
@@ -62,22 +11,27 @@ describe('Generación de Reportes - Creación', () => {
         '[data-cy="reports-list"]',
         '[data-cy="report-filters"]'
       ]
-          verifySelectorsExist(selectors, $body, 5000)
+      // Import verifySelectorsExist from helpers if needed, or use cy.get directly
+      for (const selector of selectors) {
+        if ($body.find(selector).length > 0) {
+          cy.get(selector, { timeout: 5000 }).should('exist')
+        }
+      }
     })
   })
 
   it('debe crear reporte de análisis por período', () => {
-    clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
+    cy.clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
       if (clicked) {
         cy.wait(500)
-        selectOptionIfExists('[data-cy="report-type"], select', 'analisis-periodo').then((selected) => {
+        cy.selectOptionIfExists('[data-cy="report-type"], select', 'analisis-periodo').then((selected) => {
           if (selected) {
-            fillFieldIfExists('[data-cy="start-date"], input[type="date"]', '2024-01-01')
-            fillFieldIfExists('[data-cy="end-date"], input[type="date"]', '2024-01-31')
-            checkCheckboxIfExists('[data-cy="fincas-select"], input[type="checkbox"]')
-            checkCheckboxIfExists('[data-cy="include-charts"], input[type="checkbox"]')
-            checkCheckboxIfExists('[data-cy="include-recommendations"], input[type="checkbox"]')
-            clickIfExists('[data-cy="generate-report"], button[type="submit"]')
+            cy.fillFieldIfExists('[data-cy="start-date"], input[type="date"]', '2024-01-01')
+            cy.fillFieldIfExists('[data-cy="end-date"], input[type="date"]', '2024-01-31')
+            cy.checkCheckboxIfExists('[data-cy="fincas-select"], input[type="checkbox"]')
+            cy.checkCheckboxIfExists('[data-cy="include-charts"], input[type="checkbox"]')
+            cy.checkCheckboxIfExists('[data-cy="include-recommendations"], input[type="checkbox"]')
+            cy.clickIfExists('[data-cy="generate-report"], button[type="submit"]')
             cy.get('body', { timeout: 5000 }).should('be.visible')
           }
         })
@@ -86,17 +40,17 @@ describe('Generación de Reportes - Creación', () => {
   })
 
   it('debe crear reporte de calidad por finca', () => {
-    clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
+    cy.clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
       if (clicked) {
         cy.wait(500)
-        selectOptionIfExists('[data-cy="report-type"], select', 'calidad-finca').then((selected) => {
+        cy.selectOptionIfExists('[data-cy="report-type"], select', 'calidad-finca').then((selected) => {
           if (selected) {
             cy.wait(500)
-            selectOptionIfExists('[data-cy="finca-select"], select', 'Finca El Paraíso').then((fincaSelected) => {
+            cy.selectOptionIfExists('[data-cy="finca-select"], select', 'Finca El Paraíso').then((fincaSelected) => {
               if (fincaSelected) {
-                checkCheckboxIfExists('[data-cy="include-trends"], input[type="checkbox"]')
-                checkCheckboxIfExists('[data-cy="include-comparisons"], input[type="checkbox"]')
-                clickIfExists('[data-cy="generate-report"], button[type="submit"]').then((submitted) => {
+                cy.checkCheckboxIfExists('[data-cy="include-trends"], input[type="checkbox"]')
+                cy.checkCheckboxIfExists('[data-cy="include-comparisons"], input[type="checkbox"]')
+                cy.clickIfExists('[data-cy="generate-report"], button[type="submit"]').then((submitted) => {
                   if (submitted) {
                     cy.get('body', { timeout: 30000 }).then(($completed) => {
                       if ($completed.find('[data-cy="report-completed"], .completed').length > 0) {
@@ -119,16 +73,16 @@ describe('Generación de Reportes - Creación', () => {
   })
 
   it('debe crear reporte comparativo entre lotes', () => {
-    clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
+    cy.clickIfExists('[data-cy="create-report-button"], button').then((clicked) => {
       if (clicked) {
         cy.wait(500)
-        selectOptionIfExists('[data-cy="report-type"], select', 'comparativo-lotes').then((selected) => {
+        cy.selectOptionIfExists('[data-cy="report-type"], select', 'comparativo-lotes').then((selected) => {
           if (selected) {
             cy.wait(500)
-            checkCheckboxIfExists('[data-cy="lotes-select"], input[type="checkbox"]').then(() => {
-              checkCheckboxIfExists('[data-cy="compare-quality"], input[type="checkbox"]')
-              checkCheckboxIfExists('[data-cy="compare-production"], input[type="checkbox"]')
-              clickIfExists('[data-cy="generate-report"], button[type="submit"]').then((submitted) => {
+            cy.checkCheckboxIfExists('[data-cy="lotes-select"], input[type="checkbox"]').then(() => {
+              cy.checkCheckboxIfExists('[data-cy="compare-quality"], input[type="checkbox"]')
+              cy.checkCheckboxIfExists('[data-cy="compare-production"], input[type="checkbox"]')
+              cy.clickIfExists('[data-cy="generate-report"], button[type="submit"]').then((submitted) => {
                 if (submitted) {
                   cy.get('body', { timeout: 30000 }).then(($completed) => {
                     if ($completed.find('[data-cy="report-completed"], .completed').length > 0) {
@@ -208,7 +162,11 @@ describe('Generación de Reportes - Creación', () => {
                 '[data-cy="report-type-error"]',
                 '[data-cy="date-range-error"]'
               ]
-          verifySelectorsExist(errorSelectors, $errors, 3000)
+              for (const selector of errorSelectors) {
+                if ($errors.find(selector).length > 0) {
+                  cy.get(selector, { timeout: 3000 }).should('exist')
+                }
+              }
             })
           }
         })

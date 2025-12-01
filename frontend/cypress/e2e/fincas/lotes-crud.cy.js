@@ -1,72 +1,11 @@
+import { verifySelectorsExist, clickIfExists, selectIfExists, typeIfExists } from '../../support/helpers'
+
 describe('Gestión de Lotes - CRUD', () => {
   beforeEach(() => {
     cy.login('farmer')
     cy.visit('/mis-lotes')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
-  
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
-    }
-  }
-
-  const clickIfExists = (selector, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        return cy.get(selector).first().click({ force: true, ...options }).then(() => true)
-      }
-      return cy.wrap(false)
-    })
-  }
-
-  const selectIfExists = (selector, value, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        return cy.get(selector).first().select(value, { force: true, ...options }).then(() => true)
-      }
-      return cy.wrap(false)
-    })
-  }
-
-  const typeIfExists = (selector, text, options = {}) => {
-    return cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        const element = cy.get(selector).first()
-        if (options.clear) {
-          return element.clear().type(text, { ...options, clear: undefined }).then(() => true)
-        }
-        return element.type(text, options).then(() => true)
-      }
-      return cy.wrap(false)
-    })
-  }
-
-  const fillLoteForm = (data) => {
-    const actions = []
-    if (data.finca) {
-      actions.push(selectIfExists('[data-cy="finca-select"], select', data.finca))
-    }
-    if (data.nombre) {
-      actions.push(typeIfExists('[data-cy="lote-nombre"], input[name*="nombre"]', data.nombre))
-    }
-    if (data.area) {
-      actions.push(typeIfExists('[data-cy="lote-area"], input[type="number"]', data.area.toString()))
-    }
-    if (data.variedad) {
-      actions.push(selectIfExists('[data-cy="lote-variedad"], select', data.variedad))
-    }
-    if (data.edad) {
-      actions.push(typeIfExists('[data-cy="lote-edad"], input[type="number"]', data.edad.toString()))
-    }
-    if (data.descripcion) {
-      actions.push(typeIfExists('[data-cy="lote-descripcion"], textarea', data.descripcion))
-    }
-    return cy.wrap(Promise.all(actions))
-  }
 
   it('debe mostrar lista de lotes del usuario', () => {
     cy.get('body').then(($body) => {
@@ -75,25 +14,17 @@ describe('Gestión de Lotes - CRUD', () => {
         '[data-cy="add-lote-button"]',
         '[data-cy="lotes-stats"]'
       ]
-          verifySelectorsExist(selectors, $body, 5000)
+      verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
   it('debe crear nuevo lote exitosamente', () => {
-    clickIfExists('[data-cy="add-lote-button"], button').then((clicked) => {
-      if (!clicked) return
-      
-      cy.get('body', { timeout: 5000 }).should('be.visible')
-      selectIfExists('[data-cy="finca-select"], select', '1').then((selected) => {
-        if (!selected) return
-        
-        cy.get('body', { timeout: 5000 }).should('be.visible')
-        clickIfExists('[data-cy="save-lote"], button[type="submit"]', { timeout: 3000 }).then((saved) => {
-          if (saved) {
-            cy.get('body', { timeout: 5000 }).should('be.visible')
-          }
-        })
-      })
+    cy.createLote({
+      finca: '1',
+      nombre: 'Lote Test',
+      area: '2',
+      variedad: 'CCN-51',
+      edad: '5'
     })
   })
 
@@ -126,17 +57,15 @@ describe('Gestión de Lotes - CRUD', () => {
       selectIfExists('[data-cy="finca-select"], select', '1').then((selected) => {
         if (!selected) return
         
-        fillLoteForm({
+        cy.createLote({
           finca: '1',
           nombre: 'Lote Test',
           area: '-2',
           variedad: 'CCN-51',
           edad: '5'
-        }).then(() => {
-          clickIfExists('[data-cy="save-lote"], button[type="submit"]').then(() => {
-            cy.get('[data-cy="lote-area-error"], .error-message', { timeout: 5000 }).should('exist')
-          })
         })
+        
+        cy.get('[data-cy="lote-area-error"], .error-message', { timeout: 5000 }).should('exist')
       })
     })
   })
@@ -149,17 +78,15 @@ describe('Gestión de Lotes - CRUD', () => {
       selectIfExists('[data-cy="finca-select"], select', '1').then((selected) => {
         if (!selected) return
         
-        fillLoteForm({
+        cy.createLote({
           finca: '1',
           nombre: 'Lote Test',
           area: '2',
           variedad: 'CCN-51',
           edad: '50'
-        }).then(() => {
-          clickIfExists('[data-cy="save-lote"], button[type="submit"]').then(() => {
-            cy.get('[data-cy="lote-edad-error"], .error-message', { timeout: 5000 }).should('exist')
-          })
         })
+        
+        cy.get('[data-cy="lote-edad-error"], .error-message', { timeout: 5000 }).should('exist')
       })
     })
   })
@@ -454,26 +381,22 @@ describe('Gestión de Lotes - CRUD', () => {
       cy.get('body', { timeout: 5000 }).should('be.visible')
       cy.fixture('testData').then((data) => {
         const loteData = data.lotes[0]
-        const formData = {
+        cy.createLote({
           finca: '1',
           nombre: loteData.nombre || 'Lote Test',
           area: (loteData.area || 2).toString(),
           variedad: loteData.variedad || 'CCN-51',
           edad: (loteData.edad_plantas || 5).toString()
-        }
+        })
         
-        fillLoteForm(formData).then(() => {
-          clickIfExists('[data-cy="save-lote"], button[type="submit"]').then(() => {
-            cy.wait('@createLoteError', { timeout: 10000 })
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
-                cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('error') || text.includes('crear') || text.includes('lote') || text.length > 0
-                })
-              }
+        cy.wait('@createLoteError', { timeout: 10000 })
+        cy.get('body', { timeout: 5000 }).then(($error) => {
+          if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
+            cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('error') || text.includes('crear') || text.includes('lote') || text.length > 0
             })
-          })
+          }
         })
       })
     })
@@ -490,24 +413,22 @@ describe('Gestión de Lotes - CRUD', () => {
       selectIfExists('[data-cy="finca-select"], select', '1').then((selected) => {
         if (!selected) return
         
-        fillLoteForm({
+        cy.createLote({
           finca: '1',
           nombre: 'Lote Grande',
           area: '20',
           variedad: 'CCN-51',
           edad: '5',
           descripcion: 'Test description'
-        }).then(() => {
-          clickIfExists('[data-cy="save-lote"], button[type="submit"]').then(() => {
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="lote-area-error"], .error-message').length > 0) {
-                cy.get('[data-cy="lote-area-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('área') || text.includes('exceder') || text.includes('finca') || text.length > 0
-                })
-              }
+        })
+        
+        cy.get('body', { timeout: 3000 }).then(($error) => {
+          if ($error.find('[data-cy="lote-area-error"], .error-message').length > 0) {
+            cy.get('[data-cy="lote-area-error"], .error-message').first().should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('área') || text.includes('exceder') || text.includes('finca') || text.length > 0
             })
-          })
+          }
         })
       })
     })

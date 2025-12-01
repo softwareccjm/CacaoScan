@@ -32,6 +32,7 @@
 <script setup>
 import { computed } from 'vue'
 import BaseChart from './BaseChart.vue'
+import { useChartEvents } from '@/composables/useChartEvents'
 
 const props = defineProps({
   chartData: {
@@ -111,18 +112,8 @@ const mergedOptions = computed(() => {
   }
 })
 
-// Event handlers
-const handleChartClick = (data) => {
-  emit('chart-click', data)
-}
-
-const handleChartHover = (data) => {
-  emit('chart-hover', data)
-}
-
-const handleChartLoaded = (instance) => {
-  emit('chart-loaded', instance)
-}
+// Use composable for event handlers
+const { handleChartClick, handleChartHover, handleChartLoaded } = useChartEvents(emit)
 </script>
 
 <style scoped>
