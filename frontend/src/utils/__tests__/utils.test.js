@@ -332,7 +332,7 @@ describe('String Utilities', () => {
 
   const slugify = (str) => {
     if (!str) return ''
-    return str
+    let result = str
       .toLowerCase()
       // eslint-disable-next-line prefer-regex-literals
       .replace(/[^a-z0-9 -]/g, '')
@@ -340,9 +340,18 @@ describe('String Utilities', () => {
       .replace(/\s+/g, '-')
       // eslint-disable-next-line prefer-regex-literals
       .replace(/-+/g, '-')
-      // eslint-disable-next-line prefer-regex-literals
-      .replace(/(^-+|-+$)/g, '')
       .trim()
+    
+    // Remove leading and trailing dashes using string methods to avoid ReDoS
+    // This is safer than regex with backtracking
+    while (result.startsWith('-')) {
+      result = result.substring(1)
+    }
+    while (result.endsWith('-')) {
+      result = result.substring(0, result.length - 1)
+    }
+    
+    return result
   }
 
   it('capitaliza strings correctamente', () => {

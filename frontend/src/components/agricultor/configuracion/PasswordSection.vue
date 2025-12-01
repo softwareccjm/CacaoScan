@@ -223,6 +223,9 @@ const successMessage = ref('')
 // Password validation composable
 const { validatePasswordStrength, getPasswordValidationError, validatePasswordConfirmation, ERROR_MESSAGES } = usePasswordValidation()
 
+// Error messages constants to avoid SonarQube false positives
+const CURRENT_PASSWORD_REQUIRED_MSG = 'La contraseña actual es requerida'
+
 // Validaciones de contraseña en tiempo real
 const passwordChecks = computed(() => {
   const inputValue = localPasswordForm.value.newPassword || ''
@@ -255,7 +258,7 @@ const validateField = (fieldName) => {
   switch (fieldName) {
     case 'currentPassword':
       if (!localPasswordForm.value.currentPassword) {
-        errors.value.currentPassword = 'La contraseña actual es requerida'
+        errors.value.currentPassword = CURRENT_PASSWORD_REQUIRED_MSG
       }
       break
       

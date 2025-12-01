@@ -1346,7 +1346,8 @@ class Command(BaseCommand):
             # 5. We only send SIGTERM (graceful shutdown), never SIGKILL
             # 6. All exceptions are caught and handled safely
             # This ensures we never signal arbitrary processes, only processes we spawned
-            os.killpg(pgid, signal.SIGTERM)
+            # NOSONAR S4828 - All security validations passed, only signaling our own processes
+            os.killpg(pgid, signal.SIGTERM)  # NOSONAR S4828
             logger.debug(f"Sent SIGTERM to process group {pgid} (process {process_pid})")
             return True
         except ProcessLookupError:
