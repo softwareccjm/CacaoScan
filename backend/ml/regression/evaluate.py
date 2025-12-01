@@ -63,6 +63,7 @@ def compute_regression_metrics(
             np.abs((targets[non_zero_mask] - predictions[non_zero_mask]) / targets[non_zero_mask])
         ) * 100
     else:
+        # If all targets are zero, mape and relative_error are 0.0
         mape = 0.0
         relative_error = 0.0
     

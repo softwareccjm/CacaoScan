@@ -24,10 +24,14 @@ def sanitize_filename(filename: str, default: str = "file") -> str:
     if not filename or not isinstance(filename, str):
         raise ValueError("Filename must be a non-empty string")
     
+    # Check for path traversal attempts before processing
+    if ".." in filename:
+        raise ValueError("Filename cannot contain path traversal sequences (..)")
+    
     # Remove any path components (directory separators)
     filename = os.path.basename(filename)
     
-    # Remove path traversal attempts
+    # Check again after basename (in case basename didn't remove it)
     if ".." in filename:
         raise ValueError("Filename cannot contain path traversal sequences (..)")
     
@@ -125,8 +129,6 @@ def secure_path_join(base_path: Path, *path_parts: str) -> Path:
             continue
         # Remove any path separators from parts
         part = part.replace("/", "_").replace("\\", "_")
-        # Remove path traversal
-        part = part.replace("..", "_")
         if part:
             sanitized_parts.append(part)
     
@@ -140,6 +142,7 @@ def secure_path_join(base_path: Path, *path_parts: str) -> Path:
         result_path = result_path.resolve()
         
         # Ensure result is within base_path
+        # This will catch path traversal attempts after resolution
         try:
             result_path.relative_to(base_path.resolve())
         except ValueError:
@@ -148,6 +151,9 @@ def secure_path_join(base_path: Path, *path_parts: str) -> Path:
             )
         
         return result_path
+    except ValueError:
+        # Re-raise ValueError as-is (for path traversal detection)
+        raise
     except Exception as e:
         raise ValueError(f"Invalid path construction: {str(e)}") from e
 

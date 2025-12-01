@@ -37,7 +37,11 @@ class AuditMiddleware:
         }
         
         # Determinar acción basada en el método HTTP y path
-        request.audit_action = self.determine_action(request)
+        # Solo asignar audit_action si el usuario está autenticado
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            request.audit_action = self.determine_action(request)
+        else:
+            request.audit_action = None
         
         # Obtener response
         response = self.get_response(request)
