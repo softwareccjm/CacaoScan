@@ -1,10 +1,12 @@
 import { 
   verifySelectorsExist, 
   generatePassword, 
-  verifyRegistrationFieldsExist,
   executeRegistrationIfFieldsExist,
   verifyErrorMessageGeneric,
-  visitAndWaitForBody
+  visitAndWaitForBody,
+  ifFoundInBody,
+  fillRegistrationFormFields,
+  submitRegistrationForm
 } from '../../support/helpers'
 
 describe('Autenticación - Registro', () => {
@@ -79,39 +81,20 @@ describe('Autenticación - Registro', () => {
   })
 
   it('debe validar que las contraseñas coincidan', () => {
-    cy.get('body').then(($body) => {
-      if (verifyRegistrationFieldsExist($body)) {
-        cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type('Juan')
-        cy.get('body').then(($last) => {
-          if ($last.find('[data-cy="last-name-input"], input[name*="last"]').length > 0) {
-            cy.get('[data-cy="last-name-input"], input[name*="last"]').first().type('Pérez')
-          }
-        })
-        cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('juan@test.com')
-        const password = generatePassword()
-        const differentPassword = generatePassword()
-        cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(password)
-        cy.get('body').then(($confirm) => {
-          if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
-            cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type(differentPassword)
-          }
-        })
-        cy.get('body').then(($role) => {
-          if ($role.find('[data-cy="role-select"], select').length > 0) {
-            cy.get('[data-cy="role-select"], select').first().select('farmer', { force: true })
-          }
-        })
-        cy.get('body').then(($terms) => {
-          if ($terms.find('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').length > 0) {
-            cy.get('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
-          }
-        })
-        cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-
-        verifyErrorMessageGeneric(['no coinciden', 'no match', 'password'], '[data-cy="password-match-error"], .error-message')
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    ifFoundInBody('[data-cy="register-form"], form', () => {
+      const password = generatePassword()
+      const differentPassword = generatePassword()
+      fillRegistrationFormFields({
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        email: 'juan@test.com',
+        password: password,
+        confirmPassword: differentPassword,
+        role: 'farmer',
+        acceptTerms: true
+      })
+      submitRegistrationForm()
+      verifyErrorMessageGeneric(['no coinciden', 'no match', 'password'], '[data-cy="password-match-error"], .error-message')
     })
   })
 
@@ -136,92 +119,63 @@ describe('Autenticación - Registro', () => {
   })
 
   it('debe requerir aceptar términos y condiciones', () => {
-    cy.get('body').then(($body) => {
-      if (verifyRegistrationFieldsExist($body)) {
-        cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type('Juan')
-        cy.get('body', { timeout: 3000 }).then(($last) => {
-          if ($last.find('[data-cy="last-name-input"], input[name*="last"]').length > 0) {
-            cy.get('[data-cy="last-name-input"], input[name*="last"]').first().type('Pérez')
-          }
-        })
-        cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('juan@test.com')
-        const password = generatePassword()
-        cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(password)
-        cy.get('body', { timeout: 3000 }).then(($confirm) => {
-          if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
-            cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type(password)
-          }
-        })
-        cy.get('body', { timeout: 3000 }).then(($role) => {
-          if ($role.find('[data-cy="role-select"], select').length > 0) {
-            cy.get('[data-cy="role-select"], select').first().select('farmer', { force: true })
-          }
-        })
-        cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-        verifyErrorMessageGeneric(['aceptar', 'términos', 'terms'], '[data-cy="terms-error"], .error-message')
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    ifFoundInBody('[data-cy="register-form"], form', () => {
+      const password = generatePassword()
+      fillRegistrationFormFields({
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        email: 'juan@test.com',
+        password: password,
+        confirmPassword: password,
+        role: 'farmer',
+        acceptTerms: false
+      })
+      submitRegistrationForm()
+      verifyErrorMessageGeneric(['aceptar', 'términos', 'terms'], '[data-cy="terms-error"], .error-message')
     })
   })
 
   it('debe validar campos requeridos', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').length > 0) {
-        cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-
-        cy.get('body', { timeout: 3000 }).then(($errors) => {
-          const errorSelectors = [
-            '[data-cy="first-name-error"]', '[data-cy="last-name-error"]', '[data-cy="email-error"]',
-            '[data-cy="password-error"]', '[data-cy="confirm-password-error"]', '[data-cy="role-error"]'
-          ]
-          verifySelectorsExist(errorSelectors, $errors, 3000)
-        })
-      }
+    ifFoundInBody('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]', () => {
+      submitRegistrationForm()
+      cy.get('body', { timeout: 3000 }).then(($errors) => {
+        const errorSelectors = [
+          '[data-cy="first-name-error"]', '[data-cy="last-name-error"]', '[data-cy="email-error"]',
+          '[data-cy="password-error"]', '[data-cy="confirm-password-error"]', '[data-cy="role-error"]'
+        ]
+        verifySelectorsExist(errorSelectors, $errors, 3000)
+      })
     })
   })
 
   it('debe validar formato de email', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').length > 0) {
-        cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('email-invalido')
-        cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-
-        verifyErrorMessageGeneric(['formato', 'inválido', 'email'], '[data-cy="email-error"], .error-message', 3000)
-      }
+    ifFoundInBody('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]', () => {
+      cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('email-invalido')
+      submitRegistrationForm()
+      verifyErrorMessageGeneric(['formato', 'inválido', 'email'], '[data-cy="email-error"], .error-message', 3000)
     })
   })
 
   it('debe mostrar/ocultar contraseña', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').length > 0) {
-        const password = generatePassword()
-        cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(password)
+    ifFoundInBody('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]', () => {
+      const password = generatePassword()
+      cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(password)
+      cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().should('have.attr', 'type', 'password')
+
+      ifFoundInBody('[data-cy="toggle-password"], [data-cy="btn-toggle-password"], button[type="button"]', () => {
+        cy.get('[data-cy="toggle-password"], [data-cy="btn-toggle-password"], button[type="button"]').first().click()
+        cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().should('have.attr', 'type', 'text')
+
+        cy.get('[data-cy="toggle-password"], [data-cy="btn-toggle-password"], button[type="button"]').first().click()
         cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().should('have.attr', 'type', 'password')
-
-        cy.get('body').then(($toggle) => {
-          if ($toggle.find('[data-cy="toggle-password"], [data-cy="btn-toggle-password"], button[type="button"]').length > 0) {
-            cy.get('[data-cy="toggle-password"], [data-cy="btn-toggle-password"], button[type="button"]').first().click()
-            cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().should('have.attr', 'type', 'text')
-
-            cy.get('[data-cy="toggle-password"], [data-cy="btn-toggle-password"], button[type="button"]').first().click()
-            cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().should('have.attr', 'type', 'password')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe navegar al login desde el registro', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="login-link"], a[href*="login"]').length > 0) {
-        cy.get('[data-cy="login-link"], a[href*="login"]').first().click()
-        verifyUrlContains(['/login'], 5000)
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    ifFoundInBody('[data-cy="login-link"], a[href*="login"]', () => {
+      cy.get('[data-cy="login-link"], a[href*="login"]').first().click()
+      verifyUrlContains(['/login'], 5000)
     })
   })
 

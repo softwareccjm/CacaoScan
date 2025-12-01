@@ -1,53 +1,33 @@
-import { visitAndWaitForBody } from '../../support/helpers'
+import { 
+  visitAndWaitForBody, 
+  verifyElementsVisible
+} from '../../support/helpers'
 
 describe('Gestión de Reportes - ReportsManagement', () => {
-  const createReport = (reportData) => {
-    cy.get('[data-cy="create-report-button"]').click()
-    
-    if (reportData.type) {
-      cy.get('[data-cy="report-type"]').select(reportData.type)
-    }
-    if (reportData.finca) {
-      cy.get('[data-cy="finca-select"]').select(reportData.finca)
-    }
-    if (reportData.title) {
-      cy.get('[data-cy="report-title"]').type(reportData.title)
-    }
-    if (reportData.description) {
-      cy.get('[data-cy="report-description"]').type(reportData.description)
-    }
-    if (reportData.format) {
-      cy.get('[data-cy="report-format"]').select(reportData.format)
-    }
-    
-    cy.get('[data-cy="generate-report"]').click()
-  }
-
-  const applyFilter = (filterType, value) => {
-    cy.get(`[data-cy="filter-${filterType}"]`).select(value)
-    cy.get('[data-cy="apply-filters"]').click()
-  }
-
   beforeEach(() => {
     cy.login('analyst')
     visitAndWaitForBody('/reportes/management')
   })
 
   it('debe mostrar lista de reportes', () => {
-    cy.get('[data-cy="reports-list"]').should('be.visible')
-    cy.get('[data-cy="reports-header"]').should('be.visible')
-    cy.get('[data-cy="create-report-button"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="reports-list"]',
+      '[data-cy="reports-header"]',
+      '[data-cy="create-report-button"]'
+    ])
   })
 
   it('debe mostrar filtros de reportes', () => {
-    cy.get('[data-cy="reports-filters"]').should('be.visible')
-    cy.get('[data-cy="filter-type"]').should('be.visible')
-    cy.get('[data-cy="filter-status"]').should('be.visible')
-    cy.get('[data-cy="filter-date-range"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="reports-filters"]',
+      '[data-cy="filter-type"]',
+      '[data-cy="filter-status"]',
+      '[data-cy="filter-date-range"]'
+    ])
   })
 
   it('debe crear nuevo reporte de calidad', () => {
-    createReport({
+    cy.createReport({
       type: 'calidad',
       title: 'Reporte de Calidad Mensual',
       description: 'Análisis de calidad de granos',
@@ -59,7 +39,7 @@ describe('Gestión de Reportes - ReportsManagement', () => {
   })
 
   it('debe crear reporte de finca', () => {
-    createReport({
+    cy.createReport({
       type: 'finca',
       finca: '1',
       title: 'Reporte de Finca'
@@ -69,7 +49,7 @@ describe('Gestión de Reportes - ReportsManagement', () => {
   })
 
   it('debe filtrar reportes por tipo', () => {
-    applyFilter('type', 'calidad')
+    cy.applyReportFilter('type', 'calidad')
     
     cy.get('[data-cy="reports-list"]').within(() => {
       cy.get('[data-cy="report-item"]').each(($item) => {
@@ -79,13 +59,13 @@ describe('Gestión de Reportes - ReportsManagement', () => {
   })
 
   it('debe filtrar reportes por estado', () => {
-    applyFilter('status', 'completado')
+    cy.applyReportFilter('status', 'completado')
     
     cy.get('[data-cy="reports-list"]').should('be.visible')
   })
 
   it('debe descargar reporte completado', () => {
-    cy.get('[data-cy="report-item"]').first().within(() => {
+    cy.executeInFirstItem('[data-cy="report-item"]', () => {
       cy.get('[data-cy="download-report"]').should('be.visible').click()
     })
     
@@ -93,16 +73,18 @@ describe('Gestión de Reportes - ReportsManagement', () => {
   })
 
   it('debe previsualizar reporte', () => {
-    cy.get('[data-cy="report-item"]').first().within(() => {
+    cy.executeInFirstItem('[data-cy="report-item"]', () => {
       cy.get('[data-cy="preview-report"]').click()
     })
     
-    cy.get('[data-cy="report-preview-modal"]').should('be.visible')
-    cy.get('[data-cy="preview-content"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="report-preview-modal"]',
+      '[data-cy="preview-content"]'
+    ])
   })
 
   it('debe eliminar reporte con confirmación', () => {
-    cy.get('[data-cy="report-item"]').first().within(() => {
+    cy.executeInFirstItem('[data-cy="report-item"]', () => {
       cy.get('[data-cy="delete-report"]').click()
     })
     
@@ -112,10 +94,12 @@ describe('Gestión de Reportes - ReportsManagement', () => {
   })
 
   it('debe mostrar estadísticas de reportes', () => {
-    cy.get('[data-cy="reports-stats"]').should('be.visible')
-    cy.get('[data-cy="total-reports"]').should('be.visible')
-    cy.get('[data-cy="completed-reports"]').should('be.visible')
-    cy.get('[data-cy="generating-reports"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="reports-stats"]',
+      '[data-cy="total-reports"]',
+      '[data-cy="completed-reports"]',
+      '[data-cy="generating-reports"]'
+    ])
   })
 
   it('debe paginar lista de reportes', () => {
@@ -128,9 +112,8 @@ describe('Gestión de Reportes - ReportsManagement', () => {
   })
 
   it('debe mostrar mensaje cuando no hay reportes', () => {
-    applyFilter('status', 'fallido')
+    cy.applyReportFilter('status', 'fallido')
     
-    cy.get('[data-cy="empty-state"]').should('be.visible')
-    cy.get('[data-cy="empty-state"]').should('contain', 'No se encontraron reportes')
+    cy.verifyEmptyStateMessage('[data-cy="empty-state"]', 'No se encontraron reportes')
   })
 })

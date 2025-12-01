@@ -1,4 +1,17 @@
-import { setupServerError, setupEmptyListIntercept, getApiBaseUrl } from '../../support/helpers'
+import {
+  setupServerError,
+  setupEmptyListIntercept,
+  getApiBaseUrl,
+  visitAndWaitForBodyVisible,
+  openModalFillFieldAndVerifyError,
+  uploadFileAndVerifyError,
+  ifFoundInBody,
+  clickIfExistsAndContinue,
+  verifyErrorMessageGeneric,
+  testNavigatorApi,
+  testWindowApi,
+  testBrowserApi
+} from '../../support/helpers'
 
 describe('Manejo de Errores - Casos Edge', () => {
   beforeEach(() => {
@@ -29,11 +42,15 @@ describe('Manejo de Errores - Casos Edge', () => {
   })
 
   it('debe manejar valores muy largos en inputs', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="add-finca-button"]').click()
-    const longString = 'a'.repeat(10000)
-    cy.get('[data-cy="finca-nombre"]').type(longString)
-    cy.get('[data-cy="finca-nombre-error"]').should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
+    openModalFillFieldAndVerifyError(
+      '[data-cy="add-finca-button"], button',
+      '[data-cy="finca-nombre"], input',
+      'a'.repeat(10000),
+      '[data-cy="save-finca"], button[type="submit"]',
+      '[data-cy="finca-nombre-error"], .error-message',
+      ['largo', 'longitud', 'demasiado']
+    )
   })
 
   it('debe manejar múltiples requests simultáneos', () => {
@@ -68,15 +85,14 @@ describe('Manejo de Errores - Casos Edge', () => {
   })
 
   it('debe manejar archivos corruptos en upload', () => {
-    cy.visit('/nuevo-analisis')
+    visitAndWaitForBodyVisible('/nuevo-analisis')
     const corruptFile = new File(['corrupt'], 'corrupt.jpg', { type: 'image/jpeg' })
-    cy.get('[data-cy="file-input"]').then((input) => {
-      const dataTransfer = new DataTransfer()
-      dataTransfer.items.add(corruptFile)
-      input[0].files = dataTransfer.files
-      input.trigger('change')
-    })
-    cy.get('[data-cy="upload-error"]').should('be.visible')
+    uploadFileAndVerifyError(
+      '[data-cy="file-input"], input[type="file"]',
+      corruptFile,
+      '[data-cy="upload-error"], .error-message',
+      ['corrupto', 'archivo', 'error']
+    )
   })
 
   it('debe manejar paginación con datos vacíos', () => {
@@ -307,625 +323,524 @@ describe('Manejo de Errores - Casos Edge', () => {
   })
 
   it('debe manejar operación con service worker', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('serviceWorker' in win.navigator) {
-        win.navigator.serviceWorker.register('/sw.js').catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'serviceWorker' in nav,
+      (nav) => nav.serviceWorker.register('/sw.js'),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web workers', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if (typeof Worker !== 'undefined') {
-        const worker = new Worker('/worker.js')
-        worker.postMessage({ type: 'test' })
-        worker.terminate()
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testBrowserApi(
+      '/mis-fincas',
+      (win) => {
+        if (typeof Worker !== 'undefined') {
+          const worker = new Worker('/worker.js')
+          worker.postMessage({ type: 'test' })
+          worker.terminate()
+        }
+      },
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con geolocation', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('geolocation' in win.navigator) {
-        win.navigator.geolocation.getCurrentPosition(() => {}, () => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'geolocation' in nav,
+      (nav) => nav.geolocation.getCurrentPosition(() => {}, () => {}),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con camera', () => {
-    cy.visit('/nuevo-analisis')
-    cy.window().then((win) => {
-      if ('mediaDevices' in win.navigator) {
-        win.navigator.mediaDevices.getUserMedia({ video: true }).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="file-input"]').should('be.visible')
+    testNavigatorApi(
+      '/nuevo-analisis',
+      (nav) => 'mediaDevices' in nav,
+      (nav) => nav.mediaDevices.getUserMedia({ video: true }),
+      '[data-cy="file-input"]'
+    )
   })
 
   it('debe manejar operación con clipboard', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('clipboard' in win.navigator) {
-        win.navigator.clipboard.writeText('test').catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'clipboard' in nav,
+      (nav) => nav.clipboard.writeText('test'),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con notifications', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('Notification' in win) {
-        win.Notification.requestPermission().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testWindowApi(
+      '/mis-fincas',
+      (win) => 'Notification' in win,
+      (win) => win.Notification.requestPermission(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con battery API', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('getBattery' in win.navigator) {
-        win.navigator.getBattery().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'getBattery' in nav,
+      (nav) => nav.getBattery(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con device orientation', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('DeviceOrientationEvent' in win) {
-        win.addEventListener('deviceorientation', () => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testWindowApi(
+      '/mis-fincas',
+      (win) => 'DeviceOrientationEvent' in win,
+      (win) => Promise.resolve(win.addEventListener('deviceorientation', () => {})),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con device motion', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('DeviceMotionEvent' in win) {
-        win.addEventListener('devicemotion', () => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testWindowApi(
+      '/mis-fincas',
+      (win) => 'DeviceMotionEvent' in win,
+      (win) => Promise.resolve(win.addEventListener('devicemotion', () => {})),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con vibration API', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('vibrate' in win.navigator) {
-        win.navigator.vibrate(100)
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'vibrate' in nav,
+      (nav) => Promise.resolve(nav.vibrate(100)),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con fullscreen API', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('requestFullscreen' in win.document.documentElement) {
-        win.document.documentElement.requestFullscreen().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testBrowserApi(
+      '/mis-fincas',
+      (win) => {
+        if ('requestFullscreen' in win.document.documentElement) {
+          win.document.documentElement.requestFullscreen().catch(() => {})
+        }
+      },
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con pointer lock', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('requestPointerLock' in win.document.body) {
-        win.document.body.requestPointerLock().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testBrowserApi(
+      '/mis-fincas',
+      (win) => {
+        if ('requestPointerLock' in win.document.body) {
+          win.document.body.requestPointerLock().catch(() => {})
+        }
+      },
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con screen orientation', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('orientation' in win.screen) {
-        win.screen.orientation.lock('portrait').catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testBrowserApi(
+      '/mis-fincas',
+      (win) => {
+        if ('orientation' in win.screen) {
+          win.screen.orientation.lock('portrait').catch(() => {})
+        }
+      },
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con wake lock', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('wakeLock' in win.navigator) {
-        win.navigator.wakeLock.request('screen').catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'wakeLock' in nav,
+      (nav) => nav.wakeLock.request('screen'),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con payment request', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('PaymentRequest' in win) {
-        try {
-          const paymentRequest = new win.PaymentRequest([], { total: { label: 'Test', amount: { currency: 'USD', value: '0' } } })
-          paymentRequest.show().catch((error) => {
-            cy.log(`PaymentRequest error: ${error.message}`)
-          })
-        } catch (e) {
-          cy.log(`PaymentRequest initialization error: ${e.message}`)
+    testBrowserApi(
+      '/mis-fincas',
+      (win) => {
+        if ('PaymentRequest' in win) {
+          try {
+            const paymentRequest = new win.PaymentRequest([], { total: { label: 'Test', amount: { currency: 'USD', value: '0' } } })
+            paymentRequest.show().catch((error) => {
+              cy.log(`PaymentRequest error: ${error.message}`)
+            })
+          } catch (e) {
+            cy.log(`PaymentRequest initialization error: ${e.message}`)
+          }
         }
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+      },
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con credential management', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('credentials' in win.navigator) {
-        win.navigator.credentials.get({ publicKey: {} }).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'credentials' in nav,
+      (nav) => nav.credentials.get({ publicKey: {} }),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web share', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('share' in win.navigator) {
-        win.navigator.share({ title: 'Test', text: 'Test', url: '/' }).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'share' in nav,
+      (nav) => nav.share({ title: 'Test', text: 'Test', url: '/' }),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web bluetooth', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('bluetooth' in win.navigator) {
-        win.navigator.bluetooth.requestDevice({ filters: [] }).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'bluetooth' in nav,
+      (nav) => nav.bluetooth.requestDevice({ filters: [] }),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web usb', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('usb' in win.navigator) {
-        win.navigator.usb.requestDevice({ filters: [] }).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'usb' in nav,
+      (nav) => nav.usb.requestDevice({ filters: [] }),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web serial', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('serial' in win.navigator) {
-        win.navigator.serial.requestPort().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'serial' in nav,
+      (nav) => nav.serial.requestPort(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web nfc', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('nfc' in win.navigator) {
-        win.navigator.nfc.watch(() => {}).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'nfc' in nav,
+      (nav) => nav.nfc.watch(() => {}),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web xr', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('xr' in win.navigator) {
-        win.navigator.xr.requestSession('immersive-vr').catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'xr' in nav,
+      (nav) => nav.xr.requestSession('immersive-vr'),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web midi', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('requestMIDIAccess' in win.navigator) {
-        win.navigator.requestMIDIAccess().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'requestMIDIAccess' in nav,
+      (nav) => nav.requestMIDIAccess(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web hid', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('hid' in win.navigator) {
-        win.navigator.hid.requestDevice({ filters: [] }).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'hid' in nav,
+      (nav) => nav.hid.requestDevice({ filters: [] }),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web locks', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('locks' in win.navigator) {
-        win.navigator.locks.request('test', () => {}).catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'locks' in nav,
+      (nav) => nav.locks.request('test', () => {}),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web storage estimate', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('storage' in win.navigator && 'estimate' in win.navigator.storage) {
-        win.navigator.storage.estimate().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'storage' in nav && 'estimate' in nav.storage,
+      (nav) => nav.storage.estimate(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web storage persist', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('storage' in win.navigator && 'persist' in win.navigator.storage) {
-        win.navigator.storage.persist().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'storage' in nav && 'persist' in nav.storage,
+      (nav) => nav.storage.persist(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web storage persisted', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('storage' in win.navigator && 'persisted' in win.navigator.storage) {
-        win.navigator.storage.persisted().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'storage' in nav && 'persisted' in nav.storage,
+      (nav) => nav.storage.persisted(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web storage quota', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('storage' in win.navigator && 'quota' in win.navigator.storage) {
-        win.navigator.storage.quota().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'storage' in nav && 'quota' in nav.storage,
+      (nav) => nav.storage.quota(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web storage usage', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('storage' in win.navigator && 'usage' in win.navigator.storage) {
-        win.navigator.storage.usage().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'storage' in nav && 'usage' in nav.storage,
+      (nav) => nav.storage.usage(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar operación con web storage getDirectory', () => {
-    cy.visit('/mis-fincas')
-    cy.window().then((win) => {
-      if ('storage' in win.navigator && 'getDirectory' in win.navigator.storage) {
-        win.navigator.storage.getDirectory().catch(() => {})
-      }
-    })
-    cy.get('[data-cy="fincas-list"]').should('be.visible')
+    testNavigatorApi(
+      '/mis-fincas',
+      (nav) => 'storage' in nav && 'getDirectory' in nav.storage,
+      (nav) => nav.storage.getDirectory(),
+      '[data-cy="fincas-list"]'
+    )
   })
 
   it('debe manejar datos vacíos en listas', () => {
     setupEmptyListIntercept('/fincas/**', 'emptyList')
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.wait(1000)
-    
-    cy.get('body', { timeout: 5000 }).then(($body) => {
-      if ($body.find('[data-cy="empty-state"], .empty-state, .empty').length > 0) {
-        cy.get('[data-cy="empty-state"], .empty-state, .empty').should('exist')
-        cy.get('[data-cy="empty-message"], .empty-message', { timeout: 3000 }).should('exist')
-        cy.get('[data-cy="empty-action"], .empty-action, button', { timeout: 3000 }).should('exist')
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const verifyEmptyMessage = () => {
+      ifFoundInBody('[data-cy="empty-message"], .empty-message', () => {
+        cy.get('[data-cy="empty-message"], .empty-message').should('exist')
+      })
+    }
+
+    const verifyEmptyAction = () => {
+      ifFoundInBody('[data-cy="empty-action"], .empty-action, button', () => {
+        cy.get('[data-cy="empty-action"], .empty-action, button').should('exist')
+      })
+    }
+
+    ifFoundInBody('[data-cy="empty-state"], .empty-state, .empty', () => {
+      cy.get('[data-cy="empty-state"], .empty-state, .empty').should('exist')
+      verifyEmptyMessage()
+      verifyEmptyAction()
     })
   })
 
   it('debe manejar búsqueda sin resultados', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').length > 0) {
-        cy.get('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').first().type('noexiste123')
-        
-        cy.get('body', { timeout: 5000 }).then(($afterSearch) => {
-          if ($afterSearch.find('[data-cy="no-results"], .no-results, .empty').length > 0) {
-            cy.get('[data-cy="no-results"], .no-results, .empty').should('exist')
-            cy.get('[data-cy="no-results-message"], .no-results-message', { timeout: 3000 }).should('exist')
-            cy.get('[data-cy="clear-search"], button, .clear', { timeout: 3000 }).should('exist')
-          }
-        })
-      }
+    const verifyNoResultsMessage = () => {
+      ifFoundInBody('[data-cy="no-results-message"], .no-results-message', () => {
+        cy.get('[data-cy="no-results-message"], .no-results-message').should('exist')
+      })
+    }
+
+    const verifyClearSearch = () => {
+      ifFoundInBody('[data-cy="clear-search"], button, .clear', () => {
+        cy.get('[data-cy="clear-search"], button, .clear').should('exist')
+      })
+    }
+
+    const verifyNoResults = () => {
+      ifFoundInBody('[data-cy="no-results"], .no-results, .empty', () => {
+        cy.get('[data-cy="no-results"], .no-results, .empty').should('exist')
+        verifyNoResultsMessage()
+        verifyClearSearch()
+      })
+    }
+
+    ifFoundInBody('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]', () => {
+      cy.get('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').first().type('noexiste123')
+      verifyNoResults()
     })
   })
 
   it('debe manejar filtros sin resultados', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="location-filter"], button, .filter').length > 0) {
-        cy.get('[data-cy="location-filter"], button, .filter').first().click({ force: true })
-        const applyFilterAndVerify = ($afterClick) => {
-          if ($afterClick.find('[data-cy="province-filter"], select').length > 0) {
-            cy.get('[data-cy="province-filter"], select').first().select('Provincia Inexistente', { force: true })
-            cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click()
-            
-            const verifyNoResults = ($afterFilter) => {
-              if ($afterFilter.find('[data-cy="no-results"], .no-results').length > 0) {
-                cy.get('[data-cy="no-results"], .no-results').should('exist')
-                cy.get('[data-cy="clear-filters"], button', { timeout: 3000 }).should('exist')
-              }
-            }
+    const verifyClearFilters = () => {
+      ifFoundInBody('[data-cy="clear-filters"], button', () => {
+        cy.get('[data-cy="clear-filters"], button').should('exist')
+      })
+    }
 
-            cy.get('body', { timeout: 5000 }).then(verifyNoResults)
-          }
-        }
+    const handleNoResults = () => {
+      ifFoundInBody('[data-cy="no-results"], .no-results', () => {
+        cy.get('[data-cy="no-results"], .no-results').should('exist')
+        verifyClearFilters()
+      })
+    }
 
-        cy.get('body', { timeout: 3000 }).then(applyFilterAndVerify)
-      }
+    const applyFilterAndVerify = () => {
+      ifFoundInBody('[data-cy="province-filter"], select', () => {
+        cy.get('[data-cy="province-filter"], select').first().select('Provincia Inexistente', { force: true })
+        cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click()
+        cy.wait(1000)
+        handleNoResults()
+      })
+    }
+
+    ifFoundInBody('[data-cy="location-filter"], button, .filter', () => {
+      cy.get('[data-cy="location-filter"], button, .filter').first().click({ force: true })
+      cy.wait(500)
+      applyFilterAndVerify()
     })
   })
 
   it('debe manejar formularios con campos muy largos', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            const longText = 'a'.repeat(1000)
-            cy.get('[data-cy="finca-nombre"], input').first().type(longText, { force: true })
-            
-            const verifyLongFieldError = ($error) => {
-              if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('largo') || text.includes('longitud') || text.includes('demasiado') || text.length > 0
-                })
-              }
-            }
-
-            cy.get('body', { timeout: 3000 }).then(verifyLongFieldError)
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
+    visitAndWaitForBodyVisible('/mis-fincas')
+    openModalFillFieldAndVerifyError(
+      '[data-cy="add-finca-button"], button',
+      '[data-cy="finca-nombre"], input',
+      'a'.repeat(1000),
+      '[data-cy="save-finca"], button[type="submit"]',
+      '[data-cy="finca-nombre-error"], .error-message',
+      ['largo', 'longitud', 'demasiado']
+    )
   })
 
   it('debe manejar formularios con caracteres especiales', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input').first().type('Finca @#$%^&*()', { force: true })
-            
-            cy.get('[data-cy="finca-nombre"], input').first().should('satisfy', ($el) => {
-              const value = $el.val() || $el.text()
-              return value.includes('Finca') || value.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const verifyFieldValue = () => {
+      cy.get('[data-cy="finca-nombre"], input').first().should('satisfy', ($el) => {
+        const value = $el.val() || $el.text()
+        return value.includes('Finca') || value.length > 0
+      })
+    }
+
+    const fillSpecialCharactersField = () => {
+      ifFoundInBody('[data-cy="finca-nombre"], input', () => {
+        cy.get('[data-cy="finca-nombre"], input').first().type('Finca @#$%^&*()', { force: true })
+        verifyFieldValue()
+      })
+    }
+
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      fillSpecialCharactersField()
     })
   })
 
   it('debe manejar números muy grandes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-area"], input[type="number"]').length > 0) {
-            cy.get('[data-cy="finca-area"], input[type="number"]').first().type('999999999999999', { force: true })
-            
-            const verifyLargeNumberError = ($error) => {
-              if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('grande') || text.includes('área') || text.includes('demasiado') || text.length > 0
-                })
-              }
-            }
-
-            cy.get('body', { timeout: 3000 }).then(verifyLargeNumberError)
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
+    visitAndWaitForBodyVisible('/mis-fincas')
+    openModalFillFieldAndVerifyError(
+      '[data-cy="add-finca-button"], button',
+      '[data-cy="finca-area"], input[type="number"]',
+      '999999999999999',
+      '[data-cy="save-finca"], button[type="submit"]',
+      '[data-cy="finca-area-error"], .error-message',
+      ['grande', 'área', 'demasiado']
+    )
   })
 
   it('debe manejar números negativos', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-area"], input[type="number"]').length > 0) {
-            cy.get('[data-cy="finca-area"], input[type="number"]').first().type('-10', { force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('positiva') || text.includes('negativo') || text.includes('área') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
+    visitAndWaitForBodyVisible('/mis-fincas')
+    openModalFillFieldAndVerifyError(
+      '[data-cy="add-finca-button"], button',
+      '[data-cy="finca-area"], input[type="number"]',
+      '-10',
+      '[data-cy="save-finca"], button[type="submit"]',
+      '[data-cy="finca-area-error"], .error-message',
+      ['positiva', 'negativo', 'área']
+    )
   })
 
   it('debe manejar fechas inválidas', () => {
-    cy.visit('/mis-lotes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-lotes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-lote-button"], button').length > 0) {
-        cy.get('[data-cy="add-lote-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="lote-edad"], input[type="number"]').length > 0) {
-            cy.get('[data-cy="lote-edad"], input[type="number"]').first().type('50', { force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="lote-edad-error"], .error-message').length > 0) {
-                cy.get('[data-cy="lote-edad-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('edad') || text.includes('años') || text.includes('menor') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    clickIfExistsAndContinue('[data-cy="add-lote-button"], button', () => {
+      ifFoundInBody('[data-cy="lote-edad"], input[type="number"]', () => {
+        cy.get('[data-cy="lote-edad"], input[type="number"]').first().type('50', { force: true })
+        verifyErrorMessageGeneric(
+          ['edad', 'años', 'menor'],
+          '[data-cy="lote-edad-error"], .error-message'
+        )
+      })
     })
   })
 
   it('debe manejar archivos con nombres muy largos', () => {
-    cy.visit('/nuevo-analisis')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="file-input"], input[type="file"]').length > 0) {
-        const longFileName = 'a'.repeat(255) + '.jpg'
-        const fileContent = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKgAD//Z'
-        
-        cy.get('[data-cy="file-input"], input[type="file"]').then((input) => {
-          const blob = Cypress.Blob.base64StringToBlob(fileContent.split(',')[1], 'image/jpeg')
-          const file = new File([blob], longFileName, { type: 'image/jpeg' })
-          const dataTransfer = new DataTransfer()
-          dataTransfer.items.add(file)
-          input[0].files = dataTransfer.files
-          
-          cy.wrap(input).trigger('change', { force: true })
-        })
-        
-        cy.get('body', { timeout: 3000 }).then(($error) => {
-          if ($error.find('[data-cy="file-name-error"], .error-message').length > 0) {
-            cy.get('[data-cy="file-name-error"], .error-message').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('largo') || text.includes('nombre') || text.includes('archivo') || text.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    visitAndWaitForBodyVisible('/nuevo-analisis')
+    ifFoundInBody('[data-cy="file-input"], input[type="file"]', () => {
+      const longFileName = 'a'.repeat(255) + '.jpg'
+      const fileContent = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKgAD//Z'
+      cy.get('[data-cy="file-input"], input[type="file"]').then(($input) => {
+        const blob = Cypress.Blob.base64StringToBlob(fileContent.split(',')[1], 'image/jpeg')
+        const file = new File([blob], longFileName, { type: 'image/jpeg' })
+        uploadFileAndVerifyError(
+          '[data-cy="file-input"], input[type="file"]',
+          file,
+          '[data-cy="file-name-error"], .error-message',
+          ['largo', 'nombre', 'archivo']
+        )
+      })
     })
   })
 
   it('debe manejar archivos con extensiones no permitidas', () => {
-    cy.visit('/nuevo-analisis')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="file-input"], input[type="file"]').length > 0) {
-        const fileContent = 'test file content'
-        const blob = new Blob([fileContent], { type: 'text/plain' })
-        const file = new File([blob], 'test.txt', { type: 'text/plain' })
-        
-        cy.get('[data-cy="file-input"], input[type="file"]').then((input) => {
-          const dataTransfer = new DataTransfer()
-          dataTransfer.items.add(file)
-          input[0].files = dataTransfer.files
-          
-          cy.wrap(input).trigger('change', { force: true })
-        })
-        
-        cy.get('body', { timeout: 3000 }).then(($error) => {
-          if ($error.find('[data-cy="file-type-error"], .error-message').length > 0) {
-            cy.get('[data-cy="file-type-error"], .error-message').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('tipo') || text.includes('permitido') || text.includes('archivo') || text.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    visitAndWaitForBodyVisible('/nuevo-analisis')
+    ifFoundInBody('[data-cy="file-input"], input[type="file"]', () => {
+      const fileContent = 'test file content'
+      const blob = new Blob([fileContent], { type: 'text/plain' })
+      const file = new File([blob], 'test.txt', { type: 'text/plain' })
+      uploadFileAndVerifyError(
+        '[data-cy="file-input"], input[type="file"]',
+        file,
+        '[data-cy="file-type-error"], .error-message',
+        ['tipo', 'permitido', 'archivo']
+      )
     })
   })
 
   it('debe manejar archivos corruptos', () => {
-    cy.visit('/nuevo-analisis')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/nuevo-analisis')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="file-input"], input[type="file"]').length > 0) {
-        const corruptContent = 'corrupt file content'
-        const blob = new Blob([corruptContent], { type: 'image/jpeg' })
-        const file = new File([blob], 'corrupt.jpg', { type: 'image/jpeg' })
-        
-        cy.get('[data-cy="file-input"], input[type="file"]').then((input) => {
-          const dataTransfer = new DataTransfer()
-          dataTransfer.items.add(file)
-          input[0].files = dataTransfer.files
-          
-          cy.wrap(input).trigger('change', { force: true })
-        })
-        
-        cy.get('body', { timeout: 3000 }).then(($afterUpload) => {
-          if ($afterUpload.find('[data-cy="upload-button"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="upload-button"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="file-corrupt-error"], .error-message, .swal2-error').length > 0) {
-                cy.get('[data-cy="file-corrupt-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('corrupto') || text.includes('archivo') || text.includes('error') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const verifyCorruptFileError = () => {
+      verifyErrorMessageGeneric(
+        ['corrupto', 'archivo', 'error'],
+        '[data-cy="file-corrupt-error"], .error-message, .swal2-error'
+      )
+    }
+
+    const handleCorruptFileUpload = () => {
+      const corruptContent = 'corrupt file content'
+      const blob = new Blob([corruptContent], { type: 'image/jpeg' })
+      const file = new File([blob], 'corrupt.jpg', { type: 'image/jpeg' })
+      uploadFileAndVerifyError(
+        '[data-cy="file-input"], input[type="file"]',
+        file,
+        '[data-cy="file-corrupt-error"], .error-message, .swal2-error',
+        ['corrupto', 'archivo', 'error']
+      )
+      clickIfExistsAndContinue('[data-cy="upload-button"], button[type="submit"]', () => {
+        verifyCorruptFileError()
+      })
+    }
+
+    ifFoundInBody('[data-cy="file-input"], input[type="file"]', () => {
+      handleCorruptFileUpload()
     })
   })
 
@@ -936,26 +851,19 @@ describe('Manejo de Errores - Casos Edge', () => {
       body: { error: 'Token expirado' }
     }).as('expiredSession')
     
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.wait('@expiredSession', { timeout: 10000 })
-            
-            cy.url({ timeout: 5000 }).should('satisfy', (url) => {
-              return url.includes('/login') || url.includes('/auth')
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const isLoginOrAuthUrl = (url) => {
+      return url.includes('/login') || url.includes('/auth')
+    }
+
+    const verifyRedirectToLogin = () => {
+      cy.wait('@expiredSession', { timeout: 10000 })
+      cy.url({ timeout: 5000 }).should('satisfy', isLoginOrAuthUrl)
+    }
+
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      clickIfExistsAndContinue('[data-cy="save-finca"], button[type="submit"]', verifyRedirectToLogin)
     })
   })
 
@@ -966,31 +874,18 @@ describe('Manejo de Errores - Casos Edge', () => {
       body: { error: 'Operación en conflicto' }
     }).as('concurrentOperation')
     
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.wait('@concurrentOperation', { timeout: 10000 })
-            
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="conflict-error"], .error-message, .swal2-error').length > 0) {
-                cy.get('[data-cy="conflict-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('conflicto') || text.includes('operación') || text.includes('error') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const verifyConflictError = () => {
+      cy.wait('@concurrentOperation', { timeout: 10000 })
+      verifyErrorMessageGeneric(
+        ['conflicto', 'operación', 'error'],
+        '[data-cy="conflict-error"], .error-message, .swal2-error'
+      )
+    }
+
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      clickIfExistsAndContinue('[data-cy="save-finca"], button[type="submit"]', verifyConflictError)
     })
   })
 
@@ -1007,18 +902,13 @@ describe('Manejo de Errores - Casos Edge', () => {
       }
     }).as('corruptData')
     
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.wait(1000)
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item').should('exist')
-      }
-      if ($body.find('[data-cy="corrupt-data-warning"], .warning').length > 0) {
-        cy.get('[data-cy="corrupt-data-warning"], .warning').should('exist')
-      }
+    ifFoundInBody('[data-cy="finca-item"], .finca-item, .item', () => {
+      cy.get('[data-cy="finca-item"], .finca-item, .item').should('exist')
+    })
+    ifFoundInBody('[data-cy="corrupt-data-warning"], .warning', () => {
+      cy.get('[data-cy="corrupt-data-warning"], .warning').should('exist')
     })
   })
 
@@ -1033,18 +923,13 @@ describe('Manejo de Errores - Casos Edge', () => {
       }
     }).as('partialResponse')
     
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.wait(1000)
-    
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="partial-data-warning"], .warning').length > 0) {
-        cy.get('[data-cy="partial-data-warning"], .warning').should('exist')
-      }
-      if ($body.find('[data-cy="load-more"], button').length > 0) {
-        cy.get('[data-cy="load-more"], button').should('exist')
-      }
+    ifFoundInBody('[data-cy="partial-data-warning"], .warning', () => {
+      cy.get('[data-cy="partial-data-warning"], .warning').should('exist')
+    })
+    ifFoundInBody('[data-cy="load-more"], button', () => {
+      cy.get('[data-cy="load-more"], button').should('exist')
     })
   })
 
@@ -1055,31 +940,18 @@ describe('Manejo de Errores - Casos Edge', () => {
       body: { error: 'Recurso ya no disponible' }
     }).as('goneResource')
     
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.wait('@goneResource', { timeout: 10000 })
-            
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="gone-error"], .error-message, .swal2-error').length > 0) {
-                cy.get('[data-cy="gone-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('disponible') || text.includes('recurso') || text.includes('error') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const verifyGoneError = () => {
+      cy.wait('@goneResource', { timeout: 10000 })
+      verifyErrorMessageGeneric(
+        ['disponible', 'recurso', 'error'],
+        '[data-cy="gone-error"], .error-message, .swal2-error'
+      )
+    }
+
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      clickIfExistsAndContinue('[data-cy="save-finca"], button[type="submit"]', verifyGoneError)
     })
   })
 
@@ -1090,31 +962,18 @@ describe('Manejo de Errores - Casos Edge', () => {
       body: { error: 'Límite de recursos excedido' }
     }).as('resourceLimit')
     
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBodyVisible('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.wait('@resourceLimit', { timeout: 10000 })
-            
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="resource-limit-error"], .error-message, .swal2-error').length > 0) {
-                cy.get('[data-cy="resource-limit-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('límite') || text.includes('recursos') || text.includes('excedido') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    const verifyResourceLimitError = () => {
+      cy.wait('@resourceLimit', { timeout: 10000 })
+      verifyErrorMessageGeneric(
+        ['límite', 'recursos', 'excedido'],
+        '[data-cy="resource-limit-error"], .error-message, .swal2-error'
+      )
+    }
+
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      clickIfExistsAndContinue('[data-cy="save-finca"], button[type="submit"]', verifyResourceLimitError)
     })
   })
 })

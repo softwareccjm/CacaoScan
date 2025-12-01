@@ -46,146 +46,22 @@
 
           <!-- Tab Content: Information -->
           <div v-if="activeTab === 'info'" class="space-y-6">
-            <!-- Nombres -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-farmer-primer-nombre" class="block text-sm font-semibold text-gray-700 mb-2">Primer
-                  Nombre *</label>
-                <input id="edit-farmer-primer-nombre" v-model="personaForm.primer_nombre" type="text"
-                  autocomplete="given-name"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.primer_nombre }" placeholder="Juan" />
-                <p v-if="errors.primer_nombre" class="text-red-600 text-xs mt-1">{{ errors.primer_nombre }}</p>
-              </div>
-              <div>
-                <label for="edit-farmer-segundo-nombre" class="block text-sm font-semibold text-gray-700 mb-2">Segundo
-                  Nombre</label>
-                <input id="edit-farmer-segundo-nombre" v-model="personaForm.segundo_nombre" type="text"
-                  autocomplete="additional-name"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  placeholder="Carlos (opcional)" />
-              </div>
-            </div>
-
-            <!-- Apellidos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-farmer-primer-apellido" class="block text-sm font-semibold text-gray-700 mb-2">Primer
-                  Apellido *</label>
-                <input id="edit-farmer-primer-apellido" v-model="personaForm.primer_apellido" type="text"
-                  autocomplete="family-name"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.primer_apellido }" placeholder="Pérez" />
-                <p v-if="errors.primer_apellido" class="text-red-600 text-xs mt-1">{{ errors.primer_apellido }}</p>
-              </div>
-              <div>
-                <label for="edit-farmer-segundo-apellido" class="block text-sm font-semibold text-gray-700 mb-2">Segundo
-                  Apellido</label>
-                <input id="edit-farmer-segundo-apellido" v-model="personaForm.segundo_apellido" type="text"
-                  autocomplete="family-name"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  placeholder="García (opcional)" />
-              </div>
-            </div>
-
-            <!-- Tipo Documento y Número -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-farmer-tipo-documento" class="block text-sm font-semibold text-gray-700 mb-2">Tipo de
-                  Documento *</label>
-                <select id="edit-farmer-tipo-documento" v-model="personaForm.tipo_documento"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.tipo_documento }">
-                  <option value="">Seleccionar...</option>
-                  <option v-for="tipo in tiposDocumento" :key="tipo.codigo" :value="tipo.codigo">{{ tipo.nombre }}
-                  </option>
-                </select>
-                <p v-if="errors.tipo_documento" class="text-red-600 text-xs mt-1">{{ errors.tipo_documento }}</p>
-              </div>
-              <div>
-                <label for="edit-farmer-numero-documento" class="block text-sm font-semibold text-gray-700 mb-2">Número
-                  de Documento *</label>
-                <input id="edit-farmer-numero-documento" v-model="personaForm.numero_documento" type="text"
-                  autocomplete="off"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.numero_documento }" placeholder="1012345678" />
-                <p v-if="errors.numero_documento" class="text-red-600 text-xs mt-1">{{ errors.numero_documento }}</p>
-              </div>
-            </div>
-
-            <!-- Género y Fecha de Nacimiento -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-farmer-genero" class="block text-sm font-semibold text-gray-700 mb-2">Género *</label>
-                <select id="edit-farmer-genero" v-model="personaForm.genero"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.genero }">
-                  <option value="">Seleccionar...</option>
-                  <option v-for="gen in generos" :key="gen.codigo" :value="gen.codigo">{{ gen.nombre }}</option>
-                </select>
-                <p v-if="errors.genero" class="text-red-600 text-xs mt-1">{{ errors.genero }}</p>
-              </div>
-              <div>
-                <label for="edit-farmer-fecha-nacimiento" class="block text-sm font-semibold text-gray-700 mb-2">Fecha
-                  de Nacimiento</label>
-                <input id="edit-farmer-fecha-nacimiento" type="date" v-model="personaForm.fecha_nacimiento"
-                  autocomplete="bday" :max="maxBirthdate" :min="minBirthdate"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.fecha_nacimiento }" />
-                <p v-if="errors.fecha_nacimiento" class="text-red-600 text-xs mt-1">{{ errors.fecha_nacimiento }}</p>
-              </div>
-            </div>
-
-            <!-- Email y Teléfono -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-farmer-email" class="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
-                <input id="edit-farmer-email" v-model="formData.email" type="email" autocomplete="email"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.email }" placeholder="nombre@email.com" />
-                <p v-if="errors.email" class="text-red-600 text-xs mt-1">{{ errors.email }}</p>
-              </div>
-              <div>
-                <label for="edit-farmer-telefono" class="block text-sm font-semibold text-gray-700 mb-2">Teléfono
-                  *</label>
-                <input id="edit-farmer-telefono" v-model="personaForm.telefono" type="tel" autocomplete="tel"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                  :class="{ 'border-red-500': errors.telefono }" placeholder="+57 300 123 4567" />
-                <p v-if="errors.telefono" class="text-red-600 text-xs mt-1">{{ errors.telefono }}</p>
-              </div>
-            </div>
-
-            <!-- Dirección -->
-            <div>
-              <label for="edit-farmer-direccion"
-                class="block text-sm font-semibold text-gray-700 mb-2">Dirección</label>
-              <input id="edit-farmer-direccion" name="direccion" v-model="personaForm.direccion" type="text"
-                autocomplete="address-line1"
-                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                placeholder="Calle 10 #5-20" />
-            </div>
-
-            <!-- Ubicación -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="edit-farmer-departamento"
-                  class="block text-sm font-semibold text-gray-700 mb-2">Departamento</label>
-                <select id="edit-farmer-departamento" v-model="personaForm.departamento" @change="onDepartamentoChange"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500">
-                  <option value="">Seleccionar...</option>
-                  <option v-for="depto in departamentos" :key="depto.id" :value="depto.id">{{ depto.nombre }}</option>
-                </select>
-              </div>
-              <div>
-                <label for="edit-farmer-municipio"
-                  class="block text-sm font-semibold text-gray-700 mb-2">Municipio</label>
-                <select id="edit-farmer-municipio" v-model="personaForm.municipio" :disabled="!personaForm.departamento"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500">
-                  <option value="">Seleccionar...</option>
-                  <option v-for="mun in municipios" :key="mun.id" :value="mun.id">{{ mun.nombre }}</option>
-                </select>
-              </div>
-            </div>
+            <PersonFormFields
+              v-model="personaForm"
+              :email-model="formData.email"
+              :errors="errors"
+              :tipos-documento="tiposDocumento"
+              :generos="generos"
+              :departamentos="departamentos"
+              :municipios="municipios"
+              :max-birthdate="maxBirthdate"
+              :min-birthdate="minBirthdate"
+              :base-input-classes="baseInputClasses"
+              :get-input-classes="getInputClasses"
+              field-prefix="edit-farmer"
+              :on-departamento-change="onDepartamentoChange"
+              @update:email-model="formData.email = $event"
+            />
           </div>
 
           <!-- Tab Content: Fincas -->
@@ -405,11 +281,14 @@ import authApi from '@/services/authApi'
 import { personasApi } from '@/services'
 
 // 3. Composables
-import { useCatalogos } from '@/composables/useCatalogos'
-import { useFormValidation } from '@/composables/useFormValidation'
-import { useBirthdateRange } from '@/composables/useBirthdateRange'
+import { usePersonForm } from '@/composables/usePersonForm'
 import { useNotifications } from '@/composables/useNotifications'
 import BaseModal from '@/components/common/BaseModal.vue'
+import PersonFormFields from '@/components/common/PersonFormFields.vue'
+
+// 4. Utils
+import { mapPersonaDataToForm, mapPersonaFormToPayload, extractErrorMessageWithDetails } from '@/utils/personaDataMapper'
+import { extractErrorMessage } from '@/utils/apiErrorHandler'
 
 // Props
 const props = defineProps({
@@ -441,11 +320,16 @@ const {
   isLoadingCatalogos,
   cargarCatalogos,
   cargarMunicipios,
-  limpiarMunicipios
-} = useCatalogos()
-
-const { errors, isValidEmail, isValidPhone, isValidDocument, clearErrors } = useFormValidation()
-const { maxBirthdate, minBirthdate } = useBirthdateRange()
+  limpiarMunicipios,
+  errors,
+  isValidEmail,
+  isValidPhone,
+  isValidDocument,
+  clearErrors,
+  maxBirthdate,
+  minBirthdate,
+  onDepartamentoChange: baseOnDepartamentoChange
+} = usePersonForm()
 const { showSuccess, showError } = useNotifications()
 
 // State
@@ -519,18 +403,7 @@ watch(() => props.farmer, async (newFarmer) => {
     // Load persona data
     try {
       const personaData = await personasApi.getPersonaByUserId(newFarmer.id)
-      personaForm.primer_nombre = personaData.primer_nombre || ''
-      personaForm.segundo_nombre = personaData.segundo_nombre || ''
-      personaForm.primer_apellido = personaData.primer_apellido || ''
-      personaForm.segundo_apellido = personaData.segundo_apellido || ''
-      personaForm.tipo_documento = personaData.tipo_documento_info?.codigo || ''
-      personaForm.numero_documento = personaData.numero_documento || ''
-      personaForm.genero = personaData.genero_info?.codigo || ''
-      personaForm.fecha_nacimiento = personaData.fecha_nacimiento || ''
-      personaForm.telefono = personaData.telefono || ''
-      personaForm.direccion = personaData.direccion || ''
-      personaForm.departamento = personaData.departamento_info?.id || null
-      personaForm.municipio = personaData.municipio_info?.id || null
+      Object.assign(personaForm, mapPersonaDataToForm(personaData))
 
       // Load municipios if there's a departamento
       if (personaForm.departamento) {
@@ -538,14 +411,13 @@ watch(() => props.farmer, async (newFarmer) => {
       }
     } catch (error) {
       const statusCode = error?.response?.status
-      const errorData = error?.response?.data
-      const errorMessage = errorData?.message || errorData?.detail || error?.message || 'Error al cargar los datos de la persona'
 
       if (statusCode === 404) {
         // 404 is expected - persona doesn't exist yet and will be created on save
         console.warn('Persona no encontrada para el usuario, se podrá crear al guardar')
       } else {
         // Handle unexpected errors by showing notification to user
+        const errorMessage = extractErrorMessage(error, 'Error al cargar los datos de la persona')
         console.error('Error al cargar datos de persona:', errorMessage, error)
         showError(errorMessage)
       }
@@ -598,22 +470,8 @@ const handleCreateFinca = async () => {
 
   } catch (error) {
     console.error('Error creando finca:', error)
-
-    let errorMessage = 'Error al crear la finca'
-    if (error.response?.data) {
-      const data = error.response.data
-      errorMessage = data.message || data.error || errorMessage
-      if (data.details) {
-        const details = Object.entries(data.details)
-          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value[0] : value}`)
-          .join(', ')
-        if (details) {
-          errorMessage += `\n\nDetalles: ${details}`
-        }
-      }
-    }
-
-    showError(errorMessage.replaceAll('\n', ' '))
+    const errorMessage = extractErrorMessageWithDetails(error, 'Error al crear la finca')
+    showError(errorMessage)
   } finally {
     isCreatingFinca.value = false
   }
@@ -640,20 +498,7 @@ const handleUpdate = async () => {
     const response = await authApi.updateUser(props.farmer.id, updateData)
 
     // Update/create persona data
-    const personaPayload = {
-      primer_nombre: personaForm.primer_nombre,
-      segundo_nombre: personaForm.segundo_nombre || '',
-      primer_apellido: personaForm.primer_apellido,
-      segundo_apellido: personaForm.segundo_apellido || '',
-      tipo_documento: personaForm.tipo_documento,
-      numero_documento: personaForm.numero_documento,
-      genero: personaForm.genero,
-      fecha_nacimiento: personaForm.fecha_nacimiento || null,
-      telefono: personaForm.telefono,
-      direccion: personaForm.direccion || '',
-      departamento: personaForm.departamento || null,
-      municipio: personaForm.municipio || null
-    }
+    const personaPayload = mapPersonaFormToPayload(personaForm)
 
     if (Object.keys(personaPayload).length > 0) {
       try {
@@ -669,22 +514,8 @@ const handleUpdate = async () => {
     closeModal()
   } catch (error) {
     console.error('Error actualizando agricultor:', error)
-
-    let errorMessage = 'Error al actualizar el agricultor'
-    if (error.response?.data) {
-      const data = error.response.data
-      errorMessage = data.message || data.error || errorMessage
-      if (data.details) {
-        const details = Object.entries(data.details)
-          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value[0] : value}`)
-          .join(', ')
-        if (details) {
-          errorMessage += `\n\nDetalles: ${details}`
-        }
-      }
-    }
-
-    showError(errorMessage.replaceAll('\n', ' '))
+    const errorMessage = extractErrorMessageWithDetails(error, 'Error al actualizar el agricultor')
+    showError(errorMessage)
   } finally {
     isSubmitting.value = false
   }
@@ -692,7 +523,7 @@ const handleUpdate = async () => {
 
 const onDepartamentoChange = async () => {
   personaForm.municipio = null
-  limpiarMunicipios()
+  await baseOnDepartamentoChange()
   if (personaForm.departamento) {
     await cargarMunicipios(personaForm.departamento)
   }

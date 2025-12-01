@@ -46,60 +46,14 @@
 </template>
 
 <script setup>
-const props = defineProps({
-  modelValue: {
-    type: Object,
-    required: true,
-    default: () => ({})
-  },
-  title: {
-    type: String,
-    required: true
-  },
-  showHeader: {
-    type: Boolean,
-    default: true
-  },
-  showActions: {
-    type: Boolean,
-    default: true
-  },
-  showSaveButton: {
-    type: Boolean,
-    default: true
-  },
-  showResetButton: {
-    type: Boolean,
-    default: false
-  },
-  saveButtonText: {
-    type: String,
-    default: 'Guardar'
-  },
-  resetButtonText: {
-    type: String,
-    default: 'Restablecer'
-  },
-  containerClass: {
-    type: String,
-    default: 'bg-white rounded-2xl border-2 border-gray-200 p-8 shadow-lg'
-  }
-})
+import { usePreferences } from '@/composables/usePreferences'
+import { basePreferencesProps } from '@/composables/usePreferencesProps'
+
+const props = defineProps(basePreferencesProps)
 
 const emit = defineEmits(['update:modelValue', 'save', 'reset'])
 
-const updateValue = (key, value) => {
-  const updated = { ...props.modelValue, [key]: value }
-  emit('update:modelValue', updated)
-}
-
-const handleSave = () => {
-  emit('save', props.modelValue)
-}
-
-const handleReset = () => {
-  emit('reset')
-}
+const { updateValue, handleSave, handleReset } = usePreferences(props, emit)
 </script>
 
 <style scoped>

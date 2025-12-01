@@ -23,6 +23,7 @@ logger = get_ml_logger("cacaoscan.ml.regression")
 CONVNEXT_TINY_MODEL_NAME = 'convnext_tiny.in12k_ft_in1k'
 CONVNEXT_LOADING_MSG = "✔ Cargando ConvNeXt Tiny con pesos ImageNet-12k preentrenados"
 CONVNEXT_WARNING_MSG = "⚠ ConvNeXt Tiny se inicializará con pesos aleatorios (pretrained=False)"
+TIMM_REQUIRED_ERROR_MSG = "timm es requerido para ConvNeXt. Instalar con: pip install timm"
 
 
 # ============================================================================
@@ -64,7 +65,7 @@ def create_convnext_backbone(pretrained: bool, num_classes: int = 0, global_pool
         Backbone ConvNeXt creado
     """
     if not TIMM_AVAILABLE:
-        raise ImportError("timm es requerido para ConvNeXt. Instalar con: pip install timm")
+        raise ImportError(TIMM_REQUIRED_ERROR_MSG)
     
     if pretrained:
         backbone_name = CONVNEXT_TINY_MODEL_NAME
@@ -210,7 +211,7 @@ class ConvNeXtTinyRegression(nn.Module):
         super(ConvNeXtTinyRegression, self).__init__()
         
         if not TIMM_AVAILABLE:
-            raise ImportError("timm es requerido para ConvNeXt. Instalar con: pip install timm")
+            raise ImportError(TIMM_REQUIRED_ERROR_MSG)
         
         # Cargar ConvNeXt Tiny pre-entrenado con pesos ImageNet-12k
         # FORZAR uso de pesos ImageNet-12k para mejor rendimiento
@@ -536,7 +537,7 @@ class HybridCacaoRegression(nn.Module):
         super(HybridCacaoRegression, self).__init__()
         
         if not TIMM_AVAILABLE:
-            raise ImportError("timm es requerido para ConvNeXt. Instalar con: pip install timm")
+            raise ImportError(TIMM_REQUIRED_ERROR_MSG)
             
         self.use_pixel_features = use_pixel_features
         

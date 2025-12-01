@@ -32,15 +32,21 @@ describe('Autenticación - Recuperación de Contraseña', () => {
   })
 
   it('debe enviar email de recuperación exitosamente', () => {
+    const handleUrlVerification = () => {
+      verifyUrlContains(['/forgot', '/login'])
+    }
+    
+    const handleSuccessMessage = () => {
+      verifySuccessMessage(['recuperación', 'enviado', 'email']).then(handleUrlVerification)
+    }
+    
+    const handleUserData = (users) => {
+      const user = users.farmer
+      cy.fillEmailAndSubmit(user.email, handleSuccessMessage)
+    }
+    
     cy.clickForgotPasswordLink(() => {
-      cy.fixture('users').then((users) => {
-        const user = users.farmer
-        cy.fillEmailAndSubmit(user.email, () => {
-          verifySuccessMessage(['recuperación', 'enviado', 'email']).then(() => {
-            verifyUrlContains(['/forgot', '/login'])
-          })
-        })
-      })
+      cy.fixture('users').then(handleUserData)
     })
   })
 
@@ -103,22 +109,25 @@ describe('Autenticación - Reset de Contraseña', () => {
   })
 
   it('debe validar que las contraseñas coincidan en reset', () => {
-    visitAndWaitForBody('/reset-password?token=valid-token-123')
-    
-    cy.get('body').then(($body) => {
+    const handleConfirmPassword = ($confirm) => {
+      if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
+        cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type('DifferentPassword123!')
+      }
+    }
+
+    const handlePasswordInput = ($body) => {
       if ($body.find('[data-cy="new-password-input"], input[type="password"]').length > 0) {
         cy.get('[data-cy="new-password-input"], input[type="password"]').first().type('NewPassword123!')
-        cy.get('body', { timeout: 3000 }).then(($confirm) => {
-          if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
-            cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type('DifferentPassword123!')
-          }
-        })
+        cy.get('body', { timeout: 3000 }).then(handleConfirmPassword)
         cy.get('[data-cy="reset-button"], button[type="submit"]').first().click()
         verifyErrorMessageGeneric(['no coinciden', 'no match', 'password'], '[data-cy="password-match-error"], .error-message')
       } else {
         cy.get('body').should('be.visible')
       }
-    })
+    }
+
+    visitAndWaitForBody('/reset-password?token=valid-token-123')
+    cy.get('body').then(handlePasswordInput)
   })
 
   it('debe validar fortaleza de nueva contraseña', () => {
@@ -178,12 +187,14 @@ describe('Autenticación - Verificación de Email', () => {
   })
 
   it('debe verificar email con token válido', () => {
+    const checkVerificationUrl = (url) => {
+      return !url.includes('/verify-email') || url.length > 0
+    }
+
     visitAndWaitForBody('/verify-email?token=valid-verification-token')
     
     verifySuccessMessage(['verificado', 'verification', 'exitosamente'])
-    cy.url({ timeout: 5000 }).should('satisfy', (url) => {
-      return !url.includes('/verify-email') || url.length > 0
-    })
+    cy.url({ timeout: 5000 }).should('satisfy', checkVerificationUrl)
   })
 
   it('debe mostrar error con token de verificación inválido', () => {

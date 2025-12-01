@@ -10,11 +10,10 @@
       </div>
       <button
         :id="fieldId"
-        ref="toggleButton"
         type="button"
-        role="switch"
-        :aria-checked="modelValue === true ? 'true' : 'false'"
+        :aria-checked="modelValue"
         :aria-label="ariaLabel"
+        role="switch"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out',
           'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
@@ -38,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -101,7 +100,6 @@ const generateSecureId = () => {
 }
 
 const fieldId = `toggle-${generateSecureId()}`
-const toggleButton = ref(null)
 
 const ariaLabel = computed(() => {
   return props.label || 'Toggle switch'
@@ -121,13 +119,6 @@ const inactiveClasses = computed(() => {
   return 'bg-gray-200 border-gray-300'
 })
 
-const updateAriaChecked = (value) => {
-  if (!toggleButton.value) {
-    return
-  }
-  toggleButton.value.setAttribute('aria-checked', value ? 'true' : 'false')
-}
-
 const handleToggle = () => {
   if (!props.disabled) {
     const newValue = !props.modelValue
@@ -135,22 +126,11 @@ const handleToggle = () => {
     emit('change', newValue)
   }
 }
-
-onMounted(() => {
-  // Ensure aria-checked is set on mount
-  if (toggleButton.value) {
-    toggleButton.value.setAttribute('aria-checked', props.modelValue ? 'true' : 'false')
-  }
-})
-
-watch(() => props.modelValue, (value) => {
-  updateAriaChecked(value)
-})
 </script>
 
 <style scoped>
 .base-toggle-switch {
-  @apply w-full;
+  width: 100%;
 }
 </style>
 

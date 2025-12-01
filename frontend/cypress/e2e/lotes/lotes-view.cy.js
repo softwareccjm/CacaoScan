@@ -1,29 +1,9 @@
-import { visitAndWaitForBody } from '../../support/helpers'
+import { 
+  visitAndWaitForBody, 
+  verifyElementsVisible 
+} from '../../support/helpers'
 
 describe('Gestión de Lotes - LotesView y LoteDetailView', () => {
-  const createLote = (loteData) => {
-    cy.get('[data-cy="create-lote-button"]').click()
-    
-    if (loteData.nombre) {
-      cy.get('[data-cy="lote-nombre"]').type(loteData.nombre)
-    }
-    if (loteData.finca) {
-      cy.get('[data-cy="lote-finca"]').select(loteData.finca)
-    }
-    if (loteData.area) {
-      cy.get('[data-cy="lote-area"]').type(loteData.area)
-    }
-    if (loteData.descripcion) {
-      cy.get('[data-cy="lote-descripcion"]').type(loteData.descripcion)
-    }
-    
-    cy.get('[data-cy="save-lote"]').click()
-  }
-
-  const applyFilter = (filterType, value) => {
-    cy.get(`[data-cy="filter-${filterType}"]`).select(value)
-    cy.get('[data-cy="apply-filters"]').click()
-  }
 
   beforeEach(() => {
     cy.login('farmer')
@@ -31,19 +11,23 @@ describe('Gestión de Lotes - LotesView y LoteDetailView', () => {
   })
 
   it('debe mostrar lista de lotes', () => {
-    cy.get('[data-cy="lotes-list"]').should('be.visible')
-    cy.get('[data-cy="lotes-header"]').should('be.visible')
-    cy.get('[data-cy="create-lote-button"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="lotes-list"]',
+      '[data-cy="lotes-header"]',
+      '[data-cy="create-lote-button"]'
+    ])
   })
 
   it('debe mostrar filtros de lotes', () => {
-    cy.get('[data-cy="lotes-filters"]').should('be.visible')
-    cy.get('[data-cy="filter-finca"]').should('be.visible')
-    cy.get('[data-cy="filter-status"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="lotes-filters"]',
+      '[data-cy="filter-finca"]',
+      '[data-cy="filter-status"]'
+    ])
   })
 
   it('debe crear nuevo lote', () => {
-    createLote({
+    cy.createLote({
       nombre: 'Lote Norte',
       finca: '1',
       area: '5.5',
@@ -75,11 +59,13 @@ describe('Gestión de Lotes - LotesView y LoteDetailView', () => {
     cy.get('[data-cy="lote-item"]').first().click()
     
     cy.get('[data-cy="lote-detail"]').within(() => {
-      cy.get('[data-cy="lote-name"]').should('be.visible')
-      cy.get('[data-cy="lote-finca"]').should('be.visible')
-      cy.get('[data-cy="lote-area"]').should('be.visible')
-      cy.get('[data-cy="lote-description"]').should('be.visible')
-      cy.get('[data-cy="lote-analisis"]').should('be.visible')
+      verifyElementsVisible([
+        '[data-cy="lote-name"]',
+        '[data-cy="lote-finca"]',
+        '[data-cy="lote-area"]',
+        '[data-cy="lote-description"]',
+        '[data-cy="lote-analisis"]'
+      ])
     })
   })
 
@@ -115,7 +101,7 @@ describe('Gestión de Lotes - LotesView y LoteDetailView', () => {
   })
 
   it('debe filtrar lotes por finca', () => {
-    applyFilter('finca', '1')
+    cy.applyFilter('finca', '1')
     
     cy.get('[data-cy="lotes-list"]').should('be.visible')
   })
@@ -128,15 +114,16 @@ describe('Gestión de Lotes - LotesView y LoteDetailView', () => {
   })
 
   it('debe mostrar estadísticas de lotes', () => {
-    cy.get('[data-cy="lotes-stats"]').should('be.visible')
-    cy.get('[data-cy="total-lotes"]').should('be.visible')
-    cy.get('[data-cy="total-area"]').should('be.visible')
+    verifyElementsVisible([
+      '[data-cy="lotes-stats"]',
+      '[data-cy="total-lotes"]',
+      '[data-cy="total-area"]'
+    ])
   })
 
   it('debe mostrar mensaje cuando no hay lotes', () => {
-    applyFilter('finca', '999')
+    cy.applyFilter('finca', '999')
     
-    cy.get('[data-cy="empty-state"]').should('be.visible')
-    cy.get('[data-cy="empty-state"]').should('contain', 'No se encontraron lotes')
+    cy.verifyEmptyStateMessage('[data-cy="empty-state"]', 'No se encontraron lotes')
   })
 })

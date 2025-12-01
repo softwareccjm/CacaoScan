@@ -332,8 +332,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
 import AuditTable from '@/components/audit/AuditTable.vue';
@@ -344,10 +343,11 @@ import AuditDetailsModal from '@/components/audit/AuditDetailsModal.vue';
 import AuditStatsModal from '@/components/audit/AuditStatsModal.vue';
 import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useAuditStore } from '@/stores/audit';
-import { useAuthStore } from '@/stores/auth';
-import { usePagination } from '@/composables/usePagination';
+import { useAdminView } from '@/composables/useAdminView';
+import { useAdminSidebarProps } from '@/composables/useAdminSidebarProps';
 import { calculatePeriodDates } from '@/composables/usePeriodDates';
 import Swal from 'sweetalert2';
+import '@/styles/admin-view-common.css';
 
 export default {
   name: 'AuditoriaView',
@@ -363,18 +363,12 @@ export default {
     ConfirmModal
   },
   setup() {
-    const router = useRouter();
     const auditStore = useAuditStore();
-    const authStore = useAuthStore();
 
-    // Estado reactivo
-    const loading = ref(false);
-    const showFilters = ref(false);
+    // Estado específico de AuditoriaView
     const showDetailsModal = ref(false);
     const showStatsModal = ref(false);
     const showExportConfirm = ref(false);
-    const viewMode = ref('table');
-    const selectedPeriod = ref('week');
     const realTimeEnabled = ref(false);
     const selectedItem = ref(null);
     const selectedAuditType = ref('activity');
@@ -382,27 +376,15 @@ export default {
     const realTimeInterval = ref(null);
 
     // Props para AdminSidebar y AdminNavbar
-    const brandName = computed(() => 'CacaoScan');
-    
-    const userName = computed(() => {
-      const user = authStore.user;
-      if (user?.first_name && user?.last_name) {
-        return `${user.first_name} ${user.last_name}`;
-      }
-      return user?.username || 'Usuario';
-    });
-
-    const userRole = computed(() => {
-      return authStore.user?.is_superuser ? 'Administrador' : 'Analista';
-    });
+    const { brandName, userName, userRole } = useAdminSidebarProps();
 
     const navbarTitle = ref('Auditoría del Sistema');
     const navbarSubtitle = ref('Monitorea la actividad y seguridad del sistema');
     const searchPlaceholder = ref('Buscar en auditoría...');
     const refreshButtonText = ref('Actualizar');
 
-    // Filtros
-    const filters = ref({
+    // Filtros iniciales
+    const initialFilters = {
       auditType: 'activity',
       usuario: '',
       accion: '',
@@ -411,112 +393,19 @@ export default {
       success: '',
       fecha_desde: '',
       fecha_hasta: ''
-    });
-
-    // Estadísticas
-    const stats = computed(() => auditStore.stats);
-
-    // Datos filtrados
-    const filteredData = computed(() => {
-      if (filters.value.auditType === 'activity') {
-        return auditStore.activityLogs;
-      } else if (filters.value.auditType === 'login') {
-        return auditStore.loginHistory;
-      } else {
-        // Combinar ambos tipos
-        return [...auditStore.activityLogs, ...auditStore.loginHistory]
-          .sort((a, b) => new Date(b.timestamp || b.login_time) - new Date(a.timestamp || a.login_time));
-      }
-    });
-
-    // Paginación - using composable
-    const paginationComposable = usePagination({
-      initialPage: 1,
-      initialItemsPerPage: 50
-    });
-
-    // Sync composable with store pagination
-    watch(() => auditStore.pagination, (storePagination) => {
-      if (storePagination) {
-        paginationComposable.updateFromApiResponse({
-          page: storePagination.currentPage,
-          page_size: storePagination.itemsPerPage,
-          count: storePagination.totalItems,
-          total_pages: storePagination.totalPages
-        });
-      }
-    }, { immediate: true });
-
-    // Computed pagination for component (backward compatibility)
-    const pagination = computed(() => ({
-      currentPage: paginationComposable.currentPage.value,
-      totalPages: paginationComposable.totalPages.value,
-      totalItems: paginationComposable.totalItems.value,
-      itemsPerPage: paginationComposable.itemsPerPage.value
-    }));
-
-    // Métodos para AdminSidebar y AdminNavbar
-    const handleMenuClick = (menuItem) => {
-      if (menuItem.route) {
-        router.push(menuItem.route);
-      }
     };
 
-    const handleLogout = async () => {
+    // Load audit data function
+    const loadAuditData = async (filterValues) => {
       try {
-        await authStore.logout();
-        router.push('/login');
-      } catch (error) {
-        console.error('Error al cerrar sesión:', error);
-      }
-    };
-
-    const handleSearch = (query) => {
-      filters.value.search = query;
-      loadAuditData();
-    };
-
-    const handleRefresh = async () => {
-      await loadInitialData();
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Datos actualizados',
-        showConfirmButton: false,
-        timer: 2000
-      });
-    };
-
-    const loadInitialData = async () => {
-      try {
-        loading.value = true;
-        await Promise.all([
-          auditStore.fetchStats(),
-          loadAuditData()
-        ]);
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron cargar los datos de auditoría'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const loadAuditData = async () => {
-      try {
-        if (filters.value.auditType === 'activity') {
-          await auditStore.fetchActivityLogs(filters.value);
-        } else if (filters.value.auditType === 'login') {
-          await auditStore.fetchLoginHistory(filters.value);
+        if (filterValues.auditType === 'activity') {
+          await auditStore.fetchActivityLogs(filterValues);
+        } else if (filterValues.auditType === 'login') {
+          await auditStore.fetchLoginHistory(filterValues);
         } else {
           await Promise.all([
-            auditStore.fetchActivityLogs(filters.value),
-            auditStore.fetchLoginHistory(filters.value)
+            auditStore.fetchActivityLogs(filterValues),
+            auditStore.fetchLoginHistory(filterValues)
           ]);
         }
       } catch (error) {
@@ -525,51 +414,76 @@ export default {
       }
     };
 
+    // Get filtered data function
+    const getFilteredData = (filterValues, store) => {
+      if (filterValues.auditType === 'activity') {
+        return store.activityLogs;
+      } else if (filterValues.auditType === 'login') {
+        return store.loginHistory;
+      } else {
+        return [...store.activityLogs, ...store.loginHistory]
+          .sort((a, b) => new Date(b.timestamp || b.login_time) - new Date(a.timestamp || a.login_time));
+      }
+    };
+
+    // Use shared admin view composable
+    const {
+      loading,
+      showFilters,
+      viewMode,
+      selectedPeriod,
+      filters,
+      stats,
+      filteredData,
+      pagination,
+      paginationComposable,
+      handleMenuClick,
+      handleLogout,
+      handleRefresh,
+      loadInitialData: baseLoadInitialData,
+      applyFilters: baseApplyFilters,
+      clearFilters: baseClearFilters
+    } = useAdminView({
+      store: auditStore,
+      initialFilters,
+      initialItemsPerPage: 50,
+      initialPeriod: 'week',
+      loadData: loadAuditData,
+      loadStats: () => auditStore.fetchStats(),
+      getFilteredData
+    });
+
+    // Override loadInitialData to include audit-specific logic
+    const loadInitialData = async () => {
+      await baseLoadInitialData();
+    };
+
+    const handleSearch = (query) => {
+      filters.value.search = query;
+      loadAuditData(filters.value);
+    };
+
     const handleAuditTypeChange = async () => {
       await loadAuditData();
     };
 
     const handlePeriodChange = async () => {
       if (selectedPeriod.value === 'custom') {
-        // No cambiar fechas, usar las que ya están en los filtros
         return;
       }
 
       const dates = calculatePeriodDates(selectedPeriod.value);
       filters.value.fecha_desde = dates.fecha_desde;
       filters.value.fecha_hasta = dates.fecha_hasta;
-      await applyFilters();
+      await baseApplyFilters();
     };
 
-    const applyFilters = async () => {
-      try {
-        loading.value = true;
-        await loadAuditData();
-      } catch (error) {
-        console.error('Error applying filters:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron aplicar los filtros'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
+    const applyFilters = baseApplyFilters;
 
     const clearFilters = () => {
-      filters.value = {
-        auditType: 'activity',
-        usuario: '',
-        accion: '',
-        modelo: '',
-        ip_address: '',
-        success: '',
-        fecha_desde: '',
-        fecha_hasta: ''
-      };
+      filters.value = { ...initialFilters };
       selectedPeriod.value = 'week';
-      applyFilters();
+      baseClearFilters();
     };
 
     const handleViewDetails = (item, auditType) => {
@@ -592,15 +506,8 @@ export default {
 
     const handlePageChange = async (page) => {
       try {
-        // Update composable first
         paginationComposable.goToPage(page);
-        
-        // Then fetch data with new page
-        if (filters.value.auditType === 'activity') {
-          await auditStore.fetchActivityLogs({ ...filters.value, page });
-        } else if (filters.value.auditType === 'login') {
-          await auditStore.fetchLoginHistory({ ...filters.value, page });
-        }
+        await loadAuditData({ ...filters.value, page });
       } catch (error) {
         console.error('Error changing page:', error);
       }
@@ -618,7 +525,7 @@ export default {
         realTimeInterval.value = setInterval(async () => {
           try {
             await auditStore.fetchStats();
-            await loadAuditData();
+            await loadAuditData(filters.value);
           } catch (error) {
             console.error('Error in real-time update:', error);
           }
@@ -691,10 +598,8 @@ export default {
     });
 
     const checkScreenSize = () => {
-      if (globalThis.innerWidth <= 768) {
-        sidebarCollapsed.value = true;
-        localStorage.setItem('sidebarCollapsed', 'true');
-      }
+      // Screen size check logic can be handled by AdminSidebar component
+      // This function is kept for potential future use
     };
 
     return {
@@ -750,223 +655,5 @@ export default {
 
 <style scoped>
 /* Estilos específicos para la vista de auditoría */
-.min-h-screen {
-  min-height: 100vh;
-}
-
-/* Formularios */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-label {
-  font-weight: 500;
-  color: #374151;
-  font-size: 0.875rem;
-}
-
-.form-select,
-.form-input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-select:focus,
-.form-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Botones */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.2s;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #1e3a8a;
-  border-color: #1e3a8a;
-}
-
-.btn-outline {
-  background-color: transparent;
-  color: #374151;
-  border-color: #d1d5db;
-}
-
-.btn-outline:hover:not(:disabled) {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
-
-.btn-success {
-  background-color: #047857;
-  color: #ffffff;
-  border-color: #047857;
-  position: relative;
-}
-
-.btn-success:hover:not(:disabled) {
-  background-color: #065f46;
-  border-color: #065f46;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .dashboard-layout {
-    flex-direction: column;
-  }
-  
-  .dashboard-content {
-    height: calc(100vh - 60px);
-  }
-  
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .flex-col.sm\:flex-row {
-    flex-direction: column;
-  }
-  
-  .items-start.sm\:items-center {
-    align-items: flex-start;
-  }
-  
-  .justify-between {
-    justify-content: flex-start;
-  }
-  
-  .flex.gap-2 {
-    margin-top: 1rem;
-    width: 100%;
-    justify-content: space-between;
-  }
-}
-
-@media (max-width: 640px) {
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  .xl\:grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 480px) {
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-/* Animaciones */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-main {
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* Estados de carga */
-.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* Mejoras para accesibilidad */
-*:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Scroll suave */
-.overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-
-.overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Indicador de tiempo real */
-.btn-success::after {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  background: #10b981;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  }
-  
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-  }
-  
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
-}
+/* Los estilos comunes están en @/styles/admin-view-common.css */
 </style>

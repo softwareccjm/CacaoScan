@@ -331,8 +331,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, watch } from 'vue';
 import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import PeriodSelector from '@/components/reportes/PeriodSelector.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
@@ -344,10 +343,10 @@ import ReportGeneratorModal from '@/components/reports/ReportGeneratorModal.vue'
 import ReportPreviewModal from '@/components/reports/ReportPreviewModal.vue';
 import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useReportsStore } from '@/stores/reports';
-import { useAuthStore } from '@/stores/auth';
-import { usePagination } from '@/composables/usePagination';
-import { calculatePeriodDates } from '@/composables/usePeriodDates';
+import { useAdminView } from '@/composables/useAdminView';
+import { useAdminSidebarProps } from '@/composables/useAdminSidebarProps';
 import Swal from 'sweetalert2';
+import '@/styles/admin-view-common.css';
 
 export default {
   name: 'Reportes',
@@ -364,37 +363,19 @@ export default {
     ConfirmModal
   },
   setup() {
-    const router = useRouter();
     const reportsStore = useReportsStore();
-    const authStore = useAuthStore();
 
-    // Estado reactivo
-    const loading = ref(false);
-    const showFilters = ref(false);
+    // Estado específico de Reportes
     const showReportGenerator = ref(false);
     const showReportPreview = ref(false);
     const showDeleteConfirm = ref(false);
-    const viewMode = ref('table');
-    const selectedPeriod = ref('month');
     const selectedReports = ref([]);
     const selectedReport = ref(null);
     const deleteConfirmMessage = ref('');
     const pendingDeleteId = ref(null);
 
     // Props para AdminSidebar y AdminNavbar
-    const brandName = computed(() => 'CacaoScan');
-    
-    const userName = computed(() => {
-      const user = authStore.user;
-      if (user?.first_name && user?.last_name) {
-        return `${user.first_name} ${user.last_name}`;
-      }
-      return user?.username || 'Usuario';
-    });
-
-    const userRole = computed(() => {
-      return authStore.user?.is_superuser ? 'Administrador' : 'Analista';
-    });
+    const { brandName, userName, userRole } = useAdminSidebarProps();
 
     const navbarTitle = ref('Reportes');
     const navbarSubtitle = ref('Genera y gestiona reportes de análisis');
@@ -410,8 +391,8 @@ export default {
       { value: 'custom', label: 'Personalizado' }
     ];
 
-    // Filtros
-    const filters = ref({
+    // Filtros iniciales
+    const initialFilters = {
       tipo_reporte: '',
       formato: '',
       estado: '',
@@ -420,108 +401,84 @@ export default {
       fecha_hasta: '',
       finca_id: '',
       lote_id: ''
-    });
+    };
 
     // Datos para filtros
     const users = ref([]);
     const fincas = ref([]);
     const lotes = ref([]);
 
-    // Estadísticas
-    const stats = computed(() => reportsStore.stats);
+    // Load reports data function
+    const loadReportsData = async (filterValues) => {
+      try {
+        await reportsStore.fetchReports({
+          ...filterValues,
+          period: selectedPeriod.value
+        });
+      } catch (error) {
+        console.error('Error loading reports data:', error);
+        throw error;
+      }
+    };
 
-    // Reportes filtrados
-    const filteredReports = computed(() => {
-      let reports = reportsStore.reports;
+    // Get filtered reports function
+    const getFilteredReports = (filterValues, store) => {
+      let reports = store.reports || [];
 
-      // Aplicar filtros
-      if (filters.value.tipo_reporte) {
-        reports = reports.filter(r => r.tipo_reporte === filters.value.tipo_reporte);
+      if (filterValues.tipo_reporte) {
+        reports = reports.filter(r => r.tipo_reporte === filterValues.tipo_reporte);
       }
-      if (filters.value.formato) {
-        reports = reports.filter(r => r.formato === filters.value.formato);
+      if (filterValues.formato) {
+        reports = reports.filter(r => r.formato === filterValues.formato);
       }
-      if (filters.value.estado) {
-        reports = reports.filter(r => r.estado === filters.value.estado);
+      if (filterValues.estado) {
+        reports = reports.filter(r => r.estado === filterValues.estado);
       }
-      if (filters.value.usuario_id) {
-        reports = reports.filter(r => r.usuario_id === Number.parseInt(filters.value.usuario_id));
+      if (filterValues.usuario_id) {
+        reports = reports.filter(r => r.usuario_id === Number.parseInt(filterValues.usuario_id));
       }
-      if (filters.value.fecha_desde) {
-        reports = reports.filter(r => new Date(r.fecha_solicitud) >= new Date(filters.value.fecha_desde));
+      if (filterValues.fecha_desde) {
+        reports = reports.filter(r => new Date(r.fecha_solicitud) >= new Date(filterValues.fecha_desde));
       }
-      if (filters.value.fecha_hasta) {
-        reports = reports.filter(r => new Date(r.fecha_solicitud) <= new Date(filters.value.fecha_hasta));
+      if (filterValues.fecha_hasta) {
+        reports = reports.filter(r => new Date(r.fecha_solicitud) <= new Date(filterValues.fecha_hasta));
       }
-      if (filters.value.finca_id) {
-        reports = reports.filter(r => r.parametros?.finca_id === Number.parseInt(filters.value.finca_id));
+      if (filterValues.finca_id) {
+        reports = reports.filter(r => r.parametros?.finca_id === Number.parseInt(filterValues.finca_id));
       }
-      if (filters.value.lote_id) {
-        reports = reports.filter(r => r.parametros?.lote_id === Number.parseInt(filters.value.lote_id));
+      if (filterValues.lote_id) {
+        reports = reports.filter(r => r.parametros?.lote_id === Number.parseInt(filterValues.lote_id));
       }
 
       return reports;
+    };
+
+    // Use shared admin view composable
+    const {
+      loading,
+      showFilters,
+      viewMode,
+      selectedPeriod,
+      filters,
+      stats,
+      filteredData: filteredReports,
+      pagination,
+      paginationComposable,
+      handleMenuClick,
+      handleLogout,
+      applyFilters: baseApplyFilters,
+      clearFilters: baseClearFilters
+    } = useAdminView({
+      store: reportsStore,
+      initialFilters,
+      initialItemsPerPage: 20,
+      initialPeriod: 'month',
+      loadData: loadReportsData,
+      loadStats: () => reportsStore.fetchStats(),
+      getFilteredData: getFilteredReports
     });
 
-    // Paginación - using composable
-    const paginationComposable = usePagination({
-      initialPage: 1,
-      initialItemsPerPage: 20
-    });
-
-    // Sync composable with store pagination
-    watch(() => reportsStore.pagination, (storePagination) => {
-      if (storePagination) {
-        paginationComposable.updateFromApiResponse({
-          page: storePagination.currentPage,
-          page_size: storePagination.itemsPerPage,
-          count: storePagination.totalItems,
-          total_pages: storePagination.totalPages
-        });
-      }
-    }, { immediate: true });
-
-    // Computed pagination for component (backward compatibility)
-    const pagination = computed(() => ({
-      currentPage: paginationComposable.currentPage.value,
-      totalPages: paginationComposable.totalPages.value,
-      totalItems: paginationComposable.totalItems.value,
-      itemsPerPage: paginationComposable.itemsPerPage.value
-    }));
-
-    // Métodos para AdminSidebar y AdminNavbar
-    const handleMenuClick = (menuItem) => {
-      if (menuItem.route) {
-        router.push(menuItem.route);
-      }
-    };
-
-    const handleLogout = async () => {
-      try {
-        await authStore.logout();
-        router.push('/login');
-      } catch (error) {
-        console.error('Error al cerrar sesión:', error);
-      }
-    };
-
-    const handleSearch = (query) => {
-      filters.value.search = query;
-      applyFilters();
-    };
-
-    const handleRefresh = async () => {
-      await loadInitialData();
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Datos actualizados',
-        showConfirmButton: false,
-        timer: 2000
-      });
-    };
-
+    // Override loadInitialData to include reports-specific logic
     const loadInitialData = async () => {
       try {
         loading.value = true;
@@ -541,6 +498,23 @@ export default {
       } finally {
         loading.value = false;
       }
+    };
+
+    const handleRefresh = async () => {
+      await loadInitialData();
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Datos actualizados',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    };
+
+    const handleSearch = (query) => {
+      filters.value.search = query;
+      baseApplyFilters();
     };
 
     const loadUsers = async () => {
@@ -577,41 +551,15 @@ export default {
 
     const handlePeriodChange = async (period) => {
       selectedPeriod.value = period;
-      await applyFilters();
+      await baseApplyFilters();
     };
 
-    const applyFilters = async () => {
-      try {
-        loading.value = true;
-        await reportsStore.fetchReports({
-          ...filters.value,
-          period: selectedPeriod.value
-        });
-      } catch (error) {
-        console.error('Error applying filters:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron aplicar los filtros'
-        });
-      } finally {
-        loading.value = false;
-      }
-    };
+    const applyFilters = baseApplyFilters;
 
     const clearFilters = () => {
-      filters.value = {
-        tipo_reporte: '',
-        formato: '',
-        estado: '',
-        usuario_id: '',
-        fecha_desde: '',
-        fecha_hasta: '',
-        finca_id: '',
-        lote_id: ''
-      };
+      filters.value = { ...initialFilters };
       selectedPeriod.value = 'month';
-      applyFilters();
+      baseClearFilters();
     };
 
     const openReportGenerator = () => {
@@ -709,12 +657,9 @@ export default {
     };
 
     const handlePageChange = async (page) => {
-      // Update composable first
-      paginationComposable.goToPage(page);
-      
-      // Then fetch data with new page
       try {
-        await reportsStore.fetchReports({ page });
+        paginationComposable.goToPage(page);
+        await loadReportsData({ ...filters.value, page });
       } catch (error) {
         console.error('Error changing page:', error);
       }
@@ -876,192 +821,5 @@ export default {
 
 <style scoped>
 /* Estilos específicos para la vista de reportes */
-.min-h-screen {
-  min-height: 100vh;
-}
-
-/* Formularios */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-label {
-  font-weight: 500;
-  color: #374151;
-  font-size: 0.875rem;
-}
-
-.form-select,
-.form-input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-select:focus,
-.form-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Botones */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.2s;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #1e3a8a;
-  border-color: #1e3a8a;
-}
-
-.btn-outline {
-  background-color: transparent;
-  color: #374151;
-  border-color: #d1d5db;
-}
-
-.btn-outline:hover:not(:disabled) {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
-
-.btn-danger {
-  background-color: #b91c1c;
-  color: #ffffff;
-  border-color: #b91c1c;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background-color: #991b1b;
-  border-color: #991b1b;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .dashboard-layout {
-    flex-direction: column;
-  }
-  
-  .dashboard-content {
-    height: calc(100vh - 60px);
-  }
-  
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .flex-col.sm\:flex-row {
-    flex-direction: column;
-  }
-  
-  .items-start.sm\:items-center {
-    align-items: flex-start;
-  }
-  
-  .justify-between {
-    justify-content: flex-start;
-  }
-  
-  .flex.gap-2 {
-    margin-top: 1rem;
-    width: 100%;
-    justify-content: space-between;
-  }
-}
-
-@media (max-width: 640px) {
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  .xl\:grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 480px) {
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-/* Animaciones */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-main {
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* Estados de carga */
-.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* Mejoras para accesibilidad */
-*:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Scroll suave */
-.overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-
-.overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+/* Los estilos comunes están en @/styles/admin-view-common.css */
 </style>

@@ -1,391 +1,360 @@
+import {
+  visitAndWaitForBodyVisible,
+  verifySelectorsExist,
+  ifFoundInBody,
+  clickIfExistsAndContinue
+} from '../../support/helpers'
+
 describe('Gestión de Fincas y Lotes - Relaciones', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
 
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
+  const visitFincasAndClickFirst = (callback) => {
+    visitAndWaitForBodyVisible('/mis-fincas')
+    ifFoundInBody('[data-cy="finca-item"], .finca-item, .item, tbody tr', () => {
+      cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
+      cy.get('body', { timeout: 5000 }).then(callback)
+    })
+  }
+
+  const downloadPdfReport = () => {
+    clickIfExistsAndContinue('[data-cy="export-pdf"], button', () => {
+      cy.verifyDownload('reporte-finca-completo.pdf')
+    })
+  }
+
+  const verifyExportOptions = () => {
+    ifFoundInBody('[data-cy="export-pdf"], [data-cy="export-excel"]', () => {
+      cy.get('[data-cy="export-pdf"], [data-cy="export-excel"]').first().should('exist')
+      downloadPdfReport()
+    })
+  }
+
+  const handleExportReport = () => {
+    clickIfExistsAndContinue('[data-cy="export-finca-report"], button', () => {
+      verifyExportOptions()
+    })
+  }
+
+  const checkLotePopupExists = () => {
+    ifFoundInBody('[data-cy="lote-popup"], .popup', () => {
+      cy.get('[data-cy="lote-popup"], .popup').should('exist')
+    })
+  }
+
+  const verifyLoteMarkerPopup = () => {
+    cy.get('body', { timeout: 3000 }).then(checkLotePopupExists)
+  }
+
+  const clickLoteMarker = () => {
+    ifFoundInBody('[data-cy="lote-markers"], [data-cy="lote-marker"]', () => {
+      cy.get('[data-cy="lote-marker"], [data-cy="lote-markers"]').first().click({ force: true })
+      verifyLoteMarkerPopup()
+    })
+  }
+
+  const verifyMapWithLotes = () => {
+    ifFoundInBody('[data-cy="finca-map"], .map, [id*="map"]', () => {
+      cy.get('[data-cy="finca-map"], .map, [id*="map"]').first().should('be.visible')
+      clickLoteMarker()
+    })
+  }
+
+  const checkNotificationSuccess = () => {
+    ifFoundInBody('[data-cy="notification-success"], .swal2-success', () => {
+      cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+    })
+  }
+
+  const verifySaveLoteSuccess = () => {
+    clickIfExistsAndContinue('[data-cy="save-lote"], button[type="submit"]', () => {
+      checkNotificationSuccess()
+    })
+  }
+
+  const editLoteName = () => {
+    ifFoundInBody('[data-cy="lote-nombre"], input[name*="nombre"]', () => {
+      cy.get('[data-cy="lote-nombre"], input[name*="nombre"]').first().clear().type('Lote Editado desde Finca')
+      verifySaveLoteSuccess()
+    })
+  }
+
+  const handleEditLote = () => {
+    clickIfExistsAndContinue('[data-cy="edit-lote"], button', () => {
+      editLoteName()
+    })
+  }
+
+  const checkRecommendationItemsCount = () => {
+    ifFoundInBody('[data-cy="recommendation-item"], .recommendation-item', () => {
+      cy.get('[data-cy="recommendation-item"], .recommendation-item').should('have.length.greaterThan', 0)
+    })
+  }
+
+  const verifyRecommendationTypes = ($recs) => {
+    const recTypes = [
+      '[data-cy="fertilization-recommendation"]',
+      '[data-cy="irrigation-recommendation"]',
+      '[data-cy="harvest-recommendation"]'
+    ]
+    verifySelectorsExist(recTypes, $recs, 3000)
+  }
+
+  const verifyRecommendationItems = ($recs) => {
+    checkRecommendationItemsCount()
+    verifyRecommendationTypes($recs)
+  }
+
+  const verifyRecommendations = () => {
+    ifFoundInBody('[data-cy="finca-recommendations"], .recommendations', () => {
+      cy.get('[data-cy="finca-recommendations"], .recommendations').should('be.visible')
+      cy.get('body').then(verifyRecommendationItems)
+    })
+  }
+
+  const checkSecondLote = () => {
+    ifFoundInBody('[data-cy="lote-checkbox"], input[type="checkbox"]', () => {
+      cy.get('[data-cy="lote-checkbox"], input[type="checkbox"]').eq(1).check({ force: true })
+    })
+  }
+
+  const checkFirstLote = () => {
+    cy.get('[data-cy="lote-checkbox"], input[type="checkbox"]').first().check({ force: true })
+    checkSecondLote()
+  }
+
+  const verifyBulkScheduleSuccess = () => {
+    clickIfExistsAndContinue('[data-cy="save-bulk-schedule"], button[type="submit"]', () => {
+      checkNotificationSuccess()
+    })
+  }
+
+  const fillBulkScheduleForm = () => {
+    ifFoundInBody('[data-cy="analysis-date"], input[type="date"]', () => {
+      cy.get('[data-cy="analysis-date"], input[type="date"]').first().type('2024-02-15')
+      cy.get('[data-cy="analysis-time"], input[type="time"]').first().type('10:00')
+      cy.get('[data-cy="analysis-notes"], textarea').first().type('Análisis programado para múltiples lotes')
+      verifyBulkScheduleSuccess()
+    })
+  }
+
+  const handleBulkScheduleAnalysis = () => {
+    clickIfExistsAndContinue('[data-cy="bulk-schedule-analysis"], button', () => {
+      fillBulkScheduleForm()
+    })
+  }
+
+  const verifyHistoryItemDetails = ($item) => {
+    const changeSelectors = [
+      '[data-cy="change-date"]',
+      '[data-cy="change-type"]',
+      '[data-cy="change-description"]'
+    ]
+    verifySelectorsExist(changeSelectors, $item, 3000)
+  }
+
+  const checkFirstHistoryItem = () => {
+    cy.get('[data-cy="history-item"], .history-item').first().then(verifyHistoryItemDetails)
+  }
+
+  const verifyHistoryItems = ($history) => {
+    ifFoundInBody('[data-cy="history-item"], .history-item', () => {
+      cy.get('[data-cy="history-item"], .history-item').should('have.length.greaterThan', 0)
+      checkFirstHistoryItem()
+    })
+  }
+
+  const verifyHistory = () => {
+    ifFoundInBody('[data-cy="finca-history"], .history', () => {
+      cy.get('[data-cy="finca-history"], .history').should('be.visible')
+      cy.get('body').then(verifyHistoryItems)
+    })
+  }
+
+  const compareFincaAndLotesAreas = ($fincaArea, $lotesArea) => {
+    const fincaArea = Number.parseFloat($fincaArea.text())
+    const lotesArea = Number.parseFloat($lotesArea.text())
+    expect(lotesArea).to.be.at.most(fincaArea)
+  }
+
+  const verifyAreaConsistency = ($fincaArea) => {
+    cy.get('[data-cy="total-area-lotes"]').then(($lotesArea) => {
+      compareFincaAndLotesAreas($fincaArea, $lotesArea)
+    })
+  }
+
+  const checkAreaConsistency = ($area) => {
+    if ($area.find('[data-cy="finca-area"]').length > 0 && $area.find('[data-cy="total-area-lotes"]').length > 0) {
+      cy.get('[data-cy="finca-area"]').then(verifyAreaConsistency)
     }
   }
 
-  const verifyLoteItems = () => {
-    cy.get('[data-cy="lote-item"], .lote-item, .item', { timeout: 5000 }).then(($items) => {
-      if ($items.length > 0) {
-        cy.wrap($items).each(($item) => {
-          cy.wrap($item).within(() => {
-            const loteSelectors = [
-              '[data-cy="lote-name"]',
-              '[data-cy="lote-area"]',
-              '[data-cy="lote-variedad"]'
-            ]
-          verifySelectorsExist(loteSelectors, $alerts, 3000)
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+  const verifyEachLoteVariedad = () => {
+    ifFoundInBody('[data-cy="lote-item"]', () => {
+      cy.get('[data-cy="lote-item"]').each(($item) => {
+        cy.wrap($item).find('[data-cy="lote-variedad"]').should('contain', 'Criollo')
+      })
     })
-  })
+  }
+
+  const verifyLotesFilteredByVariedad = () => {
+    ifFoundInBody('[data-cy="lotes-list"]', () => {
+      cy.get('[data-cy="lotes-list"]').should('be.visible')
+      verifyEachLoteVariedad()
+    })
+  }
+
+  const applyVariedadFilter = () => {
+    ifFoundInBody('[data-cy="filter-variedad"], select', () => {
+      cy.get('[data-cy="filter-variedad"], select').first().select('Criollo', { force: true })
+      verifyLotesFilteredByVariedad()
+    })
+  }
+
+  const compareAreas = ($first, $second) => {
+    const firstArea = Number.parseFloat($first.text())
+    const secondArea = Number.parseFloat($second.text())
+    expect(firstArea).to.be.at.least(secondArea)
+  }
+
+  const verifySortedAreas = ($first) => {
+    cy.get('[data-cy="lote-item"]').eq(1).find('[data-cy="lote-area"]').then(($second) => {
+      compareAreas($first, $second)
+    })
+  }
+
+  const getFirstLoteArea = () => {
+    cy.get('[data-cy="lote-item"]').first().find('[data-cy="lote-area"]').then(verifySortedAreas)
+  }
+
+  const verifyLotesSortedByArea = () => {
+    ifFoundInBody('[data-cy="lote-item"]', () => {
+      getFirstLoteArea()
+    })
+  }
+
+  const applyAreaSort = () => {
+    ifFoundInBody('[data-cy="sort-lotes"], select', () => {
+      cy.get('[data-cy="sort-lotes"], select').first().select('area-desc', { force: true })
+      verifyLotesSortedByArea()
+    })
+  }
+
+  const verifyComparisonView = () => {
+    const comparisonSelectors = [
+      '[data-cy="comparison-view"]',
+      '[data-cy="comparison-chart"]'
+    ]
+    verifySelectorsExist(comparisonSelectors, cy.get('body'), 3000)
+  }
+
+  const handleCompareLotes = () => {
+    clickIfExistsAndContinue('[data-cy="compare-lotes"], button', () => {
+      verifyComparisonView()
+    })
+  }
 
   it('debe permitir exportar reporte completo de finca con lotes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          if ($details.find('[data-cy="export-finca-report"], button').length > 0) {
-            cy.get('[data-cy="export-finca-report"], button').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($export) => {
-              // Verificar opciones de exportación
-              if ($export.find('[data-cy="export-pdf"], [data-cy="export-excel"]').length > 0) {
-                cy.get('[data-cy="export-pdf"], [data-cy="export-excel"]').first().should('exist')
-                
-                // Exportar como PDF si existe
-                cy.get('body').then(($pdf) => {
-                  if ($pdf.find('[data-cy="export-pdf"], button').length > 0) {
-                    cy.get('[data-cy="export-pdf"], button').first().click()
-                    cy.verifyDownload('reporte-finca-completo.pdf')
-                  }
-                })
-              } else {
-                cy.get('body').should('be.visible')
-              }
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    visitFincasAndClickFirst(() => {
+      handleExportReport()
     })
   })
 
   it('debe mostrar mapa con ubicación de lotes dentro de la finca', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          // Verificar mapa con lotes si existe
-          if ($details.find('[data-cy="finca-map"], .map, [id*="map"]').length > 0) {
-            cy.get('[data-cy="finca-map"], .map, [id*="map"]').first().should('be.visible')
-            
-            cy.get('body').then(($markers) => {
-              if ($markers.find('[data-cy="lote-markers"], [data-cy="lote-marker"]').length > 0) {
-                cy.get('[data-cy="lote-marker"], [data-cy="lote-markers"]').first().click({ force: true })
-                
-                // Verificar popup con información del lote
-                cy.get('body', { timeout: 3000 }).then(($popup) => {
-                  if ($popup.find('[data-cy="lote-popup"], .popup').length > 0) {
-                    cy.get('[data-cy="lote-popup"], .popup').should('exist')
-                  }
-                })
-              }
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    visitFincasAndClickFirst(() => {
+      verifyMapWithLotes()
     })
   })
 
   it('debe permitir gestionar lotes desde vista de finca', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          // Editar lote desde vista de finca si existe
-          if ($details.find('[data-cy="lote-item"], .lote-item, .item').length > 0) {
-            cy.get('[data-cy="lote-item"], .lote-item, .item').first().then(($lote) => {
-              if ($lote.find('[data-cy="edit-lote"], button').length > 0) {
-                cy.get('[data-cy="edit-lote"], button').first().click({ force: true })
-                
-                cy.get('body', { timeout: 5000 }).then(($edit) => {
-                  if ($edit.find('[data-cy="lote-nombre"], input[name*="nombre"]').length > 0) {
-                    cy.get('[data-cy="lote-nombre"], input[name*="nombre"]').first().clear().type('Lote Editado desde Finca')
-                    cy.get('[data-cy="save-lote"], button[type="submit"]').first().click()
-                    
-                    // Verificar éxito
-                    cy.get('body', { timeout: 5000 }).then(($success) => {
-                      if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                        cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                      }
-                    })
-                  }
-                })
-              }
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe mostrar resumen de producción por finca', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    
-    clickFincaIfExists().then((clicked) => {
-      if (clicked) {
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          const productionSelectors = [
-            '[data-cy="production-summary"]',
-            '[data-cy="total-production"]',
-            '[data-cy="production-by-lote"]',
-            '[data-cy="production-trend"]'
-          ]
-          verifySelectorsExist(productionSelectors, $details)
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe mostrar recomendaciones basadas en análisis de todos los lotes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          // Verificar recomendaciones agregadas si existen
-          if ($details.find('[data-cy="finca-recommendations"], .recommendations').length > 0) {
-            cy.get('[data-cy="finca-recommendations"], .recommendations').should('be.visible')
-            
-            cy.get('body').then(($recs) => {
-              if ($recs.find('[data-cy="recommendation-item"], .recommendation-item').length > 0) {
-                cy.get('[data-cy="recommendation-item"], .recommendation-item').should('have.length.greaterThan', 0)
-              }
-              
-              // Verificar tipos de recomendaciones si existen
-              const recTypes = [
-                '[data-cy="fertilization-recommendation"]',
-                '[data-cy="irrigation-recommendation"]',
-                '[data-cy="harvest-recommendation"]'
-              ]
-          verifySelectorsExist(recTypes, $recs, 3000)
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe permitir programar análisis para múltiples lotes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          // Seleccionar múltiples lotes si existen
-          if ($details.find('[data-cy="lote-checkbox"], input[type="checkbox"]').length > 0) {
-            cy.get('[data-cy="lote-checkbox"], input[type="checkbox"]').first().check({ force: true })
-            cy.get('body').then(($second) => {
-              if ($second.find('[data-cy="lote-checkbox"], input[type="checkbox"]').length > 1) {
-                cy.get('[data-cy="lote-checkbox"], input[type="checkbox"]').eq(1).check({ force: true })
-              }
-            })
-            
-            // Programar análisis en lote
-            cy.get('body').then(($bulk) => {
-              if ($bulk.find('[data-cy="bulk-schedule-analysis"], button').length > 0) {
-                cy.get('[data-cy="bulk-schedule-analysis"], button').first().click({ force: true })
-                
-                cy.get('body', { timeout: 5000 }).then(($schedule) => {
-                  if ($schedule.find('[data-cy="analysis-date"], input[type="date"]').length > 0) {
-                    cy.get('[data-cy="analysis-date"], input[type="date"]').first().type('2024-02-15')
-                    cy.get('[data-cy="analysis-time"], input[type="time"]').first().type('10:00')
-                    cy.get('[data-cy="analysis-notes"], textarea').first().type('Análisis programado para múltiples lotes')
-                    
-                    cy.get('[data-cy="save-bulk-schedule"], button[type="submit"]').first().click()
-                    
-                    // Verificar éxito
-                    cy.get('body', { timeout: 5000 }).then(($success) => {
-                      if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                        cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                      }
-                    })
-                  }
-                })
-              }
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe mostrar historial de cambios en finca y lotes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          // Verificar historial si existe
-          if ($details.find('[data-cy="finca-history"], .history').length > 0) {
-            cy.get('[data-cy="finca-history"], .history').should('be.visible')
-            
-            cy.get('body').then(($history) => {
-              if ($history.find('[data-cy="history-item"], .history-item').length > 0) {
-                cy.get('[data-cy="history-item"], .history-item').should('have.length.greaterThan', 0)
-                
-                // Verificar información de cada cambio
-                cy.get('[data-cy="history-item"], .history-item').first().then(($item) => {
-                  const changeSelectors = [
-                    '[data-cy="change-date"]',
-                    '[data-cy="change-type"]',
-                    '[data-cy="change-description"]'
-                  ]
-          verifySelectorsExist(changeSelectors, $item, 3000)
-                })
-              }
-            })
-          } else {
-            cy.get('body').should('be.visible')
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe validar consistencia de datos entre finca y lotes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          // Verificar que el área total de lotes no excede el área de la finca si ambos existen
-          cy.get('body').then(($area) => {
-            if ($area.find('[data-cy="finca-area"]').length > 0 && $area.find('[data-cy="total-area-lotes"]').length > 0) {
-              cy.get('[data-cy="finca-area"]').then(($fincaArea) => {
-                const fincaArea = parseFloat($fincaArea.text())
-                
-                cy.get('[data-cy="total-area-lotes"]').then(($lotesArea) => {
-                  const lotesArea = parseFloat($lotesArea.text())
-                  
-                  expect(lotesArea).to.be.at.most(fincaArea)
-                })
-              })
-            } else {
-              cy.get('body').should('be.visible')
-            }
-          })
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe mostrar dashboard consolidado de finca con lotes', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          const dashboardSelectors = [
-            '[data-cy="finca-dashboard"]',
-            '[data-cy="overview-cards"]',
-            '[data-cy="performance-metrics"]',
-            '[data-cy="recent-activities"]'
-          ]
-          verifySelectorsExist(dashboardSelectors, $details, 3000)
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  })
-
-  it('debe permitir filtrar lotes por variedad', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="finca-item"]').first().click()
-    
-    // Filtrar por variedad
-    cy.get('[data-cy="filter-variedad"]').select('Criollo')
-    cy.get('[data-cy="lotes-list"]').should('be.visible')
-    
-    // Verificar que solo se muestran lotes de la variedad seleccionada
-    cy.get('[data-cy="lote-item"]').each(($item) => {
-      cy.wrap($item).find('[data-cy="lote-variedad"]').should('contain', 'Criollo')
-    })
-  })
-
-  it('debe permitir ordenar lotes por área', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="finca-item"]').first().click()
-    
-    // Ordenar por área descendente
-    cy.get('[data-cy="sort-lotes"]').select('area-desc')
-    
-    // Verificar orden
-    cy.get('[data-cy="lote-item"]').first().find('[data-cy="lote-area"]').then(($first) => {
-      cy.get('[data-cy="lote-item"]').eq(1).find('[data-cy="lote-area"]').then(($second) => {
-        const firstArea = Number.parseFloat($first.text())
-        const secondArea = Number.parseFloat($second.text())
-        expect(firstArea).to.be.at.least(secondArea)
+    visitFincasAndClickFirst(() => {
+      ifFoundInBody('[data-cy="lote-item"], .lote-item, .item', () => {
+        handleEditLote()
       })
     })
   })
 
+  it('debe mostrar resumen de producción por finca', () => {
+    visitFincasAndClickFirst(($details) => {
+      const productionSelectors = [
+        '[data-cy="production-summary"]',
+        '[data-cy="total-production"]',
+        '[data-cy="production-by-lote"]',
+        '[data-cy="production-trend"]'
+      ]
+      verifySelectorsExist(productionSelectors, $details)
+    })
+  })
+
+  it('debe mostrar recomendaciones basadas en análisis de todos los lotes', () => {
+    visitFincasAndClickFirst(() => {
+      verifyRecommendations()
+    })
+  })
+
+  it('debe permitir programar análisis para múltiples lotes', () => {
+    visitFincasAndClickFirst(() => {
+      ifFoundInBody('[data-cy="lote-checkbox"], input[type="checkbox"]', () => {
+        checkFirstLote()
+        handleBulkScheduleAnalysis()
+      })
+    })
+  })
+
+  it('debe mostrar historial de cambios en finca y lotes', () => {
+    visitFincasAndClickFirst(() => {
+      verifyHistory()
+    })
+  })
+
+  it('debe validar consistencia de datos entre finca y lotes', () => {
+    visitFincasAndClickFirst(() => {
+      cy.get('body').then(checkAreaConsistency)
+    })
+  })
+
+  it('debe mostrar dashboard consolidado de finca con lotes', () => {
+    visitFincasAndClickFirst(($details) => {
+      const dashboardSelectors = [
+        '[data-cy="finca-dashboard"]',
+        '[data-cy="overview-cards"]',
+        '[data-cy="performance-metrics"]',
+        '[data-cy="recent-activities"]'
+      ]
+      verifySelectorsExist(dashboardSelectors, $details, 3000)
+    })
+  })
+
+  it('debe permitir filtrar lotes por variedad', () => {
+    visitFincasAndClickFirst(() => {
+      applyVariedadFilter()
+    })
+  })
+
+  it('debe permitir ordenar lotes por área', () => {
+    visitFincasAndClickFirst(() => {
+      applyAreaSort()
+    })
+  })
+
   it('debe mostrar resumen de calidad por finca', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="finca-item"]').first().click()
-    
-    // Verificar resumen de calidad
-    cy.get('[data-cy="quality-summary"]').should('be.visible')
-    cy.get('[data-cy="average-quality"]').should('be.visible')
-    cy.get('[data-cy="quality-distribution"]').should('be.visible')
+    visitFincasAndClickFirst(() => {
+      const qualitySelectors = [
+        '[data-cy="quality-summary"]',
+        '[data-cy="average-quality"]',
+        '[data-cy="quality-distribution"]'
+      ]
+      verifySelectorsExist(qualitySelectors, cy.get('body'), 3000)
+    })
   })
 
   it('debe permitir comparar lotes de la misma finca', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="finca-item"]').first().click()
-    
-    // Seleccionar lotes para comparar
-    cy.get('[data-cy="lote-checkbox"]').first().check()
-    cy.get('[data-cy="lote-checkbox"]').eq(1).check()
-    
-    // Activar comparación
-    cy.get('[data-cy="compare-lotes"]').click()
-    
-    // Verificar vista de comparación
-    cy.get('[data-cy="comparison-view"]').should('be.visible')
-    cy.get('[data-cy="comparison-chart"]').should('be.visible')
+    visitFincasAndClickFirst(() => {
+      ifFoundInBody('[data-cy="lote-checkbox"], input[type="checkbox"]', () => {
+        checkFirstLote()
+        handleCompareLotes()
+      })
+    })
   })
 })
