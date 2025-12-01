@@ -51,8 +51,12 @@ def paginate_queryset(queryset, page: int, page_size: int) -> Tuple[Page, Pagina
         Tuple of (page_obj, paginator)
         
     Raises:
-        ValueError: If page is invalid
+        ValueError: If page is invalid or queryset is empty
     """
+    # Check if queryset is empty
+    if not queryset:
+        raise ValueError("Cannot paginate empty queryset")
+    
     paginator = Paginator(queryset, page_size)
     total_pages = paginator.num_pages
     
@@ -79,7 +83,10 @@ def build_pagination_urls(request: HttpRequest, page: int, page_size: int,
     Returns:
         Dictionary with 'next' and 'previous' URLs
     """
+    from urllib.parse import urlencode
+    
     base_url = request.build_absolute_uri()
+    base_url_without_query = base_url.split('?')[0]
     
     # Preserve existing query parameters except page
     query_params = request.GET.copy()
@@ -90,11 +97,15 @@ def build_pagination_urls(request: HttpRequest, page: int, page_size: int,
     
     if has_next:
         query_params['page'] = str(page + 1)
-        next_url = f"{base_url.split('?')[0]}?{query_params.urlencode()}"
+        # Convert QueryDict to dict for urlencode
+        query_dict = dict(query_params.items())
+        next_url = f"{base_url_without_query}?{urlencode(query_dict)}"
     
     if has_previous:
         query_params['page'] = str(page - 1)
-        previous_url = f"{base_url.split('?')[0]}?{query_params.urlencode()}"
+        # Convert QueryDict to dict for urlencode
+        query_dict = dict(query_params.items())
+        previous_url = f"{base_url_without_query}?{urlencode(query_dict)}"
     
     return {
         'next': next_url,

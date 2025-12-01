@@ -42,11 +42,11 @@ def mock_image_file():
 @pytest.fixture
 def analysis_service():
     """Create an AnalysisService instance for testing."""
-    with patch('api.services.analysis_service.ImageProcessingService') as mock_processing, \
-         patch('api.services.analysis_service.ImageStorageService') as mock_storage, \
-         patch('api.services.analysis_service.PredictionService') as mock_prediction:
+    with patch('images_app.services.ImageProcessingService', return_value=Mock()) as mock_processing, \
+         patch('images_app.services.ImageStorageService', return_value=Mock()) as mock_storage, \
+         patch('training.services.PredictionService', return_value=Mock()) as mock_prediction:
         service = AnalysisService()
-        # Configurar los servicios mockeados
+        # Ensure the services are Mock objects
         service.processing_service = Mock()
         service.storage_service = Mock()
         service.prediction_service = Mock()
@@ -58,9 +58,9 @@ class TestAnalysisService:
     
     def test_service_initialization(self):
         """Test service initialization."""
-        with patch('api.services.analysis_service.ImageProcessingService'), \
-             patch('api.services.analysis_service.ImageStorageService'), \
-             patch('api.services.analysis_service.PredictionService'):
+        with patch('images_app.services.ImageProcessingService'), \
+             patch('images_app.services.ImageStorageService'), \
+             patch('training.services.PredictionService'):
             service = AnalysisService()
             
             assert service.processing_service is not None

@@ -114,7 +114,7 @@ class RealtimeAuditMiddleware:
                 }
                 return model_map.get(model_part, 'Unknown')
         
-        return 'System'
+        return 'Unknown'
     
     def create_action_description(self, request):
         """Crear descripción de la acción."""

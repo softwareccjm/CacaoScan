@@ -51,7 +51,18 @@ def save_image(image: Image.Image, file_path: Path, format: str = None) -> None:
     """Guarda una imagen."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
     if format is None:
-        image_format = file_path.suffix[1:].upper()
+        # Map common extensions to PIL format names
+        ext = file_path.suffix[1:].upper()
+        format_map = {
+            'JPG': 'JPEG',
+            'JPEG': 'JPEG',
+            'PNG': 'PNG',
+            'GIF': 'GIF',
+            'BMP': 'BMP',
+            'TIFF': 'TIFF',
+            'TIF': 'TIFF',
+        }
+        image_format = format_map.get(ext, ext)
     else:
         image_format = format
     image.save(file_path, format=image_format)

@@ -18,6 +18,20 @@ sys.path.insert(0, str(project_root))
 # Configurar Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cacaoscan.settings')
 
+# Ensure database environment variables are properly encoded before Django setup
+def sanitize_env_for_db():
+    """Sanitize environment variables for database connection."""
+    db_vars = ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT']
+    for var in db_vars:
+        value = os.environ.get(var)
+        if value and isinstance(value, bytes):
+            try:
+                os.environ[var] = value.decode('utf-8', errors='replace')
+            except Exception:
+                os.environ[var] = value.decode('latin-1', errors='replace')
+
+sanitize_env_for_db()
+
 try:
     import django
     django.setup()

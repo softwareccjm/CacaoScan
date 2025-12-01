@@ -260,26 +260,92 @@ def safe_env_get(key: str, default: str = '') -> str:
         value = str(value)
     # Ensure the value is a valid UTF-8 string
     if isinstance(value, str):
-        # Re-encode and decode to ensure valid UTF-8
+        # Re-encode and decode to ensure valid UTF-8, using replace for safety
         try:
-            value = value.encode('utf-8', errors='strict').decode('utf-8')
+            # First try to validate as UTF-8
+            value.encode('utf-8', errors='strict')
         except (UnicodeEncodeError, UnicodeDecodeError):
-            # If strict encoding fails, use replace to handle problematic characters
+            # If validation fails, replace problematic characters
             value = value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
     return value
+
+# Ensure all database connection parameters are valid UTF-8 strings
+import re
+import unicodedata
+
+def normalize_db_value(value: str, default: str = '') -> str:
+    """
+    Normalize database connection parameter to ensure it's safe for psycopg2.
+    
+    Args:
+        value: Value to normalize
+        default: Default value if normalization fails
+        
+    Returns:
+        Normalized string safe for database connection
+    """
+    if not value:
+        return default
+    
+    # First, ensure it's a valid string
+    if not isinstance(value, str):
+        try:
+            value = str(value)
+        except Exception:
+            return default
+    
+    # Normalize Unicode characters (NFD -> NFC)
+    try:
+        value = unicodedata.normalize('NFKC', value)
+    except Exception:
+        pass
+    
+    # Remove any non-ASCII characters that could cause issues
+    # Keep only ASCII printable characters and common Unicode characters
+    value = re.sub(r'[^\x20-\x7E]', '', value)
+    
+    # Remove any remaining problematic characters
+    value = value.encode('ascii', errors='ignore').decode('ascii')
+    
+    return value if value else default
+
+_db_name = normalize_db_value(safe_env_get('DB_NAME', 'cacaoscan_db'), 'cacaoscan_db')
+_db_user = normalize_db_value(safe_env_get('DB_USER', 'cacaoscan'), 'cacaoscan')
+_db_password = safe_env_get('DB_PASSWORD', '')  # Password can contain special chars, but we'll sanitize it
+_db_host = normalize_db_value(safe_env_get('DB_HOST', 'localhost'), 'localhost')
+_db_port = normalize_db_value(safe_env_get('DB_PORT', '5432'), '5432')
+
+# Sanitize password separately (keep special chars but ensure UTF-8)
+if _db_password:
+    try:
+        # Ensure password is valid UTF-8
+        _db_password = _db_password.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+    except Exception:
+        _db_password = ''
+
+# Create a safe test database name (ASCII-only to avoid encoding issues)
+_test_db_name = f"test_{_db_name}" if _db_name else "test_cacaoscan_db"
+# Ensure test database name is ASCII-safe
+_test_db_name = _test_db_name.encode('ascii', errors='ignore').decode('ascii')
+if not _test_db_name or not _test_db_name.startswith('test_'):
+    _test_db_name = 'test_cacaoscan_db'
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': safe_env_get('DB_NAME', 'cacaoscan_db'),
-        'USER': safe_env_get('DB_USER', 'cacaoscan'),
-        'PASSWORD': safe_env_get('DB_PASSWORD', ''),
-        'HOST': safe_env_get('DB_HOST', 'localhost'),
-        'PORT': safe_env_get('DB_PORT', '5432'),
+        'NAME': _db_name,
+        'USER': _db_user,
+        'PASSWORD': _db_password,
+        'HOST': _db_host,
+        'PORT': _db_port,
         'CONN_MAX_AGE': 600,  # Reuse database connections for 10 minutes
         'OPTIONS': {
             'client_encoding': 'UTF8',
             'connect_timeout': 10,
+        },
+        # Ensure test database name is ASCII-safe to avoid encoding issues
+        'TEST': {
+            'NAME': _test_db_name,
         },
     }
 }
