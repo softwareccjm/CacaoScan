@@ -1,5 +1,5 @@
 describe('E2E: Complete Farmer Journey', () => {
-  const timestamp = new Date().getTime()
+  const timestamp = Date.now()
   const userEmail = `farmer_journey_${timestamp}@example.com`
   const fincaName = `Finca Journey ${timestamp}`
 

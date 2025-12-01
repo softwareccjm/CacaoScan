@@ -58,19 +58,28 @@ class TestScalerDiagnostics:
         test_normalized = np.array([[-3.0], [-2.0], [-1.0], [0.0], [1.0], [2.0], [3.0]])
         
         for target in TARGETS:
-            scaler = scalers.scalers[target]
-            denorm_values = scaler.inverse_transform(test_normalized)
-            
-            _, max_val = target_limits[target]
-            
-            # Verificar que los valores desnormalizados están en rangos razonables
-            # (con un margen porque estamos probando ±3 desviaciones estándar)
-            denorm_min = denorm_values.min()
-            denorm_max = denorm_values.max()
-            
-            # Los valores extremos pueden estar fuera del rango típico, pero deben ser razonables
-            assert denorm_min > 0, f"{target}: valor mínimo negativo {denorm_min:.2f}"
-            assert denorm_max < max_val * 1.5, f"{target}: valor máximo muy alto {denorm_max:.2f}"
+            self._assert_scaler_inverse_transform_range(
+                target, scalers, test_normalized, target_limits
+            )
+    
+    def _assert_scaler_inverse_transform_range(
+        self, target: str, scalers, test_normalized: np.ndarray, target_limits: dict
+    ) -> None:
+        """Verifica que los valores desnormalizados estén en rangos razonables."""
+        scaler = scalers.scalers[target]
+        denorm_values = scaler.inverse_transform(test_normalized)
+        
+        _, max_val = target_limits[target]
+        
+        # Verificar que los valores desnormalizados están en rangos razonables
+        # (con un margen porque estamos probando ±3 desviaciones estándar)
+        denorm_min = denorm_values.min()
+        denorm_max = denorm_values.max()
+        max_allowed = max_val * 1.5
+        
+        # Los valores extremos pueden estar fuera del rango típico, pero deben ser razonables
+        assert denorm_min > 0, f"{target}: valor mínimo negativo {denorm_min:.2f}"
+        assert denorm_max < max_allowed, f"{target}: valor máximo muy alto {denorm_max:.2f}"
     
     @pytest.mark.skip(reason="Requires actual scaler files - integration test")
     def test_scaler_denormalization_accuracy(self):
@@ -86,21 +95,35 @@ class TestScalerDiagnostics:
         }
         
         for target in TARGETS:
-            scaler = scalers.scalers[target]
-            original_values = test_values[target]
-            
-            # Normalizar
-            normalized = scaler.transform(original_values.reshape(-1, 1))
-            # Desnormalizar
-            denormalized = scaler.inverse_transform(normalized.reshape(-1, 1))
-            
-            # Verificar que la transformación inversa es precisa
-            np.testing.assert_allclose(
-                original_values.flatten(),
-                denormalized.flatten(),
-                rtol=1e-10,
-                err_msg=f"{target}: Transformación inversa incorrecta"
+            self._assert_scaler_denormalization_accuracy_for_target(
+                target, scalers, test_values
             )
+    
+    def _assert_scaler_denormalization_accuracy_for_target(
+        self, target: str, scalers, test_values: dict
+    ) -> None:
+        """Verifica que la desnormalización sea reversible para un target."""
+        scaler = scalers.scalers[target]
+        original_values = test_values[target]
+        
+        # Normalizar
+        reshaped_original = original_values.reshape(-1, 1)
+        normalized = scaler.transform(reshaped_original)
+        
+        # Desnormalizar
+        reshaped_normalized = normalized.reshape(-1, 1)
+        denormalized = scaler.inverse_transform(reshaped_normalized)
+        
+        # Verificar que la transformación inversa es precisa
+        original_flat = original_values.flatten()
+        denormalized_flat = denormalized.flatten()
+        
+        np.testing.assert_allclose(
+            original_flat,
+            denormalized_flat,
+            rtol=1e-10,
+            err_msg=f"{target}: Transformación inversa incorrecta"
+        )
 
 
 @pytest.mark.slow
@@ -126,15 +149,17 @@ class TestPredictionLimits:
         predictor = get_predictor()
         success = predictor.load_artifacts()
         
-        if success:
-            # Verificar que todos los modelos están cargados
-            for target in TARGETS:
-                assert target in predictor.regression_models, \
-                    f"Modelo {target} no está cargado"
-            
-            # Verificar que los escaladores están cargados
-            assert predictor.scalers is not None
-            assert predictor.scalers.is_fitted
+        if not success:
+            return
+        
+        # Verificar que todos los modelos están cargados
+        for target in TARGETS:
+            assert target in predictor.regression_models, \
+                f"Modelo {target} no está cargado"
+        
+        # Verificar que los escaladores están cargados
+        assert predictor.scalers is not None
+        assert predictor.scalers.is_fitted
     
     def test_scaler_stats_match_predictor(self):
         """Verifica que los escaladores del predictor coincidan con los cargados directamente."""
@@ -147,21 +172,29 @@ class TestPredictionLimits:
         scalers_direct = load_scalers()
         
         for target in TARGETS:
-            scaler_predictor = predictor.scalers.scalers[target]
-            scaler_direct = scalers_direct.scalers[target]
-            
-            # Verificar que tienen las mismas estadísticas
-            np.testing.assert_almost_equal(
-                scaler_predictor.mean_[0],
-                scaler_direct.mean_[0],
-                decimal=4,
-                err_msg=f"{target}: Mean no coincide"
-            )
-            
-            np.testing.assert_almost_equal(
-                scaler_predictor.scale_[0],
-                scaler_direct.scale_[0],
-                decimal=4,
-                err_msg=f"{target}: Scale no coincide"
-            )
+            self._assert_scaler_stats_match(target, predictor, scalers_direct)
+    
+    def _assert_scaler_stats_match(self, target: str, predictor, scalers_direct) -> None:
+        """Verifica que las estadísticas de un escalador coincidan."""
+        scaler_predictor = predictor.scalers.scalers[target]
+        scaler_direct = scalers_direct.scalers[target]
+        
+        predictor_mean = scaler_predictor.mean_[0]
+        direct_mean = scaler_direct.mean_[0]
+        predictor_scale = scaler_predictor.scale_[0]
+        direct_scale = scaler_direct.scale_[0]
+        
+        np.testing.assert_almost_equal(
+            predictor_mean,
+            direct_mean,
+            decimal=4,
+            err_msg=f"{target}: Mean no coincide"
+        )
+        
+        np.testing.assert_almost_equal(
+            predictor_scale,
+            direct_scale,
+            decimal=4,
+            err_msg=f"{target}: Scale no coincide"
+        )
 

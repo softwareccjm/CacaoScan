@@ -53,7 +53,7 @@ describe('Advanced Finca Management', () => {
   })
 
   it('should create a new finca with location', () => {
-    const timestamp = new Date().getTime()
+    const timestamp = Date.now()
     const fincaName = `Finca Test ${timestamp}`
     
     cy.get('body').then(($body) => {

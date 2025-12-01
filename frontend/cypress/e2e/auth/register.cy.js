@@ -4,13 +4,89 @@ describe('Autenticación - Registro', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
   
-  // Helper functions to reduce nesting depth
   const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
     for (const selector of selectors) {
       if ($context.find(selector).length > 0) {
         cy.get(selector, { timeout }).should('exist')
       }
     }
+  }
+
+  const fillFormIfFieldsExist = (callback) => {
+    cy.get('body').then(($body) => {
+      const nameInput = $body.find('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]')
+      const emailInput = $body.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]')
+      const passwordInput = $body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]')
+      
+      if (nameInput.length > 0 && emailInput.length > 0 && passwordInput.length > 0) {
+        if (callback) callback()
+      } else {
+        cy.get('body').should('be.visible')
+      }
+    })
+  }
+
+  const fillOptionalField = (selector, value) => {
+    cy.get('body').then(($body) => {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().type(value)
+      }
+    })
+  }
+
+  const fillRegisterForm = (user) => {
+    cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type(user.firstName)
+    fillOptionalField('[data-cy="last-name-input"], input[name*="last"]', user.lastName)
+    cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(user.email)
+    cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(user.password)
+    cy.get('body').then(($confirm) => {
+      if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
+        cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type(user.confirmPassword)
+      }
+    })
+    fillOptionalField('[data-cy="role-select"], select', user.role)
+    cy.get('body').then(($terms) => {
+      if ($terms.find('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').length > 0) {
+        cy.get('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
+      }
+    })
+  }
+
+  const submitRegisterForm = () => {
+    cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
+  }
+
+  const verifySuccessMessage = () => {
+    cy.get('body', { timeout: 5000 }).then(($success) => {
+      if ($success.find('[data-cy="success-message"], .swal2-success').length > 0) {
+        cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return text.includes('registrado') || text.includes('registered') || text.includes('exitosamente') || text.length > 0
+        })
+      }
+    })
+  }
+
+  const verifyVerificationMessage = () => {
+    cy.get('body', { timeout: 5000 }).then(($verify) => {
+      if ($verify.find('[data-cy="verification-message"], .error-message').length > 0) {
+        cy.get('[data-cy="verification-message"], .error-message').should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return text.includes('verifica') || text.includes('verification') || text.includes('email') || text.length > 0
+        })
+      }
+    })
+  }
+
+  const verifyErrorMessage = (expectedTexts) => {
+    cy.get('body', { timeout: 5000 }).then(($error) => {
+      if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
+        cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+        })
+      }
+    })
   }
 
   it('debe mostrar el formulario de registro correctamente', () => {
@@ -38,59 +114,11 @@ describe('Autenticación - Registro', () => {
       role: 'farmer'
     }
 
-    cy.get('body').then(($body) => {
-      const nameInput = $body.find('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]')
-      const emailInput = $body.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]')
-      const passwordInput = $body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]')
-      
-      if (nameInput.length > 0 && emailInput.length > 0 && passwordInput.length > 0) {
-        cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type(newUser.firstName)
-        cy.get('body').then(($last) => {
-          if ($last.find('[data-cy="last-name-input"], input[name*="last"]').length > 0) {
-            cy.get('[data-cy="last-name-input"], input[name*="last"]').first().type(newUser.lastName)
-          }
-        })
-        cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(newUser.email)
-        cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(newUser.password)
-        cy.get('body').then(($confirm) => {
-          if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
-            cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type(newUser.confirmPassword)
-          }
-        })
-        cy.get('body').then(($role) => {
-          if ($role.find('[data-cy="role-select"], select').length > 0) {
-            cy.get('[data-cy="role-select"], select').first().select(newUser.role, { force: true })
-          }
-        })
-        cy.get('body').then(($terms) => {
-          if ($terms.find('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').length > 0) {
-            cy.get('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
-          }
-        })
-        cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-
-        // Verificar mensaje de éxito
-        cy.get('body', { timeout: 5000 }).then(($success) => {
-          if ($success.find('[data-cy="success-message"], .swal2-success').length > 0) {
-            cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('registrado') || text.includes('registered') || text.includes('exitosamente') || text.length > 0
-            })
-          }
-        })
-
-        // Verificar que se muestra mensaje de verificación de email
-        cy.get('body', { timeout: 5000 }).then(($verify) => {
-          if ($verify.find('[data-cy="verification-message"], .error-message').length > 0) {
-            cy.get('[data-cy="verification-message"], .error-message').should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('verifica') || text.includes('verification') || text.includes('email') || text.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    fillFormIfFieldsExist(() => {
+      fillRegisterForm(newUser)
+      submitRegisterForm()
+      verifySuccessMessage()
+      verifyVerificationMessage()
     })
   })
 
@@ -104,98 +132,29 @@ describe('Autenticación - Registro', () => {
       role: 'analyst'
     }
 
-    cy.get('body').then(($body) => {
-      const nameInput = $body.find('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]')
-      const emailInput = $body.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]')
-      const passwordInput = $body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]')
-      
-      if (nameInput.length > 0 && emailInput.length > 0 && passwordInput.length > 0) {
-        cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type(newUser.firstName)
-        cy.get('body').then(($last) => {
-          if ($last.find('[data-cy="last-name-input"], input[name*="last"]').length > 0) {
-            cy.get('[data-cy="last-name-input"], input[name*="last"]').first().type(newUser.lastName)
-          }
-        })
-        cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(newUser.email)
-        cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(newUser.password)
-        cy.get('body').then(($confirm) => {
-          if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
-            cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type(newUser.confirmPassword)
-          }
-        })
-        cy.get('body').then(($role) => {
-          if ($role.find('[data-cy="role-select"], select').length > 0) {
-            cy.get('[data-cy="role-select"], select').first().select(newUser.role, { force: true })
-          }
-        })
-        cy.get('body').then(($terms) => {
-          if ($terms.find('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').length > 0) {
-            cy.get('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
-          }
-        })
-        cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-
-        cy.get('body', { timeout: 5000 }).then(($success) => {
-          if ($success.find('[data-cy="success-message"], .swal2-success').length > 0) {
-            cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('registrado') || text.includes('registered') || text.includes('exitosamente') || text.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    fillFormIfFieldsExist(() => {
+      fillRegisterForm(newUser)
+      submitRegisterForm()
+      verifySuccessMessage()
     })
   })
 
   it('debe mostrar error si el email ya existe', function() {
     cy.fixture('users').then((users) => {
       const existingUser = users.farmer
-      const testPassword = this.credentials.testUsers.farmer.password
+      const newUser = {
+        firstName: 'Nuevo',
+        lastName: 'Usuario',
+        email: existingUser.email,
+        password: 'Password123!',
+        confirmPassword: 'Password123!',
+        role: 'farmer'
+      }
 
-      cy.get('body').then(($body) => {
-        const nameInput = $body.find('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]')
-        const emailInput = $body.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]')
-        const passwordInput = $body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]')
-        
-        if (nameInput.length > 0 && emailInput.length > 0 && passwordInput.length > 0) {
-          cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type('Nuevo')
-          cy.get('body').then(($last) => {
-            if ($last.find('[data-cy="last-name-input"], input[name*="last"]').length > 0) {
-              cy.get('[data-cy="last-name-input"], input[name*="last"]').first().type('Usuario')
-            }
-          })
-          cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(existingUser.email)
-          cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type('Password123!')
-          cy.get('body').then(($confirm) => {
-            if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
-              cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type('Password123!')
-            }
-          })
-          cy.get('body').then(($role) => {
-            if ($role.find('[data-cy="role-select"], select').length > 0) {
-              cy.get('[data-cy="role-select"], select').first().select('farmer', { force: true })
-            }
-          })
-          cy.get('body').then(($terms) => {
-            if ($terms.find('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').length > 0) {
-              cy.get('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
-            }
-          })
-          cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
-
-          cy.get('body', { timeout: 5000 }).then(($error) => {
-            if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
-              cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                const text = $el.text().toLowerCase()
-                return text.includes('ya registrado') || text.includes('already') || text.includes('email') || text.length > 0
-              })
-            }
-          })
-        } else {
-          cy.get('body').should('be.visible')
-        }
+      fillFormIfFieldsExist(() => {
+        fillRegisterForm(newUser)
+        submitRegisterForm()
+        verifyErrorMessage(['ya registrado', 'already', 'email'])
       })
     })
   })

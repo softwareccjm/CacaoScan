@@ -17,7 +17,7 @@ class DashboardStatsService {
       })
 
       // Verificar que el cliente se creó correctamente
-      if (!this.client || !this.client.interceptors) {
+      if (!this.client?.interceptors) {
         throw new Error('Failed to create axios instance')
       }
 

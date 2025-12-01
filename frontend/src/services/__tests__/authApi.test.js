@@ -520,7 +520,7 @@ describe('authApi', () => {
 
   describe('getUsers', () => {
     it('should get users list successfully', async () => {
-      const mockUsers = {
+      const mockResponse = {
         results: [
           { id: 1, email: 'user1@example.com', username: 'user1', first_name: '', last_name: '', role: 'farmer', is_active: true, is_verified: false, date_joined: null },
           { id: 2, email: 'user2@example.com', username: 'user2', first_name: '', last_name: '', role: 'farmer', is_active: true, is_verified: false, date_joined: null }

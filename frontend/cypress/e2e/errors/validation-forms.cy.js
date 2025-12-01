@@ -3,12 +3,48 @@ describe('Manejo de Errores - Validación y Formularios', () => {
     setupAuth('farmer')
     cy.fixture('testCredentials').as('credentials')
   })
-  // Helper functions to reduce nesting depth
+  
   const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
     for (const selector of selectors) {
       if ($context.find(selector).length > 0) {
         cy.get(selector, { timeout }).should('exist')
       }
+    }
+  }
+
+  const openModal = (buttonSelector, callback) => {
+    cy.get('body').then(($body) => {
+      if ($body.find(buttonSelector).length > 0) {
+        cy.get(buttonSelector).first().click({ force: true })
+        cy.get('body', { timeout: 5000 }).then(($modal) => {
+          if (callback) callback($modal)
+        })
+      } else {
+        cy.get('body').should('be.visible')
+      }
+    })
+  }
+
+  const fillFieldAndSubmit = (fieldSelector, value, submitSelector, errorCallback) => {
+    cy.get('body').then(($body) => {
+      if ($body.find(fieldSelector).length > 0) {
+        cy.get(fieldSelector).first().type(value, { force: true })
+        cy.get(submitSelector).first().click({ force: true })
+        if (errorCallback) {
+          cy.get('body', { timeout: 3000 }).then(($error) => {
+            errorCallback($error)
+          })
+        }
+      }
+    })
+  }
+
+  const verifyErrorMessage = ($error, errorSelector, expectedTexts) => {
+    if ($error.find(errorSelector).length > 0) {
+      cy.get(errorSelector).first().should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+      })
     }
   }
 
@@ -18,23 +54,17 @@ describe('Manejo de Errores - Validación y Formularios', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body').then(($afterClick) => {
-          if ($afterClick.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
-            
-            // Verificar errores de validación
-            cy.get('body', { timeout: 5000 }).then(($afterSubmit) => {
-              const errorSelectors = [
-                '[data-cy="finca-nombre-error"]',
-                '[data-cy="finca-ubicacion-error"]',
-                '[data-cy="finca-area-error"]'
-              ]
+    openModal('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
+        cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
+        
+        cy.get('body', { timeout: 5000 }).then(($afterSubmit) => {
+          const errorSelectors = [
+            '[data-cy="finca-nombre-error"]',
+            '[data-cy="finca-ubicacion-error"]',
+            '[data-cy="finca-area-error"]'
+          ]
           verifySelectorsExist(errorSelectors, $afterSubmit, 3000)
-            })
-          }
         })
       }
     })

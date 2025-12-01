@@ -55,7 +55,6 @@ describe('SubirDatosEntrenamiento', () => {
     })
 
     const file = new File(['test'], 'test.csv', { type: 'text/csv' })
-    const fileInput = wrapper.find('input[type="file"]')
 
     // Simulate file selection by directly setting the file on the component
     // Since DataTransfer is not available in jsdom, we'll test the component's file handling directly

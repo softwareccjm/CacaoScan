@@ -6,6 +6,26 @@ describe('Authentication - Advanced Scenarios', () => {
       cy.get('body', { timeout: 10000 }).should('be.visible')
     })
 
+    const fillLoginForm = (email, password) => {
+      cy.get('body').then(($body) => {
+        if ($body.find('[data-cy="input-email"], input[type="text"], input[type="email"]').length > 0) {
+          cy.get('[data-cy="input-email"], input[type="text"], input[type="email"]').first().type(email)
+          cy.get('[data-cy="input-password"], input[type="password"]').first().type(password)
+          cy.get('[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]').first().click()
+        }
+      })
+    }
+
+    const verifyErrorDisplay = () => {
+      cy.get('body', { timeout: 5000 }).then(($error) => {
+        if ($error.find('.swal2-error, [data-cy="error-message"]').length > 0) {
+          cy.get('.swal2-error, [data-cy="error-message"]').should('be.visible')
+        } else {
+          cy.url().should('include', '/login')
+        }
+      })
+    }
+
     it('should show validation error for empty fields', () => {
       cy.get('body').then(($body) => {
         if ($body.find('[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]').length > 0) {
@@ -16,16 +36,10 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should show validation error for invalid email format', () => {
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="input-email"], input[type="text"], input[type="email"]').length > 0) {
-          cy.get('[data-cy="input-email"], input[type="text"], input[type="email"]').first().type('notanemail')
-          cy.get('[data-cy="input-password"], input[type="password"]').first().type('password')
-          cy.get('[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]').first().click()
-          cy.get('.error-message, [data-cy="error"], [data-cy="email-error"]', { timeout: 5000 }).should('satisfy', ($el) => {
-            const text = $el.text().toLowerCase()
-            return text.includes('email') || text.includes('válido') || text.includes('formato') || $el.length > 0
-          })
-        }
+      fillLoginForm('notanemail', 'password')
+      cy.get('.error-message, [data-cy="error"], [data-cy="email-error"]', { timeout: 5000 }).should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return text.includes('email') || text.includes('válido') || text.includes('formato') || $el.length > 0
       })
     })
 
@@ -33,18 +47,12 @@ describe('Authentication - Advanced Scenarios', () => {
       const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
       cy.intercept('POST', `${apiBaseUrl}/auth/login/`, { statusCode: 401, body: { detail: 'Credenciales inválidas' } }).as('loginError')
       
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="input-email"], input[type="text"], input[type="email"]').length > 0) {
-          cy.get('[data-cy="input-email"], input[type="text"], input[type="email"]').first().type('wrong@example.com')
-          cy.get('[data-cy="input-password"], input[type="password"]').first().type('wrongpassword')
-          cy.get('[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]').first().click()
-          cy.wait('@loginError', { timeout: 10000 })
-          cy.get('body', { timeout: 5000 }).should('satisfy', ($body) => {
-            const hasError = $body.find('.swal2-error, [data-cy="error-message"]').length > 0
-            const text = $body.text().toLowerCase()
-            return hasError || text.includes('credenciales') || text.includes('inválid') || text.includes('error')
-          })
-        }
+      fillLoginForm('wrong@example.com', 'wrongpassword')
+      cy.wait('@loginError', { timeout: 10000 })
+      cy.get('body', { timeout: 5000 }).should('satisfy', ($body) => {
+        const hasError = $body.find('.swal2-error, [data-cy="error-message"]').length > 0
+        const text = $body.text().toLowerCase()
+        return hasError || text.includes('credenciales') || text.includes('inválid') || text.includes('error')
       })
     })
 
@@ -52,23 +60,9 @@ describe('Authentication - Advanced Scenarios', () => {
       const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
       cy.intercept('POST', `${apiBaseUrl}/auth/login/`, { statusCode: 500 }).as('loginError')
       
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="input-email"], [data-cy="email-input"], input[type="text"], input[type="email"]').length > 0) {
-          cy.get('[data-cy="input-email"], [data-cy="email-input"], input[type="text"], input[type="email"]').first().type('admin@example.com')
-          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().type('admin123')
-          cy.get('[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]').first().click()
-          
-          cy.wait('@loginError', { timeout: 10000 })
-          cy.get('body', { timeout: 5000 }).then(($error) => {
-            if ($error.find('.swal2-error, [data-cy="error-message"]').length > 0) {
-              cy.get('.swal2-error, [data-cy="error-message"]').should('be.visible')
-            } else {
-              // Si no hay error visible, verificar que la página sigue en login
-              cy.url().should('include', '/login')
-            }
-          })
-        }
-      })
+      fillLoginForm('admin@example.com', 'admin123')
+      cy.wait('@loginError', { timeout: 10000 })
+      verifyErrorDisplay()
     })
 
     it('should toggle password visibility', () => {

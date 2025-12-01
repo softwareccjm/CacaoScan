@@ -6,6 +6,47 @@ describe('Admin Farmer Management', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
 
+  const clickTabIfExists = (tabSelector, callback) => {
+    cy.get('body').then(($body) => {
+      if ($body.find(tabSelector).length > 0) {
+        cy.get(tabSelector).click()
+        if (callback) callback()
+      } else {
+        cy.get('body').should('be.visible')
+      }
+    })
+  }
+
+  const interactWithFirstRow = (rowSelector, rowCallback) => {
+    cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
+      if ($rows.length > 0) {
+        cy.wrap($rows.first()).then(($row) => {
+          rowCallback($row)
+        })
+      }
+    })
+  }
+
+  const interactWithLastRow = (rowSelector, rowCallback) => {
+    cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
+      if ($rows.length > 0) {
+        cy.wrap($rows.last()).then(($row) => {
+          rowCallback($row)
+        })
+      }
+    })
+  }
+
+  const fillRejectionForm = (reason) => {
+    cy.get('body').then(($modal) => {
+      if ($modal.find('[data-cy="textarea-reason"], textarea').length > 0) {
+        cy.get('[data-cy="textarea-reason"], textarea').first().type(reason)
+        cy.get('[data-cy="btn-confirm-reject"], button[type="submit"]').first().click()
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+      }
+    })
+  }
+
   it('should list pending verifications', () => {
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="tab-pending"]').length > 0) {
@@ -19,61 +60,39 @@ describe('Admin Farmer Management', () => {
   })
 
   it('should verify a farmer account', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-pending"]').length > 0) {
-        cy.get('[data-cy="tab-pending"]').click()
-        cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
-          if ($rows.length > 0) {
-            cy.wrap($rows.first()).find('[data-cy="btn-verify"], button').first().click({ force: true })
-            cy.get('[data-cy="modal-verify-docs"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
-            
-            // Si existen los checkboxes, marcarlos
-            cy.get('body').then(($modal) => {
-              if ($modal.find('[data-cy="check-doc-id"]').length > 0) {
-                cy.get('[data-cy="check-doc-id"]').check()
-                cy.get('[data-cy="check-doc-property"]').check()
-                cy.get('[data-cy="btn-approve"], button[type="submit"]').first().click()
-                cy.get('body', { timeout: 5000 }).should('be.visible')
-              }
-            })
+    clickTabIfExists('[data-cy="tab-pending"]', () => {
+      interactWithFirstRow('table tbody tr, [data-cy="farmer-item"]', ($row) => {
+        cy.wrap($row).find('[data-cy="btn-verify"], button').first().click({ force: true })
+        cy.get('[data-cy="modal-verify-docs"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
+        
+        cy.get('body').then(($modal) => {
+          if ($modal.find('[data-cy="check-doc-id"]').length > 0) {
+            cy.get('[data-cy="check-doc-id"]').check()
+            cy.get('[data-cy="check-doc-property"]').check()
+            cy.get('[data-cy="btn-approve"], button[type="submit"]').first().click()
+            cy.get('body', { timeout: 5000 }).should('be.visible')
           }
         })
-      }
+      })
     })
   })
 
   it('should reject a farmer verification with reason', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-pending"]').length > 0) {
-        cy.get('[data-cy="tab-pending"]').click()
-        cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
-          if ($rows.length > 0) {
-            cy.wrap($rows.last()).find('[data-cy="btn-reject"], button').first().click({ force: true })
-            cy.get('body').then(($modal) => {
-              if ($modal.find('[data-cy="textarea-reason"], textarea').length > 0) {
-                cy.get('[data-cy="textarea-reason"], textarea').first().type('Documentos ilegibles')
-                cy.get('[data-cy="btn-confirm-reject"], button[type="submit"]').first().click()
-                cy.get('body', { timeout: 5000 }).should('be.visible')
-              }
-            })
-          }
-        })
-      }
+    clickTabIfExists('[data-cy="tab-pending"]', () => {
+      interactWithLastRow('table tbody tr, [data-cy="farmer-item"]', ($row) => {
+        cy.wrap($row).find('[data-cy="btn-reject"], button').first().click({ force: true })
+        fillRejectionForm('Documentos ilegibles')
+      })
     })
   })
 
   it('should view farmer details including farms', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-active"]').length > 0) {
-        cy.get('[data-cy="tab-active"]').click()
-        cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
-          if ($rows.length > 0) {
-            cy.wrap($rows.first()).click({ force: true })
-            cy.get('[data-cy="farmer-profile"], .profile, .details', { timeout: 5000 }).should('exist')
-            cy.get('[data-cy="farm-list"], .farms-list, .list', { timeout: 5000 }).should('exist')
-          }
-        })
-      }
+    clickTabIfExists('[data-cy="tab-active"]', () => {
+      interactWithFirstRow('table tbody tr, [data-cy="farmer-item"]', ($row) => {
+        cy.wrap($row).click({ force: true })
+        cy.get('[data-cy="farmer-profile"], .profile, .details', { timeout: 5000 }).should('exist')
+        cy.get('[data-cy="farm-list"], .farms-list, .list', { timeout: 5000 }).should('exist')
+      })
     })
   })
 

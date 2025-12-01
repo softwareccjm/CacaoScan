@@ -103,7 +103,7 @@ describe('Admin Store', () => {
 
       vi.mocked(api.get).mockResolvedValue(mockResponse)
 
-      const result = await store.getRecentUsers(10)
+      await store.getRecentUsers(10)
 
       expect(api.get).toHaveBeenCalledWith('/auth/users/', {
         params: {
@@ -129,7 +129,7 @@ describe('Admin Store', () => {
 
       vi.mocked(api.get).mockResolvedValue(mockResponse)
 
-      const result = await store.getRecentActivities(20)
+      await store.getRecentActivities(20)
 
       expect(api.get).toHaveBeenCalledWith('/audit/activity-logs/', {
         params: {
@@ -171,7 +171,7 @@ describe('Admin Store', () => {
 
       vi.mocked(api.get).mockResolvedValue(mockResponse)
 
-      const result = await store.getSystemAlerts()
+      await store.getSystemAlerts()
 
       expect(api.get).toHaveBeenCalledWith('/notifications/', {
         params: {
@@ -218,7 +218,7 @@ describe('Admin Store', () => {
 
       vi.mocked(api.get).mockResolvedValue(mockResponse)
 
-      const result = await store.getReportStats()
+      await store.getReportStats()
 
       expect(api.get).toHaveBeenCalledWith('/reportes/stats/')
       expect(store.reports).toEqual(mockResponse.data)
@@ -238,7 +238,7 @@ describe('Admin Store', () => {
 
       vi.mocked(api.get).mockResolvedValue(mockResponse)
 
-      const result = await store.getAllUsers({ page: 1, page_size: 20 })
+      await store.getAllUsers({ page: 1, page_size: 20 })
 
       expect(api.get).toHaveBeenCalledWith('/auth/users/', {
         params: { page: 1, page_size: 20 }

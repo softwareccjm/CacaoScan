@@ -4,12 +4,65 @@ describe('Autenticación - Recuperación de Contraseña', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
   
-  // Helper functions to reduce nesting depth
   const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
     for (const selector of selectors) {
       if ($context.find(selector).length > 0) {
         cy.get(selector, { timeout }).should('exist')
       }
+    }
+  }
+
+  const clickForgotPasswordLink = (callback) => {
+    cy.get('body').then(($body) => {
+      if ($body.find('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').length > 0) {
+        cy.get('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').first().click({ force: true })
+        cy.url({ timeout: 10000 }).should('satisfy', (url) => {
+          return url.includes('/forgot') || url.includes('/reset') || url.includes('/login')
+        })
+        if (callback) {
+          cy.get('body', { timeout: 5000 }).then(($forgot) => {
+            callback($forgot)
+          })
+        }
+      } else {
+        cy.get('body').should('be.visible')
+      }
+    })
+  }
+
+  const fillEmailAndSubmit = (email, successCallback) => {
+    cy.get('body', { timeout: 5000 }).then(($forgot) => {
+      if ($forgot.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').length > 0) {
+        cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(email)
+        cy.get('[data-cy="send-reset-button"], [data-cy="btn-submit"], button[type="submit"]').first().click()
+        if (successCallback) {
+          cy.get('body', { timeout: 5000 }).then(($result) => {
+            successCallback($result)
+          })
+        }
+      }
+    })
+  }
+
+  const verifySuccessMessage = ($result) => {
+    if ($result.find('[data-cy="success-message"], .swal2-success').length > 0) {
+      cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return text.includes('recuperación') || text.includes('enviado') || text.includes('email') || text.length > 0
+      })
+    } else {
+      cy.url().should('satisfy', (url) => {
+        return url.includes('/forgot') || url.includes('/login') || url.length > 0
+      })
+    }
+  }
+
+  const verifyErrorMessage = ($result, expectedTexts) => {
+    if ($result.find('[data-cy="error-message"], .swal2-error, .error-message').length > 0) {
+      cy.get('[data-cy="error-message"], .swal2-error, .error-message').first().should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+      })
     }
   }
 
@@ -35,86 +88,30 @@ describe('Autenticación - Recuperación de Contraseña', () => {
   it('debe enviar email de recuperación exitosamente', () => {
     cy.fixture('users').then((users) => {
       const user = users.farmer
-      
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').length > 0) {
-          cy.get('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').first().click({ force: true })
-          cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-            return url.includes('/forgot') || url.includes('/reset') || url.includes('/login')
-          })
-          cy.get('body', { timeout: 5000 }).then(($forgot) => {
-            if ($forgot.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').length > 0) {
-              cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(user.email)
-              cy.get('[data-cy="send-reset-button"], [data-cy="btn-submit"], button[type="submit"]').first().click()
-              
-              cy.get('body', { timeout: 5000 }).then(($success) => {
-                if ($success.find('[data-cy="success-message"], .swal2-success').length > 0) {
-                  cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
-                    const text = $el.text().toLowerCase()
-                    return text.includes('recuperación') || text.includes('enviado') || text.includes('email') || text.length > 0
-                  })
-                } else {
-                  cy.url().should('satisfy', (url) => {
-                    return url.includes('/forgot') || url.includes('/login') || url.length > 0
-                  })
-                }
-              })
-            }
-          })
-        } else {
-          cy.get('body').should('be.visible')
-        }
+      clickForgotPasswordLink(() => {
+        fillEmailAndSubmit(user.email, verifySuccessMessage)
       })
     })
   })
 
   it('debe mostrar error si el email no existe', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').length > 0) {
-        cy.get('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($forgot) => {
-          if ($forgot.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').length > 0) {
-            cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('noexiste@test.com')
-            cy.get('[data-cy="send-reset-button"], [data-cy="btn-submit"], button[type="submit"]').first().click()
-            
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="error-message"], .swal2-error, .error-message').length > 0) {
-                cy.get('[data-cy="error-message"], .swal2-error, .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('no encontrado') || text.includes('not found') || text.includes('error') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    clickForgotPasswordLink(() => {
+      fillEmailAndSubmit('noexiste@test.com', ($error) => {
+        verifyErrorMessage($error, ['no encontrado', 'not found', 'error'])
+      })
     })
   })
 
   it('debe validar formato de email en recuperación', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').length > 0) {
-        cy.get('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($forgot) => {
-          if ($forgot.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').length > 0) {
-            cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('email-invalido')
-            cy.get('[data-cy="send-reset-button"], [data-cy="btn-submit"], button[type="submit"]').first().click()
-            
-            cy.get('body', { timeout: 5000 }).then(($error) => {
-              if ($error.find('[data-cy="email-error"], .error-message').length > 0) {
-                cy.get('[data-cy="email-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('formato') || text.includes('inválido') || text.includes('email') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+    clickForgotPasswordLink(() => {
+      fillEmailAndSubmit('email-invalido', ($error) => {
+        if ($error.find('[data-cy="email-error"], .error-message').length > 0) {
+          cy.get('[data-cy="email-error"], .error-message').first().should('satisfy', ($el) => {
+            const text = $el.text().toLowerCase()
+            return text.includes('formato') || text.includes('inválido') || text.includes('email') || text.length > 0
+          })
+        }
+      })
     })
   })
 

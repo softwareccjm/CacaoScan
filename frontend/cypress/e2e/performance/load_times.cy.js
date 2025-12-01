@@ -2,7 +2,7 @@ describe('Basic Performance Metrics', () => {
   
   it('should load the dashboard within acceptable time threshold', () => {
     cy.login('farmer')
-    const startTime = new Date().getTime()
+    const startTime = Date.now()
     
     cy.visit('/agricultor-dashboard', {
       onBeforeLoad: (win) => {
@@ -11,7 +11,7 @@ describe('Basic Performance Metrics', () => {
     }).then(() => {
       cy.get('body', { timeout: 20000 }).should('be.visible')
       cy.window().then((win) => {
-        const endTime = new Date().getTime()
+        const endTime = Date.now()
         const duration = endTime - startTime
         
         cy.log(`Dashboard load time: ${duration}ms`)
@@ -44,7 +44,7 @@ describe('Basic Performance Metrics', () => {
       body: largeFincasList
     }).as('getLargeList')
     
-    const startTime = new Date().getTime()
+    const startTime = Date.now()
     cy.visit('/fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
@@ -60,7 +60,7 @@ describe('Basic Performance Metrics', () => {
       }
     })
     
-    const endTime = new Date().getTime()
+    const endTime = Date.now()
     // Increase threshold to 10 seconds to be more realistic
     expect(endTime - startTime).to.be.lessThan(10000)
   })

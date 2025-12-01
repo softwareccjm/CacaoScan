@@ -147,7 +147,7 @@ describe('Reports Store', () => {
 
       mockReportsService.getReports.mockResolvedValue(mockResponse)
 
-      const result = await store.fetchReports({ page: 1 })
+      await store.fetchReports({ page: 1 })
 
       expect(mockReportsService.getReports).toHaveBeenCalled()
       expect(store.reports).toEqual(mockResponse.results)
@@ -182,7 +182,7 @@ describe('Reports Store', () => {
 
       mockReportsService.getReportsStats.mockResolvedValue(mockResponse)
 
-      const result = await store.fetchStats()
+      await store.fetchStats()
 
       expect(mockReportsService.getReportsStats).toHaveBeenCalled()
       expect(store.stats.totalReports).toBe(50)
@@ -207,7 +207,7 @@ describe('Reports Store', () => {
 
       mockReportsService.createReport.mockResolvedValue(mockResponse)
 
-      const result = await store.createReport(reportData)
+      await store.createReport(reportData)
 
       expect(mockReportsService.createReport).toHaveBeenCalled()
       expect(store.reports.length).toBeGreaterThan(0)
@@ -239,7 +239,7 @@ describe('Reports Store', () => {
         { id: 1, tipo_reporte: 'anual', estado: 'pendiente' }
       ]
 
-      const result = await store.updateReport(reportId, updateData)
+      await store.updateReport(reportId, updateData)
 
       expect(store.reports[0].estado).toBe('completado')
     })
@@ -257,7 +257,7 @@ describe('Reports Store', () => {
 
       mockReportsService.deleteReport.mockResolvedValue(true)
 
-      const result = await store.deleteReport(reportId)
+      await store.deleteReport(reportId)
 
       expect(mockReportsService.deleteReport).toHaveBeenCalledWith(reportId)
       expect(store.reports).toHaveLength(1)
@@ -279,7 +279,7 @@ describe('Reports Store', () => {
 
       mockReportsService.deleteReport.mockResolvedValue(true)
 
-      const result = await store.bulkDeleteReports(reportIds)
+      await store.bulkDeleteReports(reportIds)
 
       expect(mockReportsService.deleteReport).toHaveBeenCalledTimes(2)
       expect(store.reports).toHaveLength(1)
@@ -306,7 +306,7 @@ describe('Reports Store', () => {
 
       mockReportsService.downloadReport.mockResolvedValue(mockResponse)
 
-      const result = await store.downloadReport(reportId)
+      await store.downloadReport(reportId)
 
       expect(mockReportsService.downloadReport).toHaveBeenCalledWith(reportId)
     })
