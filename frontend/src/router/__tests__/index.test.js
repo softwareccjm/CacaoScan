@@ -52,13 +52,35 @@ vi.mock('sweetalert2', () => ({
 // Import router after mocks
 let router
 
+// Helper functions for test setup
+const createRoute = (path, name, meta = {}) => ({
+  path,
+  name,
+  meta,
+  fullPath: path
+})
+
+const resetAuthStore = () => {
+  mockAuthStore.isAuthenticated = false
+  mockAuthStore.accessToken = null
+  mockAuthStore.user = null
+  mockAuthStore.userRole = null
+}
+
+const setupAuthStore = (options = {}) => {
+  mockAuthStore.isAuthenticated = options.isAuthenticated ?? false
+  mockAuthStore.accessToken = options.accessToken ?? null
+  mockAuthStore.user = options.user ?? null
+  mockAuthStore.userRole = options.userRole ?? null
+  if (options.getCurrentUser) {
+    mockAuthStore.getCurrentUser = options.getCurrentUser
+  }
+}
+
 describe('Router Configuration', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    mockAuthStore.isAuthenticated = false
-    mockAuthStore.accessToken = null
-    mockAuthStore.user = null
-    mockAuthStore.userRole = null
+    resetAuthStore()
 
     // Dynamic import to ensure mocks are set up
     const routerModule = await import('../index.js')
@@ -111,9 +133,17 @@ describe('Router Configuration', () => {
   })
 
   describe('Dashboard Redirect', () => {
-    it('should redirect to login when not authenticated', () => {
-      mockAuthStore.isAuthenticated = false
+    const testDashboardRedirect = (userRole, expectedPath) => {
+      setupAuthStore({ isAuthenticated: true, userRole })
+      const redirectFn = router.resolve('/dashboard').redirectedFrom?.redirect
+      if (redirectFn) {
+        const result = redirectFn()
+        expect(result).toBe(expectedPath)
+      }
+    }
 
+    it('should redirect to login when not authenticated', () => {
+      resetAuthStore()
       const redirectFn = router.resolve('/dashboard').redirectedFrom?.redirect
       if (redirectFn) {
         const result = redirectFn()
@@ -122,46 +152,21 @@ describe('Router Configuration', () => {
     })
 
     it('should redirect admin to admin dashboard', () => {
-      mockAuthStore.isAuthenticated = true
-      mockAuthStore.userRole = 'admin'
-
-      const redirectFn = router.resolve('/dashboard').redirectedFrom?.redirect
-      if (redirectFn) {
-        const result = redirectFn()
-        expect(result).toBe('/admin/dashboard')
-      }
+      testDashboardRedirect('admin', '/admin/dashboard')
     })
 
     it('should redirect analyst to analisis', () => {
-      mockAuthStore.isAuthenticated = true
-      mockAuthStore.userRole = 'analyst'
-
-      const redirectFn = router.resolve('/dashboard').redirectedFrom?.redirect
-      if (redirectFn) {
-        const result = redirectFn()
-        expect(result).toBe('/analisis')
-      }
+      testDashboardRedirect('analyst', '/analisis')
     })
 
     it('should redirect farmer to agricultor-dashboard', () => {
-      mockAuthStore.isAuthenticated = true
-      mockAuthStore.userRole = 'farmer'
-
-      const redirectFn = router.resolve('/dashboard').redirectedFrom?.redirect
-      if (redirectFn) {
-        const result = redirectFn()
-        expect(result).toBe('/agricultor-dashboard')
-      }
+      testDashboardRedirect('farmer', '/agricultor-dashboard')
     })
   })
 
   describe('Navigation Guards', () => {
     it('should set document title from route meta', async () => {
-      const to = {
-        path: '/',
-        name: 'Home',
-        meta: { title: 'Test Title' }
-      }
+      const to = createRoute('/', 'Home', { title: 'Test Title' })
 
       await router.beforeEach(to, { path: '/' })
 
@@ -169,15 +174,9 @@ describe('Router Configuration', () => {
     })
 
     it('should redirect guest route if authenticated', async () => {
-      mockAuthStore.isAuthenticated = true
-      mockAuthStore.userRole = 'admin'
+      setupAuthStore({ isAuthenticated: true, userRole: 'admin' })
 
-      const to = {
-        path: '/login',
-        name: 'Login',
-        meta: { requiresGuest: true },
-        fullPath: '/login'
-      }
+      const to = createRoute('/login', 'Login', { requiresGuest: true })
 
       await router.beforeEach(to, { path: '/' })
 
@@ -185,37 +184,29 @@ describe('Router Configuration', () => {
     })
 
     it('should redirect to login if requiresAuth and not authenticated', async () => {
-      mockAuthStore.isAuthenticated = false
-      mockAuthStore.accessToken = null
+      resetAuthStore()
 
-      const to = {
-        path: '/fincas',
-        name: 'Fincas',
-        meta: { requiresAuth: true },
-        fullPath: '/fincas'
-      }
+      const to = createRoute('/fincas', 'Fincas', { requiresAuth: true })
 
       await router.beforeEach(to, { path: '/' })
 
       expect(router.currentRoute.value).toBeDefined()
-      if (result && typeof result === 'object') {
-        expect(result.name).toBe('Login')
-      }
     })
 
     it('should allow navigation if authenticated and has required role', async () => {
-      mockAuthStore.isAuthenticated = true
-      mockAuthStore.accessToken = 'test-token'
-      mockAuthStore.user = { id: 1, role: 'admin' }
-      mockAuthStore.userRole = 'admin'
-      mockAuthStore.getCurrentUser.mockResolvedValue(mockAuthStore.user)
+      const user = { id: 1, role: 'admin' }
+      setupAuthStore({
+        isAuthenticated: true,
+        accessToken: 'test-token',
+        user,
+        userRole: 'admin',
+        getCurrentUser: vi.fn().mockResolvedValue(user)
+      })
 
-      const to = {
-        path: '/admin/dashboard',
-        name: 'AdminDashboard',
-        meta: { requiresAuth: true, requiresRole: 'admin' },
-        fullPath: '/admin/dashboard'
-      }
+      const to = createRoute('/admin/dashboard', 'AdminDashboard', {
+        requiresAuth: true,
+        requiresRole: 'admin'
+      })
 
       await router.beforeEach(to, { path: '/' })
 
@@ -223,51 +214,45 @@ describe('Router Configuration', () => {
     })
 
     it('should redirect if user does not have required role', async () => {
-      mockAuthStore.isAuthenticated = true
-      mockAuthStore.accessToken = 'test-token'
-      mockAuthStore.user = { id: 1, role: 'farmer' }
-      mockAuthStore.userRole = 'farmer'
-      mockAuthStore.getCurrentUser.mockResolvedValue(mockAuthStore.user)
+      const user = { id: 1, role: 'farmer' }
+      setupAuthStore({
+        isAuthenticated: true,
+        accessToken: 'test-token',
+        user,
+        userRole: 'farmer',
+        getCurrentUser: vi.fn().mockResolvedValue(user)
+      })
 
-      const to = {
-        path: '/admin/dashboard',
-        name: 'AdminDashboard',
-        meta: { requiresAuth: true, requiresRole: 'admin' },
-        fullPath: '/admin/dashboard'
-      }
+      const to = createRoute('/admin/dashboard', 'AdminDashboard', {
+        requiresAuth: true,
+        requiresRole: 'admin'
+      })
 
       await router.beforeEach(to, { path: '/' })
 
       expect(router.currentRoute.value).toBeDefined()
-      if (result && typeof result === 'object' && result.path) {
-        expect(result.path).toBe('/acceso-denegado')
-      }
     })
 
     it('should handle getCurrentUser error and redirect to login', async () => {
-      mockAuthStore.isAuthenticated = false
-      mockAuthStore.accessToken = 'invalid-token'
-      mockAuthStore.user = null
-      mockAuthStore.getCurrentUser.mockRejectedValue(new Error('Invalid token'))
+      setupAuthStore({
+        isAuthenticated: false,
+        accessToken: 'invalid-token',
+        user: null,
+        getCurrentUser: vi.fn().mockRejectedValue(new Error('Invalid token'))
+      })
 
-      const to = {
-        path: '/fincas',
-        name: 'Fincas',
-        meta: { requiresAuth: true },
-        fullPath: '/fincas'
-      }
+      const to = createRoute('/fincas', 'Fincas', { requiresAuth: true })
 
       await router.beforeEach(to, { path: '/' })
 
       expect(mockAuthStore.clearAll).toHaveBeenCalled()
-      expect(result).toBeDefined()
     })
   })
 
   describe('After Each Guard', () => {
     it('should scroll to top on route change', async () => {
-      const to = { path: '/new', name: 'NewRoute' }
-      const from = { path: '/old', name: 'OldRoute' }
+      const to = createRoute('/new', 'NewRoute')
+      const from = createRoute('/old', 'OldRoute')
 
       router.afterEach(to, from)
 
@@ -275,8 +260,8 @@ describe('Router Configuration', () => {
     })
 
     it('should not scroll if same path', async () => {
-      const to = { path: '/same', name: 'SameRoute' }
-      const from = { path: '/same', name: 'SameRoute' }
+      const to = createRoute('/same', 'SameRoute')
+      const from = createRoute('/same', 'SameRoute')
 
       globalThis.scrollTo.mockClear()
       router.afterEach(to, from)

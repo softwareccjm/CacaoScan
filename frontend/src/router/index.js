@@ -458,27 +458,7 @@ const router = createRouter({
 let isNavigating = false
 let navigationTimeout = null
 
-// Helper function to normalize role (extracted common logic)
-const normalizeRole = (role) => {
-  if (!role) return null
-  const normalized = String(role).toLowerCase().trim()
-
-  // Map common role variants
-  switch (normalized) {
-    case 'administrador':
-    case 'administrator':
-    case 'admin':
-      return 'admin'
-    case 'analista':
-    case 'analyst':
-      return 'analyst'
-    case 'agricultor':
-    case 'farmer':
-      return 'farmer'
-    default:
-      return normalized
-  }
-}
+import { normalizeRole, getRedirectPathByRole } from '@/utils/roleUtils'
 
 // Helper functions for navigation guard
 const handleGuestRoute = (to, authStore) => {
@@ -624,22 +604,7 @@ router.beforeEach(async (to, from) => {
   }
 })
 
-// Función auxiliar para obtener ruta de redirección por rol
-const getRedirectPathByRole = (role) => {
-  const normalizedRole = normalizeRole(role)
-
-  switch (normalizedRole) {
-    case 'admin':
-      return '/admin/dashboard'
-    case 'analyst':
-      return '/analisis'
-    case 'farmer':
-      return '/agricultor-dashboard'
-    default:
-      // Por defecto, redirigir a admin dashboard en lugar de home para evitar bucles
-      return '/admin/dashboard'
-  }
-}
+// getRedirectPathByRole is now imported from utils/roleUtils
 
 // Guardián posterior para limpiar estados
 router.afterEach((to, from) => {

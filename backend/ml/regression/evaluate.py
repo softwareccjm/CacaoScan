@@ -33,6 +33,49 @@ BatchTargets = Union[Dict[str, torch.Tensor], torch.Tensor]
 BatchData = Union[Tuple[torch.Tensor, ...], List[torch.Tensor]]
 
 
+def compute_regression_metrics(
+    targets: np.ndarray,
+    predictions: np.ndarray
+) -> Dict[str, float]:
+    """
+    Calcula métricas de regresión comunes.
+    
+    Args:
+        targets: Valores reales
+        predictions: Predicciones del modelo
+        
+    Returns:
+        Diccionario con métricas: mae, mse, rmse, r2, mape, relative_error
+    """
+    mae = mean_absolute_error(targets, predictions)
+    mse = mean_squared_error(targets, predictions)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(targets, predictions)
+    
+    # MAPE y error relativo (solo si hay valores no cero)
+    non_zero_mask = targets != 0
+    if np.any(non_zero_mask):
+        mape = mean_absolute_percentage_error(
+            targets[non_zero_mask],
+            predictions[non_zero_mask]
+        ) * 100
+        relative_error = np.mean(
+            np.abs((targets[non_zero_mask] - predictions[non_zero_mask]) / targets[non_zero_mask])
+        ) * 100
+    else:
+        mape = 0.0
+        relative_error = 0.0
+    
+    return {
+        'mae': float(mae),
+        'mse': float(mse),
+        'rmse': float(rmse),
+        'r2': float(r2),
+        'mape': float(mape),
+        'relative_error': float(relative_error)
+    }
+
+
 class RegressionEvaluator:
     """Evaluador para modelos de regresión de cacao."""
     
@@ -126,26 +169,8 @@ class RegressionEvaluator:
                 logger.warning(f"Error desnormalizando para {target}: {e}")
         
         # Calcular métricas
-        mae = mean_absolute_error(all_targets, all_predictions)
-        mse = mean_squared_error(all_targets, all_predictions)
-        rmse = np.sqrt(mse)
-        r2 = r2_score(all_targets, all_predictions)
-        
-        # MAPE (Mean Absolute Percentage Error)
-        mape = mean_absolute_percentage_error(all_targets, all_predictions) * 100
-        
-        # Error relativo medio
-        relative_error = np.mean(np.abs((all_targets - all_predictions) / all_targets)) * 100
-        
-        metrics = {
-            'mae': float(mae),
-            'mse': float(mse),
-            'rmse': float(rmse),
-            'r2': float(r2),
-            'mape': float(mape),
-            'relative_error': float(relative_error),
-            'n_samples': len(all_predictions)
-        }
+        metrics = compute_regression_metrics(all_targets, all_predictions)
+        metrics['n_samples'] = len(all_predictions)
         
         # Guardar predicciones y targets
         self.predictions[target] = all_predictions
@@ -307,36 +332,9 @@ class RegressionEvaluator:
                 logger.warning(f"No hay datos para evaluar el target {target}")
                 continue
             
-            mae = mean_absolute_error(target_values, target_preds)
-            mse = mean_squared_error(target_values, target_preds)
-            rmse = np.sqrt(mse)
-            r2 = r2_score(target_values, target_preds)
-            
-            non_zero_mask = target_values != 0
-            if np.any(non_zero_mask):
-                mape = mean_absolute_percentage_error(
-                    target_values[non_zero_mask],
-                    target_preds[non_zero_mask]
-                ) * 100
-                relative_error = np.mean(
-                    np.abs(
-                        (target_values[non_zero_mask] - target_preds[non_zero_mask]) /
-                        target_values[non_zero_mask]
-                    )
-                ) * 100
-            else:
-                mape = 0.0
-                relative_error = 0.0
-            
-            results[target] = {
-                'mae': float(mae),
-                'mse': float(mse),
-                'rmse': float(rmse),
-                'r2': float(r2),
-                'mape': float(mape),
-                'relative_error': float(relative_error),
-                'n_samples': int(target_preds.size)
-            }
+            metrics = compute_regression_metrics(target_values, target_preds)
+            metrics['n_samples'] = int(target_preds.size)
+            results[target] = metrics
             
             logger.info(
                 f"{target}: MAE={mae:.4f}, RMSE={rmse:.4f}, R²={r2:.4f}"

@@ -25,6 +25,95 @@ CONVNEXT_LOADING_MSG = "✔ Cargando ConvNeXt Tiny con pesos ImageNet-12k preent
 CONVNEXT_WARNING_MSG = "⚠ ConvNeXt Tiny se inicializará con pesos aleatorios (pretrained=False)"
 
 
+# ============================================================================
+# Helper Functions (Shared across models)
+# ============================================================================
+
+def verify_convnext_weights(backbone: nn.Module, context: str = "") -> None:
+    """
+    Verifica que los pesos del backbone ConvNeXt se cargaron correctamente.
+    
+    Args:
+        backbone: Backbone ConvNeXt a verificar
+        context: Contexto adicional para logging (opcional)
+    """
+    try:
+        first_conv_weight = list(backbone.stem.parameters())[0]
+        weight_mean = first_conv_weight.data.mean().item()
+        weight_std = first_conv_weight.data.std().item()
+        context_str = f" ({context})" if context else ""
+        logger.info(f"  Verificación pesos{context_str}: mean={weight_mean:.6f}, std={weight_std:.6f}")
+        if abs(weight_mean) < 0.001 and weight_std < 0.01:
+            logger.warning("⚠ Los pesos parecen estar cerca de cero - posible inicialización aleatoria")
+        else:
+            logger.info("✔ Los pesos parecen estar cargados correctamente")
+    except Exception as e:
+        logger.warning(f"No se pudo verificar pesos: {e}")
+
+
+def create_convnext_backbone(pretrained: bool, num_classes: int = 0, global_pool: Optional[str] = None) -> nn.Module:
+    """
+    Crea un backbone ConvNeXt Tiny con configuración estándar.
+    
+    Args:
+        pretrained: Si usar pesos pre-entrenados
+        num_classes: Número de clases (0 para remover clasificador)
+        global_pool: Tipo de global pooling ('avg', 'max', etc.) o None para default
+        
+    Returns:
+        Backbone ConvNeXt creado
+    """
+    if not TIMM_AVAILABLE:
+        raise ImportError("timm es requerido para ConvNeXt. Instalar con: pip install timm")
+    
+    if pretrained:
+        backbone_name = CONVNEXT_TINY_MODEL_NAME
+        logger.info("=" * 60)
+        logger.info(CONVNEXT_LOADING_MSG)
+        logger.info(f"  Modelo: {backbone_name}")
+        logger.info("=" * 60)
+    else:
+        backbone_name = 'convnext_tiny'
+        logger.warning("=" * 60)
+        logger.warning(CONVNEXT_WARNING_MSG)
+        logger.warning("=" * 60)
+    
+    logger.info(f"Creando backbone timm: {backbone_name}, pretrained={pretrained}")
+    create_kwargs = {
+        'model_name': backbone_name,
+        'pretrained': pretrained,
+        'num_classes': num_classes
+    }
+    if global_pool is not None:
+        create_kwargs['global_pool'] = global_pool
+    
+    backbone = timm.create_model(**create_kwargs)
+    
+    if pretrained:
+        verify_convnext_weights(backbone)
+    
+    return backbone
+
+
+def init_linear_and_batchnorm_weights(module: nn.Module) -> None:
+    """
+    Inicializa pesos de capas Linear y BatchNorm1d.
+    
+    Args:
+        module: Módulo a inicializar
+    """
+    def init_weights(m):
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0.0)
+        elif isinstance(m, nn.BatchNorm1d):
+            nn.init.constant_(m.weight, 1.0)
+            nn.init.constant_(m.bias, 0.0)
+    
+    module.apply(init_weights)
+
+
 class ResNet18Regression(nn.Module):
     """
     ResNet18 adaptado para regresión de dimensiones de cacao.
@@ -75,16 +164,7 @@ class ResNet18Regression(nn.Module):
         )
         
         # Inicializar pesos de la cabeza de regresión
-        def init_weights(m):
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0.0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1.0)
-                nn.init.constant_(m.bias, 0.0)
-        
-        self.backbone.fc.apply(init_weights)
+        init_linear_and_batchnorm_weights(self.backbone.fc)
         
         self.num_outputs = num_outputs
     
@@ -134,38 +214,7 @@ class ConvNeXtTinyRegression(nn.Module):
         
         # Cargar ConvNeXt Tiny pre-entrenado con pesos ImageNet-12k
         # FORZAR uso de pesos ImageNet-12k para mejor rendimiento
-        if pretrained:
-            backbone_name = CONVNEXT_TINY_MODEL_NAME  # Usar pesos ImageNet-12k
-            logger.info("=" * 60)
-            logger.info(CONVNEXT_LOADING_MSG)
-            logger.info(f"  Modelo: {backbone_name}")
-            logger.info("=" * 60)
-        else:
-            backbone_name = 'convnext_tiny'
-            logger.warning("=" * 60)
-            logger.warning(CONVNEXT_WARNING_MSG)
-            logger.warning("=" * 60)
-        
-        logger.info(f"Creando backbone timm: {backbone_name}, pretrained={pretrained}")
-        self.backbone = timm.create_model(
-            backbone_name,
-            pretrained=pretrained,
-            num_classes=0  # Remover clasificador
-        )
-        
-        # Verificar que los pesos se cargaron
-        if pretrained:
-            try:
-                first_conv_weight = list(self.backbone.stem.parameters())[0]
-                weight_mean = first_conv_weight.data.mean().item()
-                weight_std = first_conv_weight.data.std().item()
-                logger.info(f"  Verificación pesos: mean={weight_mean:.6f}, std={weight_std:.6f}")
-                if abs(weight_mean) < 0.001 and weight_std < 0.01:
-                    logger.warning("⚠ Los pesos parecen estar cerca de cero - posible inicialización aleatoria")
-                else:
-                    logger.info("✔ Los pesos parecen estar cargados correctamente")
-            except Exception as e:
-                logger.warning(f"No se pudo verificar pesos: {e}")
+        self.backbone = create_convnext_backbone(pretrained, num_classes=0)
         
         # Obtener número de características
         num_features = self.backbone.num_features
@@ -209,48 +258,10 @@ class MultiHeadRegression(nn.Module):
 
     def _create_convnext_backbone(self, pretrained: bool) -> Tuple[nn.Module, int]:
         """Crea backbone ConvNeXt y retorna (backbone, num_features)."""
-        if not TIMM_AVAILABLE:
-            raise ImportError("timm es requerido para ConvNeXt")
-        
-        if pretrained:
-            backbone_name = CONVNEXT_TINY_MODEL_NAME
-            logger.info("=" * 60)
-            logger.info(CONVNEXT_LOADING_MSG)
-            logger.info(f"  Modelo: {backbone_name}")
-            logger.info("=" * 60)
-        else:
-            backbone_name = 'convnext_tiny'
-            logger.warning("=" * 60)
-            logger.warning(CONVNEXT_WARNING_MSG)
-            logger.warning("=" * 60)
-        
-        logger.info(f"Creando backbone timm: {backbone_name}, pretrained={pretrained}")
-        backbone = timm.create_model(
-            backbone_name,
-            pretrained=pretrained,
-            num_classes=0
-        )
-        
-        if pretrained:
-            self._verify_convnext_weights(backbone)
-        
+        backbone = create_convnext_backbone(pretrained, num_classes=0)
         backbone.regression_head = nn.Identity()
-        num_features = backbone.backbone.num_features
+        num_features = backbone.num_features
         return backbone, num_features
-
-    def _verify_convnext_weights(self, backbone: nn.Module) -> None:
-        """Verifica que los pesos del backbone ConvNeXt se cargaron correctamente."""
-        try:
-            first_conv_weight = list(backbone.stem.parameters())[0]
-            weight_mean = first_conv_weight.data.mean().item()
-            weight_std = first_conv_weight.data.std().item()
-            logger.info(f"  Verificación pesos: mean={weight_mean:.6f}, std={weight_std:.6f}")
-            if abs(weight_mean) < 0.001 and weight_std < 0.01:
-                logger.warning("⚠ Los pesos parecen estar cerca de cero")
-            else:
-                logger.info("✔ Los pesos parecen estar cargados correctamente")
-        except Exception as e:
-            logger.warning(f"No se pudo verificar pesos: {e}")
 
     def _create_backbone(self, backbone_type: str, pretrained: bool) -> Tuple[nn.Module, int]:
         """Crea el backbone según el tipo especificado."""
@@ -391,46 +402,23 @@ class HybridCacaoRegression(nn.Module):
 
     def _create_convnext_backbone(self, pretrained: bool) -> Tuple[nn.Module, int]:
         """Crea y configura el backbone ConvNeXt."""
-        if pretrained:
-            backbone_name = CONVNEXT_TINY_MODEL_NAME
-            logger.info("=" * 60)
-            logger.info(CONVNEXT_LOADING_MSG)
-            logger.info(f"  Modelo: {backbone_name}")
-            logger.info("=" * 60)
-        else:
-            backbone_name = 'convnext_tiny'
+        if not pretrained:
             logger.warning("=" * 60)
             logger.warning(CONVNEXT_WARNING_MSG)
             logger.warning("  Esto resultará en R² muy negativos en epoch 1")
             logger.warning("=" * 60)
         
-        logger.info(f"Creando backbone timm: {backbone_name}, pretrained={pretrained}")
-        convnext = timm.create_model(
-            backbone_name,
-            pretrained=pretrained,
-            num_classes=0,
-            global_pool='avg'
-        )
+        convnext = create_convnext_backbone(pretrained, num_classes=0, global_pool='avg')
         convnext_features = convnext.num_features
         
         if pretrained:
-            self._verify_convnext_weights_hybrid(convnext, backbone_name, convnext_features)
+            backbone_name = CONVNEXT_TINY_MODEL_NAME
+            logger.info(f"✔ Backbone ConvNeXt cargado: {backbone_name} con {convnext_features} features")
+            verify_convnext_weights(convnext, "hybrid")
         else:
-            logger.info(f"Backbone ConvNeXt creado (sin pretrained): {backbone_name} con {convnext_features} features")
+            logger.info(f"Backbone ConvNeXt creado (sin pretrained): convnext_tiny con {convnext_features} features")
         
         return convnext, convnext_features
-
-    def _verify_convnext_weights_hybrid(self, convnext: nn.Module, backbone_name: str, convnext_features: int) -> None:
-        """Verifica que los pesos del ConvNeXt se cargaron correctamente."""
-        first_conv_weight = list(convnext.stem.parameters())[0]
-        weight_mean = first_conv_weight.data.mean().item()
-        weight_std = first_conv_weight.data.std().item()
-        logger.info(f"✔ Backbone ConvNeXt cargado: {backbone_name} con {convnext_features} features")
-        logger.info(f"  Verificación pesos: mean={weight_mean:.6f}, std={weight_std:.6f}")
-        if abs(weight_mean) < 0.001 and weight_std < 0.01:
-            logger.warning("⚠ Los pesos parecen estar cerca de cero - posible inicialización aleatoria")
-        else:
-            logger.info("✔ Los pesos parecen estar cargados correctamente (no son cercanos a cero)")
 
     def _create_pixel_branch(self, num_pixel_features: int, dropout_rate: float, use_pixel_features: bool) -> Tuple[Optional[nn.Module], int]:
         """Crea el branch de features de píxeles si está habilitado."""
@@ -508,17 +496,8 @@ class HybridCacaoRegression(nn.Module):
 
     def _init_module_weights(self, module: nn.Module) -> None:
         """Inicializa los pesos de un módulo individual."""
-        def init_weights(m):
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0.0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1.0)
-                nn.init.constant_(m.bias, 0.0)
-        
         if module is not None:
-            module.apply(init_weights)
+            init_linear_and_batchnorm_weights(module)
     
     def _init_final_layer_weights(self, final_outputs: int) -> None:
         """Inicializa los pesos de la última capa del regression_head."""

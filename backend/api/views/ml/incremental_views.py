@@ -87,6 +87,17 @@ class IncrementalTrainingView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
     
+    @staticmethod
+    def _validate_target(target: str):
+        """Validate target parameter."""
+        valid_targets = ['alto', 'ancho', 'grosor', 'peso']
+        if target not in valid_targets:
+            return create_error_response(
+                message=f"target debe ser uno de: {', '.join(valid_targets)}",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        return None
+    
     @swagger_auto_schema(
         operation_description="Ejecuta entrenamiento incremental con nuevos datos",
         operation_summary="Entrenamiento incremental",
@@ -157,11 +168,9 @@ class IncrementalTrainingView(APIView):
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
             
-            if target not in ['alto', 'ancho', 'grosor', 'peso']:
-                return create_error_response(
-                    message="target debe ser uno de: alto, ancho, grosor, peso",
-                    status_code=status.HTTP_400_BAD_REQUEST
-                )
+            validation_error = self._validate_target(target)
+            if validation_error:
+                return validation_error
             
             # Validar estructura de datos
             for i, record in enumerate(new_data):
@@ -271,6 +280,11 @@ class IncrementalDataUploadView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
+    @staticmethod
+    def _validate_target(target: str):
+        """Validate target parameter."""
+        return IncrementalTrainingView._validate_target(target)
+    
     @swagger_auto_schema(
         operation_description="Sube datos para entrenamiento incremental",
         operation_summary="Subir datos incrementales",
@@ -330,11 +344,9 @@ class IncrementalDataUploadView(APIView):
                     status_code=status.HTTP_400_BAD_REQUEST
                 )
             
-            if target not in ['alto', 'ancho', 'grosor', 'peso']:
-                return create_error_response(
-                    message="target debe ser uno de: alto, ancho, grosor, peso",
-                    status_code=status.HTTP_400_BAD_REQUEST
-                )
+            validation_error = self._validate_target(target)
+            if validation_error:
+                return validation_error
             
             # Procesar archivo CSV
             import pandas as pd

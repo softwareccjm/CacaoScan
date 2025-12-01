@@ -144,13 +144,7 @@ Cypress.Commands.add('fillLoteForm', (loteData) => {
   cy.get('[data-cy="lote-descripcion"]').type(loteData.descripcion)
 })
 
-// Comando para simular respuesta de API
-Cypress.Commands.add('mockApiResponse', (method, url, response, statusCode = 200) => {
-  cy.intercept(method, url, {
-    statusCode,
-    body: response
-  }).as('mockApi')
-})
+// mockApiResponse is defined later in the file - removing duplicate
 
 // Comando para verificar elementos de navegación según rol
 Cypress.Commands.add('checkNavigationForRole', (role) => {
@@ -637,35 +631,7 @@ Cypress.Commands.add('submitFormAndVerifyError', (formSelector, expectedErrors) 
   })
 })
 
-// Intercept error
-Cypress.Commands.add('interceptError', (method, url, statusCode, errorBody, alias) => {
-  const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-  cy.intercept(method, `${apiBaseUrl}${url}`, {
-    statusCode,
-    body: errorBody
-  }).as(alias)
-})
-
-// Verify error message
-Cypress.Commands.add('verifyErrorMessage', (expectedTexts) => {
-  cy.get('body', { timeout: 5000 }).then(($body) => {
-    if ($body.find('[data-cy="error-message"], .error-message').length > 0) {
-      cy.get('[data-cy="error-message"], .error-message').first().should('satisfy', ($el) => {
-        const text = $el.text().toLowerCase()
-        return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
-      })
-    }
-  })
-})
-
-// Retry if available
-Cypress.Commands.add('retryIfAvailable', () => {
-  cy.get('body').then(($body) => {
-    if ($body.find('[data-cy="retry"], button').length > 0) {
-      cy.get('[data-cy="retry"], button').first().click({ force: true })
-    }
-  })
-})
+// Duplicate commands removed - using enhanced versions below
 
 // ============================================
 // Network Error Handling Commands
