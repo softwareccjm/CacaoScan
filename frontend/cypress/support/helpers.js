@@ -1503,3 +1503,106 @@ export function verifyPageTitle(titleSelectors, expectedTexts, timeout = 5000) {
   })
 }
 
+/**
+ * Executes action within first item of a list
+ * @param {string} itemSelector - Selector for list items
+ * @param {Function} action - Function to execute within the item
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function executeInFirstItem(itemSelector, action) {
+  return cy.get(itemSelector).first().within(() => {
+    return action()
+  })
+}
+
+/**
+ * Verifies multiple elements are visible
+ * @param {Array<string>} selectors - Array of CSS selectors to verify
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyElementsVisible(selectors) {
+  for (const selector of selectors) {
+    cy.get(selector).should('be.visible')
+  }
+  return cy.wrap(null)
+}
+
+/**
+ * Verifies empty state message
+ * @param {string} emptyStateSelector - Selector for empty state element
+ * @param {string} expectedText - Expected text in empty state
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyEmptyStateMessage(emptyStateSelector, expectedText) {
+  cy.get(emptyStateSelector).should('be.visible')
+  cy.get(emptyStateSelector).should('contain', expectedText)
+  return cy.wrap(null)
+}
+
+/**
+ * Sets up error intercept and verifies error message
+ * @param {string} method - HTTP method
+ * @param {string} urlPattern - URL pattern to intercept
+ * @param {number} statusCode - HTTP status code
+ * @param {Object} errorBody - Error response body
+ * @param {string} alias - Intercept alias
+ * @param {string} visitUrl - URL to visit after intercept
+ * @param {Array<string>} errorSelectors - Array of error selectors
+ * @param {Array<string>} expectedTexts - Expected error text fragments
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function setupErrorInterceptAndVerify(method, urlPattern, statusCode, errorBody, alias, visitUrl, errorSelectors, expectedTexts) {
+  cy.interceptError(method, urlPattern, statusCode, errorBody, alias)
+  visitAndWaitForBody(visitUrl)
+  return verifyErrorMessageWithSelectors(errorSelectors, expectedTexts)
+}
+
+/**
+ * Uploads file and verifies error after intercept
+ * @param {string} fileInputSelector - Selector for file input
+ * @param {string} fileContent - Base64 file content
+ * @param {string} fileName - File name
+ * @param {string} uploadButtonSelector - Selector for upload button
+ * @param {string} interceptAlias - Cypress alias for intercept
+ * @param {Array<string>} errorSelectors - Array of error selectors
+ * @param {Array<string>} expectedTexts - Expected error text fragments
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function uploadFileAndVerifyErrorAfterIntercept(fileInputSelector, fileContent, fileName, uploadButtonSelector, interceptAlias, errorSelectors, expectedTexts) {
+  return ifFoundInBody(fileInputSelector, () => {
+    uploadFileWithDataTransfer(fileInputSelector, fileContent, fileName)
+    return cy.get('body', { timeout: 3000 }).then(($afterUpload) => {
+      if ($afterUpload.find(uploadButtonSelector).length > 0) {
+        cy.get(uploadButtonSelector).first().click({ force: true })
+        cy.wait(`@${interceptAlias}`, { timeout: 10000 })
+        verifyErrorMessageWithSelectors(errorSelectors, expectedTexts)
+      }
+    })
+  })
+}
+
+/**
+ * Sets up direct intercept and verifies error message
+ * @param {string} method - HTTP method
+ * @param {string} url - Full URL to intercept
+ * @param {number} statusCode - HTTP status code
+ * @param {Object} body - Response body
+ * @param {string} alias - Intercept alias
+ * @param {string} visitUrl - URL to visit
+ * @param {string} errorSelector - Selector for error message
+ * @param {string} expectedText - Expected error text
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function setupDirectInterceptAndVerify(method, url, statusCode, body, alias, visitUrl, errorSelector, expectedText) {
+  cy.intercept(method, url, {
+    statusCode,
+    body
+  }).as(alias)
+  visitAndWaitForBody(visitUrl)
+  cy.wait(`@${alias}`)
+  cy.get(errorSelector)
+    .should('be.visible')
+    .and('contain', expectedText)
+  return cy.wrap(null)
+}
+
