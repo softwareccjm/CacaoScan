@@ -3,7 +3,10 @@ import {
   clickIfExistsAndContinue,
   selectIfExistsAndContinue,
   checkCheckboxIfExists,
-  typeIfExistsAndContinue
+  typeIfExistsAndContinue,
+  verifyReportGenerationComplete,
+  verifyErrorMessageGeneric,
+  getApiBaseUrl
 } from '../../support/helpers'
 
 describe('Generación de Reportes - Creación', () => {
@@ -52,14 +55,7 @@ describe('Generación de Reportes - Creación', () => {
           checkCheckboxIfExists('[data-cy="include-trends"], input[type="checkbox"]')
           checkCheckboxIfExists('[data-cy="include-comparisons"], input[type="checkbox"]')
           return clickIfExistsAndContinue('[data-cy="generate-report"], button[type="submit"]', () => {
-            return cy.get('body', { timeout: 30000 }).then(($completed) => {
-              ifFoundInBody('[data-cy="report-completed"], .completed', () => {
-                cy.get('[data-cy="report-completed"], .completed').should('be.visible')
-              })
-              ifFoundInBody('[data-cy="notification-success"], .swal2-success', () => {
-                cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-              })
-            })
+            return verifyReportGenerationComplete()
           })
         })
       })
@@ -78,14 +74,7 @@ describe('Generación de Reportes - Creación', () => {
           checkCheckboxIfExists('[data-cy="compare-quality"], input[type="checkbox"]')
           checkCheckboxIfExists('[data-cy="compare-production"], input[type="checkbox"]')
           return clickIfExistsAndContinue('[data-cy="generate-report"], button[type="submit"]', () => {
-            return cy.get('body', { timeout: 30000 }).then(($completed) => {
-              ifFoundInBody('[data-cy="report-completed"], .completed', () => {
-                cy.get('[data-cy="report-completed"], .completed').should('be.visible')
-              })
-              ifFoundInBody('[data-cy="notification-success"], .swal2-success', () => {
-                cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-              })
-            })
+            return verifyReportGenerationComplete()
           })
         })
       } else {
@@ -104,14 +93,7 @@ describe('Generación de Reportes - Creación', () => {
             checkCheckboxIfExists('[data-cy="irrigation-rec"], input[type="checkbox"]')
             
             return clickIfExistsAndContinue('[data-cy="generate-report"], button[type="submit"]', () => {
-              return cy.get('body', { timeout: 30000 }).then(($completed) => {
-                ifFoundInBody('[data-cy="report-completed"], .completed', () => {
-                  cy.get('[data-cy="report-completed"], .completed').should('be.visible')
-                })
-                ifFoundInBody('[data-cy="notification-success"], .swal2-success', () => {
-                  cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                })
-              })
+              return verifyReportGenerationComplete()
             })
           })
         })
@@ -154,10 +136,7 @@ describe('Generación de Reportes - Creación', () => {
           cy.get('[data-cy="generate-report"], button[type="submit"]').first().click()
           
           return ifFoundInBody('[data-cy="date-range-error"], .error-message', () => {
-            cy.get('[data-cy="date-range-error"], .error-message').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('fecha') || text.includes('inicio') || text.includes('anterior') || text.length > 0
-            })
+            verifyErrorMessageGeneric(['fecha', 'inicio', 'anterior'], '[data-cy="date-range-error"], .error-message')
           })
         })
       })
@@ -176,10 +155,7 @@ describe('Generación de Reportes - Creación', () => {
             return clickIfExistsAndContinue('[data-cy="cancel-generation"], button', () => {
               return clickIfExistsAndContinue('[data-cy="confirm-cancel"], .swal2-confirm, button', () => {
                 return ifFoundInBody('[data-cy="generation-cancelled"], .cancelled-message', () => {
-                  cy.get('[data-cy="generation-cancelled"], .cancelled-message').should('satisfy', ($el) => {
-                    const text = $el.text().toLowerCase()
-                    return text.includes('cancelada') || text.includes('cancel') || text.length > 0
-                  })
+                  verifyErrorMessageGeneric(['cancelada', 'cancel'], '[data-cy="generation-cancelled"], .cancelled-message')
                 })
               })
             })
@@ -199,10 +175,7 @@ describe('Generación de Reportes - Creación', () => {
             cy.get('[data-cy="generate-report"], button[type="submit"]').first().click()
             
             return ifFoundInBody('[data-cy="progress-stage"], .progress-stage', () => {
-              cy.get('[data-cy="progress-stage"], .progress-stage').should('satisfy', ($el) => {
-                const text = $el.text().toLowerCase()
-                return text.includes('recopilando') || text.includes('procesando') || text.includes('generando') || text.includes('finalizando') || text.length > 0
-              })
+              verifyErrorMessageGeneric(['recopilando', 'procesando', 'generando', 'finalizando'], '[data-cy="progress-stage"], .progress-stage')
             })
           })
         })
@@ -213,7 +186,7 @@ describe('Generación de Reportes - Creación', () => {
   })
 
   it('debe manejar errores durante la generación', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
+    const apiBaseUrl = getApiBaseUrl()
     cy.intercept('POST', `${apiBaseUrl}/reportes/`, {
       statusCode: 500,
       body: { error: 'Error del servidor' }
@@ -228,10 +201,7 @@ describe('Generación de Reportes - Creación', () => {
             cy.wait('@reportError', { timeout: 10000 })
             
             return ifFoundInBody('[data-cy="generation-error"], .error-message, .swal2-error', () => {
-              cy.get('[data-cy="generation-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-                const text = $el.text().toLowerCase()
-                return text.includes('error') || text.includes('generar') || text.includes('reporte') || text.length > 0
-              })
+              verifyErrorMessageGeneric(['error', 'generar', 'reporte'], '[data-cy="generation-error"], .error-message, .swal2-error')
             })
           })
         })

@@ -3,7 +3,10 @@ import {
   ifFoundInBody,
   clickIfExistsAndContinue,
   selectIfExistsAndContinue,
-  typeIfExistsAndContinue
+  typeIfExistsAndContinue,
+  verifyErrorMessageGeneric,
+  verifySuccessMessage,
+  getApiBaseUrl
 } from '../../support/helpers'
 
 describe('Reportes - Exportación y Compartir', () => {
@@ -53,11 +56,7 @@ describe('Reportes - Exportación y Compartir', () => {
       attachmentFormat: 'pdf'
     })
     
-    cy.get('body', { timeout: 5000 }).then(($success) => {
-      if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-        cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-      }
-    })
+    verifySuccessMessage(['success'], '[data-cy="notification-success"], .swal2-success')
   })
 
   it('debe generar enlace de compartir', () => {
@@ -198,7 +197,7 @@ describe('Reportes - Exportación y Compartir', () => {
   })
 
   it('debe manejar errores durante la exportación', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
+    const apiBaseUrl = getApiBaseUrl()
     cy.intercept('POST', `${apiBaseUrl}/reportes/**/export/`, {
       statusCode: 500,
       body: { error: 'Error al exportar reporte' }
@@ -210,10 +209,7 @@ describe('Reportes - Exportación y Compartir', () => {
           cy.wait('@exportError', { timeout: 10000 })
           
           return ifFoundInBody('[data-cy="export-error"], .error-message, .swal2-error', () => {
-            cy.get('[data-cy="export-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('error') || text.includes('exportar') || text.includes('reporte') || text.length > 0
-            })
+            verifyErrorMessageGeneric(['error', 'exportar', 'reporte'], '[data-cy="export-error"], .error-message, .swal2-error')
           })
         })
       })
@@ -229,10 +225,7 @@ describe('Reportes - Exportación y Compartir', () => {
           return ifFoundInBody('[data-cy="export-progress"], .progress', () => {
             cy.get('[data-cy="export-progress"], .progress').should('be.visible')
             ifFoundInBody('[data-cy="progress-percentage"], .progress-percentage', () => {
-              cy.get('[data-cy="progress-percentage"], .progress-percentage').should('satisfy', ($el) => {
-                const text = $el.text()
-                return text.includes('%') || text.length > 0
-              })
+              verifyErrorMessageGeneric(['%'], '[data-cy="progress-percentage"], .progress-percentage')
             })
           })
         })

@@ -20,36 +20,38 @@ export function useSidebarNavigation() {
     return authStore.userFullName || 'Usuario'
   })
 
-  const userRole = computed(() => {
-    const role = authStore.userRole || 'Usuario'
-    // Normalize role for sidebar - Backend returns: 'admin', 'analyst', or 'farmer'
+  const normalizeRole = (role) => {
     if (role === 'admin') return 'admin'
     if (role === 'farmer' || role === 'Agricultor') return 'agricultor'
-    return 'agricultor' // Default to agricultor
+    return 'agricultor'
+  }
+
+  const userRole = computed(() => {
+    const role = authStore.userRole || 'Usuario'
+    return normalizeRole(role)
   })
+
+  const isFarmerRole = (role) => {
+    return role === 'farmer' || role === 'Agricultor'
+  }
+
+  const getDashboardName = (role) => {
+    return isFarmerRole(role) ? 'AgricultorDashboard' : 'AdminDashboard'
+  }
 
   // Methods
   const handleMenuClick = (item) => {
     if (item.route && item.route !== null) {
-      // Navigate to external routes
       const currentPath = route.path
       if (currentPath !== item.route) {
         router.push(item.route)
       }
     } else {
-      // For internal sections without routes, navigate to dashboard with query param
       const role = authStore.userRole
-      if (role === 'farmer' || role === 'Agricultor') {
-        router.push({
-          name: 'AgricultorDashboard',
-          query: { section: item.id }
-        })
-      } else {
-        router.push({
-          name: 'AdminDashboard',
-          query: { section: item.id }
-        })
-      }
+      router.push({
+        name: getDashboardName(role),
+        query: { section: item.id }
+      })
     }
   }
 

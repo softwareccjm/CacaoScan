@@ -2,7 +2,15 @@ import {
   verifySelectorsExist,
   ifFoundInBody,
   clickIfExistsAndContinue,
-  selectIfExistsAndContinue
+  selectIfExistsAndContinue,
+  waitForPageLoad,
+  verifyElementWithAlternatives,
+  verifyUrlPatterns,
+  setupServerError,
+  setupEmptyListIntercept,
+  verifyEmptyState,
+  verifyTextContains,
+  getApiBaseUrl
 } from '../../support/helpers'
 
 describe('Navegación - UI y UX', () => {
@@ -12,7 +20,7 @@ describe('Navegación - UI y UX', () => {
 
   it('debe mostrar navegación principal correctamente', () => {
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
     cy.get('body').then(($body) => {
       const selectors = [
@@ -27,154 +35,131 @@ describe('Navegación - UI y UX', () => {
 
   it('debe mostrar navegación lateral correctamente', () => {
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
+    const sidebarSelectors = ['[data-cy="sidebar"]', '.sidebar', 'nav']
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="sidebar"], .sidebar, nav').length > 0) {
-        cy.get('[data-cy="sidebar"], .sidebar, nav').first().should('exist')
-        if ($body.find('[data-cy="sidebar-menu"], .sidebar-menu, .menu').length > 0) {
-          cy.get('[data-cy="sidebar-menu"], .sidebar-menu, .menu').should('exist')
-        }
-        if ($body.find('[data-cy="sidebar-link"], .sidebar-link, a, button').length > 0) {
-          cy.get('[data-cy="sidebar-link"], .sidebar-link, a, button').should('have.length.greaterThan', 0)
-        }
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      verifyElementWithAlternatives(sidebarSelectors, $body).then(() => {
+        const menuSelectors = ['[data-cy="sidebar-menu"]', '.sidebar-menu', '.menu']
+        verifyElementWithAlternatives(menuSelectors, $body)
+        const linkSelectors = ['[data-cy="sidebar-link"]', '.sidebar-link', 'a', 'button']
+        verifyElementWithAlternatives(linkSelectors, $body).then(() => {
+          cy.get(linkSelectors.join(', ')).should('have.length.greaterThan', 0)
+        })
+      })
     })
   })
 
   it('debe mostrar breadcrumbs correctamente', () => {
     cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($finca) => {
-          if ($finca.find('[data-cy="breadcrumbs"], .breadcrumbs, .breadcrumb').length > 0) {
-            cy.get('[data-cy="breadcrumbs"], .breadcrumbs, .breadcrumb').should('exist')
-            if ($finca.find('[data-cy="breadcrumb-home"], .breadcrumb-home').length > 0) {
-              cy.get('[data-cy="breadcrumb-home"], .breadcrumb-home').should('exist')
-            }
-            if ($finca.find('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas').length > 0) {
-              cy.get('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas').should('exist')
-            }
-            if ($finca.find('[data-cy="breadcrumb-current"], .breadcrumb-current').length > 0) {
-              cy.get('[data-cy="breadcrumb-current"], .breadcrumb-current').should('exist')
-            }
-          }
+    const fincaSelectors = ['[data-cy="finca-item"]', '.finca-item', '.item']
+    ifFoundInBody(fincaSelectors.join(', '), () => {
+      cy.get(fincaSelectors.join(', ')).first().click({ force: true })
+      cy.get('body', { timeout: 5000 }).then(($finca) => {
+        const breadcrumbSelectors = ['[data-cy="breadcrumbs"]', '.breadcrumbs', '.breadcrumb']
+        verifyElementWithAlternatives(breadcrumbSelectors, $finca).then(() => {
+          const breadcrumbHomeSelectors = ['[data-cy="breadcrumb-home"]', '.breadcrumb-home']
+          verifyElementWithAlternatives(breadcrumbHomeSelectors, $finca)
+          const breadcrumbFincasSelectors = ['[data-cy="breadcrumb-fincas"]', '.breadcrumb-fincas']
+          verifyElementWithAlternatives(breadcrumbFincasSelectors, $finca)
+          const breadcrumbCurrentSelectors = ['[data-cy="breadcrumb-current"]', '.breadcrumb-current']
+          verifyElementWithAlternatives(breadcrumbCurrentSelectors, $finca)
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe navegar usando breadcrumbs', () => {
     cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    ifFoundInBody('[data-cy="finca-item"], .finca-item, .item', () => {
-      cy.get('[data-cy="finca-item"], .finca-item, .item').first().click({ force: true })
-      return ifFoundInBody('[data-cy="lote-item"], .lote-item, .item', () => {
-        cy.get('[data-cy="lote-item"], .lote-item, .item').first().click({ force: true })
-        return clickIfExistsAndContinue('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas, .breadcrumb', () => {
-          cy.get('body', { timeout: 5000 }).should('be.visible')
+    const fincaSelectors = ['[data-cy="finca-item"]', '.finca-item', '.item']
+    ifFoundInBody(fincaSelectors.join(', '), () => {
+      cy.get(fincaSelectors.join(', ')).first().click({ force: true })
+      const loteSelectors = ['[data-cy="lote-item"]', '.lote-item', '.item']
+      return ifFoundInBody(loteSelectors.join(', '), () => {
+        cy.get(loteSelectors.join(', ')).first().click({ force: true })
+        const breadcrumbFincasSelectors = ['[data-cy="breadcrumb-fincas"]', '.breadcrumb-fincas', '.breadcrumb']
+        return clickIfExistsAndContinue(breadcrumbFincasSelectors.join(', '), () => {
+          waitForPageLoad(5000)
         }).then(() => {
-          return clickIfExistsAndContinue('[data-cy="breadcrumb-home"], .breadcrumb-home, a[href*="dashboard"]', () => {
-            cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-              return url.includes('/agricultor-dashboard') || url.includes('/dashboard')
-            })
+          const breadcrumbHomeSelectors = ['[data-cy="breadcrumb-home"]', '.breadcrumb-home', 'a[href*="dashboard"]']
+          return clickIfExistsAndContinue(breadcrumbHomeSelectors.join(', '), () => {
+            verifyUrlPatterns(['/agricultor-dashboard', '/dashboard'])
           })
         })
       })
-    }, () => {
-      cy.get('body').should('be.visible')
     })
   })
 
   it('debe mostrar menú de usuario correctamente', () => {
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
-        cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($menu) => {
-          if ($menu.find('[data-cy="user-menu-items"], .user-menu-items, .menu-items').length > 0) {
-            cy.get('[data-cy="user-menu-items"], .user-menu-items, .menu-items').should('exist')
-            if ($menu.find('[data-cy="profile-link"], .profile-link, a').length > 0) {
-              cy.get('[data-cy="profile-link"], .profile-link, a').should('exist')
-            }
-            if ($menu.find('[data-cy="settings-link"], .settings-link, a').length > 0) {
-              cy.get('[data-cy="settings-link"], .settings-link, a').should('exist')
-            }
-            if ($menu.find('[data-cy="logout-button"], .logout-button, button').length > 0) {
-              cy.get('[data-cy="logout-button"], .logout-button, button').should('exist')
-            }
-          }
+    const userMenuSelectors = ['[data-cy="user-menu"]', '.user-menu', 'button']
+    ifFoundInBody(userMenuSelectors.join(', '), () => {
+      cy.get(userMenuSelectors.join(', ')).first().click({ force: true })
+      cy.get('body', { timeout: 3000 }).then(($menu) => {
+        const menuItemsSelectors = ['[data-cy="user-menu-items"]', '.user-menu-items', '.menu-items']
+        verifyElementWithAlternatives(menuItemsSelectors, $menu).then(() => {
+          const profileLinkSelectors = ['[data-cy="profile-link"]', '.profile-link', 'a']
+          verifyElementWithAlternatives(profileLinkSelectors, $menu)
+          const settingsLinkSelectors = ['[data-cy="settings-link"]', '.settings-link', 'a']
+          verifyElementWithAlternatives(settingsLinkSelectors, $menu)
+          const logoutButtonSelectors = ['[data-cy="logout-button"]', '.logout-button', 'button']
+          verifyElementWithAlternatives(logoutButtonSelectors, $menu)
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe mostrar navegación responsive en móvil', () => {
     cy.viewport(375, 667)
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="mobile-menu-button"], .mobile-menu-button, button').length > 0) {
-        cy.get('[data-cy="mobile-menu-button"], .mobile-menu-button, button').first().should('exist')
-        
-        cy.get('[data-cy="mobile-menu-button"], .mobile-menu-button, button').first().click({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($menu) => {
-          if ($menu.find('[data-cy="mobile-menu"], .mobile-menu').length > 0) {
-            cy.get('[data-cy="mobile-menu"], .mobile-menu').should('exist')
-            if ($menu.find('[data-cy="mobile-menu-link"], .mobile-menu-link, a').length > 0) {
-              cy.get('[data-cy="mobile-menu-link"], .mobile-menu-link, a').should('have.length.greaterThan', 0)
-            }
-          }
+    const mobileMenuButtonSelectors = ['[data-cy="mobile-menu-button"]', '.mobile-menu-button', 'button']
+    ifFoundInBody(mobileMenuButtonSelectors.join(', '), () => {
+      cy.get(mobileMenuButtonSelectors.join(', ')).first().click({ force: true })
+      cy.get('body', { timeout: 3000 }).then(($menu) => {
+        const mobileMenuSelectors = ['[data-cy="mobile-menu"]', '.mobile-menu']
+        verifyElementWithAlternatives(mobileMenuSelectors, $menu).then(() => {
+          const mobileMenuLinkSelectors = ['[data-cy="mobile-menu-link"]', '.mobile-menu-link', 'a']
+          verifyElementWithAlternatives(mobileMenuLinkSelectors, $menu).then(() => {
+            cy.get(mobileMenuLinkSelectors.join(', ')).should('have.length.greaterThan', 0)
+          })
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe mostrar navegación responsive en tablet', () => {
     cy.viewport(768, 1024)
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="sidebar"], .sidebar, nav').length > 0) {
-        cy.get('[data-cy="sidebar"], .sidebar, nav').should('exist')
-      }
-      if ($body.find('[data-cy="main-content"], .main-content, main').length > 0) {
-        cy.get('[data-cy="main-content"], .main-content, main').should('exist')
-      }
+      const sidebarSelectors = ['[data-cy="sidebar"]', '.sidebar', 'nav']
+      verifyElementWithAlternatives(sidebarSelectors, $body)
+      const mainContentSelectors = ['[data-cy="main-content"]', '.main-content', 'main']
+      verifyElementWithAlternatives(mainContentSelectors, $body)
     })
   })
 
   it('debe mostrar navegación responsive en desktop', () => {
     cy.viewport(1920, 1080)
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="sidebar"], .sidebar, nav').length > 0) {
-        cy.get('[data-cy="sidebar"], .sidebar, nav').should('exist')
-      }
-      if ($body.find('[data-cy="main-content"], .main-content, main').length > 0) {
-        cy.get('[data-cy="main-content"], .main-content, main').should('exist')
-      }
-      if ($body.find('[data-cy="navbar"], .navbar, nav').length > 0) {
-        cy.get('[data-cy="navbar"], .navbar, nav').should('exist')
-      }
+      const sidebarSelectors = ['[data-cy="sidebar"]', '.sidebar', 'nav']
+      verifyElementWithAlternatives(sidebarSelectors, $body)
+      const mainContentSelectors = ['[data-cy="main-content"]', '.main-content', 'main']
+      verifyElementWithAlternatives(mainContentSelectors, $body)
+      const navbarSelectors = ['[data-cy="navbar"]', '.navbar', 'nav']
+      verifyElementWithAlternatives(navbarSelectors, $body)
     })
   })
 
@@ -239,25 +224,18 @@ describe('Navegación - UI y UX', () => {
   })
 
   it('debe mostrar navegación con estados de error', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
-      statusCode: 500,
-      body: { error: 'Error del servidor' }
-    }).as('serverError')
+    setupServerError('/fincas/**', 'serverError')
     
     cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
     cy.wait(1000)
     
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
-        cy.get('[data-cy="error-message"], .error-message, .swal2-error').should('exist')
-      }
-      
-      if ($body.find('[data-cy="retry-button"], .retry-button, button').length > 0) {
-        cy.get('[data-cy="retry-button"], .retry-button, button').should('exist')
-      }
+      const errorSelectors = ['[data-cy="error-message"]', '.error-message', '.swal2-error']
+      verifyElementWithAlternatives(errorSelectors, $body)
+      const retryButtonSelectors = ['[data-cy="retry-button"]', '.retry-button', 'button']
+      verifyElementWithAlternatives(retryButtonSelectors, $body)
     })
   })
 

@@ -91,6 +91,51 @@ class CacaoReportPDFGenerator:
             spaceAfter=3
         ))
     
+    def _create_table_with_style(
+        self,
+        data: list[list[str]],
+        col_widths: list[float],
+        header_font_size: int = 10,
+        body_font_size: int = 10,
+        alignment: str = 'CENTER'
+    ) -> Table:
+        """Crear tabla con estilo estándar."""
+        table = Table(data, colWidths=col_widths)
+        table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), alignment),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), header_font_size),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]
+        
+        if body_font_size != header_font_size:
+            table_style.append(('FONTSIZE', (0, 1), (-1, -1), body_font_size))
+        
+        table.setStyle(TableStyle(table_style))
+        return table
+    
+    def _create_section_with_table(
+        self,
+        title: str,
+        data: list[list[str]],
+        col_widths: list[float],
+        header_font_size: int = 10,
+        body_font_size: int = 10,
+        alignment: str = 'CENTER'
+    ) -> list:
+        """Crear sección con título y tabla."""
+        story = []
+        story.append(Paragraph(title, self.styles['CustomSubtitle']))
+        story.append(Spacer(1, 10))
+        table = self._create_table_with_style(data, col_widths, header_font_size, body_font_size, alignment)
+        story.append(table)
+        story.append(Spacer(1, 20))
+        return story
+    
     def generate_quality_report(self, user, filtros=None):
         """
         Generar reporte de calidad de granos.
@@ -299,12 +344,6 @@ class CacaoReportPDFGenerator:
     
     def _create_stats_section(self, stats):
         """Crear sección de estadísticas."""
-        story = []
-        
-        story.append(Paragraph("Estadísticas Generales", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
-        # Tabla de estadísticas
         data = [
             [PDF_COL_METRIC, PDF_COL_VALUE],
             ['Total de Análisis', str(stats['total_analyses'])],
@@ -314,35 +353,17 @@ class CacaoReportPDFGenerator:
             ['Grosor Promedio', f"{stats['avg_dimensions']['grosor']} mm"],
             ['Peso Promedio', f"{stats['avg_weight']} g"],
         ]
-        
-        table = Table(data, colWidths=[2*inch, 2*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Estadísticas Generales",
+            data,
+            [2*inch, 2*inch],
+            header_font_size=12
+        )
     
     def _create_recent_analyses_table(self, analyses):
         """Crear tabla de análisis recientes."""
-        story = []
-        
-        story.append(Paragraph("Análisis Recientes", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
-        # Encabezados
         data = [['Fecha', 'Usuario', 'Confianza', 'Alto (mm)', 'Ancho (mm)', 'Grosor (mm)', 'Peso (g)']]
         
-        # Datos
         for analysis in analyses:
             data.append([
                 analysis.created_at.strftime('%d/%m/%Y %H:%M'),
@@ -354,32 +375,20 @@ class CacaoReportPDFGenerator:
                 f"{analysis.peso_g:.1f}",
             ])
         
-        table = Table(data, colWidths=[1*inch, 1*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Análisis Recientes",
+            data,
+            [1*inch, 1*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch],
+            header_font_size=8,
+            body_font_size=7
+        )
     
     def _create_quality_distribution_chart(self, queryset):
         """Crear gráfico de distribución de calidad."""
         story = []
-        
         story.append(Paragraph("Distribución de Calidad", self.styles['CustomSubtitle']))
         story.append(Spacer(1, 10))
         
-        # Calcular distribución
         distribution = {
             'Excelente (90%)': queryset.filter(average_confidence__gte=0.9).count(),
             'Buena (80-89%)': queryset.filter(average_confidence__gte=0.8, average_confidence__lt=0.9).count(),
@@ -394,18 +403,7 @@ class CacaoReportPDFGenerator:
                 percentage = (count / total) * 100
                 data.append([category, str(count), f"{percentage:.1f}%"])
             
-            table = Table(data, colWidths=[2*inch, 1*inch, 1*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            
+            table = self._create_table_with_style(data, [2*inch, 1*inch, 1*inch])
             story.append(table)
             story.append(Spacer(1, 20))
         
@@ -441,11 +439,6 @@ class CacaoReportPDFGenerator:
     
     def _create_finca_info_section(self, finca):
         """Crear sección de información de finca."""
-        story = []
-        
-        story.append(Paragraph("Información de la Finca", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
         data = [
             ['Campo', 'Valor'],
             ['Nombre', finca.nombre],
@@ -457,24 +450,12 @@ class CacaoReportPDFGenerator:
             ['Total de Análisis', str(finca.total_analisis)],
             ['Calidad Promedio', f"{finca.calidad_promedio}%"],
         ]
-        
-        table = Table(data, colWidths=[2*inch, 3*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Información de la Finca",
+            data,
+            [2*inch, 3*inch],
+            alignment='LEFT'
+        )
     
     def _get_lotes_stats(self, finca):
         """Obtener estadísticas de lotes de la finca."""
@@ -490,11 +471,6 @@ class CacaoReportPDFGenerator:
     
     def _create_lotes_stats_section(self, stats):
         """Crear sección de estadísticas de lotes."""
-        story = []
-        
-        story.append(Paragraph("Estadísticas de Lotes", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
         data = [
             [PDF_COL_METRIC, PDF_COL_VALUE],
             ['Total de Lotes', str(stats['total_lotes'])],
@@ -502,28 +478,15 @@ class CacaoReportPDFGenerator:
             ['Área Total', f"{stats['total_area']:.2f} ha"],
             ['Variedades', str(len(stats['variedades']))],
         ]
-        
-        table = Table(data, colWidths=[2*inch, 2*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Estadísticas de Lotes",
+            data,
+            [2*inch, 2*inch]
+        )
     
     def _create_lotes_analysis_section(self, finca):
         """Crear sección de análisis por lote."""
         story = []
-        
         story.append(Paragraph("Análisis por Lote", self.styles['CustomSubtitle']))
         story.append(Spacer(1, 10))
         
@@ -542,19 +505,12 @@ class CacaoReportPDFGenerator:
                     f"{lote.calidad_promedio:.1f}",
                 ])
             
-            table = Table(data, colWidths=[1*inch, 1.5*inch, 1*inch, 0.8*inch, 0.8*inch, 0.8*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 8),
-                ('FONTSIZE', (0, 1), (-1, -1), 7),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            
+            table = self._create_table_with_style(
+                data,
+                [1*inch, 1.5*inch, 1*inch, 0.8*inch, 0.8*inch, 0.8*inch],
+                header_font_size=8,
+                body_font_size=7
+            )
             story.append(table)
             story.append(Spacer(1, 20))
         
@@ -610,33 +566,16 @@ class CacaoReportPDFGenerator:
     
     def _create_activity_stats_section(self, stats):
         """Crear sección de estadísticas de actividad."""
-        story = []
-        
-        story.append(Paragraph("Estadísticas de Actividad", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
         data = [
             [PDF_COL_METRIC, PDF_COL_VALUE],
             ['Total de Actividades', str(stats['total_activities'])],
             ['Actividades Hoy', str(stats['activities_today'])],
         ]
-        
-        table = Table(data, colWidths=[2*inch, 2*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Estadísticas de Actividad",
+            data,
+            [2*inch, 2*inch]
+        )
     
     def _get_login_stats(self, filtros):
         """Obtener estadísticas de logins."""
@@ -657,11 +596,6 @@ class CacaoReportPDFGenerator:
     
     def _create_login_stats_section(self, stats):
         """Crear sección de estadísticas de logins."""
-        story = []
-        
-        story.append(Paragraph("Estadísticas de Logins", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
         data = [
             [PDF_COL_METRIC, PDF_COL_VALUE],
             ['Total de Logins', str(stats['total_logins'])],
@@ -669,31 +603,14 @@ class CacaoReportPDFGenerator:
             ['Logins Fallidos', str(stats['failed_logins'])],
             ['Tasa de xito', f"{stats['success_rate']:.1f}%"],
         ]
-        
-        table = Table(data, colWidths=[2*inch, 2*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Estadísticas de Logins",
+            data,
+            [2*inch, 2*inch]
+        )
     
     def _create_recent_activities_table(self, activities):
         """Crear tabla de actividades recientes."""
-        story = []
-        
-        story.append(Paragraph("Actividades Recientes", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 10))
-        
         data = [['Fecha', 'Usuario', 'Acción', 'Modelo', 'Descripción']]
         
         for activity in activities:
@@ -705,21 +622,11 @@ class CacaoReportPDFGenerator:
                 activity.descripcion[:50] + '...' if len(activity.descripcion) > 50 else activity.descripcion,
             ])
         
-        table = Table(data, colWidths=[1*inch, 1*inch, 0.8*inch, 0.8*inch, 2*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        story.append(table)
-        story.append(Spacer(1, 20))
-        
-        return story
+        return self._create_section_with_table(
+            "Actividades Recientes",
+            data,
+            [1*inch, 1*inch, 0.8*inch, 0.8*inch, 2*inch],
+            header_font_size=8,
+            body_font_size=7
+        )
 

@@ -5,6 +5,15 @@ import GlobalLoader from '../GlobalLoader.vue'
 describe('GlobalLoader', () => {
   let wrapper
 
+  const mountComponent = () => {
+    return mount(GlobalLoader)
+  }
+
+  const triggerLoading = async (title, message) => {
+    globalThis.showGlobalLoading(title, message)
+    await wrapper.vm.$nextTick()
+  }
+
   beforeEach(() => {
     vi.useFakeTimers()
     globalThis.addEventListener = vi.fn()
@@ -20,70 +29,47 @@ describe('GlobalLoader', () => {
   })
 
   it('should render when isLoading is true', async () => {
-    wrapper = mount(GlobalLoader)
-    
-    // Trigger loading
-    globalThis.showGlobalLoading('Test', 'Message')
-    await wrapper.vm.$nextTick()
-
+    wrapper = mountComponent()
+    await triggerLoading('Test', 'Message')
     expect(wrapper.find('.fixed').exists()).toBe(true)
   })
 
   it('should not render when isLoading is false', () => {
-    wrapper = mount(GlobalLoader)
-
+    wrapper = mountComponent()
     expect(wrapper.find('.fixed').exists()).toBe(false)
   })
 
   it('should display loading text and message', async () => {
-    wrapper = mount(GlobalLoader)
-    
-    globalThis.showGlobalLoading('Loading...', 'Please wait')
-    await wrapper.vm.$nextTick()
-
+    wrapper = mountComponent()
+    await triggerLoading('Loading...', 'Please wait')
     const text = wrapper.text()
     expect(text).toContain('Loading...')
     expect(text).toContain('Please wait')
   })
 
   it('should show progress bar', async () => {
-    wrapper = mount(GlobalLoader)
-    
-    globalThis.showGlobalLoading()
-    await wrapper.vm.$nextTick()
-
+    wrapper = mountComponent()
+    await triggerLoading()
     expect(wrapper.find('.bg-gray-200').exists()).toBe(true)
   })
 
-  it('should listen to route-loading-start event', () => {
-    wrapper = mount(GlobalLoader)
+  const testEventListening = (eventName) => {
+    it(`should listen to ${eventName} event`, () => {
+      wrapper = mountComponent()
+      expect(globalThis.addEventListener).toHaveBeenCalledWith(eventName, expect.any(Function))
+    })
+  }
 
-    expect(globalThis.addEventListener).toHaveBeenCalledWith('route-loading-start', expect.any(Function))
-  })
-
-  it('should listen to route-loading-end event', () => {
-    wrapper = mount(GlobalLoader)
-
-    expect(globalThis.addEventListener).toHaveBeenCalledWith('route-loading-end', expect.any(Function))
-  })
-
-  it('should listen to api-loading-start event', () => {
-    wrapper = mount(GlobalLoader)
-
-    expect(globalThis.addEventListener).toHaveBeenCalledWith('api-loading-start', expect.any(Function))
-  })
-
-  it('should listen to api-loading-end event', () => {
-    wrapper = mount(GlobalLoader)
-
-    expect(globalThis.addEventListener).toHaveBeenCalledWith('api-loading-end', expect.any(Function))
-  })
+  testEventListening('route-loading-start')
+  testEventListening('route-loading-end')
+  testEventListening('api-loading-start')
+  testEventListening('api-loading-end')
 
   it('should clean up event listeners on unmount', () => {
-    wrapper = mount(GlobalLoader)
+    wrapper = mountComponent()
     wrapper.unmount()
-
     expect(globalThis.removeEventListener).toHaveBeenCalled()
   })
 })
+
 
