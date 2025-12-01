@@ -12,7 +12,7 @@
         :id="fieldId"
         type="button"
         role="switch"
-        :aria-checked="ariaChecked.toString()"
+        :aria-checked="ariaChecked ? 'true' : 'false'"
         :aria-label="ariaLabel"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out',
@@ -103,10 +103,6 @@ const fieldId = `toggle-${generateSecureId()}`
 
 const ariaLabel = computed(() => {
   return props.label || 'Toggle switch'
-})
-
-const ariaChecked = computed(() => {
-  return props.modelValue
 })
 
 const activeClasses = computed(() => {

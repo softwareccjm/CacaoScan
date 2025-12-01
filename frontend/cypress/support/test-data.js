@@ -170,6 +170,14 @@ export const getWeakPassword = (index = 0) => {
   return weakPasswords[index] || weakPasswords[0]
 }
 
+/**
+ * Generates a different password dynamically for password match validation tests
+ * @returns {string} Generated different password
+ */
+export const generateDifferentPassword = () => {
+  return getEnvVar('CYPRESS_DIFFERENT_PASSWORD', buildDifferentSecret())
+}
+
 // Test user credentials
 export const TEST_CREDENTIALS = {
   // Standard test password for most tests

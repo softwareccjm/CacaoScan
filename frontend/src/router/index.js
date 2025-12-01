@@ -28,7 +28,7 @@ import LotesView from '../views/LotesView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 // Import route helpers
-import { createRouteMeta, createPublicRoute, createAuthRoute, createGuestRoute } from '@/utils/routeHelpers'
+import { createRouteMeta } from '@/utils/routeHelpers'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

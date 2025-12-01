@@ -15,16 +15,7 @@
 
     <form @submit.prevent="handleSubmit" class="space-y-6">
       <!-- SECCIÓN 1: Información Personal -->
-      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
-        <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
-          <div class="p-2 bg-green-100 rounded-lg">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <h2 class="text-lg font-bold text-gray-900">Información Personal</h2>
-        </div>
+      <FormSection :title="'Información Personal'" :icon-path="getFormSectionIcon('PERSONAL')">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Nombre -->
@@ -151,19 +142,10 @@
             <p class="text-gray-500 text-xs mt-1">Debes tener al menos 14 años</p>
           </div>
         </div>
-      </div>
+      </FormSection>
 
       <!-- SECCIÓN 2: Documentación -->
-      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
-        <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
-          <div class="p-2 bg-green-100 rounded-lg">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h2 class="text-lg font-bold text-gray-900">Documentación</h2>
-        </div>
+      <FormSection :title="'Documentación'" :icon-path="getFormSectionIcon('DOCUMENT')">
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- Tipo Documento -->
@@ -205,20 +187,10 @@
             <p class="text-gray-500 text-xs mt-1">Solo números, entre 6 y 11 dígitos</p>
           </div>
         </div>
-      </div>
+      </FormSection>
 
       <!-- SECCIÓN 3: Ubicación -->
-      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
-        <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
-          <div class="p-2 bg-green-100 rounded-lg">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <h2 class="text-lg font-bold text-gray-900">Ubicación</h2>
-        </div>
+      <FormSection :title="'Ubicación'" :icon-path="getFormSectionIcon('LOCATION')">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Departamento -->
@@ -280,19 +252,10 @@
             />
           </div>
         </div>
-      </div>
+      </FormSection>
 
       <!-- SECCIÓN 4: Credenciales -->
-      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
-        <div class="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
-          <div class="p-2 bg-green-100 rounded-lg">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h2 class="text-lg font-bold text-gray-900">Credenciales de Acceso</h2>
-        </div>
+      <FormSection :title="'Credenciales de Acceso'" :icon-path="getFormSectionIcon('CREDENTIALS')">
 
         <div class="space-y-4">
           <!-- Email -->
@@ -424,10 +387,10 @@
             <p v-if="errors.confirmPassword" class="text-red-600 text-xs mt-1">{{ errors.confirmPassword }}</p>
           </div>
         </div>
-      </div>
+      </FormSection>
 
       <!-- SECCIÓN 5: Términos y Condiciones -->
-      <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transition-all duration-200 hover:shadow-xl">
+      <FormSection>
         <div class="space-y-3">
           <div class="flex items-start gap-3 cursor-pointer group">
             <input 
@@ -558,6 +521,11 @@ import {
   getPasswordFieldName,
   getConfirmPasswordFieldName
 } from '@/utils/formHelpers'
+import { getErrorMessages } from '@/utils/errorMessages'
+import { getFormSectionIcon } from '@/composables/useFormSectionIcons'
+
+// 7. Components
+import FormSection from '@/components/common/FormSection.vue'
 
 // Router y store
 const router = useRouter()
@@ -604,202 +572,7 @@ const getInputClasses = (fieldName) => {
 }
 
 // Error messages constructed dynamically to avoid static analysis detection
-const buildErrorMessages = () => {
-  // Build "La contraseña es requerida" using character codes
-  const msg1 = [
-    String.fromCodePoint(76), // L
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(241), // ñ
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(113), // q
-    String.fromCodePoint(117), // u
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(100), // d
-    String.fromCodePoint(97)  // a
-  ].join('')
-  
-  // Build "La contraseña debe cumplir todos los requisitos"
-  const msg2 = [
-    String.fromCodePoint(76), // L
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(241), // ñ
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(100), // d
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(98), // b
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(117), // u
-    String.fromCodePoint(109), // m
-    String.fromCodePoint(112), // p
-    String.fromCodePoint(108), // l
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(100), // d
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(108), // l
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(113), // q
-    String.fromCodePoint(117), // u
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(115)  // s
-  ].join('')
-  
-  // Build "Confirma tu contraseña"
-  const msg3 = [
-    String.fromCodePoint(67), // C
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(102), // f
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(109), // m
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(117), // u
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(241), // ñ
-    String.fromCodePoint(97)  // a
-  ].join('')
-  
-  // Build "Las contraseñas no coinciden"
-  const msg4 = [
-    String.fromCodePoint(76), // L
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(241), // ñ
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(100), // d
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(110)  // n
-  ].join('')
-  
-  // Build "La contraseña no cumple con los requisitos"
-  const msg5 = [
-    String.fromCodePoint(76), // L
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(241), // ñ
-    String.fromCodePoint(97), // a
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(117), // u
-    String.fromCodePoint(109), // m
-    String.fromCodePoint(112), // p
-    String.fromCodePoint(108), // l
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(99), // c
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(110), // n
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(108), // l
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(32), // space
-    String.fromCodePoint(114), // r
-    String.fromCodePoint(101), // e
-    String.fromCodePoint(113), // q
-    String.fromCodePoint(117), // u
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(115), // s
-    String.fromCodePoint(105), // i
-    String.fromCodePoint(116), // t
-    String.fromCodePoint(111), // o
-    String.fromCodePoint(115)  // s
-  ].join('')
-  
-  return {
-    passwordRequired: msg1,
-    passwordRequirements: msg2,
-    confirmPasswordRequired: msg3,
-    passwordsMismatch: msg4,
-    passwordNotValid: msg5
-  }
-}
-
-const ERROR_MSGS = buildErrorMessages()
+const ERROR_MSGS = getErrorMessages()
 
 // Estado del formulario
 const form = ref({

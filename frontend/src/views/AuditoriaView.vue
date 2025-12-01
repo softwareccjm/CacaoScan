@@ -332,7 +332,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
 import AuditTable from '@/components/audit/AuditTable.vue';
@@ -343,7 +343,6 @@ import AuditDetailsModal from '@/components/audit/AuditDetailsModal.vue';
 import AuditStatsModal from '@/components/audit/AuditStatsModal.vue';
 import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useAuditStore } from '@/stores/audit';
-import { useAuthStore } from '@/stores/auth';
 import { useAdminView } from '@/composables/useAdminView';
 import { useAdminSidebarProps } from '@/composables/useAdminSidebarProps';
 import { calculatePeriodDates } from '@/composables/usePeriodDates';
@@ -365,7 +364,6 @@ export default {
   },
   setup() {
     const auditStore = useAuditStore();
-    const authStore = useAuthStore();
 
     // Estado específico de AuditoriaView
     const showDetailsModal = ref(false);

@@ -6,6 +6,7 @@ import { generateTestPassword, generateStrongPassword, getWeakPassword } from '.
 
 describe('Authentication - Advanced Scenarios', () => {
   const EMAIL_INPUT_SELECTOR = '[data-cy="input-email"], input[type="text"], input[type="email"]'
+  // NOSONAR S2068 - This is a CSS selector string, not a hardcoded password
   const PASSWORD_INPUT_SELECTOR = '[data-cy="input-password"], [data-cy="password-input"], input[type="password"]'
   const LOGIN_BUTTON_SELECTOR = '[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]'
   const ERROR_SELECTOR = '.error-message, [data-cy="error"], [data-cy="email-error"], [data-cy="password-error"]'

@@ -31,9 +31,63 @@ class ExcelBaseGenerator:
     Provides common functionality and styles.
     """
     
+    # Common style constants to avoid duplication
+    HEADER_COLOR = "2F4F4F"
+    HEADER_TEXT_COLOR = "FFFFFF"
+    TITLE_COLOR = "2F4F4F"
+    
     def __init__(self):
         self.workbook = None
         self.ws = None
+    
+    def _get_thin_border(self) -> Border:
+        """
+        Returns a standard thin border style.
+        
+        Returns:
+            Border: Thin border object
+        """
+        return Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+    
+    def _get_header_fill(self) -> PatternFill:
+        """
+        Returns standard header fill style.
+        
+        Returns:
+            PatternFill: Header fill object
+        """
+        return PatternFill(
+            start_color=self.HEADER_COLOR,
+            end_color=self.HEADER_COLOR,
+            fill_type="solid"
+        )
+    
+    def _get_header_font(self) -> Font:
+        """
+        Returns standard header font style.
+        
+        Returns:
+            Font: Header font object
+        """
+        return Font(bold=True, color=self.HEADER_TEXT_COLOR)
+    
+    def _get_alignment_map(self) -> dict:
+        """
+        Returns alignment mapping dictionary.
+        
+        Returns:
+            dict: Mapping of alignment strings to Alignment objects
+        """
+        return {
+            'center': Alignment(horizontal='center'),
+            'left': Alignment(horizontal='left'),
+            'right': Alignment(horizontal='right')
+        }
     
     def _create_workbook(self, sheet_title: str = "Reporte"):
         """Creates a new workbook and worksheet."""
@@ -51,7 +105,7 @@ class ExcelBaseGenerator:
         """
         # Main title
         self.ws['A1'] = title
-        self.ws['A1'].font = Font(size=16, bold=True, color="2F4F4F")
+        self.ws['A1'].font = Font(size=16, bold=True, color=self.TITLE_COLOR)
         self.ws['A1'].alignment = Alignment(horizontal='center')
         self.ws.merge_cells('A1:F1')
         
@@ -74,15 +128,10 @@ class ExcelBaseGenerator:
             row_num: Row number
             num_cols: Number of columns
         """
-        header_fill = PatternFill(start_color="2F4F4F", end_color="2F4F4F", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = self._get_header_fill()
+        header_font = self._get_header_font()
         header_alignment = Alignment(horizontal='center', vertical='center')
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        thin_border = self._get_thin_border()
         
         for col in range(1, num_cols + 1):
             cell = self.ws.cell(row=row_num, column=col)
@@ -99,12 +148,7 @@ class ExcelBaseGenerator:
             row_num: Row number
             col_num: Column number
         """
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        thin_border = self._get_thin_border()
         cell = self.ws.cell(row=row_num, column=col_num)
         cell.border = thin_border
     
@@ -168,7 +212,7 @@ class ExcelBaseGenerator:
             title: Section title text
         """
         self.ws[cell_address] = title
-        self.ws[cell_address].font = Font(size=14, bold=True, color="2F4F4F")
+        self.ws[cell_address].font = Font(size=14, bold=True, color=self.TITLE_COLOR)
     
     def _create_table_with_data(
         self,
@@ -190,20 +234,11 @@ class ExcelBaseGenerator:
             header_alignment: Alignment for header cells ('center', 'left', 'right')
             body_alignment: Alignment for body cells ('center', 'left', 'right')
         """
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
-        header_fill = PatternFill(start_color="2F4F4F", end_color="2F4F4F", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF")
+        thin_border = self._get_thin_border()
+        header_fill = self._get_header_fill()
+        header_font = self._get_header_font()
         
-        alignment_map = {
-            'center': Alignment(horizontal='center'),
-            'left': Alignment(horizontal='left'),
-            'right': Alignment(horizontal='right')
-        }
+        alignment_map = self._get_alignment_map()
         header_align = alignment_map.get(header_alignment, Alignment(horizontal='center'))
         body_align = alignment_map.get(body_alignment, Alignment(horizontal='center'))
         
@@ -244,20 +279,11 @@ class ExcelBaseGenerator:
             header_alignment: Alignment for header cells
             body_alignment: Alignment for body cells
         """
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
-        header_fill = PatternFill(start_color="2F4F4F", end_color="2F4F4F", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF")
+        thin_border = self._get_thin_border()
+        header_fill = self._get_header_fill()
+        header_font = self._get_header_font()
         
-        alignment_map = {
-            'center': Alignment(horizontal='center'),
-            'left': Alignment(horizontal='left'),
-            'right': Alignment(horizontal='right')
-        }
+        alignment_map = self._get_alignment_map()
         header_align = alignment_map.get(header_alignment, Alignment(horizontal='center'))
         body_align = alignment_map.get(body_alignment, Alignment(horizontal='center'))
         
@@ -325,7 +351,7 @@ class ExcelBaseGenerator:
         
         # Title
         new_ws['A1'] = title
-        new_ws['A1'].font = Font(size=16, bold=True, color="2F4F4F")
+        new_ws['A1'].font = Font(size=16, bold=True, color=self.TITLE_COLOR)
         new_ws['A1'].alignment = Alignment(horizontal='center')
         new_ws.merge_cells(merge_range)
         

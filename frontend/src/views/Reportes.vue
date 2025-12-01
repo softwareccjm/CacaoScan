@@ -331,7 +331,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import AdminSidebar from '@/components/layout/Common/Sidebar.vue';
 import PeriodSelector from '@/components/reportes/PeriodSelector.vue';
 import StatsCard from '@/components/reportes/StatsCard.vue';
@@ -343,7 +343,6 @@ import ReportGeneratorModal from '@/components/reports/ReportGeneratorModal.vue'
 import ReportPreviewModal from '@/components/reports/ReportPreviewModal.vue';
 import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useReportsStore } from '@/stores/reports';
-import { useAuthStore } from '@/stores/auth';
 import { useAdminView } from '@/composables/useAdminView';
 import { useAdminSidebarProps } from '@/composables/useAdminSidebarProps';
 import Swal from 'sweetalert2';
@@ -365,7 +364,6 @@ export default {
   },
   setup() {
     const reportsStore = useReportsStore();
-    const authStore = useAuthStore();
 
     // Estado específico de Reportes
     const showReportGenerator = ref(false);
