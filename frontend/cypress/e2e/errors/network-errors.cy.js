@@ -1,75 +1,36 @@
+import { getApiBaseUrl } from '../../support/helpers'
+
 describe('Manejo de Errores - Errores de Red', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
 
   it('debe manejar error 500 del servidor', () => {
-    // Simular error 500
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
-      statusCode: 500,
-      body: { error: 'Error interno del servidor' }
-    }).as('serverError')
+    cy.interceptError('GET', '/fincas/**', 500, { error: 'Error interno del servidor' }, 'serverError')
     
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
-    cy.wait(1000)
-    
-    // Verificar mensaje de error (puede tener diferentes formatos)
-    cy.get('body', { timeout: 5000 }).should('satisfy', (body) => {
-      const hasError = body.find('[data-cy="error-message"], .swal2-error, .error-message').length > 0
-      const text = body.text().toLowerCase()
-      return hasError || text.includes('error') || text.includes('servidor') || text.includes('500') || body.length > 0
-    })
-    
-    // Si existe botón de reintentar, hacer clic
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="retry-button"], button').length > 0) {
-        cy.get('[data-cy="retry-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).should('be.visible')
-      }
-    })
+    cy.verifyErrorMessage(['error', 'servidor', '500'])
+    cy.retryIfAvailable()
   })
 
   it('debe manejar error 404 - Recurso no encontrado', () => {
-    // Simular error 404
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**/`, {
-      statusCode: 404,
-      body: { error: 'Finca no encontrada' }
-    }).as('notFound')
+    cy.interceptError('GET', '/fincas/**/', 404, { error: 'Finca no encontrada' }, 'notFound')
     
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
-    cy.wait(1000)
-    
-    // Verificar mensaje de error
-    cy.get('body', { timeout: 5000 }).should('satisfy', (body) => {
-      const hasError = body.find('[data-cy="error-message"], .swal2-error, .error-message').length > 0
-      const text = body.text().toLowerCase()
-      return hasError || text.includes('no encontrado') || text.includes('404') || text.includes('not found') || body.length > 0
-    })
+    cy.verifyErrorMessage(['no encontrado', '404', 'not found'])
   })
 
   it('debe manejar error 403 - Acceso denegado', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error 403
-    cy.intercept('GET', `${apiBaseUrl}/admin/**`, {
-      statusCode: 403,
-      body: { error: 'Acceso denegado' }
-    }).as('forbidden')
+    cy.interceptError('GET', '/admin/**', 403, { error: 'Acceso denegado' }, 'forbidden')
     
     cy.visit('/admin/agricultores')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
-    
-    // Verificar mensaje de error
     cy.get('body', { timeout: 5000 }).then(($body) => {
       if ($body.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
         cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -83,20 +44,13 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error 401 - No autorizado', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error 401
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
-      statusCode: 401,
-      body: { error: 'Token inválido' }
-    }).as('unauthorized')
+    cy.interceptError('GET', '/fincas/**', 401, { error: 'Token inválido' }, 'unauthorized')
     
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar redirección al login o que la página cargó
     cy.url({ timeout: 5000 }).should('satisfy', (url) => {
       return url.includes('/login') || url.includes('/auth') || url.includes('/mis-fincas') || url.length > 0
     })
@@ -112,20 +66,13 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de timeout', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular timeout (usar alias diferente porque 'timeout' es palabra reservada)
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
-      statusCode: 408,
-      body: { error: 'Timeout' }
-    }).as('timeoutError')
+    cy.interceptError('GET', '/fincas/**', 408, { error: 'Timeout' }, 'timeoutError')
     
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar mensaje de error
     cy.get('body', { timeout: 5000 }).then(($body) => {
       if ($body.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
         cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -139,8 +86,7 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de conexión', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de conexión
+    const apiBaseUrl = getApiBaseUrl()
     cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
       forceNetworkError: true
     }).as('networkError')
@@ -148,10 +94,8 @@ describe('Manejo de Errores - Errores de Red', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar mensaje de error
     cy.get('body', { timeout: 5000 }).then(($body) => {
       if ($body.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
         cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -165,8 +109,7 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de validación del servidor', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de validación
+    const apiBaseUrl = getApiBaseUrl()
     cy.intercept('POST', `${apiBaseUrl}/fincas/`, {
       statusCode: 400,
       body: { 
@@ -192,7 +135,6 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@validationError', { timeout: 10000 })
             
-            // Verificar errores de validación si existen
             cy.get('body', { timeout: 5000 }).then(($error) => {
               if ($error.find('[data-cy="validation-error"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="validation-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -210,12 +152,7 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de límite de tasa', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de límite de tasa
-    cy.intercept('POST', `${apiBaseUrl}/fincas/`, {
-      statusCode: 429,
-      body: { error: 'Límite de tasa excedido' }
-    }).as('rateLimit')
+    cy.interceptError('POST', '/fincas/', 429, { error: 'Límite de tasa excedido' }, 'rateLimit')
     
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
@@ -229,7 +166,6 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@rateLimit', { timeout: 10000 })
             
-            // Verificar mensaje de error si existe
             cy.get('body', { timeout: 5000 }).then(($error) => {
               if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -247,20 +183,13 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de mantenimiento', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de mantenimiento
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
-      statusCode: 503,
-      body: { error: 'Sistema en mantenimiento' }
-    }).as('maintenance')
+    cy.interceptError('GET', '/fincas/**', 503, { error: 'Sistema en mantenimiento' }, 'maintenance')
     
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar mensaje de mantenimiento si existe
     cy.get('body', { timeout: 5000 }).then(($body) => {
       if ($body.find('[data-cy="maintenance-message"], .maintenance-message, .error-message').length > 0) {
         cy.get('[data-cy="maintenance-message"], .maintenance-message, .error-message').first().should('satisfy', ($el) => {
@@ -274,8 +203,7 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de formato de respuesta', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular respuesta malformada
+    const apiBaseUrl = getApiBaseUrl()
     cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
       statusCode: 200,
       body: 'invalid json'
@@ -284,10 +212,8 @@ describe('Manejo de Errores - Errores de Red', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar mensaje de error si existe
     cy.get('body', { timeout: 5000 }).then(($body) => {
       if ($body.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
         cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -301,12 +227,7 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de carga de archivo', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de carga de archivo
-    cy.intercept('POST', `${apiBaseUrl}/images/**`, {
-      statusCode: 413,
-      body: { error: 'Archivo demasiado grande' }
-    }).as('fileTooLarge')
+    cy.interceptError('POST', '/images/**', 413, { error: 'Archivo demasiado grande' }, 'fileTooLarge')
     
     cy.visit('/nuevo-analisis')
     cy.get('body', { timeout: 10000 }).should('be.visible')
@@ -331,7 +252,6 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@fileTooLarge', { timeout: 10000 })
             
-            // Verificar mensaje de error si existe
             cy.get('body', { timeout: 5000 }).then(($error) => {
               if ($error.find('[data-cy="upload-error"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="upload-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -349,12 +269,7 @@ describe('Manejo de Errores - Errores de Red', () => {
   })
 
   it('debe manejar error de análisis de imagen', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de análisis
-    cy.intercept('POST', `${apiBaseUrl}/scan/**`, {
-      statusCode: 422,
-      body: { error: 'Imagen no válida para análisis' }
-    }).as('analysisError')
+    cy.interceptError('POST', '/scan/**', 422, { error: 'Imagen no válida para análisis' }, 'analysisError')
     
     cy.visit('/nuevo-analisis')
     cy.get('body', { timeout: 10000 }).should('be.visible')
@@ -379,7 +294,6 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@analysisError', { timeout: 10000 })
             
-            // Verificar mensaje de error si existe
             cy.get('body', { timeout: 5000 }).then(($error) => {
               if ($error.find('[data-cy="analysis-error"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="analysis-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -398,13 +312,7 @@ describe('Manejo de Errores - Errores de Red', () => {
 
   it('debe manejar error de generación de reporte', () => {
     cy.login('analyst')
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    
-    // Simular error de generación de reporte
-    cy.intercept('POST', `${apiBaseUrl}/reportes/`, {
-      statusCode: 422,
-      body: { error: 'No hay datos para el período seleccionado' }
-    }).as('reportError')
+    cy.interceptError('POST', '/reportes/', 422, { error: 'No hay datos para el período seleccionado' }, 'reportError')
     
     cy.visit('/reportes')
     cy.get('body', { timeout: 10000 }).should('be.visible')
@@ -421,7 +329,6 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@reportError', { timeout: 10000 })
             
-            // Verificar mensaje de error si existe
             cy.get('body', { timeout: 5000 }).then(($error) => {
               if ($error.find('[data-cy="generation-error"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="generation-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {

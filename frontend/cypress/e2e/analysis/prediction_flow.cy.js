@@ -16,12 +16,7 @@ describe('Cacao Analysis & Prediction Flow', () => {
         })
       }
       
-      if ($body.find('.upload-zone, [data-cy="upload-zone"], .upload').length > 0) {
-        cy.get('.upload-zone, [data-cy="upload-zone"], .upload').should('exist')
-      } else {
-        // Si no hay zona de upload, verificar que la página cargó correctamente
-        cy.get('body').should('be.visible')
-      }
+      cy.get('.upload-zone, [data-cy="upload-zone"], .upload', { timeout: 5000 }).should('exist')
     })
   })
 
@@ -43,29 +38,17 @@ describe('Cacao Analysis & Prediction Flow', () => {
   })
 
   it('should process image analysis', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('input[type="file"]').length > 0) {
-        cy.uploadTestImage('cacao_sample.jpg')
-        cy.get('body').then(($afterUpload) => {
-          if ($afterUpload.find('[data-cy="btn-analyze"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="btn-analyze"], button[type="submit"]').first().click()
-            cy.get('[data-cy="loading-spinner"], .loading, .spinner', { timeout: 5000 }).should('exist')
-            cy.get('[data-cy="results-container"], .results, .result', { timeout: 20000 }).should('exist')
-          }
-        })
-      }
+    cy.performImageAnalysis('cacao_sample.jpg', {}, () => {
+      cy.get('[data-cy="loading-spinner"], .loading, .spinner', { timeout: 5000 }).should('exist')
+      cy.get('[data-cy="results-container"], .results, .result', { timeout: 20000 }).should('exist')
     })
   })
 
   it('should display segmentation results', () => {
     cy.visit('/detalle-analisis/1')
     cy.get('body', { timeout: 10000 }).should('be.visible')
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="segmentation-mask"], .mask, canvas').length > 0) {
-        cy.get('[data-cy="segmentation-mask"], .mask, canvas').should('exist')
+    cy.get('[data-cy="segmentation-mask"], .mask, canvas', { timeout: 5000 }).should('exist')
         cy.get('[data-cy="stats-panel"], .stats, .panel', { timeout: 5000 }).should('exist')
-      }
-    })
   })
 
   it('should filter results by confidence score', () => {
@@ -80,7 +63,6 @@ describe('Cacao Analysis & Prediction Flow', () => {
   })
 
   it('should save analysis results to history', () => {
-    // Verificar que tras análisis aparece en historial
     cy.visit('/agricultor/historial')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
@@ -91,7 +73,6 @@ describe('Cacao Analysis & Prediction Flow', () => {
           return text.includes('reciente') || text.includes('recent') || text.length > 0
         })
       } else {
-        // Si no hay tabla o items, verificar que la página cargó correctamente
         cy.get('body').should('be.visible')
       }
     })
@@ -101,20 +82,11 @@ describe('Cacao Analysis & Prediction Flow', () => {
     cy.visit('/detalle-analisis/1')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="btn-download-pdf"], button, a').length > 0) {
-        cy.get('[data-cy="btn-download-pdf"], button, a').first().click({ force: true })
+    cy.clickIfExists('[data-cy="btn-download-pdf"], button, a')
         cy.get('body', { timeout: 5000 }).then(($afterClick) => {
-          // Validar notificación de descarga iniciada o que la acción se completó
           if ($afterClick.find('.swal2-success, .success, [data-cy="success"]').length > 0) {
             cy.get('.swal2-success, .success, [data-cy="success"]').should('exist')
-          } else {
-            // Si no hay notificación, verificar que la página sigue visible
-            cy.get('body').should('be.visible')
-          }
-        })
       } else {
-        // Si no hay botón de descarga, verificar que la página cargó correctamente
         cy.get('body').should('be.visible')
       }
     })
@@ -125,9 +97,8 @@ describe('Cacao Analysis & Prediction Flow', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
     cy.get('body').then(($body) => {
-      // Si existe funcionalidad de editar clasificación
       if ($body.find('[data-cy="btn-edit-classification"], button, a').length > 0) {
-        cy.get('[data-cy="btn-edit-classification"], button, a').first().click({ force: true })
+        cy.clickIfExists('[data-cy="btn-edit-classification"], button, a')
         cy.get('body', { timeout: 5000 }).then(($afterEdit) => {
           if ($afterEdit.find('[data-cy="select-class"], select').length > 0) {
             cy.get('[data-cy="select-class"], select').first().select('Bien Fermentado', { force: true })
@@ -138,7 +109,6 @@ describe('Cacao Analysis & Prediction Flow', () => {
                   if ($afterSave.find('.swal2-success, .success, [data-cy="success"]').length > 0) {
                     cy.get('.swal2-success, .success, [data-cy="success"]').should('be.visible')
                   } else {
-                    // Si no hay notificación, verificar que la página sigue visible
                     cy.get('body').should('be.visible')
                   }
                 })
@@ -147,7 +117,6 @@ describe('Cacao Analysis & Prediction Flow', () => {
           }
         })
       } else {
-        // Si no existe la funcionalidad de edición, el test pasa (está condicionado con "if enabled")
         cy.get('body').should('be.visible')
       }
     })

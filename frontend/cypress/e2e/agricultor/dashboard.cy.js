@@ -1,9 +1,6 @@
 describe('Farmer Dashboard', () => {
   beforeEach(() => {
-    cy.login('farmer')
-    cy.visit('/agricultor-dashboard')
-    // Esperar a que el dashboard cargue
-    cy.get('[data-cy="farmer-dashboard"], body', { timeout: 10000 }).should('be.visible')
+    cy.navigateToFarmerDashboard('farmer')
   })
 
   it('should welcome the farmer user', () => {
@@ -44,24 +41,18 @@ describe('Farmer Dashboard', () => {
   })
 
   it('should navigate to new analysis from quick action', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="btn-quick-analysis"], button, a').length > 0) {
-        cy.get('[data-cy="btn-quick-analysis"], button, a').first().click({ force: true })
-        cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-          return url.includes('/prediction') || url.includes('/analisis') || url.includes('/user')
-        })
-      }
+    cy.clickIfExists('[data-cy="btn-quick-analysis"], button, a', { force: true }).then(() => {
+      cy.url({ timeout: 10000 }).should('satisfy', (url) => {
+        return url.includes('/prediction') || url.includes('/analisis') || url.includes('/user')
+      })
     })
   })
 
   it('should navigate to fincas management', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="btn-manage-fincas"], button, a').length > 0) {
-        cy.get('[data-cy="btn-manage-fincas"], button, a').first().click({ force: true })
-        cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-          return url.includes('/fincas') || url.includes('/farms')
-        })
-      }
+    cy.clickIfExists('[data-cy="btn-manage-fincas"], button, a', { force: true }).then(() => {
+      cy.url({ timeout: 10000 }).should('satisfy', (url) => {
+        return url.includes('/fincas') || url.includes('/farms')
+      })
     })
   })
 
@@ -82,31 +73,23 @@ describe('Farmer Dashboard', () => {
   })
 
   it('should navigate to profile settings', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="nav-profile"], a[href*="config"], button').length > 0) {
-        cy.get('[data-cy="nav-profile"], a[href*="config"], button').first().click({ force: true })
-        cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-          return url.includes('/configuracion') || url.includes('/settings') || url.includes('/profile')
-        })
-      }
+    cy.clickIfExists('[data-cy="nav-profile"], a[href*="config"], button', { force: true }).then(() => {
+      cy.url({ timeout: 10000 }).should('satisfy', (url) => {
+        return url.includes('/configuracion') || url.includes('/settings') || url.includes('/profile')
+      })
     })
   })
 
   it('should allow logout from dashboard', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="btn-logout"], button, a').length > 0) {
-        cy.get('[data-cy="btn-logout"], button, a').first().click({ force: true })
-        cy.url({ timeout: 10000 }).should('include', '/login')
-      }
+    cy.clickIfExists('[data-cy="btn-logout"], button, a', { force: true }).then(() => {
+      cy.url({ timeout: 10000 }).should('include', '/login')
     })
   })
 })
 
 describe('Farmer Profile Settings', () => {
   beforeEach(() => {
-    cy.login('farmer')
-    cy.visit('/agricultor/configuracion')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    cy.navigateToAccountProfile('farmer')
   })
 
   it('should load profile form', () => {
@@ -127,45 +110,39 @@ describe('Farmer Profile Settings', () => {
   })
 
   it('should update personal information', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="input-phone"], input[type="tel"], input[name*="phone"]').length > 0) {
-        cy.get('[data-cy="input-phone"], input[type="tel"], input[name*="phone"]').first().clear().type('3001234567')
-        cy.get('[data-cy="btn-save-profile"], button[type="submit"]').first().click()
+    cy.fillFieldIfExists('[data-cy="input-phone"], input[type="tel"], input[name*="phone"]', '3001234567').then(() => {
+      cy.clickIfExists('[data-cy="btn-save-profile"], button[type="submit"]').then(() => {
         cy.get('body', { timeout: 5000 }).should('be.visible')
-      }
+      })
     })
   })
 
   it('should validate password change mismatch', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-security"], [role="tab"]').length > 0) {
-        cy.get('[data-cy="tab-security"], [role="tab"]').first().click()
-        cy.get('body').then(($security) => {
-          if ($security.find('[data-cy="input-new-pass"], input[type="password"]').length > 0) {
-            cy.get('[data-cy="input-new-pass"], input[type="password"]').first().type('NewPass123!')
-            cy.get('[data-cy="input-confirm-pass"], input[type="password"]').last().type('DifferentPass!')
-            cy.get('[data-cy="btn-change-pass"], button[type="submit"]').first().click()
+    cy.clickIfExists('[data-cy="tab-security"], [role="tab"]').then(() => {
+      cy.get('body').then(($security) => {
+        if ($security.find('[data-cy="input-new-pass"], input[type="password"]').length > 0) {
+          cy.typeIfExists('[data-cy="input-new-pass"], input[type="password"]', 'NewPass123!')
+          cy.typeIfExists('[data-cy="input-confirm-pass"], input[type="password"]', 'DifferentPass!')
+          cy.clickIfExists('[data-cy="btn-change-pass"], button[type="submit"]').then(() => {
             cy.get('.error-message, [data-cy="error"]', { timeout: 5000 }).should('exist')
-          }
-        })
-      }
+          })
+        }
+      })
     })
   })
 
   it('should change password successfully', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-security"], [role="tab"]').length > 0) {
-        cy.get('[data-cy="tab-security"], [role="tab"]').first().click()
-        cy.get('body').then(($security) => {
-          if ($security.find('[data-cy="input-current-pass"], input[type="password"]').length >= 3) {
-            cy.get('[data-cy="input-current-pass"], input[type="password"]').first().type('OldPass123!')
-            cy.get('[data-cy="input-new-pass"], input[type="password"]').eq(1).type('NewPass123!')
-            cy.get('[data-cy="input-confirm-pass"], input[type="password"]').last().type('NewPass123!')
-            cy.get('[data-cy="btn-change-pass"], button[type="submit"]').first().click()
+    cy.clickIfExists('[data-cy="tab-security"], [role="tab"]').then(() => {
+      cy.get('body').then(($security) => {
+        if ($security.find('[data-cy="input-current-pass"], input[type="password"]').length >= 3) {
+          cy.typeIfExists('[data-cy="input-current-pass"], input[type="password"]', 'OldPass123!')
+          cy.get('[data-cy="input-new-pass"], input[type="password"]').eq(1).type('NewPass123!')
+          cy.typeIfExists('[data-cy="input-confirm-pass"], input[type="password"]', 'NewPass123!')
+          cy.clickIfExists('[data-cy="btn-change-pass"], button[type="submit"]').then(() => {
             cy.get('body', { timeout: 5000 }).should('be.visible')
-          }
-        })
-      }
+          })
+        }
+      })
     })
   })
 })

@@ -45,15 +45,23 @@ const validateEmail = (email) => {
   if (local.length === 0 || local.length > 64) return false
   if (domain.length === 0 || domain.length > 255) return false
 
-  // No whitespace allowed
-  if (/\s/.test(local) || /\s/.test(domain)) return false
+  // No whitespace allowed - simple check without regex
+  if (local.includes(' ') || local.includes('\t') || local.includes('\n') || 
+      domain.includes(' ') || domain.includes('\t') || domain.includes('\n')) {
+    return false
+  }
 
   // Domain must contain at least one dot
   if (!domain.includes('.')) return false
 
-  // Local part: allow common unquoted atoms (letters, digits and a small set of symbols)
-  // Keep regex simple (no nested quantifiers) and bounded by local length check above
-  if (!/^[A-Za-z0-9!#$%&'*+\-/=?^_`{|}~.]+$/.test(local)) return false
+  // Local part: simple character validation without complex regex
+  // Check for valid characters using simple iteration (bounded by length check above)
+  const validChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-/=?^_`{|}~."
+  for (let i = 0; i < local.length; i++) {
+    if (!validChars.includes(local[i])) {
+      return false
+    }
+  }
 
   // Reject consecutive dots
   if (local.includes('..') || domain.includes('..')) return false
@@ -65,7 +73,7 @@ const debounce = (func, delay) => {
   let timeoutId
   return (...args) => {
     clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func.apply(null, args), delay)
+    timeoutId = setTimeout(() => func(...args), delay)
   }
 }
 
@@ -76,7 +84,7 @@ const throttle = (func, delay) => {
     const now = Date.now()
     if (lastCall === 0 || now - lastCall >= delay) {
       lastCall = now
-      func.apply(null, args)
+      func(...args)
     } else {
       // Schedule the call for after the delay
       if (timeoutId === null) {
@@ -84,7 +92,7 @@ const throttle = (func, delay) => {
         timeoutId = setTimeout(() => {
           lastCall = Date.now()
           timeoutId = null
-          func.apply(null, args)
+          func(...args)
         }, remainingTime)
       }
     }
@@ -98,7 +106,7 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 const getFileExtension = (filename) => {
@@ -130,7 +138,7 @@ const getQualityLevel = (score) => {
 }
 
 const formatPercentage = (value, decimals = 1) => {
-  if (typeof value !== 'number' || isNaN(value)) return '0%'
+  if (typeof value !== 'number' || Number.isNaN(value)) return '0%'
   // Return '0%' for zero values instead of '0.0%'
   if (value === 0) return '0%'
   return `${value.toFixed(decimals)}%`
@@ -165,7 +173,7 @@ describe('Number Utilities', () => {
 
   it('maneja números inválidos', () => {
     expect(formatNumber('invalid')).toBe('0')
-    expect(formatNumber(NaN)).toBe('0')
+    expect(formatNumber(Number.NaN)).toBe('0')
     expect(formatNumber(null)).toBe('0')
     expect(formatNumber(undefined)).toBe('0')
   })

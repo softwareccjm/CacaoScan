@@ -134,7 +134,7 @@ describe('Prediction Store', () => {
 
       vi.mocked(predictionApi.predictImage).mockResolvedValue(mockResult)
 
-      const result = await store.makePrediction(formData)
+      await store.makePrediction(formData)
 
       expect(predictionApi.predictImage).toHaveBeenCalledWith(formData)
       expect(store.currentPrediction).toEqual(mockResult)
@@ -192,7 +192,7 @@ describe('Prediction Store', () => {
 
       vi.mocked(predictionApi.predictImageYolo).mockResolvedValue(mockResult)
 
-      const result = await store.makePredictionYolo(formData)
+      await store.makePredictionYolo(formData)
 
       expect(predictionApi.predictImageYolo).toHaveBeenCalledWith(formData)
       expect(store.currentPrediction).toEqual(mockResult.data)
@@ -237,7 +237,7 @@ describe('Prediction Store', () => {
 
       vi.mocked(predictionApi.predictImageSmart).mockResolvedValue(mockResult)
 
-      const result = await store.makePredictionSmart(formData, options)
+      await store.makePredictionSmart(formData, options)
 
       expect(predictionApi.predictImageSmart).toHaveBeenCalledWith(formData, options)
       expect(store.currentPrediction).toEqual(mockResult.data)
@@ -256,7 +256,7 @@ describe('Prediction Store', () => {
 
       vi.mocked(predictionApi.getImageHistory).mockResolvedValue(mockResponse)
 
-      const result = await store.loadHistory(1, {})
+      await store.loadHistory(1, {})
 
       expect(predictionApi.getImageHistory).toHaveBeenCalled()
       expect(store.predictions).toEqual(mockResponse.results)
@@ -283,7 +283,7 @@ describe('Prediction Store', () => {
 
       vi.mocked(predictionApi.getPredictionStats).mockResolvedValue(mockStats)
 
-      const result = await store.loadStats()
+      await store.loadStats()
 
       expect(predictionApi.getPredictionStats).toHaveBeenCalled()
       expect(store.stats).toMatchObject(mockStats)

@@ -1,4 +1,8 @@
 describe('Auditoria View - Filtros y Visualización', () => {
+  // Use TEST-NET-1 reserved IPs (192.0.2.x) - safe for testing, never used in real networks
+  const TEST_IP_1 = '192.0.2.10'
+  const TEST_IP_2 = '192.0.2.20'
+
   const mockLogs = {
     results: [
       {
@@ -6,7 +10,7 @@ describe('Auditoria View - Filtros y Visualización', () => {
         actor_name: 'Admin User',
         action: 'login',
         timestamp: new Date().toISOString(),
-        ip_address: '127.0.0.1',
+        ip_address: TEST_IP_1,
         details: 'Login exitoso'
       },
       {
@@ -15,13 +19,38 @@ describe('Auditoria View - Filtros y Visualización', () => {
         action: 'create',
         resource_type: 'CacaoImage',
         timestamp: new Date().toISOString(),
-        ip_address: '192.168.1.5',
+        ip_address: TEST_IP_2,
         details: 'Subida de imagen'
       }
     ],
     count: 2,
     total_pages: 1
-  };
+  }
+
+  const clickFilterButton = (buttonText, callback) => {
+    cy.get('body').then(($body) => {
+      if ($body.find('button, [role="button"]').length > 0) {
+        cy.contains('button', buttonText, { matchCase: false }).then(($btn) => {
+          if ($btn.length > 0) {
+            cy.wrap($btn.first()).click({ force: true })
+            if (callback) callback()
+          }
+        })
+      }
+    })
+  }
+
+  const applyFilters = (filterValue) => {
+    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
+    cy.intercept('GET', `${apiBaseUrl}/audit/activity-logs/?*usuario=${filterValue}*`, {
+      statusCode: 200,
+      body: { ...mockLogs, results: [] }
+    }).as('getFilteredLogs')
+
+    cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 5000 }).first().type(filterValue)
+    cy.contains('button', 'Aplicar Filtros', { matchCase: false }).first().click({ force: true })
+    cy.wait('@getFilteredLogs', { timeout: 10000 }).its('request.url').should('include', `usuario=${filterValue}`)
+  }
 
   beforeEach(() => {
     // Interceptamos la llamada a stats
@@ -71,58 +100,28 @@ describe('Auditoria View - Filtros y Visualización', () => {
   });
 
   it('Debe desplegar y ocultar los filtros avanzados', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('button, [role="button"]').length > 0) {
-        // Click en mostrar filtros
-        cy.contains('button', 'Mostrar Filtros', { matchCase: false }).then(($btn) => {
-          if ($btn.length > 0) {
-            cy.wrap($btn.first()).click({ force: true })
-            cy.get('body', { timeout: 5000 }).then(($afterClick) => {
-              if ($afterClick.text().toLowerCase().includes('filtros avanzados')) {
-                cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 3000 }).should('exist')
-                cy.contains('button', 'Ocultar Filtros', { matchCase: false }).first().click({ force: true })
-              }
-            })
-          }
-        })
-      }
+    clickFilterButton('Mostrar Filtros', () => {
+      cy.get('body', { timeout: 5000 }).then(($afterClick) => {
+        if ($afterClick.text().toLowerCase().includes('filtros avanzados')) {
+          cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 3000 }).should('exist')
+          cy.contains('button', 'Ocultar Filtros', { matchCase: false }).first().click({ force: true })
+        }
+      })
     })
-  });
+  })
 
   it('Debe aplicar filtros y refrescar la tabla', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('button').length > 0) {
-        cy.contains('button', 'Mostrar Filtros', { matchCase: false }).then(($btn) => {
-          if ($btn.length > 0) {
-            cy.wrap($btn.first()).click({ force: true })
-            const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-            cy.intercept('GET', `${apiBaseUrl}/audit/activity-logs/?*usuario=TestUser*`, {
-              statusCode: 200,
-              body: { ...mockLogs, results: [] }
-            }).as('getFilteredLogs');
-
-            cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 5000 }).first().type('TestUser')
-            cy.contains('button', 'Aplicar Filtros', { matchCase: false }).first().click({ force: true })
-            cy.wait('@getFilteredLogs', { timeout: 10000 }).its('request.url').should('include', 'usuario=TestUser')
-          }
-        })
-      }
+    clickFilterButton('Mostrar Filtros', () => {
+      applyFilters('TestUser')
     })
-  });
+  })
 
   it('Debe limpiar los filtros', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('button').length > 0) {
-        cy.contains('button', 'Mostrar Filtros', { matchCase: false }).then(($btn) => {
-          if ($btn.length > 0) {
-            cy.wrap($btn.first()).click({ force: true })
-            cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 5000 }).first().type('Algo')
-            cy.contains('button', 'Limpiar Filtros', { matchCase: false }).first().click({ force: true })
-            cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 3000 }).first().should('have.value', '')
-          }
-        })
-      }
+    clickFilterButton('Mostrar Filtros', () => {
+      cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 5000 }).first().type('Algo')
+      cy.contains('button', 'Limpiar Filtros', { matchCase: false }).first().click({ force: true })
+      cy.get('input[placeholder*="usuario"], input[type="text"]', { timeout: 3000 }).first().should('have.value', '')
     })
-  });
+  })
 });
 

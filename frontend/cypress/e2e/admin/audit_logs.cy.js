@@ -1,9 +1,6 @@
 describe('Admin Audit Logs', () => {
   beforeEach(() => {
-    cy.login('admin')
-    cy.visit('/admin/auditoria')
-    // Esperar a que la página cargue
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    cy.navigateToAdminAuditLogs('admin')
   })
 
   it('should load audit logs table', () => {
@@ -33,20 +30,9 @@ describe('Admin Audit Logs', () => {
   })
 
   it('should filter logs by action type', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="select-action-type"], select').length > 0) {
-        cy.get('[data-cy="select-action-type"], select').first().select('LOGIN', { force: true })
-        cy.get('table tbody tr, .table-row', { timeout: 5000 }).then(($rows) => {
-          if ($rows.length > 0) {
-            cy.wrap($rows).each(($row) => {
-              const text = $row.text().toUpperCase()
-              // Verificar que contiene LOGIN o está vacío (filtrado)
-              expect(text.includes('LOGIN') || text.length === 0).to.be.true
-            })
-          }
-        })
-      }
-    })
+    const selectSelector = '[data-cy="select-action-type"], select'
+    const rowSelector = 'table tbody tr, .table-row'
+    cy.selectAndVerifyRows(selectSelector, 'LOGIN', rowSelector)
   })
 
   it('should filter logs by date range', () => {
@@ -70,47 +56,29 @@ describe('Admin Audit Logs', () => {
   })
 
   it('should view log details', () => {
-    cy.get('body').then(($body) => {
-      // Buscar filas de tabla o cualquier elemento clickeable
-      const rows = $body.find('table tbody tr, .table-row, [data-cy="audit-row"], tbody tr')
-      if (rows.length > 0) {
-        cy.wrap(rows.first()).then(($row) => {
-          const btn = $row.find('[data-cy="btn-view-details"], button, a, [role="button"]').first()
-          if (btn.length > 0) {
-            cy.wrap(btn).click({ force: true })
-            cy.get('[data-cy="modal-log-details"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
-            cy.get('body').then(($modal) => {
-              if ($modal.find('[data-cy="json-viewer"], .json-viewer, pre, code').length > 0) {
-                cy.get('[data-cy="json-viewer"], .json-viewer, pre, code', { timeout: 3000 }).should('exist')
-              }
-            })
+    const rowSelector = 'table tbody tr, .table-row, [data-cy="audit-row"], tbody tr'
+    cy.interactWithFirstRow(rowSelector, ($row) => {
+      const btn = $row.find('[data-cy="btn-view-details"], button, a, [role="button"]').first()
+      if (btn.length > 0) {
+        cy.wrap(btn).click({ force: true })
+        cy.get('[data-cy="modal-log-details"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
+        cy.get('body').then(($modal) => {
+          if ($modal.find('[data-cy="json-viewer"], .json-viewer, pre, code').length > 0) {
+            cy.get('[data-cy="json-viewer"], .json-viewer, pre, code', { timeout: 3000 }).should('exist')
           }
         })
-      } else {
-        // Si no hay filas, el test pasa (no hay datos para ver)
-        cy.get('body').should('be.visible')
       }
     })
   })
 
   it('should export audit logs to CSV', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="btn-export-csv"], button').length > 0) {
-        cy.get('[data-cy="btn-export-csv"], button').first().click()
-        // Verificar que no hay error (las exportaciones suelen ser silenciosas)
-        cy.get('.swal2-error', { timeout: 3000 }).should('not.exist')
-      }
-    })
+    cy.clickIfExists('[data-cy="btn-export-csv"], button')
+    cy.get('.swal2-error', { timeout: 3000 }).should('not.exist')
   })
 
   it('should clear old logs (if applicable)', () => {
-    // Solo si la funcionalidad existe y es segura de probar
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="btn-cleanup-logs"]').length > 0) {
-        cy.get('[data-cy="btn-cleanup-logs"]').click()
-        cy.get('body', { timeout: 5000 }).should('be.visible')
-      }
-    })
+    cy.clickIfExists('[data-cy="btn-cleanup-logs"]')
+    cy.get('body', { timeout: 5000 }).should('be.visible')
   })
 })
 

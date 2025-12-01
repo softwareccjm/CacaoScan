@@ -99,13 +99,6 @@ describe('API Service', () => {
     })
 
     it('should validate baseURL is absolute', async () => {
-      const config = {
-        url: '/test',
-        method: 'get',
-        baseURL: 'relative/path',
-        headers: {}
-      }
-
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       // This would be tested through the actual interceptor
@@ -116,13 +109,6 @@ describe('API Service', () => {
 
     it('should log requests', async () => {
       const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-      
-      const config = {
-        url: '/test',
-        method: 'get',
-        baseURL: 'https://test-api.example.com/api/v1',
-        headers: {}
-      }
 
       // Request logging would happen in interceptor
       expect(consoleLogSpy).toBeDefined()

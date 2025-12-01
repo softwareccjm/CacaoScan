@@ -8,10 +8,10 @@ describe('Public Pages & Routing', () => {
         cy.get('nav, [data-cy="nav"], header').first().should('be.visible')
       }
       
-      if ($body.text().toLowerCase().includes('iniciar sesión') || $body.text().toLowerCase().includes('login')) {
+      const bodyText = $body.text().toLowerCase()
+      if (bodyText.includes('iniciar sesión') || bodyText.includes('login')) {
         cy.contains('Iniciar Sesión', { matchCase: false }).should('be.visible')
       } else {
-        // If no login link found, verify that the page loaded correctly
         cy.get('body').should('be.visible')
       }
     })
@@ -22,13 +22,13 @@ describe('Public Pages & Routing', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
     cy.get('body').then(($body) => {
-      if ($body.text().toLowerCase().includes('iniciar sesión') || $body.text().toLowerCase().includes('login')) {
+      const bodyText = $body.text().toLowerCase()
+      if (bodyText.includes('iniciar sesión') || bodyText.includes('login')) {
         cy.contains('Iniciar Sesión', { matchCase: false }).first().click({ force: true })
         cy.url({ timeout: 10000 }).should('satisfy', (url) => {
           return url.includes('/login') || url.includes('/auth')
         })
       } else {
-        // If no login link found, navigate directly to login
         cy.visit('/login')
         cy.url({ timeout: 10000 }).should('satisfy', (url) => {
           return url.includes('/login') || url.includes('/auth')
@@ -42,13 +42,13 @@ describe('Public Pages & Routing', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
     cy.get('body').then(($body) => {
-      if ($body.text().toLowerCase().includes('regístrate') || $body.text().toLowerCase().includes('register') || $body.text().toLowerCase().includes('crear cuenta')) {
+      const bodyText = $body.text().toLowerCase()
+      if (bodyText.includes('regístrate') || bodyText.includes('register') || bodyText.includes('crear cuenta')) {
         cy.contains('Regístrate', { matchCase: false }).first().click({ force: true })
         cy.url({ timeout: 10000 }).should('satisfy', (url) => {
           return url.includes('/registro') || url.includes('/register') || url.includes('/signup')
         })
       } else {
-        // If no register link found, navigate directly to register
         cy.visit('/registro', { failOnStatusCode: false })
         cy.url({ timeout: 10000 }).should('satisfy', (url) => {
           return url.includes('/registro') || url.includes('/register') || url.includes('/signup') || url.includes('/login')
@@ -68,7 +68,6 @@ describe('Public Pages & Routing', () => {
           return text.includes('términos') || text.includes('terms') || text.includes('condiciones') || text.length > 0
         })
       } else {
-        // If no title found, verify that the page loaded correctly
         cy.get('body').should('be.visible')
       }
     })
@@ -85,7 +84,6 @@ describe('Public Pages & Routing', () => {
           return text.includes('privacidad') || text.includes('privacy') || text.length > 0
         })
       } else {
-        // If no title found, verify that the page loaded correctly
         cy.get('body').should('be.visible')
       }
     })
@@ -103,10 +101,10 @@ describe('Public Pages & Routing', () => {
         })
       }
       
-      if ($body.text().toLowerCase().includes('volver') || $body.text().toLowerCase().includes('inicio') || $body.text().toLowerCase().includes('home')) {
+      const bodyText = $body.text().toLowerCase()
+      if (bodyText.includes('volver') || bodyText.includes('inicio') || bodyText.includes('home')) {
         cy.contains('Volver', { matchCase: false }).should('be.visible')
       } else {
-        // If no back button found, verify that the page loaded correctly
         cy.get('body').should('be.visible')
       }
     })
@@ -125,17 +123,14 @@ describe('Public Pages & Routing', () => {
         // Redirect happened, test passes
         expect(url).to.satisfy((u) => u.includes('/login') || u.includes('/auth') || u.includes('redirect'))
       } else {
-        // No redirect occurred, check if page shows access denied or error
         cy.get('body').then(($body) => {
           const bodyText = $body.text().toLowerCase()
-          // If page shows access denied, unauthorized, or error message, that's also acceptable
-          if (bodyText.includes('acceso denegado') || bodyText.includes('unauthorized') || 
+          const hasError = bodyText.includes('acceso denegado') || bodyText.includes('unauthorized') || 
               bodyText.includes('forbidden') || bodyText.includes('error') ||
-              $body.find('[data-cy="error"], .error, .unauthorized').length > 0) {
-            // Page shows error/access denied, which is acceptable behavior
+              $body.find('[data-cy="error"], .error, .unauthorized').length > 0
+          if (hasError) {
             expect(true).to.be.true
           } else {
-            // If no redirect and no error, just verify page loaded (protection might not be implemented)
             cy.get('body').should('be.visible')
           }
         })
@@ -178,7 +173,6 @@ describe('Public Pages & Routing', () => {
           cy.get('input[type="email"], input[name*="email"]').first().should('be.visible')
         }
       } else {
-        // If no form found, verify that the page loaded correctly
         cy.get('body').should('be.visible')
       }
     })

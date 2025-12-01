@@ -1,17 +1,27 @@
+import { verifySelectorsExist, clickIfExists, selectIfExists, typeIfExists } from '../../support/helpers'
+
 describe('Gestión de Fincas - CRUD', () => {
   beforeEach(() => {
     cy.login('farmer')
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
-  
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
+
+  const fillFincaForm = (data) => {
+    const actions = []
+    if (data.nombre) {
+      actions.push(typeIfExists('[data-cy="finca-nombre"], input[name*="nombre"]', data.nombre))
     }
+    if (data.ubicacion) {
+      actions.push(typeIfExists('[data-cy="finca-ubicacion"], input[name*="ubicacion"]', data.ubicacion))
+    }
+    if (data.area) {
+      actions.push(typeIfExists('[data-cy="finca-area"], input[type="number"]', data.area.toString()))
+    }
+    if (data.descripcion) {
+      actions.push(typeIfExists('[data-cy="finca-descripcion"], textarea', data.descripcion))
+    }
+    return cy.wrap(Promise.all(actions))
   }
 
   it('debe mostrar lista de fincas del usuario', () => {
@@ -32,38 +42,22 @@ describe('Gestión de Fincas - CRUD', () => {
     cy.fixture('testData').then((data) => {
       const fincaData = data.fincas[0]
       
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-          cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-          
-          cy.get('body', { timeout: 5000 }).then(($modal) => {
-            // Llenar formulario si los campos existen
-            if ($modal.find('[data-cy="finca-nombre"], input[name*="nombre"]').length > 0) {
-              cy.get('[data-cy="finca-nombre"], input[name*="nombre"]').first().type(fincaData.nombre || 'Finca Test')
-            }
-            if ($modal.find('[data-cy="finca-ubicacion"], input[name*="ubicacion"]').length > 0) {
-              cy.get('[data-cy="finca-ubicacion"], input[name*="ubicacion"]').first().type(fincaData.ubicacion || 'Test Location')
-            }
-            if ($modal.find('[data-cy="finca-area"], input[type="number"]').length > 0) {
-              cy.get('[data-cy="finca-area"], input[type="number"]').first().type((fincaData.area_total || 10).toString())
-            }
-            if ($modal.find('[data-cy="finca-descripcion"], textarea').length > 0) {
-              cy.get('[data-cy="finca-descripcion"], textarea').first().type(fincaData.descripcion || 'Test description')
-            }
-            
-            // Seleccionar ubicación en mapa si existe
-            cy.get('body').then(($map) => {
-              if ($map.find('[data-cy="map-container"], .map-container').length > 0) {
-                cy.get('[data-cy="map-container"], .map-container').first().click(300, 200, { force: true })
-              }
-            })
-            
-            // Guardar finca
-            cy.get('body').then(($save) => {
-              if ($save.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-                cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
-                
-                // Verificar éxito
+      clickIfExists('[data-cy="add-finca-button"], button').then((clicked) => {
+        if (!clicked) {
+          cy.get('body').should('be.visible')
+          return
+        }
+        
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+        fillFincaForm({
+          nombre: fincaData.nombre || 'Finca Test',
+          ubicacion: fincaData.ubicacion || 'Test Location',
+          area: fincaData.area_total || 10,
+          descripcion: fincaData.descripcion || 'Test description'
+        }).then(() => {
+          clickIfExists('[data-cy="map-container"], .map-container', { x: 300, y: 200 }).then(() => {
+            clickIfExists('[data-cy="save-finca"], button[type="submit"]').then((saved) => {
+              if (saved) {
                 cy.get('body', { timeout: 5000 }).then(($success) => {
                   if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
                     cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
@@ -72,178 +66,159 @@ describe('Gestión de Fincas - CRUD', () => {
               }
             })
           })
-        } else {
-          cy.get('body').should('be.visible')
-        }
+        })
       })
     })
   })
 
   it('debe validar campos requeridos en formulario de finca', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
-            
-            // Verificar errores de validación si existen
-            cy.get('body', { timeout: 3000 }).then(($errors) => {
-              const errorSelectors = [
-                '[data-cy="finca-nombre-error"]',
-                '[data-cy="finca-ubicacion-error"]',
-                '[data-cy="finca-area-error"]'
-              ]
-          verifySelectorsExist(errorSelectors, $errors, 3000)
-            })
-          }
-        })
-      } else {
+    clickIfExists('[data-cy="add-finca-button"], button').then((clicked) => {
+      if (!clicked) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+      clickIfExists('[data-cy="save-finca"], button[type="submit"]').then((saved) => {
+        if (!saved) return
+        
+        cy.get('body', { timeout: 3000 }).then(($errors) => {
+          const errorSelectors = [
+            '[data-cy="finca-nombre-error"]',
+            '[data-cy="finca-ubicacion-error"]',
+            '[data-cy="finca-area-error"]'
+          ]
+          verifySelectorsExist(errorSelectors, $errors, 3000)
+        })
+      })
     })
   })
 
   it('debe validar área de finca positiva', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input[name*="nombre"]').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input[name*="nombre"]').first().type('Finca Test')
-            cy.get('[data-cy="finca-ubicacion"], input[name*="ubicacion"]').first().type('Test Location')
-            cy.get('[data-cy="finca-area"], input[type="number"]').first().type('-5')
-            cy.get('[data-cy="finca-descripcion"], textarea').first().type('Test description')
-            
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('área') || text.includes('positiva') || text.includes('area') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
+    clickIfExists('[data-cy="add-finca-button"], button').then((clicked) => {
+      if (!clicked) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+      fillFincaForm({
+        nombre: 'Finca Test',
+        ubicacion: 'Test Location',
+        area: '-5',
+        descripcion: 'Test description'
+      }).then(() => {
+        clickIfExists('[data-cy="save-finca"], button[type="submit"]').then(() => {
+          cy.get('body', { timeout: 3000 }).then(($error) => {
+            if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
+              cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
+                const text = $el.text().toLowerCase()
+                return text.includes('área') || text.includes('positiva') || text.includes('area') || text.length > 0
+              })
+            }
+          })
+        })
+      })
     })
   })
 
   it('debe mostrar detalles de finca específica', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          const detailSelectors = [
-            '[data-cy="finca-details"]',
-            '[data-cy="finca-name"]',
-            '[data-cy="finca-location"]',
-            '[data-cy="finca-area"]',
-            '[data-cy="finca-description"]',
-            '[data-cy="finca-map"]'
-          ]
-          verifySelectorsExist(detailSelectors, $details, 3000)
-        })
-      } else {
+    clickIfExists('[data-cy="finca-item"], .finca-item, .item, tbody tr').then((clicked) => {
+      if (!clicked) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 5000 }).then(($details) => {
+        const detailSelectors = [
+          '[data-cy="finca-details"]',
+          '[data-cy="finca-name"]',
+          '[data-cy="finca-location"]',
+          '[data-cy="finca-area"]',
+          '[data-cy="finca-description"]',
+          '[data-cy="finca-map"]'
+        ]
+        verifySelectorsExist(detailSelectors, $details, 3000)
+      })
     })
   })
 
   it('debe editar finca existente', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          if ($details.find('[data-cy="edit-finca"], button').length > 0) {
-            cy.get('[data-cy="edit-finca"], button').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($edit) => {
-              if ($edit.find('[data-cy="finca-nombre"], input[name*="nombre"]').length > 0) {
-                cy.get('[data-cy="finca-nombre"], input[name*="nombre"]').first().clear().type('Finca Editada')
-                cy.get('body').then(($desc) => {
-                  if ($desc.find('[data-cy="finca-descripcion"], textarea').length > 0) {
-                    cy.get('[data-cy="finca-descripcion"], textarea').first().clear().type('Descripción actualizada')
-                  }
-                })
-                
-                cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
-                
-                // Verificar éxito
-                cy.get('body', { timeout: 5000 }).then(($success) => {
-                  if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                    cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                  }
-                })
-              }
-            })
-          }
-        })
-      } else {
+    clickIfExists('[data-cy="finca-item"], .finca-item, .item, tbody tr').then((clicked) => {
+      if (!clicked) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+      clickIfExists('[data-cy="edit-finca"], button').then((editClicked) => {
+        if (!editClicked) return
+        
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+        typeIfExists('[data-cy="finca-nombre"], input[name*="nombre"]', 'Finca Editada', { clear: true }).then(() => {
+          typeIfExists('[data-cy="finca-descripcion"], textarea', 'Descripción actualizada', { clear: true }).then(() => {
+            clickIfExists('[data-cy="save-finca"], button[type="submit"]').then(() => {
+              cy.get('body', { timeout: 5000 }).then(($success) => {
+                if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
+                  cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+                }
+              })
+            })
+          })
+        })
+      })
     })
   })
 
   it('debe eliminar finca con confirmación', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          if ($details.find('[data-cy="delete-finca"], button').length > 0) {
-            cy.get('[data-cy="delete-finca"], button').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($confirm) => {
-              if ($confirm.find('[data-cy="confirm-delete"], .swal2-confirm, button').length > 0) {
-                cy.get('[data-cy="confirm-delete"], .swal2-confirm, button').first().click()
-                
-                // Verificar éxito
-                cy.get('body', { timeout: 5000 }).then(($success) => {
-                  if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                    cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                  }
-                })
-              }
-            })
-          }
-        })
-      } else {
+    clickIfExists('[data-cy="finca-item"], .finca-item, .item, tbody tr').then((clicked) => {
+      if (!clicked) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+      clickIfExists('[data-cy="delete-finca"], button').then((deleteClicked) => {
+        if (!deleteClicked) return
+        
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+        clickIfExists('[data-cy="confirm-delete"], .swal2-confirm, button').then((confirmed) => {
+          if (!confirmed) return
+          
+          cy.get('body', { timeout: 5000 }).then(($success) => {
+            if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
+              cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+            }
+          })
+        })
+      })
     })
   })
 
   it('debe cancelar eliminación de finca', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item, tbody tr').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item, tbody tr').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($details) => {
-          if ($details.find('[data-cy="delete-finca"], button').length > 0) {
-            cy.get('[data-cy="delete-finca"], button').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($confirm) => {
-              if ($confirm.find('[data-cy="cancel-delete"], .swal2-cancel, button').length > 0) {
-                cy.get('[data-cy="cancel-delete"], .swal2-cancel, button').first().click()
-                
-                // Verificar que permanece
-                cy.get('body', { timeout: 5000 }).then(($remains) => {
-                  if ($remains.find('[data-cy="finca-details"]').length > 0) {
-                    cy.get('[data-cy="finca-details"]').should('be.visible')
-                  } else {
-                    cy.get('body').should('be.visible')
-                  }
-                })
-              }
-            })
-          }
-        })
-      } else {
+    clickIfExists('[data-cy="finca-item"], .finca-item, .item, tbody tr').then((clicked) => {
+      if (!clicked) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+      clickIfExists('[data-cy="delete-finca"], button').then((deleteClicked) => {
+        if (!deleteClicked) return
+        
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+        clickIfExists('[data-cy="cancel-delete"], .swal2-cancel, button').then((cancelled) => {
+          if (!cancelled) return
+          
+          cy.get('body', { timeout: 5000 }).then(($remains) => {
+            if ($remains.find('[data-cy="finca-details"]').length > 0) {
+              cy.get('[data-cy="finca-details"]').should('be.visible')
+            } else {
+              cy.get('body').should('be.visible')
+            }
+          })
+        })
+      })
     })
   })
 
@@ -255,30 +230,28 @@ describe('Gestión de Fincas - CRUD', () => {
         '[data-cy="total-area"]',
         '[data-cy="average-area"]'
       ]
-          verifySelectorsExist(statsSelectors, $body, 5000)
+      verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
   it('debe permitir buscar fincas por nombre', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').length > 0) {
-        cy.get('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').first().type('Paraíso')
-        
-        // Verificar resultados filtrados
-        cy.get('body', { timeout: 3000 }).then(($results) => {
-          if ($results.find('[data-cy="finca-item"], .finca-item, .item').length > 0) {
-            cy.get('[data-cy="finca-item"], .finca-item, .item').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('paraíso') || text.length > 0
-            })
-          }
-          if ($results.find('[data-cy="search-results-count"]').length > 0) {
-            cy.get('[data-cy="search-results-count"]').should('be.visible')
-          }
-        })
-      } else {
+    typeIfExists('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]', 'Paraíso').then((typed) => {
+      if (!typed) {
         cy.get('body').should('be.visible')
+        return
       }
+      
+      cy.get('body', { timeout: 3000 }).then(($results) => {
+        if ($results.find('[data-cy="finca-item"], .finca-item, .item').length > 0) {
+          cy.get('[data-cy="finca-item"], .finca-item, .item').first().should('satisfy', ($el) => {
+            const text = $el.text().toLowerCase()
+            return text.includes('paraíso') || text.length > 0
+          })
+        }
+        if ($results.find('[data-cy="search-results-count"]').length > 0) {
+          cy.get('[data-cy="search-results-count"]').should('be.visible')
+        }
+      })
     })
   })
 
@@ -301,7 +274,6 @@ describe('Gestión de Fincas - CRUD', () => {
           if ($apply.find('[data-cy="apply-filter"], button').length > 0) {
             cy.get('[data-cy="apply-filter"], button').first().click()
             
-            // Verificar filtros aplicados
             cy.get('body', { timeout: 3000 }).then(($filters) => {
               if ($filters.find('[data-cy="active-filters"], [data-cy="filtered-results"]').length > 0) {
                 cy.get('[data-cy="active-filters"], [data-cy="filtered-results"]').first().should('exist')
@@ -324,7 +296,6 @@ describe('Gestión de Fincas - CRUD', () => {
           if ($markers.find('[data-cy="map-markers"], [data-cy="map-marker"]').length > 0) {
             cy.get('[data-cy="map-marker"], [data-cy="map-markers"]').first().click({ force: true })
             
-            // Verificar popup con información
             cy.get('body', { timeout: 3000 }).then(($popup) => {
               if ($popup.find('[data-cy="map-popup"], .popup').length > 0) {
                 cy.get('[data-cy="map-popup"], .popup').should('exist')
@@ -344,11 +315,9 @@ describe('Gestión de Fincas - CRUD', () => {
         cy.get('[data-cy="export-fincas"], button').first().click({ force: true })
         
         cy.get('body', { timeout: 5000 }).then(($export) => {
-          // Verificar opciones de exportación
           if ($export.find('[data-cy="export-pdf"], [data-cy="export-excel"]').length > 0) {
             cy.get('[data-cy="export-pdf"], [data-cy="export-excel"]').first().should('exist')
             
-            // Exportar como PDF si existe
             cy.get('body').then(($pdf) => {
               if ($pdf.find('[data-cy="export-pdf"], button').length > 0) {
                 cy.get('[data-cy="export-pdf"], button').first().click()
@@ -385,7 +354,6 @@ describe('Gestión de Fincas - CRUD', () => {
 
   it('debe manejar errores al crear finca', () => {
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error del servidor
     cy.intercept('POST', `${apiBaseUrl}/fincas/`, {
       statusCode: 500,
       body: { error: 'Error del servidor' }
@@ -409,7 +377,6 @@ describe('Gestión de Fincas - CRUD', () => {
           cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
           cy.wait('@createFincaError', { timeout: 10000 })
           
-          // Verificar mensaje de error
           cy.get('body', { timeout: 5000 }).then(($error) => {
             if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
               cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
@@ -436,7 +403,6 @@ describe('Gestión de Fincas - CRUD', () => {
             cy.get('[data-cy="finca-area"], input[type="number"]').first().type('10')
             cy.get('[data-cy="finca-descripcion"], textarea').first().type('Test description')
             
-            // Intentar guardar sin seleccionar ubicación en mapa
             cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
             
             cy.get('body', { timeout: 3000 }).then(($error) => {
@@ -459,10 +425,8 @@ describe('Gestión de Fincas - CRUD', () => {
     cy.get('[data-cy="finca-item"]').first().click()
     cy.get('[data-cy="duplicate-finca"]').click()
     
-    // Verificar que se abre formulario con datos prellenados
     cy.get('[data-cy="finca-nombre"]').should('have.value').and('not.be.empty')
     
-    // Modificar nombre
     cy.get('[data-cy="finca-nombre"]').clear().type('Finca Duplicada')
     cy.get('[data-cy="save-finca"]').click()
     
@@ -472,11 +436,9 @@ describe('Gestión de Fincas - CRUD', () => {
   it('debe permitir activar/desactivar finca', () => {
     cy.get('[data-cy="finca-item"]').first().click()
     
-    // Desactivar finca
     cy.get('[data-cy="toggle-finca-status"]').click()
     cy.checkNotification('Finca desactivada', 'success')
     
-    // Activar finca
     cy.get('[data-cy="toggle-finca-status"]').click()
     cy.checkNotification('Finca activada', 'success')
   })

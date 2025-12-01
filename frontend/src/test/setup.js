@@ -4,7 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { vi } from 'vitest'
 
 // Mock para Tailwind CSS v4 - clsfn function
-if (typeof globalThis.clsfn === 'undefined') {
+if (globalThis.clsfn === undefined) {
   globalThis.clsfn = (classes) => {
     if (typeof classes === 'string') {
       return classes

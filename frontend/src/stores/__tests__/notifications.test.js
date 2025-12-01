@@ -316,7 +316,7 @@ describe('Notifications Store', () => {
 
       api.get.mockResolvedValue(mockResponse)
 
-      const response = await store.searchNotifications('test')
+      await store.searchNotifications('test')
 
       expect(api.get).toHaveBeenCalledWith('/notifications/', {
         params: { search: 'test' }
