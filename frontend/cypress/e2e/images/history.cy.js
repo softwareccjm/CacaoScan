@@ -1,23 +1,14 @@
+import { verifySelectorsExist } from '../../support/helpers'
+
 describe('Gestión de Imágenes - Historial y Detalles', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
-    }
-  }
-
-
 
   it('debe mostrar historial de imágenes cargadas', () => {
     cy.visit('/mis-imagenes')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Verificar elementos del historial
     cy.get('body').then(($body) => {
       const selectors = [
         '[data-cy="images-history"]',
@@ -25,7 +16,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
         '[data-cy="search-images"]',
         '[data-cy="filter-images"]'
       ]
-          verifySelectorsExist(selectors, $body, 5000)
+      verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
@@ -177,7 +168,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
         '[data-cy="average-quality"]',
         '[data-cy="images-this-month"]'
       ]
-          verifySelectorsExist(statsSelectors, $body, 5000)
+      verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
@@ -220,7 +211,6 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
 
   it('debe mostrar paginación cuando hay muchas imágenes', () => {
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Interceptar la petición pero no esperarla obligatoriamente
     cy.intercept('GET', `${apiBaseUrl}/images/**`, {
       statusCode: 200,
       body: {
@@ -238,10 +228,8 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
     cy.visit('/mis-imagenes')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página cargue, pero no fallar si la petición no ocurre
-    cy.wait(1000) // Esperar 1 segundo para que la página se estabilice
+    cy.wait(1000)
     
-    // Verificar paginación
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="pagination"], .pagination').length > 0) {
         cy.get('[data-cy="pagination"], .pagination', { timeout: 5000 }).should('exist')
@@ -253,7 +241,6 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
           cy.get('body', { timeout: 5000 }).should('be.visible')
         }
       } else {
-        // Si no hay paginación visible, verificar que la página cargó correctamente
         cy.get('body').should('be.visible')
       }
     })
@@ -291,7 +278,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
                 '[data-cy="quality-badge"]',
                 '[data-cy="analysis-date"]'
               ]
-              verifySelectorsExist(infoSelectors, $details, 3000)
+              verifySelectorsExist(infoSelectors, $items.first(), 3000)
             })
           }
         })

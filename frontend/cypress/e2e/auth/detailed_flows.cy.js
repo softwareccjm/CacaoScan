@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '../../support/helpers'
+
 describe('Authentication - Advanced Scenarios', () => {
   
   describe('Login Validation & Errors', () => {
@@ -5,26 +7,6 @@ describe('Authentication - Advanced Scenarios', () => {
       cy.visit('/login')
       cy.get('body', { timeout: 10000 }).should('be.visible')
     })
-
-    const fillLoginForm = (email, password) => {
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="input-email"], input[type="text"], input[type="email"]').length > 0) {
-          cy.get('[data-cy="input-email"], input[type="text"], input[type="email"]').first().type(email)
-          cy.get('[data-cy="input-password"], input[type="password"]').first().type(password)
-          cy.get('[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]').first().click()
-        }
-      })
-    }
-
-    const verifyErrorDisplay = () => {
-      cy.get('body', { timeout: 5000 }).then(($error) => {
-        if ($error.find('.swal2-error, [data-cy="error-message"]').length > 0) {
-          cy.get('.swal2-error, [data-cy="error-message"]').should('be.visible')
-        } else {
-          cy.url().should('include', '/login')
-        }
-      })
-    }
 
     it('should show validation error for empty fields', () => {
       cy.get('body').then(($body) => {
@@ -36,7 +18,7 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should show validation error for invalid email format', () => {
-      fillLoginForm('notanemail', 'password')
+      cy.fillLoginForm('notanemail', 'password')
       cy.get('.error-message, [data-cy="error"], [data-cy="email-error"]', { timeout: 5000 }).should('satisfy', ($el) => {
         const text = $el.text().toLowerCase()
         return text.includes('email') || text.includes('válido') || text.includes('formato') || $el.length > 0
@@ -44,10 +26,10 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle incorrect credentials', () => {
-      const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-      cy.intercept('POST', `${apiBaseUrl}/auth/login/`, { statusCode: 401, body: { detail: 'Credenciales inválidas' } }).as('loginError')
+      const apiBaseUrl = getApiBaseUrl()
+      cy.interceptError('POST', '/auth/login/', 401, { detail: 'Credenciales inválidas' }, 'loginError')
       
-      fillLoginForm('wrong@example.com', 'wrongpassword')
+      cy.fillLoginForm('wrong@example.com', 'wrongpassword')
       cy.wait('@loginError', { timeout: 10000 })
       cy.get('body', { timeout: 5000 }).should('satisfy', ($body) => {
         const hasError = $body.find('.swal2-error, [data-cy="error-message"]').length > 0
@@ -57,12 +39,12 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle server error during login', () => {
-      const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-      cy.intercept('POST', `${apiBaseUrl}/auth/login/`, { statusCode: 500 }).as('loginError')
+      const apiBaseUrl = getApiBaseUrl()
+      cy.interceptError('POST', '/auth/login/', 500, {}, 'loginError')
       
-      fillLoginForm('admin@example.com', 'admin123')
+      cy.fillLoginForm('admin@example.com', 'admin123')
       cy.wait('@loginError', { timeout: 10000 })
-      verifyErrorDisplay()
+      cy.verifyErrorMessage(['error', 'servidor', '500'])
     })
 
     it('should toggle password visibility', () => {
@@ -78,7 +60,6 @@ describe('Authentication - Advanced Scenarios', () => {
             })
           })
         } else {
-          // Si no hay campo de contraseña, el test pasa
           cy.get('body').should('be.visible')
         }
       })
@@ -119,7 +100,7 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should check if email already exists', () => {
-      const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
+      const apiBaseUrl = getApiBaseUrl()
       cy.intercept('POST', `${apiBaseUrl}/auth/register/`, { 
         statusCode: 400, 
         body: { email: ['Este email ya está registrado'] } 
@@ -214,11 +195,9 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle non-existent email for reset', () => {
-      const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-      cy.intercept('POST', `${apiBaseUrl}/auth/password_reset/`, { 
-        statusCode: 404, 
-        body: { detail: 'Email no encontrado' } 
-      }).as('resetFail')
+      const apiBaseUrl = getApiBaseUrl()
+      cy.interceptError('POST', '/auth/password_reset/', 404, { detail: 'Email no encontrado' }, 'resetFail')
+      
       cy.visit('/auth/forgot-password')
       cy.get('body', { timeout: 10000 }).should('be.visible')
       cy.get('body').then(($body) => {
@@ -242,4 +221,3 @@ describe('Authentication - Advanced Scenarios', () => {
     })
   })
 })
-

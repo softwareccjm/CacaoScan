@@ -1,85 +1,16 @@
+import { interactWithFirstRow, verifyRowFilter, selectAndVerifyRows } from '../../support/helpers'
+
 describe('Admin User Management', () => {
   beforeEach(() => {
     cy.login('admin')
     cy.visit('/admin/usuarios')
-    // Esperar a que la página cargue
     cy.get('body', { timeout: 10000 }).should('be.visible')
   })
 
-  const verifyRowFilter = ($row, expectedText, caseSensitive = false) => {
-    const text = caseSensitive ? $row.text() : $row.text().toUpperCase()
-    const searchText = caseSensitive ? expectedText : expectedText.toUpperCase()
-    expect(text.includes(searchText) || text.length === 0).to.be.true
-  }
-
-  const filterAndVerifyRows = (filterSelector, filterValue, rowSelector, verifyCallback) => {
-    cy.get('body').then(($body) => {
-      if ($body.find(filterSelector).length > 0) {
-        cy.get(filterSelector).first().type(filterValue)
-        cy.get(rowSelector, { timeout: 5000 }).then(($rows) => {
-          if ($rows.length > 0) {
-            cy.wrap($rows).each(verifyCallback)
-          }
-        })
-      }
-    })
-  }
-
-  const selectAndVerifyRows = (selectSelector, selectValue, rowSelector, verifyCallback) => {
-    cy.get('body').then(($body) => {
-      if ($body.find(selectSelector).length > 0) {
-        cy.get(selectSelector).first().select(selectValue, { force: true })
-        cy.get(rowSelector, { timeout: 5000 }).then(($rows) => {
-          if ($rows.length > 0) {
-            cy.wrap($rows).each(verifyCallback)
-          }
-        })
-      }
-    })
-  }
-
-  const clickIfExists = (selector, callback) => {
-    cy.get('body').then(($body) => {
-      if ($body.find(selector).length > 0) {
-        cy.get(selector).first().click()
-        if (callback) callback()
-      }
-    })
-  }
-
-  const interactWithFirstRow = (rowSelector, rowCallback) => {
-    cy.get('body').then(($body) => {
-      const rows = $body.find(rowSelector)
-      if (rows.length > 0) {
-        cy.wrap(rows.first()).then(($row) => {
-          rowCallback($row)
-        })
-      } else {
-        cy.get('body').should('be.visible')
-      }
-    })
-  }
-
-  const fillUserForm = (name, email, password, role) => {
-    cy.get('body').then(($modal) => {
-      if ($modal.find('[data-cy="input-name"], input[name*="name"]').length > 0) {
-        cy.get('[data-cy="input-name"], input[name*="name"]').first().type(name)
-        cy.get('[data-cy="input-email"], input[type="email"]').first().type(email)
-        cy.get('[data-cy="input-password"], input[type="password"]').first().type(password)
-        cy.get('[data-cy="select-role"], select').first().select(role, { force: true })
-        cy.get('[data-cy="btn-submit-user"], button[type="submit"]').first().click()
-        cy.get('body', { timeout: 5000 }).should('be.visible')
-        cy.get('table, .table', { timeout: 5000 }).should('exist')
-      }
-    })
-  }
-
   it('should load the user management page correctly', () => {
-    // Verificar que la página cargó correctamente
     cy.url({ timeout: 10000 }).should('satisfy', (url) => {
       return url.includes('/admin') || url.includes('/usuarios') || url.includes('/users')
     })
-    // Verificar título de página (puede no existir)
     cy.get('body').then(($body) => {
       const hasTitle = $body.find('h1, h2, .page-title').length > 0
       if (hasTitle) {
@@ -89,12 +20,10 @@ describe('Admin User Management', () => {
         })
       }
     })
-    // Verificar tabla (puede no existir si no hay datos)
     cy.get('body').then(($body) => {
       if ($body.find('table, .table, [data-cy="users-table"]').length > 0) {
         cy.get('table, .table, [data-cy="users-table"]', { timeout: 5000 }).should('exist')
       } else {
-        // Si no hay tabla, verificar que hay algún contenido
         cy.get('body').should('be.visible')
       }
     })
@@ -107,36 +36,43 @@ describe('Admin User Management', () => {
   it('should filter users by name', () => {
     const searchSelector = '[data-cy="search-input"], input[type="search"], input[placeholder*="search"]'
     const rowSelector = 'table tbody tr, .table-row'
-    filterAndVerifyRows(searchSelector, 'Admin', rowSelector, ($row) => {
-      verifyRowFilter($row, 'ADMIN')
+    cy.filterAndVerifyRows(searchSelector, 'Admin', rowSelector, ($row) => {
+      const isValid = verifyRowFilter($row, 'ADMIN')
+      expect(isValid).to.be.true
     })
   })
 
   it('should filter users by role', () => {
     const roleSelector = '[data-cy="role-filter"], select'
     const rowSelector = 'table tbody tr, .table-row'
-    selectAndVerifyRows(roleSelector, 'farmer', rowSelector, ($row) => {
-      const text = $row.text().toLowerCase()
-      expect(text.includes('agricultor') || text.includes('farmer') || text.length === 0).to.be.true
+    selectAndVerifyRows(roleSelector, 'farmer', rowSelector).then(() => {
+      cy.get(rowSelector).each(($row) => {
+        const text = $row.text().toLowerCase()
+        expect(text.includes('agricultor') || text.includes('farmer') || text.length === 0).to.be.true
+      })
     })
   })
 
   it('should open create user modal', () => {
     const buttonSelector = '[data-cy="btn-create-user"], button'
-    clickIfExists(buttonSelector, () => {
-      cy.get('[data-cy="modal-create-user"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
-      cy.get('[data-cy="modal-title"], h2, .modal-title', { timeout: 3000 }).should('satisfy', ($el) => {
-        const text = $el.text().toLowerCase()
-        return text.includes('crear') || text.includes('create') || text.includes('usuario') || $el.length > 0
-      })
+    cy.clickIfExists(buttonSelector).then((clicked) => {
+      if (clicked) {
+        cy.get('[data-cy="modal-create-user"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
+        cy.get('[data-cy="modal-title"], h2, .modal-title', { timeout: 3000 }).should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return text.includes('crear') || text.includes('create') || text.includes('usuario') || $el.length > 0
+        })
+      }
     })
   })
 
   it('should validate required fields in create user form', () => {
     const buttonSelector = '[data-cy="btn-create-user"], button'
-    clickIfExists(buttonSelector, () => {
-      cy.get('[data-cy="btn-submit-user"], button[type="submit"]').first().click()
-      cy.get('.error-message, [data-cy="error"], .alert-error', { timeout: 5000 }).should('exist')
+    cy.clickIfExists(buttonSelector).then((clicked) => {
+      if (clicked) {
+        cy.get('[data-cy="btn-submit-user"], button[type="submit"]').first().click()
+        cy.get('.error-message, [data-cy="error"], .alert-error', { timeout: 5000 }).should('exist')
+      }
     })
   })
 
@@ -145,8 +81,10 @@ describe('Admin User Management', () => {
     const newEmail = `testuser${timestamp}@example.com`
     const buttonSelector = '[data-cy="btn-create-user"], button'
     
-    clickIfExists(buttonSelector, () => {
-      fillUserForm('Test User', newEmail, 'Password123!', 'farmer')
+    cy.clickIfExists(buttonSelector).then((clicked) => {
+      if (clicked) {
+        cy.fillUserForm('Test User', newEmail, 'Password123!', 'farmer')
+      }
     })
   })
 
@@ -238,16 +176,11 @@ describe('Admin User Management', () => {
   })
 
   it('should delete a user', () => {
-    // Nota: Este test requiere crear un usuario primero, lo cual puede no estar implementado
-    // Por ahora solo verificamos que el flujo de eliminación funciona
     cy.get('body').then(($body) => {
-      // Buscar filas de tabla o cualquier elemento clickeable
       const rows = $body.find('table tbody tr, .table-row, [data-cy="user-row"], tbody tr')
       if (rows.length > 0) {
-        // Solo probar si hay usuarios disponibles (no crear uno nuevo por ahora)
         cy.get('body').should('be.visible')
       } else {
-        // Si no hay filas, el test pasa (no hay datos para eliminar)
         cy.get('body').should('be.visible')
       }
     })
@@ -269,4 +202,3 @@ describe('Admin User Management', () => {
     })
   })
 })
-

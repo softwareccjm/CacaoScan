@@ -48,7 +48,7 @@ describe('Cacao Analysis & Prediction Flow', () => {
     cy.visit('/detalle-analisis/1')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     cy.get('[data-cy="segmentation-mask"], .mask, canvas', { timeout: 5000 }).should('exist')
-    cy.get('[data-cy="stats-panel"], .stats, .panel', { timeout: 5000 }).should('exist')
+        cy.get('[data-cy="stats-panel"], .stats, .panel', { timeout: 5000 }).should('exist')
   })
 
   it('should filter results by confidence score', () => {
@@ -83,9 +83,9 @@ describe('Cacao Analysis & Prediction Flow', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
     cy.clickIfExists('[data-cy="btn-download-pdf"], button, a')
-    cy.get('body', { timeout: 5000 }).then(($afterClick) => {
-      if ($afterClick.find('.swal2-success, .success, [data-cy="success"]').length > 0) {
-        cy.get('.swal2-success, .success, [data-cy="success"]').should('exist')
+        cy.get('body', { timeout: 5000 }).then(($afterClick) => {
+          if ($afterClick.find('.swal2-success, .success, [data-cy="success"]').length > 0) {
+            cy.get('.swal2-success, .success, [data-cy="success"]').should('exist')
       } else {
         cy.get('body').should('be.visible')
       }

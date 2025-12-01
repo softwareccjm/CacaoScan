@@ -19,6 +19,7 @@
 import { ref, computed, watch, useAttrs } from 'vue'
 import { useChart } from '@/composables/useChart'
 import { useChartConfig } from '@/composables/useChartConfig'
+import { useChartEvents } from '@/composables/useChartEvents'
 
 const props = defineProps({
   chartData: {
@@ -97,6 +98,9 @@ const emit = defineEmits(['chart-click', 'chart-hover', 'chart-loaded'])
 
 const attrs = useAttrs()
 
+// Use chart events composable
+const { handleChartClick, handleChartHover, handleChartLoaded } = useChartEvents(emit)
+
 // Use chart config composable
 const chartConfig = useChartConfig({
   theme: props.theme,
@@ -154,15 +158,9 @@ const { createChart, updateChart, updateOptions, addData, removeData, resizeChar
   chartData: processedChartData,
   options: defaultOptions,
   type: props.type,
-  onClick: (data) => {
-    emit('chart-click', data)
-  },
-  onHover: (data) => {
-    emit('chart-hover', data)
-  },
-  onLoaded: (instance) => {
-    emit('chart-loaded', instance)
-  },
+  onClick: handleChartClick,
+  onHover: handleChartHover,
+  onLoaded: handleChartLoaded,
   enableResizeObserver: props.enableResizeObserver
 })
 

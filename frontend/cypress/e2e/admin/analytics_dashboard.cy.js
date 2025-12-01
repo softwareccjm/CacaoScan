@@ -22,11 +22,11 @@ describe('Admin Analytics Dashboard', () => {
 
   it('should update charts when time range changes', () => {
     cy.selectIfExists('[data-cy="select-time-range"]', 'last_year')
-    cy.get('body').then(($updated) => {
-      if ($updated.find('[data-cy="loading-spinner"]').length > 0) {
-        cy.get('[data-cy="loading-spinner"]', { timeout: 5000 }).should('exist')
-      }
-    })
+        cy.get('body').then(($updated) => {
+          if ($updated.find('[data-cy="loading-spinner"]').length > 0) {
+            cy.get('[data-cy="loading-spinner"]', { timeout: 5000 }).should('exist')
+          }
+        })
     verifyDashboardExists()
   })
 
@@ -37,14 +37,14 @@ describe('Admin Analytics Dashboard', () => {
 
   it('should drill down into analysis stats', () => {
     cy.clickIfExists('[data-cy="card-analysis-total"]')
-    cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-      return url.includes('/admin/analisis') || url.includes('/admin')
+        cy.url({ timeout: 10000 }).should('satisfy', (url) => {
+          return url.includes('/admin/analisis') || url.includes('/admin')
     })
   })
 
   it('should export dashboard report', () => {
     cy.clickIfExists('[data-cy="btn-export-dashboard"]')
-    cy.get('body', { timeout: 5000 }).should('be.visible')
+        cy.get('body', { timeout: 5000 }).should('be.visible')
   })
 })
 

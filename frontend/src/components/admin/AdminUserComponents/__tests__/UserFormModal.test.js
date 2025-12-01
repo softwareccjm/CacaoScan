@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import UserFormModal from '../UserFormModal.vue'
-
-// Helper function to generate secure password dynamically
-const generatePassword = () => {
-  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
+import { generatePassword } from '@/utils/testUtils'
 
 const mockAdminStore = {
   createUser: vi.fn(),
