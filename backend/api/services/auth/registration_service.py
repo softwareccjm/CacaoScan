@@ -43,50 +43,13 @@ class RegistrationService(BaseService):
             required_fields = ['username', 'email', 'password', 'password_confirm']
             self.validate_required_fields(user_data, required_fields)
             
-            # Validate passwords
-            if user_data['password'] != user_data['password_confirm']:
-                return ServiceResult.validation_error(
-                    "Las contraseñas no coinciden",
-                    details={"field": "password_confirm"}
-                )
-            
-            # Validate password strength
-            password = user_data['password']
-            try:
-                from core.utils import validate_password_strength
-                validate_password_strength(password, raise_serializer_error=False)
-            except Exception as e:
-                from core.utils import PasswordValidationError
-                if isinstance(e, PasswordValidationError):
-                    return ServiceResult.validation_error(
-                        e.message,
-                        details={"field": "password"}
-                    )
-                raise
-            
-            # Validate unique email
-            if User.objects.filter(email=user_data['email']).exists():
-                return ServiceResult.validation_error(
-                    ERROR_EMAIL_ALREADY_REGISTERED,
-                    details={"field": "email"}
-                )
-            
-            # Validate unique username
-            if User.objects.filter(username=user_data['username']).exists():
-                return ServiceResult.validation_error(
-                    "Este nombre de usuario ya está en uso",
-                    details={"field": "username"}
-                )
+            # Validate user data
+            validation_result = self._validate_user_registration_data(user_data, check_username=True)
+            if validation_result:
+                return validation_result
             
             # Create user
-            user = User.objects.create_user(
-                username=user_data['username'],
-                email=user_data['email'],
-                password=user_data['password'],
-                first_name=user_data.get('first_name', ''),
-                last_name=user_data.get('last_name', ''),
-                is_active=True
-            )
+            user = self._create_user_from_data(user_data, use_email_as_username=False)
             
             # Create email verification token
             from ...utils.model_imports import get_models_safely
@@ -161,43 +124,13 @@ class RegistrationService(BaseService):
             required_fields = ['email', 'password', 'password_confirm']
             self.validate_required_fields(user_data, required_fields)
             
-            # Validate passwords
-            if user_data['password'] != user_data['password_confirm']:
-                return ServiceResult.validation_error(
-                    "Las contraseñas no coinciden",
-                    details={"field": "password_confirm"}
-                )
-            
-            # Validate password strength
-            password = user_data['password']
-            try:
-                from core.utils import validate_password_strength
-                validate_password_strength(password, raise_serializer_error=False)
-            except Exception as e:
-                from core.utils import PasswordValidationError
-                if isinstance(e, PasswordValidationError):
-                    return ServiceResult.validation_error(
-                        e.message,
-                        details={"field": "password"}
-                    )
-                raise
-            
-            # Validate unique email
-            if User.objects.filter(email=user_data['email']).exists():
-                return ServiceResult.validation_error(
-                    ERROR_EMAIL_ALREADY_REGISTERED,
-                    details={"field": "email"}
-                )
+            # Validate user data
+            validation_result = self._validate_user_registration_data(user_data, check_username=False)
+            if validation_result:
+                return validation_result
             
             # Create user
-            user = User.objects.create_user(
-                username=user_data['email'],
-                email=user_data['email'],
-                password=password,
-                first_name=user_data.get('first_name', ''),
-                last_name=user_data.get('last_name', ''),
-                is_active=True
-            )
+            user = self._create_user_from_data(user_data, use_email_as_username=True)
             
             # Create email verification token
             from ...utils.model_imports import get_models_safely
@@ -408,14 +341,7 @@ class RegistrationService(BaseService):
                 user_data = pending_reg.data.copy()
                 password = user_data.pop('password')
                 
-                user = User.objects.create_user(
-                    username=user_data['email'],
-                    email=user_data['email'],
-                    password=password,
-                    first_name=user_data.get('first_name', ''),
-                    last_name=user_data.get('last_name', ''),
-                    is_active=True
-                )
+                user = self._create_user_from_data(user_data, use_email_as_username=True)
                 
                 # If there's persona data, create persona record
                 if 'tipo_documento' in user_data or 'numero_documento' in user_data:
@@ -629,6 +555,61 @@ Equipo CacaoScan · Proyecto SENNOVA · SENA Guaviare
         except Exception as e:
             self.log_error(f"Error enviando email de verificación: {e}")
             return {'success': False, 'error': str(e)}
+    
+    def _validate_user_registration_data(self, user_data: Dict[str, Any], check_username: bool = False) -> Optional[ServiceResult]:
+        """Validate user registration data."""
+        # Validate passwords match
+        if user_data.get('password') != user_data.get('password_confirm'):
+            return ServiceResult.validation_error(
+                "Las contraseñas no coinciden",
+                details={"field": "password_confirm"}
+            )
+        
+        # Validate password strength
+        password = user_data.get('password')
+        if password:
+            try:
+                from core.utils import validate_password_strength
+                validate_password_strength(password, raise_serializer_error=False)
+            except Exception as e:
+                from core.utils import PasswordValidationError
+                if isinstance(e, PasswordValidationError):
+                    return ServiceResult.validation_error(
+                        e.message,
+                        details={"field": "password"}
+                    )
+                raise
+        
+        # Validate unique email
+        if User.objects.filter(email=user_data.get('email')).exists():
+            return ServiceResult.validation_error(
+                ERROR_EMAIL_ALREADY_REGISTERED,
+                details={"field": "email"}
+            )
+        
+        # Validate unique username if required
+        if check_username and user_data.get('username'):
+            if User.objects.filter(username=user_data['username']).exists():
+                return ServiceResult.validation_error(
+                    "Este nombre de usuario ya está en uso",
+                    details={"field": "username"}
+                )
+        
+        return None
+    
+    def _create_user_from_data(self, user_data: Dict[str, Any], use_email_as_username: bool = False) -> User:
+        """Create user from data dictionary."""
+        username = user_data['email'] if use_email_as_username else user_data['username']
+        password = user_data.get('password') or user_data.get('password_confirm')
+        
+        return User.objects.create_user(
+            username=username,
+            email=user_data['email'],
+            password=password,
+            first_name=user_data.get('first_name', ''),
+            last_name=user_data.get('last_name', ''),
+            is_active=True
+        )
     
     def _get_client_ip(self, request):
         """Gets client IP address."""

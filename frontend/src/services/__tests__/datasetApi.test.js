@@ -33,7 +33,7 @@ describe('Dataset API Service', () => {
       const mockResponse = {
         results: [
           { id: 1, filename: 'test1.jpg', quality_score: 85.5 },
-          { id: 2, filename: 'test2.jpg', quality_score: 92.0 }
+          { id: 2, filename: 'test2.jpg', quality_score: 92 }
         ],
         count: 2
       }
@@ -106,7 +106,7 @@ describe('Dataset API Service', () => {
     it('should update image successfully', async () => {
       const imageId = 1
       const updateData = {
-        quality_score: 90.0,
+        quality_score: 90,
         notes: 'Updated notes'
       }
 
@@ -177,7 +177,7 @@ describe('Dataset API Service', () => {
     it('should bulk update images successfully', async () => {
       const imageIds = [1, 2, 3]
       const updateData = {
-        quality_score: 90.0
+        quality_score: 90
       }
 
       const mockResponse = {
@@ -516,7 +516,7 @@ describe('Dataset API Service', () => {
         expect(datasetApi.formatNumber(123.456, 1)).toBe('123.5')
         expect(datasetApi.formatNumber(null)).toBe('N/A')
         expect(datasetApi.formatNumber(undefined)).toBe('N/A')
-        expect(datasetApi.formatNumber(NaN)).toBe('N/A')
+        expect(datasetApi.formatNumber(Number.NaN)).toBe('N/A')
       })
     })
 

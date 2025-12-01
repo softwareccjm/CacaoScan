@@ -2,7 +2,7 @@ describe('Basic Performance Metrics', () => {
   
   it('should load the dashboard within acceptable time threshold', () => {
     cy.login('farmer')
-    const startTime = new Date().getTime()
+    const startTime = Date.now()
     
     cy.visit('/agricultor-dashboard', {
       onBeforeLoad: (win) => {
@@ -11,7 +11,7 @@ describe('Basic Performance Metrics', () => {
     }).then(() => {
       cy.get('body', { timeout: 20000 }).should('be.visible')
       cy.window().then((win) => {
-        const endTime = new Date().getTime()
+        const endTime = Date.now()
         const duration = endTime - startTime
         
         cy.log(`Dashboard load time: ${duration}ms`)
@@ -26,11 +26,11 @@ describe('Basic Performance Metrics', () => {
     // Mock large dataset - generate mock data directly instead of using fixture
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
     const largeFincasList = {
-      results: Array(100).fill(null).map((_, i) => ({
+      results: Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         nombre: `Finca ${i + 1}`,
         ubicacion: `Ubicación ${i + 1}`,
-        area: Math.random() * 100,
+        area: ((i % 50) + 1) * 2,
         estado: i % 2 === 0 ? 'activa' : 'inactiva',
         created_at: new Date().toISOString()
       })),
@@ -44,23 +44,20 @@ describe('Basic Performance Metrics', () => {
       body: largeFincasList
     }).as('getLargeList')
     
-    const startTime = new Date().getTime()
+    const startTime = Date.now()
     cy.visit('/fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
     // Wait for the API call or give time for page to load
     cy.wait(1000) // Give time for the page to load and potentially make the API call
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-card"], .finca-card, .card').length > 0) {
-        cy.get('[data-cy="finca-card"], .finca-card, .card').should('have.length.at.least', 0)
-      } else {
-        // If no cards found, verify that the page loaded correctly
-        cy.get('body').should('be.visible')
-      }
+    ifFoundInBody('[data-cy="finca-card"], .finca-card, .card', () => {
+      cy.get('[data-cy="finca-card"], .finca-card, .card').should('have.length.at.least', 0)
+    }, () => {
+      cy.get('body').should('be.visible')
     })
     
-    const endTime = new Date().getTime()
+    const endTime = Date.now()
     // Increase threshold to 10 seconds to be more realistic
     expect(endTime - startTime).to.be.lessThan(10000)
   })

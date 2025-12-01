@@ -197,6 +197,28 @@ export function validateBirthdateRange(birthdate) {
 }
 
 /**
+ * Format dimensions string (e.g., "10.5 × 12.3 × 5.2 mm")
+ * @param {Object} prediction - Prediction object with width, height, thickness
+ * @param {Function} formatNumberFn - Function to format numbers (optional)
+ * @returns {string} Formatted dimensions string
+ */
+export function formatDimensions(prediction, formatNumberFn = null) {
+  if (!prediction) return 'N/A'
+  
+  const formatNum = formatNumberFn || ((value) => {
+    if (value === null || value === undefined) return 'N/A'
+    const num = Number.parseFloat(value)
+    return Number.isNaN(num) ? 'N/A' : num.toFixed(2)
+  })
+  
+  const width = formatNum(prediction.width)
+  const height = formatNum(prediction.height)
+  const thickness = formatNum(prediction.thickness)
+  
+  return `${width} × ${height} × ${thickness} mm`
+}
+
+/**
  * Composable function that returns all date formatting utilities and birthdate helpers
  * @returns {Object} Object with all date formatting functions and birthdate utilities
  */
@@ -209,7 +231,8 @@ export function useDateFormatting() {
     getMinBirthdate,
     getMaxBirthdate,
     calculateAge,
-    validateBirthdateRange
+    validateBirthdateRange,
+    formatDimensions
   }
 }
 

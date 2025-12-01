@@ -213,7 +213,6 @@ describe('ReportsService', () => {
   describe('downloadReport', () => {
     it('should download report successfully', async () => {
       const reportId = 1
-      const mockBlob = new Blob(['test content'], { type: 'application/pdf' })
 
       globalThis.fetch.mockResolvedValue({
         ok: true,

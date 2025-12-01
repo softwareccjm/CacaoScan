@@ -42,9 +42,9 @@
           <button
             type="button"
             @click="handleMenuClick(item)"
-            @keydown="handleKeyDown($event, item)"
-            @keyup="handleKeyUp($event, item)"
-            @keypress="handleKeyPress($event, item)"
+            @keydown="handleKeyboardAction($event, item)"
+            @keyup="handleKeyboardAction($event, item)"
+            @keypress="handleKeyboardAction($event, item)"
             :class="[
               'flex items-center rounded-lg group transition-all duration-200 cursor-pointer w-full text-left border-0 bg-transparent',
               collapsed ? 'px-2 py-2 justify-center' : 'px-3 py-3',
@@ -98,6 +98,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { normalizeRole } from '@/utils/roleUtils'
 
 // Props
 const props = defineProps({
@@ -237,16 +238,7 @@ const allMenuItems = {
 
 // Computed properties
 const menuItems = computed(() => {
-  // Normalize role to ensure it matches our keys
-  let normalizedRole = props.userRole
-  
-  // Normalize from backend values or common variations
-  if (normalizedRole === 'Administrador' || normalizedRole === 'Administrator') {
-    normalizedRole = 'admin'
-  } else if (normalizedRole === 'Agricultor' || normalizedRole === 'Farmer') {
-    normalizedRole = 'agricultor'
-  }
-  
+  const normalizedRole = normalizeRole(props.userRole) || 'agricultor'
   return allMenuItems[normalizedRole] || []
 })
 
@@ -256,17 +248,20 @@ const userInitials = computed(() => {
 })
 
 // Methods
-const getMenuItemClass = (item) => {
-  let isActive = false
-  
+// Base function to check if menu item is active (extracted common logic)
+const isMenuItemActive = (item) => {
   if (props.userRole === 'admin') {
     // For admin role, check route
-    isActive = props.currentRoute === item.route || 
-               (item.route !== '/admin/dashboard' && props.currentRoute.startsWith(item.route))
+    return props.currentRoute === item.route || 
+           (item.route !== '/admin/dashboard' && props.currentRoute.startsWith(item.route))
   } else {
     // For agricultor role, check activeSection
-    isActive = props.activeSection === item.id
+    return props.activeSection === item.id
   }
+}
+
+const getMenuItemClass = (item) => {
+  const isActive = isMenuItemActive(item)
   
   if (isActive) {
     return 'text-green-700 bg-green-100 border-r-3 border-green-600 shadow-sm'
@@ -276,16 +271,7 @@ const getMenuItemClass = (item) => {
 }
 
 const getIconClass = (item) => {
-  let isActive = false
-  
-  if (props.userRole === 'admin') {
-    // For admin role, check route
-    isActive = props.currentRoute === item.route || 
-               (item.route !== '/admin/dashboard' && props.currentRoute.startsWith(item.route))
-  } else {
-    // For agricultor role, check activeSection
-    isActive = props.activeSection === item.id
-  }
+  const isActive = isMenuItemActive(item)
   
   if (isActive) {
     return 'text-green-700'
@@ -313,18 +299,6 @@ const handleKeyboardAction = (event, item) => {
     event.preventDefault()
     handleMenuClick(item)
   }
-}
-
-const handleKeyDown = (event, item) => {
-  handleKeyboardAction(event, item)
-}
-
-const handleKeyUp = (event, item) => {
-  handleKeyboardAction(event, item)
-}
-
-const handleKeyPress = (event, item) => {
-  handleKeyboardAction(event, item)
 }
 
 const handleLogout = () => {

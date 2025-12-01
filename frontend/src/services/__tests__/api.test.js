@@ -52,8 +52,6 @@ globalThis.showNotification = vi.fn()
 globalThis.dispatchEvent = vi.fn()
 
 describe('API Service', () => {
-  let api
-
   beforeEach(async () => {
     vi.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
@@ -75,10 +73,6 @@ describe('API Service', () => {
         headers: {}
       }
     })
-
-    // Import api after mocks are set up
-    const apiModule = await import('../api.js')
-    api = apiModule.default
   })
 
   afterEach(() => {
@@ -99,13 +93,6 @@ describe('API Service', () => {
     })
 
     it('should validate baseURL is absolute', async () => {
-      const config = {
-        url: '/test',
-        method: 'get',
-        baseURL: 'relative/path',
-        headers: {}
-      }
-
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       // This would be tested through the actual interceptor
@@ -116,13 +103,6 @@ describe('API Service', () => {
 
     it('should log requests', async () => {
       const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-      
-      const config = {
-        url: '/test',
-        method: 'get',
-        baseURL: 'https://test-api.example.com/api/v1',
-        headers: {}
-      }
 
       // Request logging would happen in interceptor
       expect(consoleLogSpy).toBeDefined()
@@ -278,15 +258,21 @@ describe('API Service', () => {
     })
 
     it('should redirect to login when refresh token expires', async () => {
-      // Mock localStorage to return null for refresh_token
+      // Mock localStorage to return null for refresh_token but other values for other keys
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'refresh_token') return null
-        return null
+        if (key === 'access_token') return 'expired-access-token'
+        if (key === 'user_data') return JSON.stringify({ id: 1, email: 'test@example.com' })
+        return undefined
       })
 
       // Should redirect to login when no refresh token
       const refreshToken = localStorageMock.getItem('refresh_token')
       expect(refreshToken).toBe(null)
+      
+      // Verify other keys still return values
+      const accessToken = localStorageMock.getItem('access_token')
+      expect(accessToken).toBe('expired-access-token')
     })
   })
 

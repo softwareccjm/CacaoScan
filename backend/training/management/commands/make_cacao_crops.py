@@ -124,19 +124,25 @@ class Command(BaseCommand):
         )
         self.stdout.write(f"Tasa de éxito: {success_rate:.2f}%")
         self.stdout.write(f"Tiempo total: {processing_time:.2f} segundos")
+        
+        if processing_stats.get('failed', 0) > 0:
+            errors = processing_stats.get('errors', [])
+            self._display_errors(errors)
     
-    def _display_errors(self, processing_stats):
+    def _display_errors(self, errors):
         """Display processing errors if any."""
-        if processing_stats['failed'] > 0:
-            self.stdout.write("\nErrores encontrados:")
-            for error in processing_stats['errors'][:10]:
-                self.stdout.write(
-                    self.style.ERROR(f"  ID {error['id']}: {error['error']}")
-                )
-            if len(processing_stats['errors']) > 10:
-                self.stdout.write(
-                    self.style.WARNING(f"  ... y {len(processing_stats['errors']) - 10} errores más")
-                )
+        if not errors:
+            return
+        
+        self.stdout.write("\nErrores encontrados:")
+        for error in errors[:10]:
+            self.stdout.write(
+                self.style.ERROR(f"  ID {error['id']}: {error['error']}")
+            )
+        if len(errors) > 10:
+            self.stdout.write(
+                self.style.WARNING(f"  ... y {len(errors) - 10} errores más")
+            )
     
     def _display_output_locations(self, save_masks):
         """Display output file locations."""

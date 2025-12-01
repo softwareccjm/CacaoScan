@@ -1,23 +1,27 @@
+import { 
+  verifySelectorsExist,
+  ifFoundInBody,
+  clickIfExistsAndContinue,
+  selectIfExistsAndContinue,
+  waitForPageLoad,
+  verifyElementWithAlternatives,
+  verifyUrlPatterns,
+  setupServerError,
+  setupEmptyListIntercept,
+  verifyEmptyState,
+  verifyTextContains,
+  getApiBaseUrl
+} from '../../support/helpers'
+
 describe('Navegación - UI y UX', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
-    }
-  }
-
-
 
   it('debe mostrar navegación principal correctamente', () => {
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Verificar navbar principal
     cy.get('body').then(($body) => {
       const selectors = [
         '[data-cy="main-navbar"]',
@@ -25,180 +29,137 @@ describe('Navegación - UI y UX', () => {
         '[data-cy="user-menu"]',
         '[data-cy="nav-link"]'
       ]
-          verifySelectorsExist(selectors, $body, 5000)
+      verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
   it('debe mostrar navegación lateral correctamente', () => {
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Verificar sidebar
+    const sidebarSelectors = ['[data-cy="sidebar"]', '.sidebar', 'nav']
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="sidebar"], .sidebar, nav').length > 0) {
-        cy.get('[data-cy="sidebar"], .sidebar, nav').first().should('exist')
-        if ($body.find('[data-cy="sidebar-menu"], .sidebar-menu, .menu').length > 0) {
-          cy.get('[data-cy="sidebar-menu"], .sidebar-menu, .menu').should('exist')
-        }
-        if ($body.find('[data-cy="sidebar-link"], .sidebar-link, a, button').length > 0) {
-          cy.get('[data-cy="sidebar-link"], .sidebar-link, a, button').should('have.length.greaterThan', 0)
-        }
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      verifyElementWithAlternatives(sidebarSelectors, $body).then(() => {
+        const menuSelectors = ['[data-cy="sidebar-menu"]', '.sidebar-menu', '.menu']
+        verifyElementWithAlternatives(menuSelectors, $body)
+        const linkSelectors = ['[data-cy="sidebar-link"]', '.sidebar-link', 'a', 'button']
+        verifyElementWithAlternatives(linkSelectors, $body).then(() => {
+          cy.get(linkSelectors.join(', ')).should('have.length.greaterThan', 0)
+        })
+      })
     })
   })
 
   it('debe mostrar breadcrumbs correctamente', () => {
     cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($finca) => {
-          // Verificar breadcrumbs si existen
-          if ($finca.find('[data-cy="breadcrumbs"], .breadcrumbs, .breadcrumb').length > 0) {
-            cy.get('[data-cy="breadcrumbs"], .breadcrumbs, .breadcrumb').should('exist')
-            if ($finca.find('[data-cy="breadcrumb-home"], .breadcrumb-home').length > 0) {
-              cy.get('[data-cy="breadcrumb-home"], .breadcrumb-home').should('exist')
-            }
-            if ($finca.find('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas').length > 0) {
-              cy.get('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas').should('exist')
-            }
-            if ($finca.find('[data-cy="breadcrumb-current"], .breadcrumb-current').length > 0) {
-              cy.get('[data-cy="breadcrumb-current"], .breadcrumb-current').should('exist')
-            }
-          }
+    const fincaSelectors = ['[data-cy="finca-item"]', '.finca-item', '.item']
+    ifFoundInBody(fincaSelectors.join(', '), () => {
+      cy.get(fincaSelectors.join(', ')).first().click({ force: true })
+      cy.get('body', { timeout: 5000 }).then(($finca) => {
+        const breadcrumbSelectors = ['[data-cy="breadcrumbs"]', '.breadcrumbs', '.breadcrumb']
+        verifyElementWithAlternatives(breadcrumbSelectors, $finca).then(() => {
+          const breadcrumbHomeSelectors = ['[data-cy="breadcrumb-home"]', '.breadcrumb-home']
+          verifyElementWithAlternatives(breadcrumbHomeSelectors, $finca)
+          const breadcrumbFincasSelectors = ['[data-cy="breadcrumb-fincas"]', '.breadcrumb-fincas']
+          verifyElementWithAlternatives(breadcrumbFincasSelectors, $finca)
+          const breadcrumbCurrentSelectors = ['[data-cy="breadcrumb-current"]', '.breadcrumb-current']
+          verifyElementWithAlternatives(breadcrumbCurrentSelectors, $finca)
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe navegar usando breadcrumbs', () => {
     cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-item"], .finca-item, .item').length > 0) {
-        cy.get('[data-cy="finca-item"], .finca-item, .item').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($finca) => {
-          if ($finca.find('[data-cy="lote-item"], .lote-item, .item').length > 0) {
-            cy.get('[data-cy="lote-item"], .lote-item, .item').first().click({ force: true })
-            cy.get('body', { timeout: 5000 }).then(($lote) => {
-              // Navegar usando breadcrumbs si existen
-              if ($lote.find('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas, .breadcrumb').length > 0) {
-                cy.get('[data-cy="breadcrumb-fincas"], .breadcrumb-fincas, .breadcrumb').first().click({ force: true })
-                cy.get('body', { timeout: 5000 }).should('be.visible')
-              }
-              
-              if ($lote.find('[data-cy="breadcrumb-home"], .breadcrumb-home, a[href*="dashboard"]').length > 0) {
-                cy.get('[data-cy="breadcrumb-home"], .breadcrumb-home, a[href*="dashboard"]').first().click({ force: true })
-                cy.url({ timeout: 10000 }).should('satisfy', (url) => {
-                  return url.includes('/agricultor-dashboard') || url.includes('/dashboard')
-                })
-              }
-            })
-          }
+    const fincaSelectors = ['[data-cy="finca-item"]', '.finca-item', '.item']
+    ifFoundInBody(fincaSelectors.join(', '), () => {
+      cy.get(fincaSelectors.join(', ')).first().click({ force: true })
+      const loteSelectors = ['[data-cy="lote-item"]', '.lote-item', '.item']
+      return ifFoundInBody(loteSelectors.join(', '), () => {
+        cy.get(loteSelectors.join(', ')).first().click({ force: true })
+        const breadcrumbFincasSelectors = ['[data-cy="breadcrumb-fincas"]', '.breadcrumb-fincas', '.breadcrumb']
+        return clickIfExistsAndContinue(breadcrumbFincasSelectors.join(', '), () => {
+          waitForPageLoad(5000)
+        }).then(() => {
+          const breadcrumbHomeSelectors = ['[data-cy="breadcrumb-home"]', '.breadcrumb-home', 'a[href*="dashboard"]']
+          return clickIfExistsAndContinue(breadcrumbHomeSelectors.join(', '), () => {
+            verifyUrlPatterns(['/agricultor-dashboard', '/dashboard'])
+          })
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe mostrar menú de usuario correctamente', () => {
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Abrir menú de usuario
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
-        cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($menu) => {
-          // Verificar opciones del menú si existen
-          if ($menu.find('[data-cy="user-menu-items"], .user-menu-items, .menu-items').length > 0) {
-            cy.get('[data-cy="user-menu-items"], .user-menu-items, .menu-items').should('exist')
-            if ($menu.find('[data-cy="profile-link"], .profile-link, a').length > 0) {
-              cy.get('[data-cy="profile-link"], .profile-link, a').should('exist')
-            }
-            if ($menu.find('[data-cy="settings-link"], .settings-link, a').length > 0) {
-              cy.get('[data-cy="settings-link"], .settings-link, a').should('exist')
-            }
-            if ($menu.find('[data-cy="logout-button"], .logout-button, button').length > 0) {
-              cy.get('[data-cy="logout-button"], .logout-button, button').should('exist')
-            }
-          }
+    const userMenuSelectors = ['[data-cy="user-menu"]', '.user-menu', 'button']
+    ifFoundInBody(userMenuSelectors.join(', '), () => {
+      cy.get(userMenuSelectors.join(', ')).first().click({ force: true })
+      cy.get('body', { timeout: 3000 }).then(($menu) => {
+        const menuItemsSelectors = ['[data-cy="user-menu-items"]', '.user-menu-items', '.menu-items']
+        verifyElementWithAlternatives(menuItemsSelectors, $menu).then(() => {
+          const profileLinkSelectors = ['[data-cy="profile-link"]', '.profile-link', 'a']
+          verifyElementWithAlternatives(profileLinkSelectors, $menu)
+          const settingsLinkSelectors = ['[data-cy="settings-link"]', '.settings-link', 'a']
+          verifyElementWithAlternatives(settingsLinkSelectors, $menu)
+          const logoutButtonSelectors = ['[data-cy="logout-button"]', '.logout-button', 'button']
+          verifyElementWithAlternatives(logoutButtonSelectors, $menu)
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe mostrar navegación responsive en móvil', () => {
-    // Simular vista móvil
     cy.viewport(375, 667)
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Verificar menú hamburguesa si existe
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="mobile-menu-button"], .mobile-menu-button, button').length > 0) {
-        cy.get('[data-cy="mobile-menu-button"], .mobile-menu-button, button').first().should('exist')
-        
-        // Abrir menú móvil
-        cy.get('[data-cy="mobile-menu-button"], .mobile-menu-button, button').first().click({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($menu) => {
-          if ($menu.find('[data-cy="mobile-menu"], .mobile-menu').length > 0) {
-            cy.get('[data-cy="mobile-menu"], .mobile-menu').should('exist')
-            if ($menu.find('[data-cy="mobile-menu-link"], .mobile-menu-link, a').length > 0) {
-              cy.get('[data-cy="mobile-menu-link"], .mobile-menu-link, a').should('have.length.greaterThan', 0)
-            }
-          }
+    const mobileMenuButtonSelectors = ['[data-cy="mobile-menu-button"]', '.mobile-menu-button', 'button']
+    ifFoundInBody(mobileMenuButtonSelectors.join(', '), () => {
+      cy.get(mobileMenuButtonSelectors.join(', ')).first().click({ force: true })
+      cy.get('body', { timeout: 3000 }).then(($menu) => {
+        const mobileMenuSelectors = ['[data-cy="mobile-menu"]', '.mobile-menu']
+        verifyElementWithAlternatives(mobileMenuSelectors, $menu).then(() => {
+          const mobileMenuLinkSelectors = ['[data-cy="mobile-menu-link"]', '.mobile-menu-link', 'a']
+          verifyElementWithAlternatives(mobileMenuLinkSelectors, $menu).then(() => {
+            cy.get(mobileMenuLinkSelectors.join(', ')).should('have.length.greaterThan', 0)
+          })
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
     })
   })
 
   it('debe mostrar navegación responsive en tablet', () => {
-    // Simular vista tablet
     cy.viewport(768, 1024)
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Verificar que se adapta a tablet
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="sidebar"], .sidebar, nav').length > 0) {
-        cy.get('[data-cy="sidebar"], .sidebar, nav').should('exist')
-      }
-      if ($body.find('[data-cy="main-content"], .main-content, main').length > 0) {
-        cy.get('[data-cy="main-content"], .main-content, main').should('exist')
-      }
+      const sidebarSelectors = ['[data-cy="sidebar"]', '.sidebar', 'nav']
+      verifyElementWithAlternatives(sidebarSelectors, $body)
+      const mainContentSelectors = ['[data-cy="main-content"]', '.main-content', 'main']
+      verifyElementWithAlternatives(mainContentSelectors, $body)
     })
   })
 
   it('debe mostrar navegación responsive en desktop', () => {
-    // Simular vista desktop
     cy.viewport(1920, 1080)
     cy.visit('/agricultor-dashboard')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Verificar que se adapta a desktop
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="sidebar"], .sidebar, nav').length > 0) {
-        cy.get('[data-cy="sidebar"], .sidebar, nav').should('exist')
-      }
-      if ($body.find('[data-cy="main-content"], .main-content, main').length > 0) {
-        cy.get('[data-cy="main-content"], .main-content, main').should('exist')
-      }
-      if ($body.find('[data-cy="navbar"], .navbar, nav').length > 0) {
-        cy.get('[data-cy="navbar"], .navbar, nav').should('exist')
-      }
+      const sidebarSelectors = ['[data-cy="sidebar"]', '.sidebar', 'nav']
+      verifyElementWithAlternatives(sidebarSelectors, $body)
+      const mainContentSelectors = ['[data-cy="main-content"]', '.main-content', 'main']
+      verifyElementWithAlternatives(mainContentSelectors, $body)
+      const navbarSelectors = ['[data-cy="navbar"]', '.navbar', 'nav']
+      verifyElementWithAlternatives(navbarSelectors, $body)
     })
   })
 
@@ -206,7 +167,6 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/agricultor-dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Verificar que dashboard está activo si existe
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="nav-dashboard"], .nav-dashboard, a[href*="dashboard"]').length > 0) {
         cy.get('[data-cy="nav-dashboard"], .nav-dashboard, a[href*="dashboard"]').first().should('satisfy', ($el) => {
@@ -215,7 +175,6 @@ describe('Navegación - UI y UX', () => {
       }
     })
     
-    // Navegar a otra página
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
@@ -232,15 +191,12 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/agricultor-dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Navegar a página que puede tardar en cargar
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="nav-fincas"], .nav-fincas, a[href*="fincas"]').length > 0) {
         cy.get('[data-cy="nav-fincas"], .nav-fincas, a[href*="fincas"]').first().click({ force: true })
         cy.get('body', { timeout: 5000 }).then(($afterNav) => {
-          // Verificar indicador de carga si existe
           if ($afterNav.find('[data-cy="loading-indicator"], .loading-indicator, .loading').length > 0) {
             cy.get('[data-cy="loading-indicator"], .loading-indicator, .loading').should('exist')
-            // Verificar que desaparece cuando carga
             cy.get('[data-cy="loading-indicator"], .loading-indicator, .loading', { timeout: 10000 }).should('not.exist')
           }
         })
@@ -252,20 +208,14 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/agricultor-dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Simular notificación
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="notifications-bell"], .notifications-bell, button').length > 0) {
         cy.get('[data-cy="notifications-bell"], .notifications-bell, button').first().click({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($notifications) => {
-          if ($notifications.find('[data-cy="notification-item"], .notification-item').length > 0) {
-            cy.get('[data-cy="notification-item"], .notification-item').first().click({ force: true })
-            cy.get('body', { timeout: 3000 }).then(($afterClick) => {
-              // Verificar que se muestra notificación si existe
-              if ($afterClick.find('[data-cy="notification-toast"], .notification-toast, .toast').length > 0) {
-                cy.get('[data-cy="notification-toast"], .notification-toast, .toast').should('exist')
-              }
-            })
-          }
+        return ifFoundInBody('[data-cy="notification-item"], .notification-item', () => {
+          cy.get('[data-cy="notification-item"], .notification-item').first().click({ force: true })
+          return ifFoundInBody('[data-cy="notification-toast"], .notification-toast, .toast', () => {
+            cy.get('[data-cy="notification-toast"], .notification-toast, .toast').should('exist')
+          })
         })
       } else {
         cy.get('body').should('be.visible')
@@ -274,29 +224,18 @@ describe('Navegación - UI y UX', () => {
   })
 
   it('debe mostrar navegación con estados de error', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular error de red
-    cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
-      statusCode: 500,
-      body: { error: 'Error del servidor' }
-    }).as('serverError')
+    setupServerError('/fincas/**', 'serverError')
     
     cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    waitForPageLoad()
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar mensaje de error si existe
     cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
-        cy.get('[data-cy="error-message"], .error-message, .swal2-error').should('exist')
-      }
-      
-      // Verificar que se puede reintentar si existe
-      if ($body.find('[data-cy="retry-button"], .retry-button, button').length > 0) {
-        cy.get('[data-cy="retry-button"], .retry-button, button').should('exist')
-      }
+      const errorSelectors = ['[data-cy="error-message"]', '.error-message', '.swal2-error']
+      verifyElementWithAlternatives(errorSelectors, $body)
+      const retryButtonSelectors = ['[data-cy="retry-button"]', '.retry-button', 'button']
+      verifyElementWithAlternatives(retryButtonSelectors, $body)
     })
   })
 
@@ -304,11 +243,9 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/agricultor-dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Verificar que se muestra loading inicial si existe
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="initial-loading"], .initial-loading, .loading').length > 0) {
         cy.get('[data-cy="initial-loading"], .initial-loading, .loading').should('exist')
-        // Verificar que desaparece cuando carga
         cy.get('[data-cy="initial-loading"], .initial-loading, .loading', { timeout: 10000 }).should('not.exist')
       }
     })
@@ -316,7 +253,6 @@ describe('Navegación - UI y UX', () => {
 
   it('debe mostrar navegación con estados vacíos', () => {
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular lista vacía
     cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
       statusCode: 200,
       body: { results: [], count: 0 }
@@ -325,10 +261,8 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar estado vacío si existe
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="empty-state"], .empty-state, .empty').length > 0) {
         cy.get('[data-cy="empty-state"], .empty-state, .empty').should('exist')
@@ -349,21 +283,17 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Buscar algo que no existe
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').length > 0) {
         cy.get('[data-cy="search-fincas"], input[type="search"], input[placeholder*="search"]').first().type('noexiste', { force: true })
-        cy.get('body', { timeout: 3000 }).then(($afterSearch) => {
-          // Verificar estado de búsqueda sin resultados si existe
-          if ($afterSearch.find('[data-cy="no-results"], .no-results').length > 0) {
-            cy.get('[data-cy="no-results"], .no-results').should('exist')
-            if ($afterSearch.find('[data-cy="no-results-message"], .no-results-message').length > 0) {
-              cy.get('[data-cy="no-results-message"], .no-results-message').first().should('satisfy', ($el) => {
-                const text = $el.text().toLowerCase()
-                return text.includes('resultados') || text.includes('encontraron') || text.includes('no se') || text.length > 0
-              })
-            }
-          }
+        return ifFoundInBody('[data-cy="no-results"], .no-results', () => {
+          cy.get('[data-cy="no-results"], .no-results').should('exist')
+          ifFoundInBody('[data-cy="no-results-message"], .no-results-message', () => {
+            cy.get('[data-cy="no-results-message"], .no-results-message').first().should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('resultados') || text.includes('encontraron') || text.includes('no se') || text.length > 0
+            })
+          })
         })
       } else {
         cy.get('body').should('be.visible')
@@ -375,43 +305,29 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Aplicar filtros
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="location-filter"], .location-filter, button').length > 0) {
-        cy.get('[data-cy="location-filter"], .location-filter, button').first().click({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($afterClick) => {
-          if ($afterClick.find('[data-cy="province-filter"], select').length > 0) {
-            cy.get('[data-cy="province-filter"], select').first().select('Los Ríos', { force: true })
-            cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click({ force: true })
-            cy.get('body', { timeout: 3000 }).then(($afterFilter) => {
-              // Verificar filtros activos si existen
-              if ($afterFilter.find('[data-cy="active-filters"], .active-filters').length > 0) {
-                cy.get('[data-cy="active-filters"], .active-filters').should('exist')
-                if ($afterFilter.find('[data-cy="filter-tag"], .filter-tag').length > 0) {
-                  cy.get('[data-cy="filter-tag"], .filter-tag').first().should('satisfy', ($el) => {
-                    const text = $el.text().toLowerCase()
-                    return text.includes('ríos') || text.includes('los') || text.length > 0
-                  })
-                }
-                
-                // Limpiar filtros si existe
-                if ($afterFilter.find('[data-cy="clear-filters"], button').length > 0) {
-                  cy.get('[data-cy="clear-filters"], button').first().click({ force: true })
-                  cy.get('body', { timeout: 3000 }).should('be.visible')
-                }
-              }
+    clickIfExistsAndContinue('[data-cy="location-filter"], .location-filter, button', () => {
+      return selectIfExistsAndContinue('[data-cy="province-filter"], select', 'Los Ríos', () => {
+        cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click({ force: true })
+        return ifFoundInBody('[data-cy="active-filters"], .active-filters', () => {
+          cy.get('[data-cy="active-filters"], .active-filters').should('exist')
+          ifFoundInBody('[data-cy="filter-tag"], .filter-tag', () => {
+            cy.get('[data-cy="filter-tag"], .filter-tag').first().should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('ríos') || text.includes('los') || text.length > 0
             })
-          }
+          })
+          return clickIfExistsAndContinue('[data-cy="clear-filters"], button', () => {
+            cy.get('body', { timeout: 3000 }).should('be.visible')
+          })
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
+    }, () => {
+      cy.get('body').should('be.visible')
     })
   })
 
   it('debe mostrar navegación con estados de paginación', () => {
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Simular muchas páginas
     cy.intercept('GET', `${apiBaseUrl}/fincas/**`, {
       statusCode: 200,
       body: {
@@ -429,10 +345,8 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Esperar un poco para que la página se estabilice
     cy.wait(1000)
     
-    // Verificar paginación si existe
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="pagination"], .pagination').length > 0) {
         cy.get('[data-cy="pagination"], .pagination').should('exist')
@@ -443,7 +357,6 @@ describe('Navegación - UI y UX', () => {
           })
         }
         
-        // Navegar a siguiente página si existe
         if ($body.find('[data-cy="next-page"], .next-page, button').length > 0) {
           cy.get('[data-cy="next-page"], .next-page, button').first().click({ force: true })
           cy.get('body', { timeout: 5000 }).should('be.visible')
@@ -456,28 +369,22 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    // Seleccionar elementos
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="finca-checkbox"], input[type="checkbox"]').length > 0) {
         cy.get('[data-cy="finca-checkbox"], input[type="checkbox"]').first().check({ force: true })
         cy.get('[data-cy="finca-checkbox"], input[type="checkbox"]').eq(1).check({ force: true })
-        cy.get('body', { timeout: 3000 }).then(($afterCheck) => {
-          // Verificar estado de selección si existe
-          if ($afterCheck.find('[data-cy="selection-info"], .selection-info').length > 0) {
-            cy.get('[data-cy="selection-info"], .selection-info').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('seleccionados') || text.includes('2') || text.length > 0
-            })
-          }
-          if ($afterCheck.find('[data-cy="bulk-actions"], .bulk-actions').length > 0) {
+        return ifFoundInBody('[data-cy="selection-info"], .selection-info', () => {
+          cy.get('[data-cy="selection-info"], .selection-info').first().should('satisfy', ($el) => {
+            const text = $el.text().toLowerCase()
+            return text.includes('seleccionados') || text.includes('2') || text.length > 0
+          })
+        }).then(() => {
+          ifFoundInBody('[data-cy="bulk-actions"], .bulk-actions', () => {
             cy.get('[data-cy="bulk-actions"], .bulk-actions').should('exist')
-          }
-          
-          // Seleccionar todos si existe
-          if ($afterCheck.find('[data-cy="select-all"], input[type="checkbox"]').length > 0) {
-            cy.get('[data-cy="select-all"], input[type="checkbox"]').first().check({ force: true })
+          })
+          return clickIfExistsAndContinue('[data-cy="select-all"], input[type="checkbox"]', () => {
             cy.get('body', { timeout: 3000 }).should('be.visible')
-          }
+          })
         })
       } else {
         cy.get('body').should('be.visible')
@@ -489,37 +396,29 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          // Verificar estado inicial del formulario si existe
-          if ($modal.find('[data-cy="finca-form"], .finca-form, form').length > 0) {
-            cy.get('[data-cy="finca-form"], .finca-form, form').should('exist')
-            if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-              cy.get('[data-cy="save-finca"], button[type="submit"]').first().should('satisfy', ($el) => {
-                return $el.is(':disabled') || $el.length > 0
-              })
-            }
-            
-            // Llenar formulario
-            if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-              cy.get('[data-cy="finca-nombre"], input').first().type('Finca Test', { force: true })
-              cy.get('[data-cy="finca-ubicacion"], input').first().type('Test Location', { force: true })
-              cy.get('[data-cy="finca-area"], input[type="number"]').first().type('10', { force: true })
-              
-              // Verificar que se habilita el botón si existe
-              if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-                cy.get('[data-cy="save-finca"], button[type="submit"]').first().should('satisfy', ($el) => {
-                  return !$el.is(':disabled') || $el.length > 0
-                })
-              }
-            }
-          }
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      return ifFoundInBody('[data-cy="finca-form"], .finca-form, form', () => {
+        cy.get('[data-cy="finca-form"], .finca-form, form').should('exist')
+        ifFoundInBody('[data-cy="save-finca"], button[type="submit"]', () => {
+          cy.get('[data-cy="save-finca"], button[type="submit"]').first().should('satisfy', ($el) => {
+            return $el.is(':disabled') || $el.length > 0
+          })
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+        
+        return ifFoundInBody('[data-cy="finca-nombre"], input', () => {
+          cy.get('[data-cy="finca-nombre"], input').first().type('Finca Test', { force: true })
+          cy.get('[data-cy="finca-ubicacion"], input').first().type('Test Location', { force: true })
+          cy.get('[data-cy="finca-area"], input[type="number"]').first().type('10', { force: true })
+          
+          ifFoundInBody('[data-cy="save-finca"], button[type="submit"]', () => {
+            cy.get('[data-cy="save-finca"], button[type="submit"]').first().should('satisfy', ($el) => {
+              return !$el.is(':disabled') || $el.length > 0
+            })
+          })
+        })
+      })
+    }, () => {
+      cy.get('body').should('be.visible')
     })
   })
 
@@ -527,34 +426,23 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          // Intentar guardar sin llenar
-          if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            cy.get('body', { timeout: 3000 }).then(($afterSubmit) => {
-              // Verificar errores de validación si existen
-              if ($afterSubmit.find('[data-cy="validation-error"], .validation-error, .error-message').length > 0) {
-                cy.get('[data-cy="validation-error"], .validation-error, .error-message').should('exist')
-                if ($afterSubmit.find('[data-cy="field-error"], .field-error').length > 0) {
-                  cy.get('[data-cy="field-error"], .field-error').should('have.length.greaterThan', 0)
-                }
-              }
-            })
-          }
+    clickIfExistsAndContinue('[data-cy="add-finca-button"], button', () => {
+      return clickIfExistsAndContinue('[data-cy="save-finca"], button[type="submit"]', () => {
+        return ifFoundInBody('[data-cy="validation-error"], .validation-error, .error-message', () => {
+          cy.get('[data-cy="validation-error"], .validation-error, .error-message').should('exist')
+          ifFoundInBody('[data-cy="field-error"], .field-error', () => {
+            cy.get('[data-cy="field-error"], .field-error').should('have.length.greaterThan', 0)
+          })
         })
-      } else {
-        cy.get('body').should('be.visible')
-      }
+      })
+    }, () => {
+      cy.get('body').should('be.visible')
     })
   })
 
   it('debe mostrar tooltips en elementos interactivos', () => {
     cy.visit('/agricultor-dashboard')
     
-    // Verificar tooltips
     cy.get('[data-cy="help-icon"]').trigger('mouseover')
     cy.get('[data-cy="tooltip"]').should('be.visible')
   })
@@ -562,7 +450,6 @@ describe('Navegación - UI y UX', () => {
   it('debe mostrar animaciones de transición', () => {
     cy.visit('/agricultor-dashboard')
     
-    // Navegar y verificar transiciones
     cy.get('[data-cy="nav-fincas"]').click()
     cy.get('[data-cy="page-transition"]').should('be.visible')
   })
@@ -570,14 +457,11 @@ describe('Navegación - UI y UX', () => {
   it('debe mantener scroll position en navegación', () => {
     cy.visit('/mis-fincas')
     
-    // Scroll hacia abajo
     cy.scrollTo(0, 500)
     
-    // Navegar a otra página y volver
     cy.visit('/mis-lotes')
     cy.visit('/mis-fincas')
     
-    // Verificar que se mantiene la posición (si está implementado)
     cy.window().its('scrollY').should('be.greaterThan', 0)
   })
 
@@ -585,7 +469,6 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('[data-cy="add-finca-button"]').click()
     
-    // Verificar overlay del modal
     cy.get('[data-cy="modal-overlay"]').should('be.visible')
     cy.get('[data-cy="modal-overlay"]').should('have.class', 'backdrop-blur')
   })
@@ -594,7 +477,6 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('[data-cy="add-finca-button"]').click()
     
-    // Cerrar con ESC
     cy.get('body').type('{esc}')
     cy.get('[data-cy="finca-form"]').should('not.exist')
   })

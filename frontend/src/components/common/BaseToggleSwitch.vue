@@ -13,7 +13,7 @@
         ref="toggleButton"
         type="button"
         role="switch"
-        :aria-checked="modelValue ? 'true' : 'false'"
+        :aria-checked="modelValue === true ? 'true' : 'false'"
         :aria-label="ariaLabel"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out',
@@ -137,7 +137,10 @@ const handleToggle = () => {
 }
 
 onMounted(() => {
-  updateAriaChecked(props.modelValue)
+  // Ensure aria-checked is set on mount
+  if (toggleButton.value) {
+    toggleButton.value.setAttribute('aria-checked', props.modelValue ? 'true' : 'false')
+  }
 })
 
 watch(() => props.modelValue, (value) => {

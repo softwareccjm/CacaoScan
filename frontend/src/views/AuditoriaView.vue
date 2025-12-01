@@ -346,6 +346,7 @@ import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useAuditStore } from '@/stores/audit';
 import { useAuthStore } from '@/stores/auth';
 import { usePagination } from '@/composables/usePagination';
+import { calculatePeriodDates } from '@/composables/usePeriodDates';
 import Swal from 'sweetalert2';
 
 export default {
@@ -529,33 +530,14 @@ export default {
     };
 
     const handlePeriodChange = async () => {
-      const now = new Date();
-      let fecha_desde = '';
-      let fecha_hasta = now.toISOString().split('T')[0];
-
-      switch (selectedPeriod.value) {
-        case 'today':
-          fecha_desde = fecha_hasta;
-          break;
-        case 'week':
-          fecha_desde = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          break;
-        case 'month':
-          fecha_desde = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          break;
-        case 'quarter':
-          fecha_desde = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          break;
-        case 'year':
-          fecha_desde = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          break;
-        case 'custom':
-          // No cambiar fechas, usar las que ya están en los filtros
-          return;
+      if (selectedPeriod.value === 'custom') {
+        // No cambiar fechas, usar las que ya están en los filtros
+        return;
       }
 
-      filters.value.fecha_desde = fecha_desde;
-      filters.value.fecha_hasta = fecha_hasta;
+      const dates = calculatePeriodDates(selectedPeriod.value);
+      filters.value.fecha_desde = dates.fecha_desde;
+      filters.value.fecha_hasta = dates.fecha_hasta;
       await applyFilters();
     };
 

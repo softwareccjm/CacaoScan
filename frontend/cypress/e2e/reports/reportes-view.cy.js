@@ -36,7 +36,6 @@ describe('Reportes View E2E Tests', () => {
   it('should download report', () => {
     cy.get('[data-cy="download-report"]').first().click()
     cy.wait(1000)
-    // Verify download started
   })
 
   it('should delete report', () => {
@@ -46,4 +45,3 @@ describe('Reportes View E2E Tests', () => {
     cy.get('[data-cy="reports-table"]').should('be.visible')
   })
 })
-

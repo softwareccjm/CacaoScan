@@ -3,6 +3,17 @@
  * Provides consistent error message extraction and formatting
  */
 import { extractErrorMessage, extractValidationErrors } from './apiClient'
+import { logger } from '@/utils/logger'
+
+/**
+ * HTTP status codes constants
+ */
+const HTTP_STATUS_UNAUTHORIZED = 401
+const HTTP_STATUS_FORBIDDEN = 403
+const HTTP_STATUS_NOT_FOUND = 404
+const HTTP_STATUS_BAD_REQUEST = 400
+const HTTP_STATUS_UNPROCESSABLE_ENTITY = 422
+const HTTP_STATUS_INTERNAL_SERVER_ERROR = 500
 
 /**
  * Error types for better error handling
@@ -38,23 +49,23 @@ export const getErrorType = (error) => {
   if (error.response) {
     const status = error.response.status
 
-    if (status === 401) {
+    if (status === HTTP_STATUS_UNAUTHORIZED) {
       return API_ERROR_TYPES.AUTHENTICATION
     }
 
-    if (status === 403) {
+    if (status === HTTP_STATUS_FORBIDDEN) {
       return API_ERROR_TYPES.AUTHORIZATION
     }
 
-    if (status === 404) {
+    if (status === HTTP_STATUS_NOT_FOUND) {
       return API_ERROR_TYPES.NOT_FOUND
     }
 
-    if (status === 422 || status === 400) {
+    if (status === HTTP_STATUS_UNPROCESSABLE_ENTITY || status === HTTP_STATUS_BAD_REQUEST) {
       return API_ERROR_TYPES.VALIDATION
     }
 
-    if (status >= 500) {
+    if (status >= HTTP_STATUS_INTERNAL_SERVER_ERROR) {
       return API_ERROR_TYPES.SERVER
     }
   }
@@ -128,7 +139,7 @@ export const isAuthenticationError = (error) => {
  * @param {Error} error - Error object
  * @param {Object} options - Options
  * @param {Function} options.onError - Error callback
- * @param {boolean} options.logError - Log error to console (default: true)
+ * @param {boolean} options.logError - Log error (default: true)
  * @returns {Object} Error information
  */
 export const handleApiError = (error, options = {}) => {
@@ -142,7 +153,7 @@ export const handleApiError = (error, options = {}) => {
   const validationErrors = isValidationError(error) ? getValidationErrors(error) : null
 
   if (logError) {
-    console.error(`[API Error] ${errorType}:`, {
+    logger.error(`[API Error] ${errorType}:`, {
       message,
       error,
       validationErrors

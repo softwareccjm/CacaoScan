@@ -68,7 +68,7 @@ describe('Analisis', () => {
   it('should display analyses list', async () => {
     mockAnalysisStore.analyses = [
       { id: 1, imagen: 'test1.jpg', resultado: { peso: 1.5 } },
-      { id: 2, imagen: 'test2.jpg', resultado: { peso: 2.0 } }
+      { id: 2, imagen: 'test2.jpg', resultado: { peso: 2 } }
     ]
 
     wrapper = mount(Analisis, {

@@ -1,23 +1,18 @@
+import { 
+  verifySelectorsExist,
+  ifFoundInBody,
+  visitAndWaitForBody,
+  getApiBaseUrl
+} from '../../support/helpers'
+
 describe('Gestión de Imágenes - Historial y Detalles', () => {
   beforeEach(() => {
     cy.login('farmer')
   })
-  // Helper functions to reduce nesting depth
-  const verifySelectorsExist = (selectors, $context, timeout = 3000) => {
-    for (const selector of selectors) {
-      if ($context.find(selector).length > 0) {
-        cy.get(selector, { timeout }).should('exist')
-      }
-    }
-  }
-
-
 
   it('debe mostrar historial de imágenes cargadas', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
-    // Verificar elementos del historial
     cy.get('body').then(($body) => {
       const selectors = [
         '[data-cy="images-history"]',
@@ -25,13 +20,12 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
         '[data-cy="search-images"]',
         '[data-cy="filter-images"]'
       ]
-          verifySelectorsExist(selectors, $body, 5000)
+      verifySelectorsExist(selectors, $body, 5000)
     })
   })
 
   it('debe mostrar detalles de imagen específica', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="image-item"], .image-item, .item').length > 0) {
@@ -50,8 +44,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir buscar imágenes por nombre', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="search-images"], input[type="search"], input').length > 0) {
@@ -69,8 +62,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir filtrar imágenes por fecha', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="date-filter"], button, .filter').length > 0) {
@@ -88,8 +80,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir filtrar imágenes por calidad', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="quality-filter"], button, .filter').length > 0) {
@@ -106,8 +97,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir ordenar imágenes', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="sort-images"], select').length > 0) {
@@ -120,8 +110,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir eliminar imagen', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="image-item"], .image-item, .item').length > 0) {
@@ -139,8 +128,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir descargar imagen original', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="image-item"], .image-item, .item').length > 0) {
@@ -153,8 +141,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir descargar imagen procesada', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="image-item"], .image-item, .item').length > 0) {
@@ -167,8 +154,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe mostrar estadísticas de imágenes', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       const statsSelectors = [
@@ -177,13 +163,12 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
         '[data-cy="average-quality"]',
         '[data-cy="images-this-month"]'
       ]
-          verifySelectorsExist(statsSelectors, $body, 5000)
+      verifySelectorsExist(statsSelectors, $body, 5000)
     })
   })
 
   it('debe permitir selección múltiple de imágenes', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="select-all"], input[type="checkbox"]').length > 0) {
@@ -201,8 +186,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe permitir acciones en lote', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="image-checkbox"], input[type="checkbox"]').length >= 2) {
@@ -219,8 +203,7 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe mostrar paginación cuando hay muchas imágenes', () => {
-    const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
-    // Interceptar la petición pero no esperarla obligatoriamente
+    const apiBaseUrl = getApiBaseUrl()
     cy.intercept('GET', `${apiBaseUrl}/images/**`, {
       statusCode: 200,
       body: {
@@ -235,13 +218,10 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
       }
     }).as('imagesPage1')
     
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
-    // Esperar un poco para que la página cargue, pero no fallar si la petición no ocurre
-    cy.wait(1000) // Esperar 1 segundo para que la página se estabilice
+    cy.wait(1000)
     
-    // Verificar paginación
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="pagination"], .pagination').length > 0) {
         cy.get('[data-cy="pagination"], .pagination', { timeout: 5000 }).should('exist')
@@ -253,15 +233,13 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
           cy.get('body', { timeout: 5000 }).should('be.visible')
         }
       } else {
-        // Si no hay paginación visible, verificar que la página cargó correctamente
         cy.get('body').should('be.visible')
       }
     })
   })
 
   it('debe permitir ver imagen en modal', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="image-thumbnail"], .thumbnail, img').length > 0) {
@@ -278,24 +256,19 @@ describe('Gestión de Imágenes - Historial y Detalles', () => {
   })
 
   it('debe mostrar información de análisis en historial', () => {
-    cy.visit('/mis-imagenes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-imagenes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="image-item"], .image-item, .item').length > 0) {
-        cy.get('[data-cy="image-item"], .image-item, .item', { timeout: 5000 }).then(($items) => {
-          if ($items.length > 0) {
-            cy.wrap($items.first()).within(() => {
-              const infoSelectors = [
-                '[data-cy="analysis-status"]',
-                '[data-cy="quality-badge"]',
-                '[data-cy="analysis-date"]'
-              ]
-              verifySelectorsExist(infoSelectors, $details, 3000)
-            })
-          }
-        })
-      }
+    ifFoundInBody('[data-cy="image-item"], .image-item, .item', () => {
+      return cy.get('[data-cy="image-item"], .image-item, .item', { timeout: 5000 }).then(($items) => {
+        if ($items.length > 0) {
+          const infoSelectors = [
+            '[data-cy="analysis-status"]',
+            '[data-cy="quality-badge"]',
+            '[data-cy="analysis-date"]'
+          ]
+          verifySelectorsExist(infoSelectors, $items.first(), 3000)
+        }
+      })
     })
   })
 

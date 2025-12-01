@@ -56,7 +56,9 @@ function createHttpClient() {
       if (standardError instanceof Error) {
         return Promise.reject(standardError)
       }
-      const errorMessage = standardError?.message || standardError?.toString() || 'Unknown error'
+      const errorMessage = standardError?.message || 
+        (typeof standardError === 'string' ? standardError : JSON.stringify(standardError)) || 
+        'Unknown error'
       return Promise.reject(new Error(errorMessage))
     }
   )
@@ -117,7 +119,9 @@ function createHttpClient() {
       if (standardError instanceof Error) {
         return Promise.reject(standardError)
       }
-      const errorMessage = standardError?.message || standardError?.toString() || 'Unknown error'
+      const errorMessage = standardError?.message || 
+        (typeof standardError === 'string' ? standardError : JSON.stringify(standardError)) || 
+        'Unknown error'
       return Promise.reject(new Error(errorMessage))
     }
   )

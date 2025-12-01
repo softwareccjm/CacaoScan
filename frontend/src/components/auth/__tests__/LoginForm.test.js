@@ -3,6 +3,13 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import LoginForm from '../LoginForm.vue'
 
+// Helper function to generate secure password dynamically
+// SECURITY: S2245 - Math.random() is safe here because it's only used for test data generation
+// NOSONAR S2245 - Test environment, not cryptographic use
+const generatePassword = () => {
+  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}` // NOSONAR S2245
+}
+
 const mockAuthStore = {
   login: vi.fn(),
   isLoading: false,
@@ -127,8 +134,9 @@ describe('LoginForm', () => {
     const emailInput = wrapper.find('#email')
     const passwordInput = wrapper.find('#password')
 
+    const password = generatePassword()
     await emailInput.setValue('test@example.com')
-    await passwordInput.setValue('password123')
+    await passwordInput.setValue(password)
 
     const form = wrapper.find('form')
     await form.trigger('submit.prevent')
@@ -136,7 +144,7 @@ describe('LoginForm', () => {
 
     expect(mockAuthStore.login).toHaveBeenCalledWith({
       email: 'test@example.com',
-      password: 'password123'
+      password: password
     })
   })
 
@@ -155,8 +163,9 @@ describe('LoginForm', () => {
     const emailInput = wrapper.find('#email')
     const passwordInput = wrapper.find('#password')
 
+    const wrongPassword = generatePassword()
     await emailInput.setValue('test@example.com')
-    await passwordInput.setValue('wrongpassword')
+    await passwordInput.setValue(wrongPassword)
 
     const form = wrapper.find('form')
     await form.trigger('submit.prevent')
@@ -200,7 +209,7 @@ describe('LoginForm', () => {
     })
     
     // If not found by props, try finding by text content
-    if (!registerLink || !registerLink.exists()) {
+    if (!registerLink?.exists()) {
       const allLinks = wrapper.findAll('a')
       const linkByText = allLinks.find(link => link.text().includes('Crear nueva cuenta') || link.text().includes('registro'))
       expect(linkByText).toBeDefined()

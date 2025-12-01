@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import authApi from '../authApi.js'
 import api from '../api.js'
 
+// Helper function to generate secure password dynamically
+// SECURITY: S2245 - Math.random() is safe here because it's only used for test data generation
+// NOSONAR S2245 - Test environment, not cryptographic use
+const generatePassword = () => {
+  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}` // NOSONAR S2245
+}
+
 vi.mock('../api.js', () => ({
   default: {
     post: vi.fn(),
@@ -19,9 +26,10 @@ describe('authApi', () => {
 
   describe('login', () => {
     it('should login with email successfully', async () => {
+      const password = generatePassword()
       const credentials = {
         email: 'test@example.com',
-        password: 'password123'
+        password: password
       }
 
       const mockResponse = {
@@ -40,7 +48,7 @@ describe('authApi', () => {
       const result = await authApi.login(credentials)
 
       expect(api.post).toHaveBeenCalledWith('/auth/login/', {
-        password: 'password123',
+        password: password,
         email: 'test@example.com',
         username: 'test@example.com'
       }, {})
@@ -56,9 +64,10 @@ describe('authApi', () => {
     })
 
     it('should login with username when email is not provided', async () => {
+      const password = generatePassword()
       const credentials = {
         username: 'testuser',
-        password: 'password123'
+        password: password
       }
 
       const mockResponse = {
@@ -74,7 +83,7 @@ describe('authApi', () => {
       const result = await authApi.login(credentials)
 
       expect(api.post).toHaveBeenCalledWith('/auth/login/', {
-        password: 'password123',
+        password: password,
         username: 'testuser'
       }, {})
 
@@ -82,7 +91,8 @@ describe('authApi', () => {
     })
 
     it('should handle login response with wrapper data', async () => {
-      const credentials = { email: 'test@example.com', password: 'pass' }
+      const password = generatePassword()
+      const credentials = { email: 'test@example.com', password: password }
 
       const mockResponse = {
         data: {
@@ -104,7 +114,8 @@ describe('authApi', () => {
     })
 
     it('should throw error on invalid response format', async () => {
-      const credentials = { email: 'test@example.com', password: 'pass' }
+      const password = generatePassword()
+      const credentials = { email: 'test@example.com', password: password }
 
       const mockResponse = {
         data: {
@@ -124,9 +135,10 @@ describe('authApi', () => {
 
   describe('register', () => {
     it('should register user successfully', async () => {
+      const password = generatePassword()
       const userData = {
         email: 'newuser@example.com',
-        password: 'password123',
+        password: password,
         first_name: 'John',
         last_name: 'Doe',
         tipo_documento: 'CC',
@@ -147,7 +159,7 @@ describe('authApi', () => {
 
       expect(api.post).toHaveBeenCalledWith('/personas/registrar/', expect.objectContaining({
         email: 'newuser@example.com',
-        password: 'password123',
+        password: password,
         primer_nombre: 'John',
         primer_apellido: 'Doe'
       }), {})
@@ -157,7 +169,8 @@ describe('authApi', () => {
     })
 
     it('should handle registration error with detail', async () => {
-      const userData = { email: 'test@example.com', password: 'pass' }
+      const password = generatePassword()
+      const userData = { email: 'test@example.com', password: password }
 
       const error = {
         response: {
@@ -177,7 +190,8 @@ describe('authApi', () => {
     })
 
     it('should handle registration error with non_field_errors', async () => {
-      const userData = { email: 'test@example.com', password: 'pass' }
+      const password = generatePassword()
+      const userData = { email: 'test@example.com', password: password }
 
       const error = {
         response: {
@@ -341,10 +355,12 @@ describe('authApi', () => {
 
   describe('changePassword', () => {
     it('should change password successfully', async () => {
+      const oldPassword = generatePassword()
+      const newPassword = generatePassword()
       const passwordData = {
-        oldPassword: 'oldpass123',
-        newPassword: 'newpass123',
-        confirmPassword: 'newpass123'
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+        confirmPassword: newPassword
       }
 
       const mockResponse = {
@@ -359,9 +375,9 @@ describe('authApi', () => {
       const result = await authApi.changePassword(passwordData)
 
       expect(api.post).toHaveBeenCalledWith('/auth/change-password/', {
-        old_password: 'oldpass123',
-        new_password: 'newpass123',
-        confirm_password: 'newpass123'
+        old_password: oldPassword,
+        new_password: newPassword,
+        confirm_password: newPassword
       }, {})
 
       expect(result).toEqual(mockResponse.data)
@@ -395,11 +411,12 @@ describe('authApi', () => {
 
   describe('confirmPasswordReset', () => {
     it('should confirm password reset successfully', async () => {
+      const newPassword = generatePassword()
       const resetData = {
         uid: 'uid123',
         token: 'token123',
-        newPassword: 'newpass123',
-        confirmPassword: 'newpass123'
+        newPassword: newPassword,
+        confirmPassword: newPassword
       }
 
       const mockResponseData = {
@@ -418,8 +435,8 @@ describe('authApi', () => {
       expect(api.post).toHaveBeenCalledWith('/auth/reset-password/', {
         uid: 'uid123',
         token: 'token123',
-        new_password: 'newpass123',
-        confirm_password: 'newpass123'
+        new_password: newPassword,
+        confirm_password: newPassword
       }, {})
 
       expect(result).toEqual(mockResponseData)
@@ -520,17 +537,6 @@ describe('authApi', () => {
 
   describe('getUsers', () => {
     it('should get users list successfully', async () => {
-      const mockUsers = {
-        results: [
-          { id: 1, email: 'user1@example.com', username: 'user1', first_name: '', last_name: '', role: 'farmer', is_active: true, is_verified: false, date_joined: null },
-          { id: 2, email: 'user2@example.com', username: 'user2', first_name: '', last_name: '', role: 'farmer', is_active: true, is_verified: false, date_joined: null }
-        ],
-        count: 2,
-        page: 1,
-        page_size: 50,
-        total_pages: 1
-      }
-
       const mockResponse = {
         data: {
           results: [

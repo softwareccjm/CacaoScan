@@ -1,11 +1,10 @@
 describe('Admin Training E2E Tests', () => {
   beforeEach(() => {
-    cy.login('admin')
-    cy.visit('/admin/training')
+    cy.navigateToTraining('admin')
   })
 
   it('should display training jobs list', () => {
-    cy.get('[data-cy="training-jobs"]').should('be.visible')
+    cy.waitForTrainingJobs()
   })
 
   it('should create new training job', () => {
@@ -17,8 +16,7 @@ describe('Admin Training E2E Tests', () => {
     cy.get('[data-cy="batch-size"]').type('32')
     cy.get('[data-cy="submit-training"]').click()
     
-    cy.wait(1000)
-    cy.get('[data-cy="training-jobs"]').should('be.visible')
+    cy.waitForTrainingJobs()
   })
 
   it('should view training job status', () => {
@@ -28,9 +26,8 @@ describe('Admin Training E2E Tests', () => {
 
   it('should cancel training job', () => {
     cy.get('[data-cy="cancel-job"]').first().click()
-    cy.get('[data-cy="confirm-cancel"]').click()
-    cy.wait(500)
-    cy.get('[data-cy="training-jobs"]').should('be.visible')
+    cy.confirmAction('[data-cy="confirm-cancel"]')
+    cy.waitForTrainingJobs()
   })
 })
 

@@ -143,11 +143,15 @@ class Command(BaseCommand):
         self.stdout.write(f"Tasa de éxito: {success_rate:.2f}%")
         self.stdout.write(f"Tiempo total: {processing_time:.2f} segundos")
         
-        if processing_stats['failed'] > 0:
-            self._display_errors(processing_stats['errors'])
+        if processing_stats.get('failed', 0) > 0:
+            errors = processing_stats.get('errors', [])
+            self._display_errors(errors)
     
     def _display_errors(self, errors: list):
         """Muestra los errores encontrados."""
+        if not errors:
+            return
+        
         self.stdout.write("\nErrores encontrados:")
         for error in errors[:10]:
             self.stdout.write(
