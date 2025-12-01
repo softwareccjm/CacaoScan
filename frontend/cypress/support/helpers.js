@@ -1303,6 +1303,57 @@ export function verifyUrlContains(patterns, timeout = 10000) {
 }
 
 /**
+ * Fills registration form fields sequentially
+ * @param {Object} userData - User data object with firstName, lastName, email, password, confirmPassword, role
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillRegistrationFormFields(userData) {
+  const actions = []
+  
+  if (userData.firstName) {
+    actions.push(() => cy.get('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]').first().type(userData.firstName))
+  }
+  if (userData.lastName) {
+    actions.push(() => typeIfExists('[data-cy="last-name-input"], input[name*="last"]', userData.lastName))
+  }
+  if (userData.email) {
+    actions.push(() => cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type(userData.email))
+  }
+  if (userData.password) {
+    actions.push(() => cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().type(userData.password))
+  }
+  if (userData.confirmPassword) {
+    actions.push(() => {
+      return cy.get('body').then(($confirm) => {
+        if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 1) {
+          cy.get('[data-cy="confirm-password-input"], input[type="password"]').last().type(userData.confirmPassword)
+        }
+      })
+    })
+  }
+  if (userData.role) {
+    actions.push(() => selectIfExists('[data-cy="role-select"], select', userData.role, { force: true }))
+  }
+  if (userData.acceptTerms !== false) {
+    actions.push(() => checkCheckboxIfExists('[data-cy="terms-checkbox"], [data-cy="check-terms"], input[type="checkbox"]'))
+  }
+  
+  let chain = cy.wrap(null)
+  for (const action of actions) {
+    chain = chain.then(() => action())
+  }
+  return chain
+}
+
+/**
+ * Submits registration form
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function submitRegistrationForm() {
+  return cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
+}
+
+/**
  * Verifies registration form fields exist
  * @param {JQuery} $body - jQuery body element
  * @returns {boolean} True if all required fields exist
@@ -1459,6 +1510,7 @@ export function fillLongTextAndVerifyError(fieldSelector, length, submitSelector
  * @returns {Cypress.Chainable} Cypress chainable
  */
 export function testPasswordStrength(weakPasswords, strongPassword) {
+  // NOSONAR S2068 - This is a CSS selector string, not a hardcoded password
   const passwordSelector = '[data-cy="password-input"], input[type="password"]'
   const strengthSelector = '[data-cy="password-strength"], .password-strength'
 

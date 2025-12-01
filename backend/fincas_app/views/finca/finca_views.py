@@ -14,6 +14,7 @@ from drf_yasg import openapi
 from api.views.mixins import PaginationMixin, AdminPermissionMixin
 from core.utils import create_error_response, create_success_response
 from .mixins.finca_error_mixin import FincaErrorMixin, ERROR_INTERNAL_SERVER, ERROR_INVALID_INPUT, ERROR_FINCA_NOT_FOUND
+from .mixins.finca_serializer_mixin import FincaSerializerMixin
 
 from api.utils.model_imports import get_model_safely
 
@@ -29,7 +30,7 @@ from api.serializers import (
 logger = logging.getLogger("cacaoscan.api")
 
 
-class FincaPermissionMixin(FincaErrorMixin, AdminPermissionMixin):
+class FincaPermissionMixin(FincaErrorMixin, FincaSerializerMixin, AdminPermissionMixin):
     """
     Mixin para permisos de fincas.
     Los agricultores solo pueden ver/editar sus propias fincas.
@@ -197,9 +198,7 @@ class FincaListCreateView(PaginationMixin, FincaPermissionMixin, APIView):
                 
                 logger.info(f"Finca '{finca.nombre}' creada por usuario {request.user.username} para agricultor {agricultor.id}")
                 
-                # Devolver datos completos
-                response_serializer = FincaSerializer(finca, context={'request': request})
-                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+                return self.create_finca_response(finca)
             else:
                 logger.error(f"Errores de validación: {serializer.errors}")
                 return self.handle_validation_error(serializer.errors)
@@ -228,17 +227,11 @@ class FincaDetailView(FincaPermissionMixin, APIView):
     )
     def get(self, request, finca_id):
         """Obtener detalles de finca."""
-        try:
-            queryset = self.get_queryset()
-            finca = queryset.get(id=finca_id)
-            
-            serializer = FincaDetailSerializer(finca, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-            
-        except Finca.DoesNotExist:
-            return self.handle_finca_not_found(finca_id)
-        except Exception as e:
-            return self.handle_finca_error(e, "obteniendo detalles de finca", finca_id)
+        finca, error_response = self.get_finca_with_error_handling(finca_id)
+        if error_response:
+            return error_response
+        
+        return self.serialize_finca_response(finca, serializer_class=FincaDetailSerializer)
 
 
 class FincaUpdateView(FincaPermissionMixin, APIView):
@@ -274,49 +267,33 @@ class FincaUpdateView(FincaPermissionMixin, APIView):
     )
     def put(self, request, finca_id):
         """Actualizar finca completa."""
-        try:
-            queryset = self.get_queryset()
-            finca = queryset.get(id=finca_id)
-            
-            serializer = FincaSerializer(finca, data=request.data, context={'request': request})
-            
-            if serializer.is_valid():
-                finca = serializer.save()
-                
-                logger.info(f"Finca '{finca.nombre}' actualizada por usuario {request.user.username}")
-                
-                response_serializer = FincaSerializer(finca, context={'request': request})
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-            else:
-                return self.handle_validation_error(serializer.errors)
-                
-        except Finca.DoesNotExist:
-            return self.handle_finca_not_found(finca_id)
-        except Exception as e:
-            return self.handle_finca_error(e, "actualizando finca", finca_id)
+        finca, error_response = self.get_finca_with_error_handling(finca_id)
+        if error_response:
+            return error_response
+        
+        serializer = FincaSerializer(finca, data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            finca = serializer.save()
+            logger.info(f"Finca '{finca.nombre}' actualizada por usuario {request.user.username}")
+            return self.update_finca_response(finca)
+        else:
+            return self.handle_validation_error(serializer.errors)
     
     def patch(self, request, finca_id):
         """Actualizar finca parcialmente."""
-        try:
-            queryset = self.get_queryset()
-            finca = queryset.get(id=finca_id)
-            
-            serializer = FincaSerializer(finca, data=request.data, partial=True, context={'request': request})
-            
-            if serializer.is_valid():
-                finca = serializer.save()
-                
-                logger.info(f"Finca '{finca.nombre}' actualizada parcialmente por usuario {request.user.username}")
-                
-                response_serializer = FincaSerializer(finca, context={'request': request})
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-            else:
-                return self.handle_validation_error(serializer.errors)
-                
-        except Finca.DoesNotExist:
-            return self.handle_finca_not_found(finca_id)
-        except Exception as e:
-            return self.handle_finca_error(e, "actualizando finca", finca_id)
+        finca, error_response = self.get_finca_with_error_handling(finca_id)
+        if error_response:
+            return error_response
+        
+        serializer = FincaSerializer(finca, data=request.data, partial=True, context={'request': request})
+        
+        if serializer.is_valid():
+            finca = serializer.save()
+            logger.info(f"Finca '{finca.nombre}' actualizada parcialmente por usuario {request.user.username}")
+            return self.update_finca_response(finca)
+        else:
+            return self.handle_validation_error(serializer.errors)
 
 
 class FincaDeleteView(FincaPermissionMixin, APIView):
@@ -436,24 +413,19 @@ class FincaStatsView(FincaPermissionMixin, APIView):
     )
     def get(self, request, finca_id):
         """Obtener estadísticas de finca."""
-        try:
-            queryset = self.get_queryset()
-            finca = queryset.get(id=finca_id)
-            
-            stats = finca.get_estadisticas()
-            
-            # Agregar estadísticas adicionales
-            stats.update({
-                'finca_nombre': finca.nombre,
-                'agricultor_nombre': finca.agricultor.get_full_name(),
-                'ubicacion_completa': finca.ubicacion_completa,
-            })
-            
-            return Response(stats, status=status.HTTP_200_OK)
-            
-        except Finca.DoesNotExist:
-            return self.handle_finca_not_found(finca_id)
-        except Exception as e:
-            return self.handle_finca_error(e, "obteniendo estadísticas de finca", finca_id)
+        finca, error_response = self.get_finca_with_error_handling(finca_id)
+        if error_response:
+            return error_response
+        
+        stats = finca.get_estadisticas()
+        
+        # Agregar estadísticas adicionales
+        stats.update({
+            'finca_nombre': finca.nombre,
+            'agricultor_nombre': finca.agricultor.get_full_name(),
+            'ubicacion_completa': finca.ubicacion_completa,
+        })
+        
+        return Response(stats, status=status.HTTP_200_OK)
 
 

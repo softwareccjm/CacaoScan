@@ -1,6 +1,7 @@
 // NOSONAR S2068 - All passwords in this test file are generated dynamically at runtime
 // using helper functions (generateTestPassword, generateStrongPassword, generateDifferentPassword, generateWeakPasswords)
-// No hardcoded passwords are present in this file
+// No hardcoded passwords are present in this file.
+// CSS selector strings containing the word "password" (e.g., '[data-cy="password-input"]') are NOT hardcoded passwords.
 import {
   visitAndWaitForBody,
   openModalAndExecute,
@@ -60,16 +61,21 @@ describe('Manejo de Errores - Validación y Formularios', () => {
     // NOSONAR S2068 - Passwords generated dynamically, not hardcoded
     const testPassword = generateTestPassword()
     const differentPassword = generateDifferentPassword()
+    // NOSONAR S2068 - CSS selector strings containing "password" are not hardcoded passwords
+    const passwordInputSelector = '[data-cy="password-input"], input[type="password"]'
+    const confirmPasswordInputSelector = '[data-cy="confirm-password-input"], input[type="password"]'
+    // NOSONAR S2068 - CSS selector for error message element, not a hardcoded password
+    const passwordErrorSelector = '[data-cy="password-match-error"], .error-message'
     validatePasswordMatch({
       pageUrl: '/registro',
-      // NOSONAR S2068 - This is a CSS selector string, not a hardcoded password
-      passwordSelector: '[data-cy="password-input"], input[type="password"]',
+      passwordSelector: passwordInputSelector,
+      // NOSONAR S2068 - Password generated dynamically via generateTestPassword()
       passwordValue: testPassword,
-      // NOSONAR S2068 - This is a CSS selector string, not a hardcoded password
-      confirmPasswordSelector: '[data-cy="confirm-password-input"], input[type="password"]',
+      confirmPasswordSelector: confirmPasswordInputSelector,
+      // NOSONAR S2068 - Password generated dynamically via generateDifferentPassword()
       confirmPasswordValue: differentPassword,
       submitSelector: '[data-cy="register-button"], button[type="submit"]',
-      errorSelectors: ['[data-cy="password-match-error"], .error-message'],
+      errorSelectors: [passwordErrorSelector],
       expectedTexts: ['coinciden', 'match', 'contraseña']
     })
   })

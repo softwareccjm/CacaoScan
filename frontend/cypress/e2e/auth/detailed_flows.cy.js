@@ -6,8 +6,8 @@ import { generateTestPassword, generateStrongPassword, getWeakPassword } from '.
 
 describe('Authentication - Advanced Scenarios', () => {
   const EMAIL_INPUT_SELECTOR = '[data-cy="input-email"], input[type="text"], input[type="email"]'
-  // NOSONAR S2068 - This is a CSS selector string, not a hardcoded password
-  const PASSWORD_INPUT_SELECTOR = '[data-cy="input-password"], [data-cy="password-input"], input[type="password"]'
+  // NOSONAR S2068 - CSS selector string, not a hardcoded password
+  const PASSWORD_INPUT_SELECTOR = '[data-cy="input-password"], [data-cy="password-input"], input[type="password"]' // NOSONAR S2068
   const LOGIN_BUTTON_SELECTOR = '[data-cy="btn-submit-login"], [data-cy="login-button"], button[type="submit"]'
   const ERROR_SELECTOR = '.error-message, [data-cy="error"], [data-cy="email-error"], [data-cy="password-error"]'
   const EMAIL_ERROR_PATTERNS = ['email', 'válido', 'formato']
@@ -24,7 +24,7 @@ describe('Authentication - Advanced Scenarios', () => {
   const verifyErrorDisplay = (expectedTexts) => {
     return cy.get(ERROR_SELECTOR, { timeout: 5000 }).should('satisfy', ($el) => {
       const text = $el.text().toLowerCase()
-      return expectedTexts.some(expected => text.includes(expected)) || $el.length > 0
+      return expectedTexts.some(expected => text.includes(expected)) || $el.length > 0  
     })
   }
 
