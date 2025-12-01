@@ -222,13 +222,17 @@ describe('Navegación - UI y UX', () => {
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="notifications-bell"], .notifications-bell, button').length > 0) {
-        cy.get('[data-cy="notifications-bell"], .notifications-bell, button').first().click({ force: true })
-        return ifFoundInBody('[data-cy="notification-item"], .notification-item', () => {
+        const handleNotificationToast = () => {
+          cy.get('[data-cy="notification-toast"], .notification-toast, .toast').should('exist')
+        }
+
+        const handleNotificationItem = () => {
           cy.get('[data-cy="notification-item"], .notification-item').first().click({ force: true })
-          return ifFoundInBody('[data-cy="notification-toast"], .notification-toast, .toast', () => {
-            cy.get('[data-cy="notification-toast"], .notification-toast, .toast').should('exist')
-          })
-        })
+          return ifFoundInBody('[data-cy="notification-toast"], .notification-toast, .toast', handleNotificationToast)
+        }
+
+        cy.get('[data-cy="notifications-bell"], .notifications-bell, button').first().click({ force: true })
+        return ifFoundInBody('[data-cy="notification-item"], .notification-item', handleNotificationItem)
       } else {
         cy.get('body').should('be.visible')
       }
@@ -295,12 +299,14 @@ describe('Navegación - UI y UX', () => {
     cy.visit('/mis-fincas')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
+    const checkNoResultsText = ($el) => {
+      const text = $el.text().toLowerCase()
+      return text.includes('resultados') || text.includes('encontraron') || text.includes('no se') || text.length > 0
+    }
+
     const verifyNoResultsMessage = () => {
       ifFoundInBody('[data-cy="no-results-message"], .no-results-message', () => {
-        cy.get('[data-cy="no-results-message"], .no-results-message').first().should('satisfy', ($el) => {
-          const text = $el.text().toLowerCase()
-          return text.includes('resultados') || text.includes('encontraron') || text.includes('no se') || text.length > 0
-        })
+        cy.get('[data-cy="no-results-message"], .no-results-message').first().should('satisfy', checkNoResultsText)
       })
     }
     

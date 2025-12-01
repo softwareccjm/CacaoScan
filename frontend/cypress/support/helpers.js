@@ -767,16 +767,22 @@ export function verifySelectorsInBody(selectors, timeout = 5000) {
  * @param {Array<string>} expectedTexts - Expected error text fragments
  * @returns {Cypress.Chainable} Cypress chainable
  */
+const verifyErrorText = ($el, expectedTexts) => {
+  const text = $el.text().toLowerCase()
+  return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+}
+
+const checkErrorInBody = ($body, errorSelector, expectedTexts) => {
+  if ($body.find(errorSelector).length > 0) {
+    cy.get(errorSelector).first().should('satisfy', ($el) => verifyErrorText($el, expectedTexts))
+  }
+}
+
 export function clickAndVerifyError(clickSelector, errorSelector, expectedTexts) {
   return clickIfExists(clickSelector).then((clicked) => {
     if (!clicked) return cy.wrap(null)
     return cy.get('body', { timeout: 5000 }).then(($body) => {
-      if ($body.find(errorSelector).length > 0) {
-        cy.get(errorSelector).first().should('satisfy', ($el) => {
-          const text = $el.text().toLowerCase()
-          return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
-        })
-      }
+      checkErrorInBody($body, errorSelector, expectedTexts)
     })
   })
 }
@@ -1083,18 +1089,24 @@ export function openModalAndExecute(buttonSelector, callback, timeout = 5000) {
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Cypress.Chainable} Cypress chainable
  */
+const verifyErrorMessageText = ($el, expectedTexts) => {
+  const text = $el.text().toLowerCase()
+  return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+}
+
+const checkErrorDisplay = ($error, errorSelector, expectedTexts) => {
+  if ($error.find(errorSelector).length > 0) {
+    cy.get(errorSelector).first().should('satisfy', ($el) => verifyErrorMessageText($el, expectedTexts))
+  }
+}
+
 export function fillFieldSubmitAndVerifyError(fieldSelector, value, submitSelector, errorSelector, expectedTexts, timeout = 3000) {
   return cy.get('body').then(($body) => {
     if ($body.find(fieldSelector).length > 0) {
       cy.get(fieldSelector).first().type(value, { force: true })
       cy.get(submitSelector).first().click({ force: true })
       return cy.get('body', { timeout }).then(($error) => {
-        if ($error.find(errorSelector).length > 0) {
-          cy.get(errorSelector).first().should('satisfy', ($el) => {
-            const text = $el.text().toLowerCase()
-            return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
-          })
-        }
+        checkErrorDisplay($error, errorSelector, expectedTexts)
       })
     }
     return cy.wrap(null)

@@ -408,14 +408,18 @@ describe('Gestión de Fincas - CRUD', () => {
             
             cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
             
-            cy.get('body', { timeout: 3000 }).then(($error) => {
+            const checkLocationError = ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('ubicación') || text.includes('mapa') || text.includes('location') || text.length > 0
+            }
+
+            const handleLocationError = ($error) => {
               if ($error.find('[data-cy="location-error"], .error-message').length > 0) {
-                cy.get('[data-cy="location-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('ubicación') || text.includes('mapa') || text.includes('location') || text.length > 0
-                })
+                cy.get('[data-cy="location-error"], .error-message').first().should('satisfy', checkLocationError)
               }
-            })
+            }
+
+            cy.get('body', { timeout: 3000 }).then(handleLocationError)
           }
         })
       } else {

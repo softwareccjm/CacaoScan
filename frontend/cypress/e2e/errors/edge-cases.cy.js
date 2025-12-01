@@ -667,22 +667,23 @@ describe('Manejo de Errores - Casos Edge', () => {
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
     cy.get('body').then(($body) => {
+      const handleNoResults = ($afterFilter) => {
+        if ($afterFilter.find('[data-cy="no-results"], .no-results').length > 0) {
+          cy.get('[data-cy="no-results"], .no-results').should('exist')
+          cy.get('[data-cy="clear-filters"], button', { timeout: 3000 }).should('exist')
+        }
+      }
+
+      const applyFilterAndVerify = ($afterClick) => {
+        if ($afterClick.find('[data-cy="province-filter"], select').length > 0) {
+          cy.get('[data-cy="province-filter"], select').first().select('Provincia Inexistente', { force: true })
+          cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click()
+          cy.get('body', { timeout: 5000 }).then(handleNoResults)
+        }
+      }
+
       if ($body.find('[data-cy="location-filter"], button, .filter').length > 0) {
         cy.get('[data-cy="location-filter"], button, .filter').first().click({ force: true })
-        const applyFilterAndVerify = ($afterClick) => {
-          if ($afterClick.find('[data-cy="province-filter"], select').length > 0) {
-            cy.get('[data-cy="province-filter"], select').first().select('Provincia Inexistente', { force: true })
-            cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click()
-            
-            cy.get('body', { timeout: 5000 }).then(($afterFilter) => {
-              if ($afterFilter.find('[data-cy="no-results"], .no-results').length > 0) {
-                cy.get('[data-cy="no-results"], .no-results').should('exist')
-                cy.get('[data-cy="clear-filters"], button', { timeout: 3000 }).should('exist')
-              }
-            })
-          }
-        }
-
         cy.get('body', { timeout: 3000 }).then(applyFilterAndVerify)
       }
     })
@@ -700,13 +701,18 @@ describe('Manejo de Errores - Casos Edge', () => {
             const longText = 'a'.repeat(1000)
             cy.get('[data-cy="finca-nombre"], input').first().type(longText, { force: true })
             
-            cy.get('body', { timeout: 3000 }).then(($error) => {
+            const checkLongTextError = ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('largo') || text.includes('longitud') || text.includes('demasiado') || text.length > 0
+            }
+
+            const handleLongTextError = ($error) => {
               if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('largo') || text.includes('longitud') || text.includes('demasiado') || text.length > 0
-                })
+                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', checkLongTextError)
               }
+            }
+
+            cy.get('body', { timeout: 3000 }).then(handleLongTextError)
             })
           }
         })
