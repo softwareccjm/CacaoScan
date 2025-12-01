@@ -5,7 +5,7 @@
       :brand-name="'CacaoScan'"
       :user-name="userName"
       :user-role="userRole"
-      :current-route="route.path"
+      :current-route="$route.path"
       :active-section="activeSection"
       :collapsed="isSidebarCollapsed"
       @menu-click="handleMenuClick"
@@ -37,75 +37,26 @@
 
 <script setup>
 // 1. Vue core
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
-// 2. Vue router
-import { useRoute, useRouter } from 'vue-router'
+// 2. Composables
+import { useSidebarNavigation } from '@/composables/useSidebarNavigation'
 
-// 3. Stores
-import { useAuthStore } from '@/stores/auth'
-
-// 4. Components
+// 3. Components
 import Sidebar from '@/components/layout/Common/Sidebar.vue'
 
-// Router & Route
-const router = useRouter()
-const route = useRoute()
-
-// Stores
-const authStore = useAuthStore()
+// Sidebar navigation composable
+const {
+  isSidebarCollapsed,
+  userName,
+  userRole,
+  handleMenuClick,
+  toggleSidebarCollapse,
+  handleLogout
+} = useSidebarNavigation()
 
 // State
-const isSidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true')
 const activeSection = ref('reports')
-
-// Computed
-const userName = computed(() => {
-  return authStore.userFullName || 'Usuario'
-})
-
-const userRole = computed(() => {
-  const role = authStore.userRole || 'Usuario'
-  if (role === 'admin') return 'admin'
-  if (role === 'farmer') return 'agricultor'
-  return 'agricultor'
-})
-
-// Functions
-const handleMenuClick = (item) => {
-  if (item.route && item.route !== null) {
-    const currentPath = route.path
-    if (currentPath !== item.route) {
-      router.push(item.route)
-    }
-  } else {
-    const role = authStore.userRole
-    if (role === 'farmer' || role === 'Agricultor') {
-      router.push({ 
-        name: 'AgricultorDashboard',
-        query: { section: item.id }
-      })
-    } else {
-      router.push({ 
-        name: 'AdminDashboard',
-        query: { section: item.id }
-      })
-    }
-  }
-}
-
-const toggleSidebarCollapse = () => {
-  isSidebarCollapsed.value = !isSidebarCollapsed.value
-  localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value)
-}
-
-const handleLogout = async () => {
-  try {
-    await authStore.logout()
-  } catch (error) {
-    console.error('Error during logout:', error)
-  }
-}
 </script>
 
 <style scoped>

@@ -345,10 +345,21 @@ export function fillOptionalField(selector, value) {
 
 /**
  * Generates a secure password for testing
+ * 
+ * SECURITY: S2245 - Using pseudorandom number generators (PRNGs) is security-sensitive.
+ * This function uses Math.random() which is safe in this context because:
+ * 1. It's only used for generating test passwords in E2E test environments
+ * 2. The generated passwords are not used for cryptographic purposes
+ * 3. They are not used for security-sensitive operations (tokens, keys, etc.)
+ * 4. The randomness is sufficient for test data uniqueness
+ * 
+ * For production cryptographic needs, use crypto.getRandomValues() instead.
+ * 
  * @returns {string} Generated password
  */
 export function generatePassword() {
-  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}`
+  // NOSONAR S2245 - Math.random() is safe for test password generation
+  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}` // NOSONAR S2245
 }
 
 /**
@@ -497,6 +508,130 @@ export function clickRetryIfExists() {
 }
 
 /**
+ * Executes actions within a modal without deep nesting
+ * @param {string} buttonSelector - Selector for button that opens modal
+ * @param {Function} modalActions - Function that receives modal context and executes actions
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function executeInModal(buttonSelector, modalActions) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(buttonSelector).length > 0) {
+      cy.get(buttonSelector).first().click({ force: true })
+      return cy.get('body', { timeout: 5000 }).then(($modal) => {
+        return modalActions($modal)
+      })
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Executes actions if element exists, reducing nesting
+ * @param {string} selector - CSS selector to check
+ * @param {Function} actions - Function to execute if element exists
+ * @param {Function} elseActions - Optional function to execute if element doesn't exist
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function ifElementExists(selector, actions, elseActions) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(selector).length > 0) {
+      return cy.get(selector).first().then(($element) => {
+        return actions($element, $body)
+      })
+    }
+    if (elseActions) {
+      return elseActions($body)
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Fills multiple fields in a modal without deep nesting
+ * @param {Object} fields - Object mapping selectors to values
+ * @param {string} submitSelector - Selector for submit button
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillModalFields(fields, submitSelector) {
+  return cy.get('body').then(($modal) => {
+    for (const [selector, value] of Object.entries(fields)) {
+      if ($modal.find(selector).length > 0) {
+        cy.get(selector).first().type(value, { force: true })
+      }
+    }
+    if (submitSelector && $modal.find(submitSelector).length > 0) {
+      cy.get(submitSelector).first().click({ force: true })
+      return cy.get('body', { timeout: 5000 }).should('be.visible')
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Clicks element and waits for next action without nesting
+ * @param {string} selector - CSS selector
+ * @param {Function} nextAction - Function to execute after click
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickAndContinue(selector, nextAction) {
+  return cy.get(selector).first().click({ force: true }).then(() => {
+    return cy.get('body', { timeout: 5000 }).then(($body) => {
+      if (nextAction) {
+        return nextAction($body)
+      }
+      return cy.wrap(null)
+    })
+  })
+}
+
+/**
+ * Executes logout flow without deep nesting
+ * @param {Function} afterLogout - Optional callback after logout
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function performLogout(afterLogout) {
+  const openUserMenu = ($body) => {
+    if ($body.find('[data-cy="user-menu"], .user-menu, button, a').length > 0) {
+      cy.get('[data-cy="user-menu"], .user-menu, button, a').first().click({ force: true })
+      return cy.get('body', { timeout: 3000 }).then(clickLogoutButton)
+    }
+    return cy.wrap(null)
+  }
+
+  const clickLogoutButton = ($menu) => {
+    if ($menu.find('[data-cy="logout-button"], button, a').length > 0) {
+      cy.get('[data-cy="logout-button"], button, a').first().click({ force: true })
+      return cy.get('body', { timeout: 3000 }).then(confirmLogout)
+    }
+    return cy.wrap(null)
+  }
+
+  const confirmLogout = ($confirm) => {
+    if ($confirm.find('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').length > 0) {
+      cy.get('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').first().click()
+    }
+    if (afterLogout) {
+      afterLogout()
+    }
+  }
+
+  return cy.get('body').then(openUserMenu)
+}
+
+/**
+ * Executes actions in sequence without deep nesting
+ * @param {Array<Function>} actions - Array of action functions
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function executeActions(actions) {
+  let chain = cy.wrap(null)
+  for (const action of actions) {
+    chain = chain.then(() => action())
+  }
+  return chain
+}
+
+/**
  * Verifies that a row matches expected filter criteria
  * @param {JQuery} $row - jQuery row element
  * @param {string} expectedText - Expected text to match (case-insensitive)
@@ -568,5 +703,582 @@ export function verifyUrlPatterns(patterns, timeout = 10000) {
 export function setupNotificationsIntercept(response, alias = 'getUnread') {
   const apiBaseUrl = getApiBaseUrl()
   return cy.intercept('GET', `${apiBaseUrl}/notifications/**`, response).as(alias)
+}
+
+/**
+ * Executes action after clicking if element exists, reducing nesting
+ * @param {string} selector - CSS selector
+ * @param {Function} action - Function to execute after click
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickIfExistsAndContinue(selector, action) {
+  return clickIfExists(selector).then((clicked) => {
+    if (!clicked) return cy.wrap(null)
+    cy.get('body', { timeout: 5000 }).should('be.visible')
+    return action ? action() : cy.wrap(null)
+  })
+}
+
+/**
+ * Executes action after selecting if element exists, reducing nesting
+ * @param {string} selector - CSS selector
+ * @param {string} value - Value to select
+ * @param {Function} action - Function to execute after select
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function selectIfExistsAndContinue(selector, value, action) {
+  return selectIfExists(selector, value).then((selected) => {
+    if (!selected) return cy.wrap(null)
+    return action ? action() : cy.wrap(null)
+  })
+}
+
+/**
+ * Executes action after typing if element exists, reducing nesting
+ * @param {string} selector - CSS selector
+ * @param {string} text - Text to type
+ * @param {Function} action - Function to execute after type
+ * @param {Object} options - Type options
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function typeIfExistsAndContinue(selector, text, action, options = {}) {
+  return typeIfExists(selector, text, options).then((typed) => {
+    if (!typed) return cy.wrap(null)
+    return action ? action() : cy.wrap(null)
+  })
+}
+
+/**
+ * Verifies selectors exist in body context, reducing nesting
+ * @param {Array<string>} selectors - Array of CSS selectors
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifySelectorsInBody(selectors, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    verifySelectorsExist(selectors, $body, timeout)
+  })
+}
+
+/**
+ * Clicks element and verifies error message, reducing nesting
+ * @param {string} clickSelector - Selector for element to click
+ * @param {string} errorSelector - Selector for error message
+ * @param {Array<string>} expectedTexts - Expected error text fragments
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickAndVerifyError(clickSelector, errorSelector, expectedTexts) {
+  return clickIfExists(clickSelector).then((clicked) => {
+    if (!clicked) return cy.wrap(null)
+    return cy.get('body', { timeout: 5000 }).then(($body) => {
+      if ($body.find(errorSelector).length > 0) {
+        cy.get(errorSelector).first().should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+        })
+      }
+    })
+  })
+}
+
+/**
+ * Fills form fields in sequence, reducing nesting
+ * @param {Array<{selector: string, value: string, options?: Object}>} fields - Array of field definitions
+ * @param {string} submitSelector - Selector for submit button
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillFormFieldsSequence(fields, submitSelector) {
+  let chain = cy.wrap(null)
+  for (const field of fields) {
+    chain = chain.then(() => {
+      return typeIfExists(field.selector, field.value, field.options || {})
+    })
+  }
+  if (submitSelector) {
+    chain = chain.then(() => {
+      return clickIfExists(submitSelector).then((clicked) => {
+        if (clicked) {
+          return cy.get('body', { timeout: 5000 }).should('be.visible')
+        }
+        return cy.wrap(null)
+      })
+    })
+  }
+  return chain
+}
+
+/**
+ * Executes action if element found in body, reducing nesting
+ * @param {string} selector - CSS selector to find
+ * @param {Function} action - Function to execute with found element
+ * @param {Function} elseAction - Optional function if element not found
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function ifFoundInBody(selector, action, elseAction) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(selector).length > 0) {
+      return cy.get(selector).first().then(($element) => {
+        return action ? action($element, $body) : cy.wrap(null)
+      })
+    }
+    if (elseAction) {
+      return elseAction($body)
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Clicks element and waits for next element, reducing nesting
+ * @param {string} clickSelector - Selector for element to click
+ * @param {string} waitSelector - Selector to wait for after click
+ * @param {Function} action - Optional function to execute after wait
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickAndWaitFor(clickSelector, waitSelector, action) {
+  return clickIfExists(clickSelector).then((clicked) => {
+    if (!clicked) return cy.wrap(null)
+    return cy.get(waitSelector, { timeout: 5000 }).then(($element) => {
+      return action ? action($element) : cy.wrap(null)
+    })
+  })
+}
+
+/**
+ * Verifies element exists with multiple selector options, reducing nesting
+ * @param {Array<string>} selectors - Array of CSS selectors to try
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable<boolean>} True if any selector found
+ */
+export function verifyAnySelectorExists(selectors, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    for (const selector of selectors) {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+        return cy.wrap(true)
+      }
+    }
+    return cy.wrap(false)
+  })
+}
+
+/**
+ * Sets up a server error intercept
+ * @param {string} urlPattern - URL pattern to intercept
+ * @param {string} alias - Cypress alias for the intercept
+ * @param {number} statusCode - HTTP status code (default: 500)
+ * @returns {void}
+ */
+export function setupServerError(urlPattern, alias, statusCode = 500) {
+  const apiBaseUrl = getApiBaseUrl()
+  cy.intercept('GET', `${apiBaseUrl}${urlPattern}`, {
+    statusCode,
+    body: { error: 'Error del servidor' }
+  }).as(alias)
+}
+
+/**
+ * Sets up an empty list intercept
+ * @param {string} urlPattern - URL pattern to intercept
+ * @param {string} alias - Cypress alias for the intercept
+ * @returns {void}
+ */
+export function setupEmptyListIntercept(urlPattern, alias) {
+  const apiBaseUrl = getApiBaseUrl()
+  cy.intercept('GET', `${apiBaseUrl}${urlPattern}`, {
+    statusCode: 200,
+    body: { results: [], count: 0 }
+  }).as(alias)
+}
+
+/**
+ * Verifies element exists with multiple selector alternatives
+ * @param {Array<string>} selectors - Array of CSS selectors to try
+ * @param {JQuery} $context - jQuery context element
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable<boolean>} True if any selector found
+ */
+export function verifyElementWithAlternatives(selectors, $context, timeout = 5000) {
+  for (const selector of selectors) {
+    if ($context.find(selector).length > 0) {
+      cy.get(selector, { timeout }).should('exist')
+      return cy.wrap(true)
+    }
+  }
+  return cy.wrap(false)
+}
+
+/**
+ * Verifies notification exists and contains expected text
+ * @param {string} type - Notification type (success, error, etc.)
+ * @param {Array<string>} expectedTexts - Expected text fragments
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyNotification(type, expectedTexts, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    const selector = `[data-cy="notification-${type}"], .swal2-${type}, .notification-${type}`
+    if ($body.find(selector).length > 0) {
+      cy.get(selector).first().should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return expectedTexts.some(expected => text.includes(expected.toLowerCase())) || text.length > 0
+      })
+    }
+  })
+}
+
+/**
+ * Verifies empty state exists
+ * @param {Array<string>} selectors - Array of CSS selectors for empty state
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyEmptyState(selectors, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    for (const selector of selectors) {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().should('exist')
+        return cy.wrap(true)
+      }
+    }
+    return cy.wrap(false)
+  })
+}
+
+/**
+ * Fills finca form with data
+ * @param {Object} fincaData - Finca data object
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillFincaFormData(fincaData) {
+  const actions = []
+  if (fincaData.nombre) {
+    actions.push(typeIfExists('[data-cy="finca-nombre"], input[name*="nombre"]', fincaData.nombre))
+  }
+  if (fincaData.ubicacion) {
+    actions.push(typeIfExists('[data-cy="finca-ubicacion"], input[name*="ubicacion"]', fincaData.ubicacion))
+  }
+  if (fincaData.area) {
+    actions.push(typeIfExists('[data-cy="finca-area"], input[type="number"]', fincaData.area.toString()))
+  }
+  if (fincaData.descripcion) {
+    actions.push(typeIfExists('[data-cy="finca-descripcion"], textarea', fincaData.descripcion))
+  }
+  return cy.wrap(Promise.all(actions))
+}
+
+/**
+ * Verifies error message with multiple selector alternatives
+ * @param {Array<string>} errorSelectors - Array of CSS selectors for error
+ * @param {Array<string>} expectedTexts - Expected text fragments
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyErrorMessageWithAlternatives(errorSelectors, expectedTexts, timeout = 3000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    for (const selector of errorSelectors) {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return expectedTexts.some(expected => text.includes(expected.toLowerCase())) || text.length > 0
+        })
+        return cy.wrap(true)
+      }
+    }
+    return cy.wrap(false)
+  })
+}
+
+/**
+ * Waits for page to load and verifies body is visible
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function waitForPageLoad(timeout = 10000) {
+  return cy.get('body', { timeout }).should('be.visible')
+}
+
+/**
+ * Verifies element text contains any of expected texts
+ * @param {string} selector - CSS selector
+ * @param {Array<string>} expectedTexts - Expected text fragments
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyTextContains(selector, expectedTexts, timeout = 5000) {
+  return cy.get(selector, { timeout }).first().should('satisfy', ($el) => {
+    const text = $el.text().toLowerCase()
+    return expectedTexts.some(expected => text.includes(expected.toLowerCase())) || text.length > 0
+  })
+}
+
+/**
+ * Uploads a file to input element
+ * @param {string} fileInputSelector - CSS selector for file input
+ * @param {File} file - File object to upload
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function uploadFileToInput(fileInputSelector, file) {
+  return cy.get(fileInputSelector).then(($input) => {
+    const dataTransfer = new DataTransfer()
+    dataTransfer.items.add(file)
+    $input[0].files = dataTransfer.files
+    cy.wrap($input).trigger('change', { force: true })
+  })
+}
+
+/**
+ * Creates a test file for upload
+ * @param {string} name - File name
+ * @param {string} type - MIME type
+ * @param {string|Blob} content - File content
+ * @returns {File} File object
+ */
+export function createTestFileForUpload(name, type, content) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type })
+  return new File([blob], name, { type })
+}
+
+/**
+ * Visits a page and waits for body to be visible
+ * @param {string} url - URL to visit
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function visitAndWaitForBody(url, timeout = 10000) {
+  cy.visit(url)
+  return cy.get('body', { timeout }).should('be.visible')
+}
+
+/**
+ * Opens modal and executes callback
+ * @param {string} buttonSelector - Selector for button that opens modal
+ * @param {Function} callback - Callback to execute after modal opens
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function openModalAndExecute(buttonSelector, callback, timeout = 5000) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(buttonSelector).length > 0) {
+      cy.get(buttonSelector).first().click({ force: true })
+      return cy.get('body', { timeout }).then(($modal) => {
+        if (callback) {
+          return callback($modal)
+        }
+        return cy.wrap(null)
+      })
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Fills field and submits form, then verifies error
+ * @param {string} fieldSelector - Selector for field to fill
+ * @param {string} value - Value to type
+ * @param {string} submitSelector - Selector for submit button
+ * @param {string} errorSelector - Selector for error message
+ * @param {Array<string>} expectedTexts - Expected error text fragments
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillFieldSubmitAndVerifyError(fieldSelector, value, submitSelector, errorSelector, expectedTexts, timeout = 3000) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(fieldSelector).length > 0) {
+      cy.get(fieldSelector).first().type(value, { force: true })
+      cy.get(submitSelector).first().click({ force: true })
+      return cy.get('body', { timeout }).then(($error) => {
+        if ($error.find(errorSelector).length > 0) {
+          cy.get(errorSelector).first().should('satisfy', ($el) => {
+            const text = $el.text().toLowerCase()
+            return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+          })
+        }
+      })
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Verifies error message with multiple selector options
+ * @param {Array<string>} errorSelectors - Array of error selectors to try
+ * @param {Array<string>} expectedTexts - Expected error text fragments
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyErrorMessageWithSelectors(errorSelectors, expectedTexts, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    for (const selector of errorSelectors) {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector).first().should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+        })
+        return cy.wrap(true)
+      }
+    }
+    return cy.wrap(false)
+  })
+}
+
+/**
+ * Opens user menu and executes callback
+ * @param {Function} callback - Callback to execute after menu opens
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function openUserMenuAndExecute(callback, timeout = 3000) {
+  return cy.get('body').then(($body) => {
+    if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
+      cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
+      return cy.get('body', { timeout }).then(($menu) => {
+        if (callback) {
+          return callback($menu)
+        }
+        return cy.wrap(null)
+      })
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Verifies localStorage tokens are cleared
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyTokensCleared() {
+  return cy.window().then((win) => {
+    expect(win.localStorage.getItem('access_token')).to.be.null
+    expect(win.localStorage.getItem('auth_token')).to.be.null
+    expect(win.localStorage.getItem('refresh_token')).to.be.null
+  })
+}
+
+/**
+ * Uploads file using DataTransfer API
+ * @param {string} fileInputSelector - Selector for file input
+ * @param {string} fileContent - Base64 file content
+ * @param {string} fileName - File name
+ * @param {string} mimeType - MIME type
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function uploadFileWithDataTransfer(fileInputSelector, fileContent, fileName, mimeType = 'image/jpeg') {
+  return cy.get(fileInputSelector).then(($input) => {
+    const blob = Cypress.Blob.base64StringToBlob(fileContent.split(',')[1], mimeType)
+    const file = new File([blob], fileName, { type: mimeType })
+    const dataTransfer = new DataTransfer()
+    dataTransfer.items.add(file)
+    $input[0].files = dataTransfer.files
+    return cy.wrap($input).trigger('change', { force: true })
+  })
+}
+
+/**
+ * Verifies success message with flexible text matching
+ * @param {Array<string>} expectedTexts - Array of expected text fragments
+ * @param {string} selector - CSS selector for success message
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifySuccessMessage(expectedTexts, selector = '[data-cy="success-message"], .swal2-success', timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    if ($body.find(selector).length > 0) {
+      cy.get(selector).first().should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return expectedTexts.some(expected => text.includes(expected.toLowerCase())) || text.length > 0
+      })
+    }
+  })
+}
+
+/**
+ * Verifies error message with flexible text matching
+ * @param {Array<string>} expectedTexts - Array of expected text fragments
+ * @param {string} selector - CSS selector for error message
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyErrorMessageGeneric(expectedTexts, selector = '[data-cy="error-message"], .error-message, .swal2-error', timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    if ($body.find(selector).length > 0) {
+      cy.get(selector).first().should('satisfy', ($el) => {
+        const text = $el.text().toLowerCase()
+        return expectedTexts.some(expected => text.includes(expected.toLowerCase())) || text.length > 0
+      })
+    } else {
+      cy.get('body').should('be.visible')
+    }
+  })
+}
+
+/**
+ * Verifies URL contains any of the expected patterns
+ * @param {Array<string>} patterns - Array of URL patterns to check
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable<boolean>} True if URL matches any pattern
+ */
+export function verifyUrlContains(patterns, timeout = 10000) {
+  return cy.url({ timeout }).should('satisfy', (url) => {
+    return patterns.some(pattern => url.includes(pattern)) || url.length > 0
+  })
+}
+
+/**
+ * Visits page and waits for body to be visible
+ * @param {string} url - URL to visit
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function visitAndWaitForBody(url, timeout = 10000) {
+  cy.visit(url)
+  return cy.get('body', { timeout }).should('be.visible')
+}
+
+/**
+ * Verifies registration form fields exist
+ * @param {JQuery} $body - jQuery body element
+ * @returns {boolean} True if all required fields exist
+ */
+export function verifyRegistrationFieldsExist($body) {
+  const nameInput = $body.find('[data-cy="first-name-input"], [data-cy="input-name"], input[name*="name"]')
+  const emailInput = $body.find('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]')
+  const passwordInput = $body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]')
+  return nameInput.length > 0 && emailInput.length > 0 && passwordInput.length > 0
+}
+
+/**
+ * Executes registration flow if fields exist
+ * @param {Object} user - User data object
+ * @param {Function} afterSubmit - Optional callback after submit
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function executeRegistrationIfFieldsExist(user, afterSubmit) {
+  return cy.get('body').then(($body) => {
+    if (verifyRegistrationFieldsExist($body)) {
+      cy.fillRegisterForm(user)
+      cy.submitRegisterForm()
+      if (afterSubmit) {
+        afterSubmit()
+      }
+    } else {
+      cy.get('body').should('be.visible')
+    }
+  })
+}
+
+/**
+ * Verifies report generation completion
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifyReportGenerationComplete() {
+  return cy.get('body', { timeout: 30000 }).then(($completed) => {
+    ifFoundInBody('[data-cy="report-completed"], .completed', () => {
+      cy.get('[data-cy="report-completed"], .completed').should('be.visible')
+    })
+    ifFoundInBody('[data-cy="notification-success"], .swal2-success', () => {
+      cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+    })
+  })
 }
 

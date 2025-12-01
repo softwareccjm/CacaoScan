@@ -68,6 +68,28 @@ vi.mock('sweetalert2', () => ({
   }
 }))
 
+// Common stubs configuration
+const defaultStubs = {
+  'router-link': true,
+  'router-view': true,
+  'AdminSidebar': true,
+  'KPICards': true,
+  'DashboardCharts': true,
+  'DashboardTables': true,
+  'DashboardAlerts': true
+}
+
+// Helper function to mount component with default stubs
+const mountWithDefaults = (options = {}) => {
+  return mount(AdminDashboard, {
+    global: {
+      stubs: defaultStubs,
+      ...options.global
+    },
+    ...options
+  })
+}
+
 describe('AdminDashboard', () => {
   let wrapper
 
@@ -83,19 +105,7 @@ describe('AdminDashboard', () => {
   })
 
   it('should render dashboard components', () => {
-    wrapper = mount(AdminDashboard, {
-      global: {
-        stubs: {
-          'router-link': true,
-          'router-view': true,
-          'AdminSidebar': true,
-          'KPICards': true,
-          'DashboardCharts': true,
-          'DashboardTables': true,
-          'DashboardAlerts': true
-        }
-      }
-    })
+    wrapper = mountWithDefaults()
 
     expect(wrapper.exists()).toBe(true)
   })
@@ -107,19 +117,7 @@ describe('AdminDashboard', () => {
     mockAdminStore.getSystemAlerts.mockResolvedValue({ data: { results: [] } })
     mockAdminStore.getReportStats.mockResolvedValue({ data: {} })
     
-    wrapper = mount(AdminDashboard, {
-      global: {
-        stubs: {
-          'router-link': true,
-          'router-view': true,
-          'AdminSidebar': true,
-          'KPICards': true,
-          'DashboardCharts': true,
-          'DashboardTables': true,
-          'DashboardAlerts': true
-        }
-      }
-    })
+    wrapper = mountWithDefaults()
 
     // Wait for onMounted and async operations to complete
     await wrapper.vm.$nextTick()
@@ -130,19 +128,7 @@ describe('AdminDashboard', () => {
   })
 
   it('should handle refresh action', async () => {
-    wrapper = mount(AdminDashboard, {
-      global: {
-        stubs: {
-          'router-link': true,
-          'router-view': true,
-          'AdminSidebar': true,
-          'KPICards': true,
-          'DashboardCharts': true,
-          'DashboardTables': true,
-          'DashboardAlerts': true
-        }
-      }
-    })
+    wrapper = mountWithDefaults()
 
     // Test refresh functionality if method exists
     if (wrapper.vm.handleRefresh) {
@@ -152,19 +138,7 @@ describe('AdminDashboard', () => {
   })
 
   it('should handle logout', async () => {
-    wrapper = mount(AdminDashboard, {
-      global: {
-        stubs: {
-          'router-link': true,
-          'router-view': true,
-          'AdminSidebar': true,
-          'KPICards': true,
-          'DashboardCharts': true,
-          'DashboardTables': true,
-          'DashboardAlerts': true
-        }
-      }
-    })
+    wrapper = mountWithDefaults()
 
     if (wrapper.vm.handleLogout) {
       await wrapper.vm.handleLogout()

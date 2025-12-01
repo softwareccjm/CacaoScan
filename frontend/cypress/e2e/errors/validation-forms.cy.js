@@ -1,4 +1,11 @@
-import { verifySelectorsExist, openModal, fillFieldAndSubmit, verifyErrorMessage } from '../../support/helpers'
+import {
+  verifySelectorsExist,
+  openModal,
+  visitAndWaitForBody,
+  openModalAndExecute,
+  fillFieldSubmitAndVerifyError,
+  verifyErrorMessageWithSelectors
+} from '../../support/helpers'
 
 describe('Manejo de Errores - Validación y Formularios', () => {
   beforeEach(() => {
@@ -7,13 +14,11 @@ describe('Manejo de Errores - Validación y Formularios', () => {
   })
 
   it('debe validar campos requeridos en formulario de finca', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    openModal('[data-cy="add-finca-button"], button', ($modal) => {
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
       if ($modal.find('[data-cy="save-finca"], button[type="submit"]').length > 0) {
         cy.get('[data-cy="save-finca"], button[type="submit"]').first().click()
-        
         cy.get('body', { timeout: 5000 }).then(($afterSubmit) => {
           const errorSelectors = [
             '[data-cy="finca-nombre-error"]',
@@ -27,25 +32,19 @@ describe('Manejo de Errores - Validación y Formularios', () => {
   })
 
   it('debe validar formato de email en registro', () => {
-    cy.visit('/registro')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/registro')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="email-input"], input[type="email"], input[type="text"]').length > 0) {
-        cy.get('[data-cy="email-input"], input[type="email"], input[type="text"]').first().type('email-invalido')
-        cy.get('[data-cy="register-button"], button[type="submit"]').first().click()
-        
-        cy.get('[data-cy="email-error"], .error-message, [data-cy="error"]', { timeout: 5000 }).should('satisfy', ($el) => {
-          const text = $el.text().toLowerCase()
-          return text.includes('email') || text.includes('válido') || text.includes('formato') || $el.length > 0
-        })
-      }
-    })
+    fillFieldSubmitAndVerifyError(
+      '[data-cy="email-input"], input[type="email"], input[type="text"]',
+      'email-invalido',
+      '[data-cy="register-button"], button[type="submit"]',
+      '[data-cy="email-error"], .error-message, [data-cy="error"]',
+      ['email', 'válido', 'formato']
+    )
   })
 
   it('debe validar fortaleza de contraseña', () => {
-    cy.visit('/registro')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/registro')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="password-input"], input[type="password"]').length > 0) {
@@ -76,15 +75,12 @@ describe('Manejo de Errores - Validación y Formularios', () => {
             })
           }
         })
-      } else {
-        cy.get('body').should('be.visible')
       }
     })
   })
 
   it('debe validar coincidencia de contraseñas', () => {
-    cy.visit('/registro')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/registro')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="password-input"], input[type="password"]').length > 0) {
@@ -93,501 +89,321 @@ describe('Manejo de Errores - Validación y Formularios', () => {
           if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 0) {
             cy.get('[data-cy="confirm-password-input"], input[type="password"]').first().type('DifferentPassword123!', { force: true })
             cy.get('[data-cy="register-button"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="password-match-error"], .error-message').length > 0) {
-                cy.get('[data-cy="password-match-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('coinciden') || text.includes('match') || text.includes('contraseña') || text.length > 0
-                })
-              }
-            })
+            verifyErrorMessageWithSelectors(
+              ['[data-cy="password-match-error"], .error-message'],
+              ['coinciden', 'match', 'contraseña']
+            )
           }
         })
-      } else {
-        cy.get('body').should('be.visible')
       }
     })
   })
 
   it('debe validar longitud de campos de texto', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input').first().type('A', { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('caracteres') || text.includes('al menos') || text.includes('3') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="finca-nombre"], input',
+          'A',
+          '[data-cy="save-finca"], button[type="submit"]',
+          '[data-cy="finca-nombre-error"], .error-message',
+          ['caracteres', 'al menos', '3']
+        )
       }
     })
   })
 
   it('debe validar rangos numéricos', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-area"], input[type="number"]').length > 0) {
-            cy.get('[data-cy="finca-area"], input[type="number"]').first().type('-10', { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('positiva') || text.includes('negativo') || text.includes('área') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-area"], input[type="number"]').length > 0) {
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="finca-area"], input[type="number"]',
+          '-10',
+          '[data-cy="save-finca"], button[type="submit"]',
+          '[data-cy="finca-area-error"], .error-message',
+          ['positiva', 'negativo', 'área']
+        )
       }
     })
   })
 
   it('debe validar fechas', () => {
-    cy.visit('/mis-lotes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-lotes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-lote-button"], button').length > 0) {
-        cy.get('[data-cy="add-lote-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="lote-fecha-plantacion"], input[type="date"]').length > 0) {
-            cy.get('[data-cy="lote-fecha-plantacion"], input[type="date"]').first().type('2030-01-01', { force: true })
-            cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="lote-fecha-error"], .error-message').length > 0) {
-                cy.get('[data-cy="lote-fecha-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('futura') || text.includes('fecha') || text.includes('no puede') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-lote-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="lote-fecha-plantacion"], input[type="date"]').length > 0) {
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="lote-fecha-plantacion"], input[type="date"]',
+          '2030-01-01',
+          '[data-cy="save-lote"], button[type="submit"]',
+          '[data-cy="lote-fecha-error"], .error-message',
+          ['futura', 'fecha', 'no puede']
+        )
       }
     })
   })
 
   it('debe validar archivos', () => {
-    cy.visit('/nuevo-analisis')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/nuevo-analisis')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="file-input"], input[type="file"]').length > 0) {
         const largeSize = 1024 * 1024 // 1MB
         cy.uploadFile('large-image.jpg', { type: 'image/jpeg', size: largeSize, useFixture: false })
-        
-        cy.get('body', { timeout: 3000 }).then(($error) => {
-          if ($error.find('[data-cy="file-size-error"], .error-message').length > 0) {
-            cy.get('[data-cy="file-size-error"], .error-message').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('grande') || text.includes('archivo') || text.includes('demasiado') || text.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+        verifyErrorMessageWithSelectors(
+          ['[data-cy="file-size-error"], .error-message'],
+          ['grande', 'archivo', 'demasiado']
+        )
       }
     })
   })
 
   it('debe validar selecciones requeridas', () => {
-    cy.visit('/mis-lotes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-lotes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-lote-button"], button').length > 0) {
-        cy.get('[data-cy="add-lote-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="save-lote"], button[type="submit"]').length > 0) {
-            cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-select-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-select-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('finca') || text.includes('seleccionar') || text.includes('requerido') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-lote-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="save-lote"], button[type="submit"]').length > 0) {
+        cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
+        verifyErrorMessageWithSelectors(
+          ['[data-cy="finca-select-error"], .error-message'],
+          ['finca', 'seleccionar', 'requerido']
+        )
       }
     })
   })
 
   it('debe validar checkboxes requeridos', () => {
-    cy.visit('/registro')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/registro')
     
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="register-button"], button[type="submit"]').length > 0) {
         cy.get('[data-cy="register-button"], button[type="submit"]').first().click({ force: true })
-        
-        cy.get('body', { timeout: 3000 }).then(($error) => {
-          if ($error.find('[data-cy="terms-error"], .error-message').length > 0) {
-            cy.get('[data-cy="terms-error"], .error-message').first().should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('términos') || text.includes('aceptar') || text.includes('requerido') || text.length > 0
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+        verifyErrorMessageWithSelectors(
+          ['[data-cy="terms-error"], .error-message'],
+          ['términos', 'aceptar', 'requerido']
+        )
       }
     })
   })
 
   it('debe validar en tiempo real', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input').first().type('A', { force: true })
-            cy.get('body', { timeout: 2000 }).then(($afterType) => {
-              if ($afterType.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('caracteres') || text.includes('al menos') || text.includes('3') || text.length > 0
-                })
-              }
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
+        cy.get('[data-cy="finca-nombre"], input').first().type('A', { force: true })
+        cy.get('body', { timeout: 2000 }).then(($afterType) => {
+          if ($afterType.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
+            cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('caracteres') || text.includes('al menos') || text.includes('3') || text.length > 0
             })
           }
         })
-      } else {
-        cy.get('body').should('be.visible')
       }
     })
   })
 
   it('debe validar formularios complejos', () => {
-    cy.visit('/mis-lotes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-lotes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-lote-button"], button').length > 0) {
-        cy.get('[data-cy="add-lote-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="lote-nombre"], input').length > 0) {
-            cy.get('[data-cy="lote-nombre"], input').first().type('Lote Test', { force: true })
-            cy.get('[data-cy="lote-area"], input[type="number"]').first().type('5', { force: true })
-            
-            cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="lote-variedad-error"], .error-message').length > 0) {
-                cy.get('[data-cy="lote-variedad-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('requerido') || text.includes('campo') || text.includes('variedad') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-lote-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="lote-nombre"], input').length > 0) {
+        cy.get('[data-cy="lote-nombre"], input').first().type('Lote Test', { force: true })
+        cy.get('[data-cy="lote-area"], input[type="number"]').first().type('5', { force: true })
+        cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
+        verifyErrorMessageWithSelectors(
+          ['[data-cy="lote-variedad-error"], .error-message'],
+          ['requerido', 'campo', 'variedad']
+        )
       }
     })
   })
 
   it('debe validar dependencias entre campos', () => {
-    cy.visit('/mis-lotes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-lotes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-lote-button"], button').length > 0) {
-        cy.get('[data-cy="add-lote-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-select"], select').length > 0) {
-            cy.get('[data-cy="finca-select"], select').first().select('1', { force: true })
-            
-            cy.get('[data-cy="lote-area"], input[type="number"]').first().type('100', { force: true })
-            cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="lote-area-error"], .error-message').length > 0) {
-                cy.get('[data-cy="lote-area-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('exceder') || text.includes('área') || text.includes('finca') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-lote-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-select"], select').length > 0) {
+        cy.get('[data-cy="finca-select"], select').first().select('1', { force: true })
+        cy.get('[data-cy="lote-area"], input[type="number"]').first().type('100', { force: true })
+        cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
+        verifyErrorMessageWithSelectors(
+          ['[data-cy="lote-area-error"], .error-message'],
+          ['exceder', 'área', 'finca']
+        )
       }
     })
   })
 
   it('debe validar formatos específicos', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-codigo-postal"], input').length > 0) {
-            cy.get('[data-cy="finca-codigo-postal"], input').first().type('123', { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="codigo-postal-error"], .error-message').length > 0) {
-                cy.get('[data-cy="codigo-postal-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('código') || text.includes('postal') || text.includes('inválido') || text.includes('formato') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-codigo-postal"], input').length > 0) {
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="finca-codigo-postal"], input',
+          '123',
+          '[data-cy="save-finca"], button[type="submit"]',
+          '[data-cy="codigo-postal-error"], .error-message',
+          ['código', 'postal', 'inválido', 'formato']
+        )
       }
     })
   })
 
   it('debe validar unicidad de datos', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input').first().type('Finca Existente', { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('existe') || text.includes('duplicado') || text.includes('nombre') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="finca-nombre"], input',
+          'Finca Existente',
+          '[data-cy="save-finca"], button[type="submit"]',
+          '[data-cy="finca-nombre-error"], .error-message',
+          ['existe', 'duplicado', 'nombre']
+        )
       }
     })
   })
 
   it('debe validar caracteres especiales', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input').first().type('Finca<script>alert("xss")</script>', { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('permitidos') || text.includes('caracteres') || text.includes('inválido') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="finca-nombre"], input',
+          'Finca<script>alert("xss")</script>',
+          '[data-cy="save-finca"], button[type="submit"]',
+          '[data-cy="finca-nombre-error"], .error-message',
+          ['permitidos', 'caracteres', 'inválido']
+        )
       }
     })
   })
 
   it('debe validar límites de caracteres en textarea', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-descripcion"], textarea').length > 0) {
-            const longDescription = 'A'.repeat(1001)
-            cy.get('[data-cy="finca-descripcion"], textarea').first().type(longDescription, { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="finca-descripcion-error"], .error-message').length > 0) {
-                cy.get('[data-cy="finca-descripcion-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('larga') || text.includes('descripción') || text.includes('demasiado') || text.length > 0
-                })
-              }
-            })
-          }
-        })
-      } else {
-        cy.get('body').should('be.visible')
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-descripcion"], textarea').length > 0) {
+        const longDescription = 'A'.repeat(1001)
+        fillFieldSubmitAndVerifyError(
+          '[data-cy="finca-descripcion"], textarea',
+          longDescription,
+          '[data-cy="save-finca"], button[type="submit"]',
+          '[data-cy="finca-descripcion-error"], .error-message',
+          ['larga', 'descripción', 'demasiado']
+        )
       }
     })
   })
 
   it('debe validar múltiples errores simultáneos', () => {
-    cy.visit('/mis-fincas')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-fincas')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-finca-button"], button').length > 0) {
-        cy.get('[data-cy="add-finca-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
-            cy.get('[data-cy="finca-nombre"], input').first().type('A', { force: true })
-            cy.get('[data-cy="finca-area"], input[type="number"]').first().type('-5', { force: true })
-            cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              const errorSelectors = [
-                '[data-cy="finca-nombre-error"]',
-                '[data-cy="finca-area-error"]',
-                '[data-cy="finca-ubicacion-error"]'
-              ]
-              verifySelectorsExist(errorSelectors, $error, 3000)
-            })
-          }
+    openModalAndExecute('[data-cy="add-finca-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="finca-nombre"], input').length > 0) {
+        cy.get('[data-cy="finca-nombre"], input').first().type('A', { force: true })
+        cy.get('[data-cy="finca-area"], input[type="number"]').first().type('-5', { force: true })
+        cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
+        cy.get('body', { timeout: 3000 }).then(($error) => {
+          const errorSelectors = [
+            '[data-cy="finca-nombre-error"]',
+            '[data-cy="finca-area-error"]',
+            '[data-cy="finca-ubicacion-error"]'
+          ]
+          verifySelectorsExist(errorSelectors, $error, 3000)
         })
-      } else {
-        cy.get('body').should('be.visible')
       }
     })
   })
 
   it('debe validar formularios con campos condicionales', () => {
-    cy.visit('/mis-lotes')
-    cy.get('body', { timeout: 10000 }).should('be.visible')
+    visitAndWaitForBody('/mis-lotes')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="add-lote-button"], button').length > 0) {
-        cy.get('[data-cy="add-lote-button"], button').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($modal) => {
-          if ($modal.find('[data-cy="lote-tipo-cultivo"], select').length > 0) {
-            cy.get('[data-cy="lote-tipo-cultivo"], select').first().select('organico', { force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($afterSelect) => {
-              if ($afterSelect.find('[data-cy="certificacion-organica"], input, select').length > 0) {
-                cy.get('[data-cy="certificacion-organica"], input, select').should('exist')
-              }
-              
-              cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
-              
-              cy.get('body', { timeout: 3000 }).then(($error) => {
-                if ($error.find('[data-cy="certificacion-error"], .error-message').length > 0) {
-                  cy.get('[data-cy="certificacion-error"], .error-message').first().should('satisfy', ($el) => {
-                    const text = $el.text().toLowerCase()
-                    return text.includes('requerido') || text.includes('orgánicos') || text.includes('certificación') || text.length > 0
-                  })
-                }
-              })
-            })
+    openModalAndExecute('[data-cy="add-lote-button"], button', ($modal) => {
+      if ($modal.find('[data-cy="lote-tipo-cultivo"], select').length > 0) {
+        cy.get('[data-cy="lote-tipo-cultivo"], select').first().select('organico', { force: true })
+        cy.get('body', { timeout: 3000 }).then(($afterSelect) => {
+          if ($afterSelect.find('[data-cy="certificacion-organica"], input, select').length > 0) {
+            cy.get('[data-cy="certificacion-organica"], input, select').should('exist')
           }
+          cy.get('[data-cy="save-lote"], button[type="submit"]').first().click({ force: true })
+          verifyErrorMessageWithSelectors(
+            ['[data-cy="certificacion-error"], .error-message'],
+            ['requerido', 'orgánicos', 'certificación']
+          )
         })
-      } else {
-        cy.get('body').should('be.visible')
       }
     })
   })
 
   it('debe validar formato de teléfono', () => {
-    cy.visit('/registro')
-    
-    cy.get('[data-cy="phone-input"]').type('123')
-    cy.get('[data-cy="register-button"]').click()
-    
-    cy.get('[data-cy="phone-error"]')
-      .should('be.visible')
-      .and('contain', 'Formato de teléfono inválido')
+    visitAndWaitForBody('/registro')
+    fillFieldSubmitAndVerifyError(
+      '[data-cy="phone-input"]',
+      '123',
+      '[data-cy="register-button"]',
+      '[data-cy="phone-error"]',
+      ['teléfono', 'inválido', 'formato']
+    )
   })
 
   it('debe validar formato de documento', () => {
-    cy.visit('/registro')
-    
-    cy.get('[data-cy="document-input"]').type('123')
-    cy.get('[data-cy="register-button"]').click()
-    
-    cy.get('[data-cy="document-error"]')
-      .should('be.visible')
-      .and('contain', 'Formato de documento inválido')
+    visitAndWaitForBody('/registro')
+    fillFieldSubmitAndVerifyError(
+      '[data-cy="document-input"]',
+      '123',
+      '[data-cy="register-button"]',
+      '[data-cy="document-error"]',
+      ['documento', 'inválido', 'formato']
+    )
   })
 
   it('debe validar edad mínima en fecha de nacimiento', () => {
-    cy.visit('/registro')
-    
+    visitAndWaitForBody('/registro')
     const futureDate = new Date()
     futureDate.setFullYear(futureDate.getFullYear() - 10)
     const dateString = futureDate.toISOString().split('T')[0]
-    
-    cy.get('[data-cy="birthdate-input"]').type(dateString)
-    cy.get('[data-cy="register-button"]').click()
-    
-    cy.get('[data-cy="birthdate-error"]')
-      .should('be.visible')
-      .and('contain', 'Debes tener al menos 14 años')
+    fillFieldSubmitAndVerifyError(
+      '[data-cy="birthdate-input"]',
+      dateString,
+      '[data-cy="register-button"]',
+      '[data-cy="birthdate-error"]',
+      ['14 años', 'edad', 'mínima']
+    )
   })
 
   it('debe validar campos de dirección', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="add-finca-button"]').click()
-    
-    cy.get('[data-cy="finca-direccion"]').type('A'.repeat(501))
-    cy.get('[data-cy="save-finca"]').click()
-    
-    cy.get('[data-cy="direccion-error"]')
-      .should('be.visible')
-      .and('contain', 'La dirección es demasiado larga')
+    visitAndWaitForBody('/mis-fincas')
+    openModalAndExecute('[data-cy="add-finca-button"]', ($modal) => {
+      fillFieldSubmitAndVerifyError(
+        '[data-cy="finca-direccion"]',
+        'A'.repeat(501),
+        '[data-cy="save-finca"]',
+        '[data-cy="direccion-error"]',
+        ['dirección', 'demasiado', 'larga']
+      )
+    })
   })
 
   it('debe validar coordenadas GPS', () => {
-    cy.visit('/mis-fincas')
-    cy.get('[data-cy="add-finca-button"]').click()
-    
-    cy.get('[data-cy="finca-latitud"]').type('100')
-    cy.get('[data-cy="finca-longitud"]').type('200')
-    cy.get('[data-cy="save-finca"]').click()
-    
-    cy.get('[data-cy="coordenadas-error"]')
-      .should('be.visible')
-      .and('contain', 'Coordenadas inválidas')
+    visitAndWaitForBody('/mis-fincas')
+    openModalAndExecute('[data-cy="add-finca-button"]', ($modal) => {
+      cy.get('[data-cy="finca-latitud"]').type('100', { force: true })
+      cy.get('[data-cy="finca-longitud"]').type('200', { force: true })
+      cy.get('[data-cy="save-finca"]').click({ force: true })
+      verifyErrorMessageWithSelectors(
+        ['[data-cy="coordenadas-error"]'],
+        ['coordenadas', 'inválidas']
+      )
+    })
   })
 })

@@ -15,6 +15,130 @@ from catalogos.models import Parametro, Departamento, Municipio
 from .models import Persona
 
 
+def validate_documento_number(value: str, exclude_persona_id: int = None) -> str:
+    """
+    Valida el número de documento.
+    
+    Args:
+        value: Número de documento a validar
+        exclude_persona_id: ID de persona a excluir de la validación de unicidad (opcional)
+        
+    Returns:
+        Número de documento validado y limpiado
+        
+    Raises:
+        serializers.ValidationError: Si la validación falla
+    """
+    value = value.strip()
+    
+    if not value.isdigit():
+        raise serializers.ValidationError("El número de documento solo puede contener números.")
+    
+    if len(value) < 6 or len(value) > 11:
+        raise serializers.ValidationError("El número de documento debe tener entre 6 y 11 dígitos.")
+    
+    # Validar unicidad
+    query = Persona.objects.filter(numero_documento=value)
+    if exclude_persona_id:
+        query = query.exclude(id=exclude_persona_id)
+    if query.exists():
+        raise serializers.ValidationError("Este número de documento ya está registrado.")
+    
+    return value
+
+
+def validate_phone_number(value: str, exclude_persona_id: int = None) -> str:
+    """
+    Valida el número de teléfono.
+    
+    Args:
+        value: Número de teléfono a validar
+        exclude_persona_id: ID de persona a excluir de la validación de unicidad (opcional)
+        
+    Returns:
+        Número de teléfono validado y limpiado
+        
+    Raises:
+        serializers.ValidationError: Si la validación falla
+    """
+    cleaned_value = re.sub(r'[\s\-\(\)]', '', value)
+    
+    if cleaned_value.startswith('+'):
+        cleaned_value = cleaned_value[1:]
+    
+    if not cleaned_value.isdigit():
+        raise serializers.ValidationError("El teléfono solo puede contener números.")
+    
+    if len(cleaned_value) < 7 or len(cleaned_value) > 15:
+        raise serializers.ValidationError("El teléfono debe tener entre 7 y 15 dígitos.")
+    
+    # Validar unicidad
+    query = Persona.objects.filter(telefono=value)
+    if exclude_persona_id:
+        query = query.exclude(id=exclude_persona_id)
+    if query.exists():
+        raise serializers.ValidationError("Este número de teléfono ya está registrado.")
+    
+    return value
+
+
+def validate_birth_date(value: date) -> date:
+    """
+    Valida la fecha de nacimiento.
+    
+    Args:
+        value: Fecha de nacimiento a validar
+        
+    Returns:
+        Fecha de nacimiento validada
+        
+    Raises:
+        serializers.ValidationError: Si la validación falla
+    """
+    if not value:
+        return value
+    
+    fecha_normalizada = value.date() if hasattr(value, 'date') else value
+    hoy = timezone.now().date()
+    
+    if fecha_normalizada > hoy:
+        raise serializers.ValidationError("La fecha de nacimiento no puede ser futura.")
+    
+    edad = hoy.year - fecha_normalizada.year - ((hoy.month, hoy.day) < (fecha_normalizada.month, fecha_normalizada.day))
+    
+    if edad < 14:
+        raise serializers.ValidationError("El usuario debe tener al menos 14 años.")
+    
+    if edad > 120:
+        raise serializers.ValidationError("La fecha de nacimiento no es válida.")
+    
+    return fecha_normalizada
+
+
+def validate_name_field(value: str, field_name: str) -> str:
+    """
+    Valida un campo de nombre (primer nombre, primer apellido, etc.).
+    
+    Args:
+        value: Valor del campo a validar
+        field_name: Nombre del campo para mensajes de error
+        
+    Returns:
+        Valor validado y limpiado
+        
+    Raises:
+        serializers.ValidationError: Si la validación falla
+    """
+    value = value.strip()
+    if not value:
+        raise serializers.ValidationError(f"El {field_name} es obligatorio.")
+    
+    if not all(char.isalpha() or char.isspace() for char in value):
+        raise serializers.ValidationError(f"El {field_name} solo puede contener letras.")
+    
+    return value
+
+
 class PersonaSerializer(serializers.ModelSerializer):
     """Serializer estándar para Persona con información completa de catálogos."""
     # Campos anidados de catálogos
@@ -120,27 +244,8 @@ class PersonaRegistroSerializer(serializers.Serializer):
         return value
     
     def validate_numero_documento(self, value):
-        """
-        Validar que el número de documento sea único y válido.
-        - Solo números
-        - Longitud entre 6 y 11 dígitos
-        """
-        # Eliminar espacios
-        value = value.strip()
-        
-        # Validar que solo contenga números
-        if not value.isdigit():
-            raise serializers.ValidationError("El número de documento solo puede contener números.")
-        
-        # Validar longitud
-        if len(value) < 6 or len(value) > 11:
-            raise serializers.ValidationError("El número de documento debe tener entre 6 y 11 dígitos.")
-        
-        # Validar unicidad
-        if Persona.objects.filter(numero_documento=value).exists():
-            raise serializers.ValidationError("Este número de documento ya está registrado.")
-        
-        return value
+        """Validar que el número de documento sea único y válido."""
+        return validate_documento_number(value)
     
     def validate_password(self, value):
         """
@@ -150,83 +255,20 @@ class PersonaRegistroSerializer(serializers.Serializer):
         return validate_password_strength(value)
     
     def validate_telefono(self, value):
-        """
-        Validar que el teléfono sea válido:
-        - Solo números (se permiten espacios y guiones que serán eliminados)
-        - Longitud entre 7 y 15 dígitos
-        - Único (no registrado previamente)
-        """
-        # Eliminar espacios, guiones y paréntesis
-        cleaned_value = re.sub(r'[\s\-\(\)]', '', value)
-        
-        # Validar que solo contenga números (puede tener + al inicio)
-        if cleaned_value.startswith('+'):
-            cleaned_value = cleaned_value[1:]
-        
-        if not cleaned_value.isdigit():
-            raise serializers.ValidationError("El teléfono solo puede contener números.")
-        
-        # Validar longitud
-        if len(cleaned_value) < 7 or len(cleaned_value) > 15:
-            raise serializers.ValidationError("El teléfono debe tener entre 7 y 15 dígitos.")
-        
-        # Validar unicidad - buscar si ya existe este teléfono
-        if Persona.objects.filter(telefono=value).exists():
-            raise serializers.ValidationError("Este número de teléfono ya está registrado.")
-        
-        return value
+        """Validar que el teléfono sea válido."""
+        return validate_phone_number(value)
     
     def validate_fecha_nacimiento(self, value):
-        """
-        Validar que la fecha de nacimiento sea válida:
-        - No puede ser futura
-        - El usuario debe tener al menos 14 años
-        """
-        if not value:
-            return value
-        
-        # Normalize to date object if needed
-        fecha_normalizada = value.date() if hasattr(value, 'date') else value
-        hoy = timezone.now().date()
-        
-        # Validar que no sea futura
-        if fecha_normalizada > hoy:
-            raise serializers.ValidationError("La fecha de nacimiento no puede ser futura.")
-        
-        # Calcular edad
-        edad = hoy.year - fecha_normalizada.year - ((hoy.month, hoy.day) < (fecha_normalizada.month, fecha_normalizada.day))
-        
-        # Validar edad mínima de 14 años
-        if edad < 14:
-            raise serializers.ValidationError("El usuario debe tener al menos 14 años.")
-        
-        # Validar edad máxima razonable (opcional, ej: 120 años)
-        if edad > 120:
-            raise serializers.ValidationError("La fecha de nacimiento no es válida.")
-        
-        return fecha_normalizada
+        """Validar que la fecha de nacimiento sea válida."""
+        return validate_birth_date(value)
     
     def validate_primer_nombre(self, value):
         """Validar que el primer nombre solo contenga letras y espacios."""
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError("El primer nombre es obligatorio.")
-        
-        if not all(char.isalpha() or char.isspace() for char in value):
-            raise serializers.ValidationError("El primer nombre solo puede contener letras.")
-        
-        return value
+        return validate_name_field(value, "primer nombre")
     
     def validate_primer_apellido(self, value):
         """Validar que el primer apellido solo contenga letras y espacios."""
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError("El primer apellido es obligatorio.")
-        
-        if not all(char.isalpha() or char.isspace() for char in value):
-            raise serializers.ValidationError("El primer apellido solo puede contener letras.")
-        
-        return value
+        return validate_name_field(value, "primer apellido")
     
     def validate(self, data):
         """Validar referencias a catálogos y ubicaciones."""
@@ -440,86 +482,27 @@ class PersonaActualizacionSerializer(serializers.Serializer):
     
     def validate_numero_documento(self, value):
         """Validar documento sin duplicar (excepto el propio usuario)."""
-        value = value.strip()
-        
-        if not value.isdigit():
-            raise serializers.ValidationError("El número de documento solo puede contener números.")
-        
-        if len(value) < 6 or len(value) > 11:
-            raise serializers.ValidationError("El número de documento debe tener entre 6 y 11 dígitos.")
-        
-        # Validar unicidad excluyendo el usuario actual
         persona_actual = self.context.get('persona')
-        if persona_actual:
-            if Persona.objects.filter(numero_documento=value).exclude(id=persona_actual.id).exists():
-                raise serializers.ValidationError("Este número de documento ya está registrado.")
-        
-        return value
+        exclude_id = persona_actual.id if persona_actual else None
+        return validate_documento_number(value, exclude_id)
     
     def validate_telefono(self, value):
         """Validar teléfono sin duplicar (excepto el propio usuario)."""
-        cleaned_value = re.sub(r'[\s\-\(\)]', '', value)
-        
-        if cleaned_value.startswith('+'):
-            cleaned_value = cleaned_value[1:]
-        
-        if not cleaned_value.isdigit():
-            raise serializers.ValidationError("El teléfono solo puede contener números.")
-        
-        if len(cleaned_value) < 7 or len(cleaned_value) > 15:
-            raise serializers.ValidationError("El teléfono debe tener entre 7 y 15 dígitos.")
-        
-        # Validar unicidad excluyendo el usuario actual
         persona_actual = self.context.get('persona')
-        if persona_actual:
-            if Persona.objects.filter(telefono=value).exclude(id=persona_actual.id).exists():
-                raise serializers.ValidationError("Este número de teléfono ya está registrado.")
-        
-        return value
+        exclude_id = persona_actual.id if persona_actual else None
+        return validate_phone_number(value, exclude_id)
     
     def validate_fecha_nacimiento(self, value):
         """Validar fecha de nacimiento."""
-        if not value:
-            return value
-        
-        # Normalize to date object if needed
-        fecha_normalizada = value.date() if hasattr(value, 'date') else value
-        hoy = timezone.now().date()
-        
-        if fecha_normalizada > hoy:
-            raise serializers.ValidationError("La fecha de nacimiento no puede ser futura.")
-        
-        edad = hoy.year - fecha_normalizada.year - ((hoy.month, hoy.day) < (fecha_normalizada.month, fecha_normalizada.day))
-        
-        if edad < 14:
-            raise serializers.ValidationError("El usuario debe tener al menos 14 años.")
-        
-        if edad > 120:
-            raise serializers.ValidationError("La fecha de nacimiento no es válida.")
-        
-        return fecha_normalizada
+        return validate_birth_date(value)
     
     def validate_primer_nombre(self, value):
         """Validar primer nombre."""
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError("El primer nombre es obligatorio.")
-        
-        if not all(char.isalpha() or char.isspace() for char in value):
-            raise serializers.ValidationError("El primer nombre solo puede contener letras.")
-        
-        return value
+        return validate_name_field(value, "primer nombre")
     
     def validate_primer_apellido(self, value):
         """Validar primer apellido."""
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError("El primer apellido es obligatorio.")
-        
-        if not all(char.isalpha() or char.isspace() for char in value):
-            raise serializers.ValidationError("El primer apellido solo puede contener letras.")
-        
-        return value
+        return validate_name_field(value, "primer apellido")
     
     def _validate_tipo_documento(self, data):
         """Validate tipo_documento parameter."""

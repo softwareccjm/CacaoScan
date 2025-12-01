@@ -21,6 +21,52 @@ vi.mock('@/utils/imageValidationUtils', () => ({
 // Mock globalThis events
 globalThis.dispatchEvent = vi.fn()
 
+// Test helpers
+const createMockFile = (name = 'test.jpg', content = 'test', type = 'image/jpeg') => {
+  return new File([content], name, { type })
+}
+
+const createMockFormData = (file) => {
+  const formData = new FormData()
+  if (file) {
+    formData.append('image', file)
+  }
+  return formData
+}
+
+const createMockError = (status = 500, detail = 'Server error') => {
+  return {
+    response: {
+      status,
+      data: { detail }
+    }
+  }
+}
+
+const setupDOMMocks = () => {
+  const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
+    href: '',
+    download: '',
+    click: vi.fn(),
+    remove: vi.fn()
+  })
+  const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockReturnValue(null)
+  const removeSpy = vi.spyOn(document.body, 'removeChild').mockReturnValue(null)
+  globalThis.URL.createObjectURL = vi.fn(() => 'blob:url')
+  globalThis.URL.revokeObjectURL = vi.fn()
+  
+  return {
+    createElementSpy,
+    appendChildSpy,
+    removeSpy,
+    restore: () => {
+      createElementSpy.mockRestore()
+      appendChildSpy.mockRestore()
+      removeSpy.mockRestore()
+    }
+  }
+}
+
 describe('Prediction API Service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -32,9 +78,8 @@ describe('Prediction API Service', () => {
 
   describe('predictImage', () => {
     it('should successfully predict image', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
+      const file = createMockFile()
+      const formData = createMockFormData(file)
 
       const mockResponse = {
         data: {
@@ -63,7 +108,7 @@ describe('Prediction API Service', () => {
     })
 
     it('should throw error when FormData has no image', async () => {
-      const formData = new FormData()
+      const formData = createMockFormData()
 
       const result = await predictionApi.predictImage(formData)
       expect(result.success).toBe(false)
@@ -71,9 +116,8 @@ describe('Prediction API Service', () => {
     })
 
     it('should throw error when image file is empty', async () => {
-      const file = new File([], 'empty.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
+      const file = createMockFile('empty.jpg', '')
+      const formData = createMockFormData(file)
 
       const result = await predictionApi.predictImage(formData)
       expect(result.success).toBe(false)
@@ -81,16 +125,9 @@ describe('Prediction API Service', () => {
     })
 
     it('should handle API errors correctly', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
-
-      const mockError = {
-        response: {
-          status: 500,
-          data: { detail: 'Server error' }
-        }
-      }
+      const file = createMockFile()
+      const formData = createMockFormData(file)
+      const mockError = createMockError(500, 'Server error')
 
       vi.mocked(api.post).mockRejectedValue(mockError)
 
@@ -101,9 +138,8 @@ describe('Prediction API Service', () => {
     })
 
     it('should emit loading events', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
+      const file = createMockFile()
+      const formData = createMockFormData(file)
 
       vi.mocked(api.post).mockResolvedValue({ data: {} })
 
@@ -123,9 +159,8 @@ describe('Prediction API Service', () => {
 
   describe('predictImageYolo', () => {
     it('should successfully predict image with YOLOv8', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
+      const file = createMockFile()
+      const formData = createMockFormData(file)
 
       const mockResponse = {
         data: {
@@ -154,16 +189,9 @@ describe('Prediction API Service', () => {
     })
 
     it('should handle YOLOv8 errors correctly', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
-
-      const mockError = {
-        response: {
-          status: 500,
-          data: { detail: 'YOLOv8 processing error' }
-        }
-      }
+      const file = createMockFile()
+      const formData = createMockFormData(file)
+      const mockError = createMockError(500, 'YOLOv8 processing error')
 
       vi.mocked(api.post).mockRejectedValue(mockError)
 
@@ -176,9 +204,8 @@ describe('Prediction API Service', () => {
 
   describe('predictImageSmart', () => {
     it('should successfully predict image with smart cropping', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
+      const file = createMockFile()
+      const formData = createMockFormData(file)
 
       const mockResponse = {
         data: {
@@ -212,9 +239,8 @@ describe('Prediction API Service', () => {
     })
 
     it('should append options to FormData', async () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('image', file)
+      const file = createMockFile()
+      const formData = createMockFormData(file)
 
       vi.mocked(api.post).mockResolvedValue({ data: {} })
 
@@ -254,12 +280,7 @@ describe('Prediction API Service', () => {
     })
 
     it('should handle errors when fetching images', async () => {
-      const mockError = {
-        response: {
-          status: 500,
-          data: { detail: 'Error fetching images' }
-        }
-      }
+      const mockError = createMockError(500, 'Error fetching images')
 
       vi.mocked(api.get).mockRejectedValue(mockError)
 
@@ -380,17 +401,7 @@ describe('Prediction API Service', () => {
 
       vi.mocked(api.get).mockResolvedValue(mockResponse)
 
-      // Mock DOM methods
-      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
-        href: '',
-        download: '',
-        click: vi.fn(),
-        remove: vi.fn()
-      })
-      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockReturnValue(null)
-      const removeSpy = vi.spyOn(document.body, 'removeChild').mockReturnValue(null)
-      globalThis.URL.createObjectURL = vi.fn(() => 'blob:url')
-      globalThis.URL.revokeObjectURL = vi.fn()
+      const domMocks = setupDOMMocks()
 
       const result = await predictionApi.downloadImage(imageId, type)
 
@@ -400,9 +411,7 @@ describe('Prediction API Service', () => {
       })
       expect(result.success).toBe(true)
 
-      createElementSpy.mockRestore()
-      appendChildSpy.mockRestore()
-      removeSpy.mockRestore()
+      domMocks.restore()
     })
   })
 
@@ -420,17 +429,7 @@ describe('Prediction API Service', () => {
 
       vi.mocked(api.post).mockResolvedValue(mockResponse)
 
-      // Mock DOM methods
-      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
-        href: '',
-        download: '',
-        click: vi.fn(),
-        remove: vi.fn()
-      })
-      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockReturnValue(null)
-      const removeSpy = vi.spyOn(document.body, 'removeChild').mockReturnValue(null)
-      globalThis.URL.createObjectURL = vi.fn(() => 'blob:url')
-      globalThis.URL.revokeObjectURL = vi.fn()
+      const domMocks = setupDOMMocks()
 
       const result = await predictionApi.exportResults(options)
 
@@ -439,15 +438,13 @@ describe('Prediction API Service', () => {
       })
       expect(result.success).toBe(true)
 
-      createElementSpy.mockRestore()
-      appendChildSpy.mockRestore()
-      removeSpy.mockRestore()
+      domMocks.restore()
     })
   })
 
   describe('createImageFormData', () => {
     it('should create FormData with image and metadata', () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+      const file = createMockFile()
       const metadata = {
         lote_id: 5,
         finca: 1,
@@ -469,7 +466,7 @@ describe('Prediction API Service', () => {
     })
 
     it('should create FormData with only image when no metadata', () => {
-      const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
+      const file = createMockFile()
 
       const formData = predictionApi.createImageFormData(file)
 

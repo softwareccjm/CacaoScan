@@ -1,7 +1,7 @@
 /**
  * Tests unitarios para utilidades de CacaoScan.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 // Importar utilidades (asumiendo que existen)
 // import { formatDate, formatNumber, validateEmail, debounce, throttle } from '../utils/helpers.js'
@@ -12,20 +12,20 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const formatDate = (date, format = 'DD/MM/YYYY') => {
   if (!date) return ''
   const d = new Date(date)
-  if (isNaN(d.getTime())) return ''
+  if (Number.isNaN(d.getTime())) return ''
   
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
   
   return format
-    .replace('DD', day)
-    .replace('MM', month)
-    .replace('YYYY', year)
+    .replaceAll('DD', day)
+    .replaceAll('MM', month)
+    .replaceAll('YYYY', year)
 }
 
 const formatNumber = (number, decimals = 2) => {
-  if (typeof number !== 'number' || isNaN(number)) return '0'
+  if (typeof number !== 'number' || Number.isNaN(number)) return '0'
   return number.toFixed(decimals)
 }
 
@@ -57,8 +57,8 @@ const validateEmail = (email) => {
   // Local part: simple character validation without complex regex
   // Check for valid characters using simple iteration (bounded by length check above)
   const validChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-/=?^_`{|}~."
-  for (let i = 0; i < local.length; i++) {
-    if (!validChars.includes(local[i])) {
+  for (const char of local) {
+    if (!validChars.includes(char)) {
       return false
     }
   }
@@ -85,16 +85,14 @@ const throttle = (func, delay) => {
     if (lastCall === 0 || now - lastCall >= delay) {
       lastCall = now
       func(...args)
-    } else {
+    } else if (timeoutId === null) {
       // Schedule the call for after the delay
-      if (timeoutId === null) {
-        const remainingTime = delay - (now - lastCall)
-        timeoutId = setTimeout(() => {
-          lastCall = Date.now()
-          timeoutId = null
-          func(...args)
-        }, remainingTime)
-      }
+      const remainingTime = delay - (now - lastCall)
+      timeoutId = setTimeout(() => {
+        lastCall = Date.now()
+        timeoutId = null
+        func(...args)
+      }, remainingTime)
     }
   }
 }
@@ -186,7 +184,7 @@ describe('Number Utilities', () => {
 
   it('maneja porcentajes inválidos', () => {
     expect(formatPercentage('invalid')).toBe('0%')
-    expect(formatPercentage(NaN)).toBe('0%')
+    expect(formatPercentage(Number.NaN)).toBe('0%')
   })
 })
 
@@ -334,13 +332,26 @@ describe('String Utilities', () => {
 
   const slugify = (str) => {
     if (!str) return ''
-    return str
+    let result = str
       .toLowerCase()
+      // eslint-disable-next-line prefer-regex-literals
       .replace(/[^a-z0-9 -]/g, '')
+      // eslint-disable-next-line prefer-regex-literals
       .replace(/\s+/g, '-')
+      // eslint-disable-next-line prefer-regex-literals
       .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
       .trim()
+    
+    // Remove leading and trailing dashes using string methods to avoid ReDoS
+    // This is safer than regex with backtracking
+    while (result.startsWith('-')) {
+      result = result.substring(1)
+    }
+    while (result.endsWith('-')) {
+      result = result.substring(0, result.length - 1)
+    }
+    
+    return result
   }
 
   it('capitaliza strings correctamente', () => {
@@ -434,8 +445,9 @@ describe('Array Utilities', () => {
 describe('Object Utilities', () => {
   const deepClone = (obj) => {
     if (obj === null || typeof obj !== 'object') return obj
-    if (obj instanceof Date) return new Date(obj.getTime())
-    if (obj instanceof Array) return obj.map(item => deepClone(item))
+    // Use Object.prototype.toString for more reliable Date checking
+    if (Object.prototype.toString.call(obj) === '[object Date]') return new Date(obj)
+    if (Array.isArray(obj)) return obj.map(item => deepClone(item))
     if (typeof obj === 'object') {
       const clonedObj = {}
       for (const key in obj) {
@@ -449,17 +461,18 @@ describe('Object Utilities', () => {
 
   const merge = (target, ...sources) => {
     if (!target) target = {}
-    sources.forEach(source => {
+    for (const source of sources) {
       if (source) {
-        Object.keys(source).forEach(key => {
+        for (const key of Object.keys(source)) {
           if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
             target[key] = merge(target[key] || {}, source[key])
           } else {
             target[key] = source[key]
           }
-        })
+        }
+        }
       }
-    })
+    }
     return target
   }
 

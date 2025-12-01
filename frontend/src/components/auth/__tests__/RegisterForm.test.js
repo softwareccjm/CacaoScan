@@ -4,8 +4,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import RegisterForm from '../../auth/RegisterForm.vue'
 
 // Helper function to generate secure password dynamically
+// SECURITY: S2245 - Math.random() is safe here because it's only used for test data generation
+// NOSONAR S2245 - Test environment, not cryptographic use
 const generatePassword = () => {
-  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}` // NOSONAR S2245
 }
 
 const mockAuthStore = {

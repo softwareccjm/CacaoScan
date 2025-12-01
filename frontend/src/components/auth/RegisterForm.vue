@@ -39,8 +39,7 @@
               autocomplete="given-name" 
               required
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              :class="errors.firstName ? 'border-red-500' : 'border-gray-300'"
+              :class="getInputClasses('firstName')"
               placeholder="Juan" 
             />
             <p v-if="errors.firstName" class="text-red-600 text-xs mt-1">{{ errors.firstName }}</p>
@@ -57,7 +56,7 @@
               type="text" 
               autocomplete="additional-name"
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
               placeholder="Carlos" 
             />
           </div>
@@ -74,8 +73,7 @@
               autocomplete="family-name" 
               required
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              :class="errors.lastName ? 'border-red-500' : 'border-gray-300'"
+              :class="getInputClasses('lastName')"
               placeholder="Pérez" 
             />
             <p v-if="errors.lastName" class="text-red-600 text-xs mt-1">{{ errors.lastName }}</p>
@@ -92,7 +90,7 @@
               type="text" 
               autocomplete="family-name"
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
               placeholder="Gómez" 
             />
           </div>
@@ -108,8 +106,7 @@
               type="tel" 
               autocomplete="tel" 
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              :class="errors.phoneNumber ? 'border-red-500' : 'border-gray-300'"
+              :class="getInputClasses('phoneNumber')"
               placeholder="+57 300 123 4567" 
             />
             <p v-if="errors.phoneNumber" class="text-red-600 text-xs mt-1">{{ errors.phoneNumber }}</p>
@@ -125,7 +122,7 @@
               v-model="form.genero" 
               required 
               :disabled="isLoading || isLoadingCatalogos"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
             >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else-if="generos.length === 0" value="">No hay opciones disponibles</option>
@@ -148,7 +145,7 @@
               :disabled="isLoading"
               :max="maxBirthdate" 
               :min="minBirthdate"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200" 
+              :class="[baseSelectClasses, errors.fechaNacimiento ? 'border-red-500' : '']" 
             />
             <p v-if="errors.fechaNacimiento" class="text-red-600 text-xs mt-1">{{ errors.fechaNacimiento }}</p>
             <p class="text-gray-500 text-xs mt-1">Debes tener al menos 14 años</p>
@@ -179,7 +176,7 @@
               v-model="form.tipoDocumento" 
               required 
               :disabled="isLoading || isLoadingCatalogos"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
             >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else-if="tiposDocumento.length === 0" value="">No hay opciones disponibles</option>
@@ -201,8 +198,7 @@
               autocomplete="off"
               required 
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              :class="errors.numeroDocumento ? 'border-red-500' : 'border-gray-300'"
+              :class="getInputClasses('numeroDocumento')"
               placeholder="1234567890" 
             />
             <p v-if="errors.numeroDocumento" class="text-red-600 text-xs mt-1">{{ errors.numeroDocumento }}</p>
@@ -236,7 +232,7 @@
               @change="onDepartamentoChange" 
               required 
               :disabled="isLoading || isLoadingCatalogos"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
             >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else value="">Seleccione un departamento</option>
@@ -256,7 +252,7 @@
               v-model="form.municipio" 
               :required="!!form.departamento" 
               :disabled="isLoading || !form.departamento || municipios.length === 0"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
             >
               <option v-if="!form.departamento" value="">Seleccione primero un departamento</option>
               <option v-else-if="municipios.length === 0" value="">Cargando municipios...</option>
@@ -279,7 +275,7 @@
               v-model="form.direccion" 
             autocomplete="address-line1"
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+              :class="baseSelectClasses"
               placeholder="Calle 10 #5-20" 
             />
           </div>
@@ -311,8 +307,7 @@
               autocomplete="email" 
               required 
               :disabled="isLoading"
-              class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-              :class="errors.email ? 'border-red-500' : 'border-gray-300'"
+              :class="getInputClasses('email')"
               placeholder="juan@ejemplo.com" 
             />
             <p v-if="errors.email" class="text-red-600 text-xs mt-1">{{ errors.email }}</p>
@@ -332,7 +327,7 @@
                 :autocomplete="showPassword ? 'off' : 'new-password'" 
                 required 
                 :disabled="isLoading"
-                class="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
+                :class="baseSelectClasses + ' pr-12'"
                 placeholder="••••••••••••" 
               />
               <button 
@@ -416,8 +411,7 @@
                 :autocomplete="showPassword ? 'off' : 'new-password'" 
                 required 
                 :disabled="isLoading"
-                class="w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200"
-                :class="errors.confirmPassword ? 'border-red-500' : 'border-gray-300'"
+                :class="getInputClasses('confirmPassword') + ' pr-12'"
                 placeholder="••••••••••••" 
               />
               <div v-if="form.confirmPassword && form.password === form.confirmPassword"
@@ -601,6 +595,22 @@ const {
 } = useFormValidation()
 
 const { maxBirthdate, minBirthdate } = useBirthdateRange()
+
+// Computed classes for form inputs
+const baseInputClasses = computed(() => {
+  return 'w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200'
+})
+
+const baseSelectClasses = computed(() => {
+  return 'w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 transition-all duration-200'
+})
+
+const getInputClasses = (fieldName) => {
+  return [
+    baseInputClasses.value,
+    errors[fieldName] ? 'border-red-500' : 'border-gray-300'
+  ].filter(Boolean).join(' ')
+}
 
 // Error messages constructed dynamically to avoid static analysis detection
 const buildErrorMessages = () => {

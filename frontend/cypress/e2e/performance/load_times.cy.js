@@ -26,7 +26,7 @@ describe('Basic Performance Metrics', () => {
     // Mock large dataset - generate mock data directly instead of using fixture
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
     const largeFincasList = {
-      results: Array(100).fill(null).map((_, i) => ({
+      results: Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         nombre: `Finca ${i + 1}`,
         ubicacion: `Ubicación ${i + 1}`,
@@ -51,13 +51,10 @@ describe('Basic Performance Metrics', () => {
     // Wait for the API call or give time for page to load
     cy.wait(1000) // Give time for the page to load and potentially make the API call
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="finca-card"], .finca-card, .card').length > 0) {
-        cy.get('[data-cy="finca-card"], .finca-card, .card').should('have.length.at.least', 0)
-      } else {
-        // If no cards found, verify that the page loaded correctly
-        cy.get('body').should('be.visible')
-      }
+    ifFoundInBody('[data-cy="finca-card"], .finca-card, .card', () => {
+      cy.get('[data-cy="finca-card"], .finca-card, .card').should('have.length.at.least', 0)
+    }, () => {
+      cy.get('body').should('be.visible')
     })
     
     const endTime = Date.now()

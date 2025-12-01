@@ -346,6 +346,7 @@ import ConfirmModal from '@/components/common/ConfirmModal.vue';
 import { useReportsStore } from '@/stores/reports';
 import { useAuthStore } from '@/stores/auth';
 import { usePagination } from '@/composables/usePagination';
+import { calculatePeriodDates } from '@/composables/usePeriodDates';
 import Swal from 'sweetalert2';
 
 export default {

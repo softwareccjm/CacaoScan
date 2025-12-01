@@ -110,7 +110,7 @@
                   </div>
                   <div>
                     <div class="text-sm font-medium text-gray-900">
-                      {{ formatDimensions(prediction) }}
+                      {{ formatDimensionsValue(prediction) }}
                     </div>
                     <div class="text-xs text-gray-500">
                       {{ formatRelativeTime(prediction.created_at) }}
@@ -118,7 +118,7 @@
                   </div>
                 </div>
                 <div class="text-sm text-gray-600">
-                  {{ formatNumber(prediction.predicted_weight) }}g
+                  {{ formatNumberValue(prediction.predicted_weight) }}g
                 </div>
               </div>
             </div>
@@ -161,6 +161,10 @@ import PredictionResults from '@/components/user/PredictionResults.vue'
 
 // 3. Services
 import { getImageHistory } from '@/services/predictionApi.js'
+
+// 4. Composables
+import { formatRelativeTime, formatDimensions } from '@/composables/useDateFormatting'
+import { formatNumber } from '@/utils/formatters'
 
 // State
 const currentPrediction = ref(null)
@@ -236,32 +240,15 @@ const loadRecentPredictions = async () => {
   }
 }
 
-const formatNumber = (value) => {
+// Format number helper using formatters utility
+const formatNumberValue = (value) => {
   if (value === null || value === undefined) return 'N/A'
-  const num = Number.parseFloat(value)
-  return Number.isNaN(num) ? 'N/A' : num.toFixed(2)
+  return formatNumber(value, { maximumFractionDigits: 2 })
 }
 
-const formatDimensions = (prediction) => {
-  return `${formatNumber(prediction.width)} × ${formatNumber(prediction.height)} × ${formatNumber(prediction.thickness)} mm`
-}
-
-const formatRelativeTime = (dateString) => {
-  if (!dateString) return ''
-  
-  const now = new Date()
-  const date = new Date(dateString)
-  const diffMs = now - date
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-  
-  if (diffMins < 1) return 'Hace un momento'
-  if (diffMins < 60) return `Hace ${diffMins} minuto${diffMins === 1 ? '' : 's'}`
-  if (diffHours < 24) return `Hace ${diffHours} hora${diffHours === 1 ? '' : 's'}`
-  if (diffDays < 7) return `Hace ${diffDays} día${diffDays === 1 ? '' : 's'}`
-  
-  return date.toLocaleDateString('es-ES')
+// Format dimensions using composable
+const formatDimensionsValue = (prediction) => {
+  return formatDimensions(prediction, formatNumberValue)
 }
 
 // Lifecycle

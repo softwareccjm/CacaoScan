@@ -29,7 +29,9 @@ const mockSetError = vi.fn((field, message) => {
   mockErrors[field] = message
 })
 const mockClearErrors = vi.fn(() => {
-  Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+  for (const key of Object.keys(mockErrors)) {
+    delete mockErrors[key]
+  }
 })
 
 vi.mock('@/composables/useFormValidation', () => ({
@@ -47,6 +49,7 @@ vi.mock('@/composables/useFormValidation', () => ({
       )
     },
     isValidPhone: (phone) => {
+      // eslint-disable-next-line prefer-regex-literals
       const digits = String(phone).replace(/\D/g, '')
       return digits.length >= 7 && digits.length <= 15
     },
@@ -64,14 +67,32 @@ vi.mock('sweetalert2', () => ({
   }
 }))
 
+const createWrapper = (props = {}) => {
+  return mount(UserFormModal, {
+    props,
+    global: {}
+  })
+}
+
+const fillFormData = (wrapper, formData) => {
+  for (const [key, value] of Object.entries(formData)) {
+    wrapper.vm.formData[key] = value
+  }
+}
+
+const clearErrors = () => {
+  for (const key of Object.keys(mockErrors)) {
+    delete mockErrors[key]
+  }
+}
+
 describe('UserFormModal', () => {
   let wrapper
 
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    // Clear errors object
-    Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+    clearErrors()
   })
 
   afterEach(() => {
@@ -81,102 +102,51 @@ describe('UserFormModal', () => {
   })
 
   it('should render modal', () => {
-    wrapper = mount(UserFormModal, {
-      global: {
-      }
-    })
-
+    wrapper = createWrapper()
     expect(wrapper.find('form').exists()).toBe(true)
   })
 
   it('should display create mode title', () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     expect(wrapper.text()).toContain('Crear Usuario')
   })
 
   it('should display edit mode title', () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'edit',
-        user: { id: 1, username: 'test' }
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'edit', user: { id: 1, username: 'test' } })
     expect(wrapper.text()).toContain('Editar Usuario')
   })
 
   it('should show password fields in create mode', () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     expect(wrapper.find('#password').exists()).toBe(true)
     expect(wrapper.find('#password_confirm').exists()).toBe(true)
   })
 
   it('should show new password fields in edit mode', () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'edit',
-        user: { id: 1 }
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'edit', user: { id: 1 } })
     expect(wrapper.find('#new_password').exists()).toBe(true)
     expect(wrapper.find('#new_password_confirm').exists()).toBe(true)
   })
 
   it('should validate required fields', async () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    // Ensure formData is empty (initializeForm should have already done this, but ensure it)
-    // formData is reactive, so we need to set values directly
-    wrapper.vm.formData.username = ''
-    wrapper.vm.formData.email = ''
-    wrapper.vm.formData.first_name = ''
-    wrapper.vm.formData.last_name = ''
-    wrapper.vm.formData.role = ''
-    wrapper.vm.formData.password = ''
-    wrapper.vm.formData.password_confirm = ''
+    fillFormData(wrapper, {
+      username: '',
+      email: '',
+      first_name: '',
+      last_name: '',
+      role: '',
+      password: '',
+      password_confirm: ''
+    })
     
     await wrapper.vm.$nextTick()
-
-    // Call validateForm directly to test validation
-    // validateForm calls clearErrors first, then validates
-    // The function should set errors synchronously, so we can check them immediately
     const isValid = wrapper.vm.validateForm()
     
-    // validateForm should return false when there are errors
     expect(isValid).toBe(false)
-    
-    // Check that errors were set for required fields
-    // validateBasicFields should set errors for: username, email, first_name, last_name, role
-    // validateCreatePassword should set errors for: password, password_confirm
-    // Since errors is a reactive object, changes should be immediate
     expect(wrapper.vm.errors.username).toBe('El nombre de usuario es requerido')
     expect(wrapper.vm.errors.email).toBe('El email es requerido')
     expect(wrapper.vm.errors.first_name).toBe('El nombre es requerido')
@@ -191,22 +161,17 @@ describe('UserFormModal', () => {
       data: { id: 1, username: 'testuser' }
     })
 
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     const password = generatePassword()
-    wrapper.vm.formData.username = 'testuser'
-    wrapper.vm.formData.email = 'test@example.com'
-    wrapper.vm.formData.first_name = 'Test'
-    wrapper.vm.formData.last_name = 'User'
-    wrapper.vm.formData.role = 'Agricultor'
-    wrapper.vm.formData.password = password
-    wrapper.vm.formData.password_confirm = password
+    fillFormData(wrapper, {
+      username: 'testuser',
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      role: 'Agricultor',
+      password,
+      password_confirm: password
+    })
 
     await wrapper.vm.saveUser()
     await wrapper.vm.$nextTick()
@@ -219,27 +184,23 @@ describe('UserFormModal', () => {
       data: { id: 1, username: 'testuser' }
     })
 
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'edit',
-        user: { id: 1, username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'farmer' }
-      },
-      global: {
-      }
+    wrapper = createWrapper({
+      mode: 'edit',
+      user: { id: 1, username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'farmer' }
     })
 
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    // Ensure all required fields are set
-    wrapper.vm.formData.username = 'testuser'
-    wrapper.vm.formData.email = 'test@example.com'
-    wrapper.vm.formData.first_name = 'Updated'
-    wrapper.vm.formData.last_name = 'Name'
-    wrapper.vm.formData.role = 'farmer'
+    fillFormData(wrapper, {
+      username: 'testuser',
+      email: 'test@example.com',
+      first_name: 'Updated',
+      last_name: 'Name',
+      role: 'farmer'
+    })
 
     await wrapper.vm.$nextTick()
-
     await wrapper.vm.saveUser()
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -248,109 +209,66 @@ describe('UserFormModal', () => {
   })
 
   it('should validate password match in create mode', async () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    // Set required fields first
-    wrapper.vm.formData.username = 'testuser'
-    wrapper.vm.formData.email = 'test@example.com'
-    wrapper.vm.formData.first_name = 'Test'
-    wrapper.vm.formData.last_name = 'User'
-    wrapper.vm.formData.role = 'farmer'
-    
-    // Set passwords with mismatch
     const password = generatePassword()
     const differentPassword = generatePassword()
-    wrapper.vm.formData.password = password
-    wrapper.vm.formData.password_confirm = differentPassword
+    fillFormData(wrapper, {
+      username: 'testuser',
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      role: 'farmer',
+      password,
+      password_confirm: differentPassword
+    })
 
     await wrapper.vm.$nextTick()
-
-    // Call validateForm which should set errors
-    // validateForm calls clearErrors first, then validates
-    // The function should set errors synchronously, so we can check them immediately
     const isValid = wrapper.vm.validateForm()
     
-    // validateForm should return false when there are errors
     expect(isValid).toBe(false)
-    
-    // Check that password_confirm error was set - the error should be 'Las contraseñas no coinciden'
-    // validateCreatePassword checks if password !== password_confirm and sets the error
-    // Since errors is a reactive object, changes should be immediate
     expect(wrapper.vm.errors.password_confirm).toBe('Las contraseñas no coinciden')
   })
 
   it('should validate new password match in edit mode', async () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'edit',
-        user: { id: 1, username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'farmer' }
-      },
-      global: {
-      }
+    wrapper = createWrapper({
+      mode: 'edit',
+      user: { id: 1, username: 'testuser', email: 'test@example.com', first_name: 'Test', last_name: 'User', role: 'farmer' }
     })
 
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
     
-    // Set required fields (they should already be set from initializeForm, but ensure they are)
-    wrapper.vm.formData.username = 'testuser'
-    wrapper.vm.formData.email = 'test@example.com'
-    wrapper.vm.formData.first_name = 'Test'
-    wrapper.vm.formData.last_name = 'User'
-    wrapper.vm.formData.role = 'farmer'
-    
-    // Set new passwords with mismatch
     const newPassword = generatePassword()
     const differentPassword = generatePassword()
-    wrapper.vm.formData.new_password = newPassword
-    wrapper.vm.formData.new_password_confirm = differentPassword
+    fillFormData(wrapper, {
+      username: 'testuser',
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      role: 'farmer',
+      new_password: newPassword,
+      new_password_confirm: differentPassword
+    })
 
     await wrapper.vm.$nextTick()
-
-    // Call validateForm which should set errors
-    // validateForm calls clearErrors first, then validates
-    // The function should set errors synchronously, so we can check them immediately
     const isValid = wrapper.vm.validateForm()
     
-    // validateForm should return false when there are errors
     expect(isValid).toBe(false)
-    
-    // Check that new_password_confirm error was set - the error should be 'Las contraseñas no coinciden'
-    // validateEditPassword checks if new_password !== new_password_confirm and sets the error
-    // Since errors is a reactive object, changes should be immediate
     expect(wrapper.vm.errors.new_password_confirm).toBe('Las contraseñas no coinciden')
   })
 
   it('should show superuser checkbox for superusers', () => {
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     expect(wrapper.find('#is_superuser').exists()).toBe(true)
   })
 
   it('should close modal', async () => {
-    wrapper = mount(UserFormModal, {
-      global: {
-      }
-    })
-
+    wrapper = createWrapper()
     await wrapper.vm.closeModal()
     await wrapper.vm.$nextTick()
-
     expect(wrapper.emitted('close')).toBeTruthy()
   })
 
@@ -365,15 +283,7 @@ describe('UserFormModal', () => {
       is_active: true
     }
 
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'edit',
-        user
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'edit', user })
     expect(wrapper.vm.formData.username).toBe('testuser')
     expect(wrapper.vm.formData.email).toBe('test@example.com')
     expect(wrapper.vm.formData.first_name).toBe('Test')
@@ -389,23 +299,17 @@ describe('UserFormModal', () => {
     }
 
     mockAdminStore.createUser.mockRejectedValue(error)
-
-    wrapper = mount(UserFormModal, {
-      props: {
-        mode: 'create'
-      },
-      global: {
-      }
-    })
-
+    wrapper = createWrapper({ mode: 'create' })
     const password = generatePassword()
-    wrapper.vm.formData.username = 'testuser'
-    wrapper.vm.formData.email = 'test@example.com'
-    wrapper.vm.formData.first_name = 'Test'
-    wrapper.vm.formData.last_name = 'User'
-    wrapper.vm.formData.role = 'Agricultor'
-    wrapper.vm.formData.password = password
-    wrapper.vm.formData.password_confirm = password
+    fillFormData(wrapper, {
+      username: 'testuser',
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      role: 'Agricultor',
+      password,
+      password_confirm: password
+    })
 
     await wrapper.vm.saveUser()
     await wrapper.vm.$nextTick()

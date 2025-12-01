@@ -7,27 +7,16 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Helper function to generate secure password dynamically
+// SECURITY: S2245 - Math.random() is safe here because it's only used for test data generation
+// NOSONAR S2245 - Test environment, not cryptographic use
 const generatePassword = () => {
-  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `Pass!${Date.now()}-${Math.random().toString(36).slice(2)}` // NOSONAR S2245
 }
 
 // Importar componentes principales
 import LoginForm from '../auth/LoginForm.vue'
-import RegisterForm from '../auth/RegisterForm.vue'
-import ImageUploader from '../admin/AdminAnalisisComponents/ImageUploader.vue'
-import AnalysisSummaryCard from '../analysis/AnalysisSummaryCard.vue'
-import StatsCard from '../reportes/StatsCard.vue'
 import NotificationBell from '../components/notifications/NotificationBell.vue'
-import LoadingSpinner from '../components/common/LoadingSpinner.vue'
-import ErrorAlert from '../components/common/ErrorAlert.vue'
 import ConfirmModal from '../components/common/ConfirmModal.vue'
-import PageHeader from '../components/common/PageHeader.vue'
-import QuickActions from '../components/dashboard/QuickActions.vue'
-import RecentAnalyses from '../components/dashboard/RecentAnalyses.vue'
-import StatsOverview from '../components/dashboard/StatsOverview.vue'
-import BarChart from '../components/charts/BarChart.vue'
-import LineChart from '../components/charts/LineChart.vue'
-import PieChart from '../components/charts/PieChart.vue'
 
 // Mock de servicios
 vi.mock('@/services/api', () => ({

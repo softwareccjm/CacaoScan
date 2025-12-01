@@ -38,6 +38,41 @@ ERROR_INVALID_INPUT = 'Datos de entrada inválidos'
 ERROR_LOTE_NOT_FOUND = 'Lote no encontrado'
 
 
+def create_error_response(error_message: str, status_code: int) -> Response:
+    """
+    Crea una respuesta de error estandarizada.
+    
+    Args:
+        error_message: Mensaje de error
+        status_code: Código de estado HTTP
+        
+    Returns:
+        Response con formato de error estándar
+    """
+    return Response({
+        'error': error_message,
+        'status': 'error'
+    }, status=status_code)
+
+
+def handle_exception(e: Exception, user: str, operation: str, lote_id: int = None) -> Response:
+    """
+    Maneja excepciones y retorna respuesta de error.
+    
+    Args:
+        e: Excepción capturada
+        user: Usuario que realizó la operación
+        operation: Descripción de la operación
+        lote_id: ID del lote (opcional)
+        
+    Returns:
+        Response con error interno del servidor
+    """
+    lote_info = f"lote {lote_id}" if lote_id else "lote"
+    logger.error(f"Error {operation} {lote_info} para usuario {user}: {e}")
+    return create_error_response(ERROR_INTERNAL_SERVER, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class LotePermissionMixin(AdminPermissionMixin):
     """
     Mixin para permisos de lotes.
@@ -137,11 +172,7 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
             )
             
         except Exception as e:
-            logger.error(f"Error listando lotes para usuario {request.user.username}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "listando lotes")
     
     @swagger_auto_schema(
         operation_description="Crea un nuevo lote para el usuario autenticado",
@@ -215,11 +246,7 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
-            logger.error(f"Error creando lote para usuario {request.user.username}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "creando")
 
 
 class LoteDetailView(LotePermissionMixin, APIView):
@@ -248,16 +275,9 @@ class LoteDetailView(LotePermissionMixin, APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
             
         except Lote.DoesNotExist:
-            return Response({
-                'error': ERROR_LOTE_NOT_FOUND,
-                'status': 'error'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return create_error_response(ERROR_LOTE_NOT_FOUND, status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error obteniendo detalles de lote {lote_id}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "obteniendo detalles de", lote_id)
 
 
 class LoteUpdateView(LotePermissionMixin, APIView):
@@ -292,8 +312,18 @@ class LoteUpdateView(LotePermissionMixin, APIView):
         },
         tags=['Lotes']
     )
-    def put(self, request, lote_id):
-        """Actualizar lote completo."""
+    def _update_lote(self, request, lote_id, partial: bool = False):
+        """
+        Método helper para actualizar un lote (completo o parcial).
+        
+        Args:
+            request: Request HTTP
+            lote_id: ID del lote a actualizar
+            partial: Si es True, actualización parcial (PATCH), si es False, completa (PUT)
+            
+        Returns:
+            Response con el lote actualizado o error
+        """
         try:
             queryset = self.get_queryset()
             lote = queryset.get(id=lote_id)
@@ -301,13 +331,15 @@ class LoteUpdateView(LotePermissionMixin, APIView):
             serializer = LoteSerializer(
                 lote, 
                 data=request.data, 
+                partial=partial, 
                 context={'request': request, 'finca': lote.finca}
             )
             
             if serializer.is_valid():
                 lote = serializer.save()
                 
-                logger.info(f"Lote '{lote.identificador}' actualizado por usuario {request.user.username}")
+                update_type = "parcialmente" if partial else ""
+                logger.info(f"Lote '{lote.identificador}' actualizado {update_type} por usuario {request.user.username}")
                 
                 response_serializer = LoteSerializer(lote, context={'request': request})
                 return Response(response_serializer.data, status=status.HTTP_200_OK)
@@ -319,55 +351,17 @@ class LoteUpdateView(LotePermissionMixin, APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
         except Lote.DoesNotExist:
-            return Response({
-                'error': ERROR_LOTE_NOT_FOUND,
-                'status': 'error'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return create_error_response(ERROR_LOTE_NOT_FOUND, status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error actualizando lote {lote_id}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "actualizando", lote_id)
+    
+    def put(self, request, lote_id):
+        """Actualizar lote completo."""
+        return self._update_lote(request, lote_id, partial=False)
     
     def patch(self, request, lote_id):
         """Actualizar lote parcialmente."""
-        try:
-            queryset = self.get_queryset()
-            lote = queryset.get(id=lote_id)
-            
-            serializer = LoteSerializer(
-                lote, 
-                data=request.data, 
-                partial=True, 
-                context={'request': request, 'finca': lote.finca}
-            )
-            
-            if serializer.is_valid():
-                lote = serializer.save()
-                
-                logger.info(f"Lote '{lote.identificador}' actualizado parcialmente por usuario {request.user.username}")
-                
-                response_serializer = LoteSerializer(lote, context={'request': request})
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-            else:
-                return Response({
-                    'error': ERROR_INVALID_INPUT,
-                    'details': serializer.errors,
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
-                
-        except Lote.DoesNotExist:
-            return Response({
-                'error': ERROR_LOTE_NOT_FOUND,
-                'status': 'error'
-            }, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error actualizando lote {lote_id}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return self._update_lote(request, lote_id, partial=True)
 
 
 class LoteDeleteView(LotePermissionMixin, APIView):
@@ -408,16 +402,9 @@ class LoteDeleteView(LotePermissionMixin, APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
             
         except Lote.DoesNotExist:
-            return Response({
-                'error': ERROR_LOTE_NOT_FOUND,
-                'status': 'error'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return create_error_response(ERROR_LOTE_NOT_FOUND, status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error eliminando lote {lote_id}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "eliminando", lote_id)
 
 
 class LoteStatsView(LotePermissionMixin, APIView):
@@ -455,16 +442,9 @@ class LoteStatsView(LotePermissionMixin, APIView):
             return Response(stats, status=status.HTTP_200_OK)
             
         except Lote.DoesNotExist:
-            return Response({
-                'error': ERROR_LOTE_NOT_FOUND,
-                'status': 'error'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return create_error_response(ERROR_LOTE_NOT_FOUND, status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error obteniendo estadísticas de lote {lote_id}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "obteniendo estadísticas de", lote_id)
 
 
 class LotesPorFincaView(LotePermissionMixin, APIView):
@@ -507,15 +487,8 @@ class LotesPorFincaView(LotePermissionMixin, APIView):
             }, status=status.HTTP_200_OK)
             
         except Finca.DoesNotExist:
-            return Response({
-                'error': 'Finca no encontrada',
-                'status': 'error'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return create_error_response('Finca no encontrada', status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error obteniendo lotes de finca {finca_id}: {e}")
-            return Response({
-                'error': ERROR_INTERNAL_SERVER,
-                'status': 'error'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return handle_exception(e, request.user.username, "obteniendo lotes de finca", finca_id)
 
 

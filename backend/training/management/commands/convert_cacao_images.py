@@ -57,41 +57,63 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Procesamiento completado. Archivos procesados: {processed}"))
 
-    def _convert_bmp_to_jpg(self, raw_dir, jpg_dir, limit):
-        """Convierte archivos BMP a JPG."""
-        bmp_files = list(raw_dir.glob("*.bmp"))
-        self.stdout.write(self.style.NOTICE(f"BMP encontrados: {len(bmp_files)}"))
+    def _process_files(
+        self,
+        files: list[Path],
+        process_func,
+        output_dir: Path,
+        output_format: str,
+        output_extension: str,
+        error_prefix: str,
+        notice_message: str,
+        limit: int
+    ) -> int:
+        """Procesa archivos con una función de conversión común."""
+        self.stdout.write(self.style.NOTICE(notice_message))
+        if output_format == "PNG":
+            self.stdout.write(self.style.NOTICE(f"Guardando {output_format} en: {output_dir.absolute()}"))
         
         processed = 0
         file_limit = None if limit == 0 else limit
-        for p in bmp_files[:file_limit]:
-            img, meta = convert_bmp_to_jpg(p)
-            if not meta.get("success") or img is None:
-                logger.error(f"Fallo BMP->JPG {p.name}: {meta.get('error')}")
+        for file_path in files[:file_limit]:
+            result, meta = process_func(file_path)
+            if not meta.get("success") or result is None:
+                logger.error(f"{error_prefix} {file_path.name}: {meta.get('error')}")
                 continue
-            out_path = jpg_dir / f"{p.stem}.jpg"
-            save_image(img, out_path, format="JPEG")
+            out_path = output_dir / f"{file_path.stem}{output_extension}"
+            save_image(result, out_path, format=output_format)
+            if output_format == "PNG":
+                self.stdout.write(f"  ✓ Guardado: {out_path.name}")
             processed += 1
         return processed
 
-    def _convert_to_png_segmented(self, raw_dir, jpg_dir, png_dir, limit):
+    def _convert_bmp_to_jpg(self, raw_dir: Path, jpg_dir: Path, limit: int) -> int:
+        """Convierte archivos BMP a JPG."""
+        bmp_files = list(raw_dir.glob("*.bmp"))
+        return self._process_files(
+            files=bmp_files,
+            process_func=convert_bmp_to_jpg,
+            output_dir=jpg_dir,
+            output_format="JPEG",
+            output_extension=".jpg",
+            error_prefix="Fallo BMP->JPG",
+            notice_message=f"BMP encontrados: {len(bmp_files)}",
+            limit=limit
+        )
+
+    def _convert_to_png_segmented(self, raw_dir: Path, jpg_dir: Path, png_dir: Path, limit: int) -> int:
         """Convierte imágenes a PNG segmentadas."""
         sources = self._get_image_sources(raw_dir, jpg_dir)
-        self.stdout.write(self.style.NOTICE(f"Imágenes a segmentar (jpg/jpeg/png): {len(sources)}"))
-        self.stdout.write(self.style.NOTICE(f"Guardando PNG en: {png_dir.absolute()}"))
-        
-        processed = 0
-        file_limit = None if limit == 0 else limit
-        for p in sources[:file_limit]:
-            pil_png, meta = segment_and_crop_cacao_bean(p)
-            if not meta.get("success") or pil_png is None:
-                logger.error(f"Fallo JPG->PNG {p.name}: {meta.get('error')}")
-                continue
-            out_path = png_dir / f"{p.stem}.png"
-            save_image(pil_png, out_path, format="PNG")
-            self.stdout.write(f"  ✓ Guardado: {out_path.name}")
-            processed += 1
-        return processed
+        return self._process_files(
+            files=sources,
+            process_func=segment_and_crop_cacao_bean,
+            output_dir=png_dir,
+            output_format="PNG",
+            output_extension=".png",
+            error_prefix="Fallo JPG->PNG",
+            notice_message=f"Imágenes a segmentar (jpg/jpeg/png): {len(sources)}",
+            limit=limit
+        )
 
     def _get_image_sources(self, raw_dir, jpg_dir):
         """Obtiene las fuentes de imágenes para segmentar."""

@@ -56,6 +56,51 @@ class ReporteListCreateView(PaginationMixin, APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    @staticmethod
+    def _serialize_reporte(reportes):
+        """Serialize report objects to dict."""
+        reportes_data = []
+        for reporte in reportes:
+            reportes_data.append({
+                'id': reporte.id,
+                'tipo_reporte': reporte.tipo_reporte,
+                'tipo_reporte_display': reporte.get_tipo_reporte_display(),
+                'formato': reporte.formato,
+                'formato_display': reporte.get_formato_display(),
+                'titulo': reporte.titulo,
+                'descripcion': reporte.descripcion,
+                'estado': reporte.estado,
+                'estado_display': reporte.get_estado_display(),
+                'fecha_solicitud': reporte.fecha_solicitud.isoformat(),
+                'fecha_generacion': reporte.fecha_generacion.isoformat() if reporte.fecha_generacion else None,
+                'fecha_expiracion': reporte.fecha_expiracion.isoformat() if reporte.fecha_expiracion else None,
+                'tiempo_generacion_segundos': reporte.tiempo_generacion_segundos,
+                'tamano_archivo_mb': reporte.tamano_archivo_mb,
+                'archivo_url': reporte.archivo_url,
+                'esta_expirado': reporte.esta_expirado,
+                'mensaje_error': reporte.mensaje_error,
+            })
+        return reportes_data
+    
+    @staticmethod
+    def _validate_report_type_and_format(tipo_reporte, formato):
+        """Validate report type and format."""
+        valid_types = [choice[0] for choice in ReporteGenerado.TIPO_REPORTE_CHOICES]
+        if tipo_reporte not in valid_types:
+            return Response({
+                'error': f'Tipo de reporte inválido. Opciones válidas: {", ".join(valid_types)}',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_formats = [choice[0] for choice in ReporteGenerado.FORMATO_CHOICES]
+        if formato not in valid_formats:
+            return Response({
+                'error': f'Formato inválido. Opciones válidas: {", ".join(valid_formats)}',
+                'status': 'error'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return None
+    
     @swagger_auto_schema(
         operation_description="Lista todos los reportes del usuario autenticado",
         operation_summary="Listar reportes",
@@ -90,37 +135,13 @@ class ReporteListCreateView(PaginationMixin, APIView):
             if estado:
                 queryset = queryset.filter(estado=estado)
             
-            # Custom serialization function
-            def serialize_reportes(reportes):
-                reportes_data = []
-                for reporte in reportes:
-                    reportes_data.append({
-                        'id': reporte.id,
-                        'tipo_reporte': reporte.tipo_reporte,
-                        'tipo_reporte_display': reporte.get_tipo_reporte_display(),
-                        'formato': reporte.formato,
-                        'formato_display': reporte.get_formato_display(),
-                        'titulo': reporte.titulo,
-                        'descripcion': reporte.descripcion,
-                        'estado': reporte.estado,
-                        'estado_display': reporte.get_estado_display(),
-                        'fecha_solicitud': reporte.fecha_solicitud.isoformat(),
-                        'fecha_generacion': reporte.fecha_generacion.isoformat() if reporte.fecha_generacion else None,
-                        'fecha_expiracion': reporte.fecha_expiracion.isoformat() if reporte.fecha_expiracion else None,
-                        'tiempo_generacion_segundos': reporte.tiempo_generacion_segundos,
-                        'tamano_archivo_mb': reporte.tamano_archivo_mb,
-                        'archivo_url': reporte.archivo_url,
-                        'esta_expirado': reporte.esta_expirado,
-                        'mensaje_error': reporte.mensaje_error,
-                    })
-                return reportes_data
-            
-            # Paginate using mixin with custom serialization
+            # Use shared serialization function
             return self.paginate_queryset(
                 request,
                 queryset,
-                serializer_func=serialize_reportes
+                serializer_func=self._serialize_reporte
             )
+            
             
         except Exception as e:
             logger.error(f"Error listando reportes: {e}")
@@ -165,21 +186,10 @@ class ReporteListCreateView(PaginationMixin, APIView):
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Validate report type
-            valid_types = [choice[0] for choice in ReporteGenerado.TIPO_REPORTE_CHOICES]
-            if tipo_reporte not in valid_types:
-                return Response({
-                    'error': f'Tipo de reporte inválido. Opciones válidas: {", ".join(valid_types)}',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Validate format
-            valid_formats = [choice[0] for choice in ReporteGenerado.FORMATO_CHOICES]
-            if formato not in valid_formats:
-                return Response({
-                    'error': f'Formato inválido. Opciones válidas: {", ".join(valid_formats)}',
-                    'status': 'error'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            # Validate report type and format
+            validation_error = self._validate_report_type_and_format(tipo_reporte, formato)
+            if validation_error:
+                return validation_error
             
             # Create report
             reporte = ReporteGenerado.generar_reporte(
@@ -273,6 +283,11 @@ class ReporteDetailView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    @staticmethod
+    def _serialize_reporte(reportes):
+        """Serialize report objects to dict."""
+        return ReporteListCreateView._serialize_reporte(reportes)
+    
     @swagger_auto_schema(
         operation_description="Obtiene los detalles de un reporte específico",
         operation_summary="Detalles de reporte",
@@ -288,27 +303,11 @@ class ReporteDetailView(APIView):
         try:
             reporte = ReporteGenerado.objects.get(id=reporte_id, usuario=request.user)
             
-            return Response({
-                'id': reporte.id,
-                'tipo_reporte': reporte.tipo_reporte,
-                'tipo_reporte_display': reporte.get_tipo_reporte_display(),
-                'formato': reporte.formato,
-                'formato_display': reporte.get_formato_display(),
-                'titulo': reporte.titulo,
-                'descripcion': reporte.descripcion,
-                'estado': reporte.estado,
-                'estado_display': reporte.get_estado_display(),
-                'fecha_solicitud': reporte.fecha_solicitud.isoformat(),
-                'fecha_generacion': reporte.fecha_generacion.isoformat() if reporte.fecha_generacion else None,
-                'fecha_expiracion': reporte.fecha_expiracion.isoformat() if reporte.fecha_expiracion else None,
-                'tiempo_generacion_segundos': reporte.tiempo_generacion_segundos,
-                'tamano_archivo_mb': reporte.tamano_archivo_mb,
-                'archivo_url': reporte.archivo_url,
-                'esta_expirado': reporte.esta_expirado,
-                'mensaje_error': reporte.mensaje_error,
-                'parametros': reporte.parametros,
-                'filtros_aplicados': reporte.filtros_aplicados,
-            }, status=status.HTTP_200_OK)
+            reporte_data = self._serialize_reporte([reporte])[0]
+            reporte_data['parametros'] = reporte.parametros
+            reporte_data['filtros_aplicados'] = reporte.filtros_aplicados
+            
+            return Response(reporte_data, status=status.HTTP_200_OK)
             
         except ReporteGenerado.DoesNotExist:
             return Response({

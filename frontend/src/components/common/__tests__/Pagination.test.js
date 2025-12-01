@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Pagination from '../Pagination.vue'
 
@@ -125,9 +125,9 @@ describe('Pagination', () => {
     })
 
     // Check if separator span with "..." exists
-    const ellipsis = wrapper.find('span:contains("...")')
     // If separator should be shown based on currentPage position
     // For currentPage=5 and maxVisiblePages=5, it might show separator
+    // Note: ellipsis variable removed as it was unused
     expect(wrapper.html()).toContain('...')
   })
 })

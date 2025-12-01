@@ -250,6 +250,7 @@ describe('Manejo de Errores - Casos Edge', () => {
         try {
           win.sessionStorage.setItem(`key${i}`, 'x'.repeat(1000))
         } catch (e) {
+          cy.log(`SessionStorage limit reached at key ${i}: ${e.message}`)
           break
         }
       }
@@ -274,10 +275,13 @@ describe('Manejo de Errores - Casos Edge', () => {
     cy.window().then((win) => {
       const start = Date.now()
       let counter = 0
+      let result = 0
       while (Date.now() - start < 100) {
-        Math.sqrt(counter)
+        result += Math.sqrt(counter)
         counter++
       }
+      // Use result to prevent optimization
+      expect(result).to.be.a('number')
     })
     cy.get('[data-cy="refresh-button"]').click()
     cy.wait(1000)
@@ -450,9 +454,11 @@ describe('Manejo de Errores - Casos Edge', () => {
       if ('PaymentRequest' in win) {
         try {
           const paymentRequest = new win.PaymentRequest([], { total: { label: 'Test', amount: { currency: 'USD', value: '0' } } })
-          paymentRequest.show().catch(() => {})
+          paymentRequest.show().catch((error) => {
+            cy.log(`PaymentRequest error: ${error.message}`)
+          })
         } catch (e) {
-          // Ignore
+          cy.log(`PaymentRequest initialization error: ${e.message}`)
         }
       }
     })
@@ -663,19 +669,23 @@ describe('Manejo de Errores - Casos Edge', () => {
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="location-filter"], button, .filter').length > 0) {
         cy.get('[data-cy="location-filter"], button, .filter').first().click({ force: true })
-        cy.get('body').then(($afterClick) => {
+        const applyFilterAndVerify = ($afterClick) => {
           if ($afterClick.find('[data-cy="province-filter"], select').length > 0) {
             cy.get('[data-cy="province-filter"], select').first().select('Provincia Inexistente', { force: true })
             cy.get('[data-cy="apply-filter"], button[type="submit"]').first().click()
             
-            cy.get('body', { timeout: 5000 }).then(($afterFilter) => {
+            const verifyNoResults = ($afterFilter) => {
               if ($afterFilter.find('[data-cy="no-results"], .no-results').length > 0) {
                 cy.get('[data-cy="no-results"], .no-results').should('exist')
                 cy.get('[data-cy="clear-filters"], button', { timeout: 3000 }).should('exist')
               }
-            })
+            }
+
+            cy.get('body', { timeout: 5000 }).then(verifyNoResults)
           }
-        })
+        }
+
+        cy.get('body', { timeout: 3000 }).then(applyFilterAndVerify)
       }
     })
   })
@@ -692,14 +702,16 @@ describe('Manejo de Errores - Casos Edge', () => {
             const longText = 'a'.repeat(1000)
             cy.get('[data-cy="finca-nombre"], input').first().type(longText, { force: true })
             
-            cy.get('body', { timeout: 3000 }).then(($error) => {
+            const verifyLongFieldError = ($error) => {
               if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
                 cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('largo') || text.includes('longitud') || text.includes('demasiado') || text.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 3000 }).then(verifyLongFieldError)
           }
         })
       } else {
@@ -742,14 +754,16 @@ describe('Manejo de Errores - Casos Edge', () => {
           if ($modal.find('[data-cy="finca-area"], input[type="number"]').length > 0) {
             cy.get('[data-cy="finca-area"], input[type="number"]').first().type('999999999999999', { force: true })
             
-            cy.get('body', { timeout: 3000 }).then(($error) => {
+            const verifyLargeNumberError = ($error) => {
               if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
                 cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('grande') || text.includes('área') || text.includes('demasiado') || text.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 3000 }).then(verifyLargeNumberError)
           }
         })
       } else {

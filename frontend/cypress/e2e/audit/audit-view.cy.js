@@ -91,9 +91,11 @@ describe('Auditoria View - Filtros y Visualización', () => {
       // Verificar que las tarjetas de estadísticas se renderizan
       const statsText = $body.text().toLowerCase()
       if (statsText.includes('actividades') || statsText.includes('logins') || statsText.includes('total')) {
-        cy.get('body').should('be.visible')
+        cy.get('[data-cy="stats-card"], .stats-card, .card').should('exist')
+        cy.get('[data-cy="stats-card"], .stats-card, .card').should('have.length.at.least', 1)
       } else {
         // Si no hay texto de estadísticas, verificar que la página cargó correctamente
+        cy.log('No statistics cards found, verifying page loaded')
         cy.get('body').should('be.visible')
       }
     })
