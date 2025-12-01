@@ -44,15 +44,17 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle incorrect credentials', () => {
+      const verifyCredentialsError = ($body) => {
+        const hasError = $body.find('.swal2-error, [data-cy="error-message"]').length > 0
+        const text = $body.text().toLowerCase()
+        return hasError || CREDENTIALS_ERROR_PATTERNS.some(pattern => text.includes(pattern))
+      }
+      
       cy.interceptError('POST', '/auth/login/', 401, { detail: 'Credenciales inválidas' }, 'loginError')
       const wrongPassword = generatePassword()
       fillLoginForm('wrong@example.com', wrongPassword)
       cy.wait('@loginError', { timeout: 10000 })
-      cy.get('body', { timeout: 5000 }).should('satisfy', ($body) => {
-        const hasError = $body.find('.swal2-error, [data-cy="error-message"]').length > 0
-        const text = $body.text().toLowerCase()
-        return hasError || CREDENTIALS_ERROR_PATTERNS.some(pattern => text.includes(pattern))
-      })
+      cy.get('body', { timeout: 5000 }).should('satisfy', verifyCredentialsError)
     })
 
     it('should handle server error during login', () => {
@@ -64,12 +66,16 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should toggle password visibility', () => {
-      ifFoundInBody(PASSWORD_INPUT_SELECTOR, ($input) => {
-        const initialType = $input.attr('type')
+      const togglePassword = (initialType) => {
         ifFoundInBody('[data-cy="btn-toggle-password"], button[type="button"]', () => {
           cy.get('[data-cy="btn-toggle-password"], button[type="button"]').first().click()
           cy.get(PASSWORD_INPUT_SELECTOR).first().should('have.attr', 'type', initialType === 'password' ? 'text' : 'password')
         })
+      }
+      
+      ifFoundInBody(PASSWORD_INPUT_SELECTOR, ($input) => {
+        const initialType = $input.attr('type')
+        togglePassword(initialType)
       }, () => {
         cy.get('body').should('be.visible')
       })
@@ -91,14 +97,21 @@ describe('Authentication - Advanced Scenarios', () => {
         })
       }
       
-      ifFoundInBody(PASSWORD_INPUT_SELECTOR, () => {
+      const testWeakPassword = () => {
         const weakPassword = TEST_CREDENTIALS.weakPasswords[0]
         cy.get(PASSWORD_INPUT_SELECTOR).first().type(weakPassword)
         cy.get('body', { timeout: 3000 }).then(() => verifyPasswordStrength(['débil', 'weak']))
-        
+      }
+      
+      const testStrongPassword = () => {
         const strongPassword = TEST_CREDENTIALS.strongPassword
         cy.get(PASSWORD_INPUT_SELECTOR).first().clear().type(strongPassword)
         cy.get('body', { timeout: 3000 }).then(() => verifyPasswordStrength(['fuerte', 'strong']))
+      }
+      
+      ifFoundInBody(PASSWORD_INPUT_SELECTOR, () => {
+        testWeakPassword()
+        testStrongPassword()
       }, () => {
         cy.get('body').should('be.visible')
       })
@@ -110,19 +123,25 @@ describe('Authentication - Advanced Scenarios', () => {
         body: { email: ['Este email ya está registrado'] } 
       }).as('registerFail')
 
+      const fillConfirmPassword = (testPassword) => {
+        ifFoundInBody('[data-cy="input-confirm-password"], input[type="password"]', () => {
+          cy.get('[data-cy="input-confirm-password"], input[type="password"]').last().type(testPassword)
+        })
+      }
+      
+      const fillTermsCheckbox = () => {
+        ifFoundInBody('[data-cy="check-terms"], input[type="checkbox"]', () => {
+          cy.get('[data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
+        })
+      }
+      
       const fillRegistrationForm = () => {
         const testPassword = TEST_CREDENTIALS.testPassword
         cy.get('[data-cy="input-name"], [data-cy="first-name-input"], input[name*="name"]').first().type('New User')
         cy.get(EMAIL_INPUT_SELECTOR).first().type('existing@example.com')
         cy.get(PASSWORD_INPUT_SELECTOR).first().type(testPassword)
-        
-        ifFoundInBody('[data-cy="input-confirm-password"], input[type="password"]', () => {
-          cy.get('[data-cy="input-confirm-password"], input[type="password"]').last().type(testPassword)
-        })
-        
-        ifFoundInBody('[data-cy="check-terms"], input[type="checkbox"]', () => {
-          cy.get('[data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
-        })
+        fillConfirmPassword(testPassword)
+        fillTermsCheckbox()
       }
       
       const verifyEmailExistsError = () => {
@@ -145,15 +164,18 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should prevent submission without accepting terms', () => {
+      const fillConfirmPasswordField = (testPassword) => {
+        ifFoundInBody('[data-cy="input-confirm-password"], input[type="password"]', () => {
+          cy.get('[data-cy="input-confirm-password"], input[type="password"]').last().type(testPassword)
+        })
+      }
+      
       const fillFormWithoutTerms = () => {
         const testPassword = TEST_CREDENTIALS.testPassword
         cy.get('[data-cy="input-name"], [data-cy="first-name-input"], input[name*="name"]').first().type('Valid User')
         cy.get(EMAIL_INPUT_SELECTOR).first().type('valid@example.com')
         cy.get(PASSWORD_INPUT_SELECTOR).first().type(testPassword)
-        
-        ifFoundInBody('[data-cy="input-confirm-password"], input[type="password"]', () => {
-          cy.get('[data-cy="input-confirm-password"], input[type="password"]').last().type(testPassword)
-        })
+        fillConfirmPasswordField(testPassword)
       }
       
       const verifySubmitButtonDisabled = () => {

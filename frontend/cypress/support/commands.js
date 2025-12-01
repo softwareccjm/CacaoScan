@@ -831,7 +831,7 @@ Cypress.Commands.add('requestPasswordRecovery', (email) => {
  * @returns {Cypress.Chainable}
  */
 Cypress.Commands.add('resetPassword', (token, newPassword, confirmPassword) => {
-  const tokenStr = String(token)
+  const tokenStr = typeof token === 'object' ? JSON.stringify(token) : String(token)
   cy.visit(`/reset-password?token=${tokenStr}`)
   cy.get('body', { timeout: 10000 }).should('be.visible')
   
