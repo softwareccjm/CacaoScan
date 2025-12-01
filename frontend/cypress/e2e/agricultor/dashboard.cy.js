@@ -119,30 +119,32 @@ describe('Farmer Profile Settings', () => {
 
   it('should validate password change mismatch', () => {
     cy.clickIfExists('[data-cy="tab-security"], [role="tab"]').then(() => {
-      cy.get('body').then(($security) => {
+      const changePasswordWithMismatch = ($security) => {
         if ($security.find('[data-cy="input-new-pass"], input[type="password"]').length > 0) {
           cy.typeIfExists('[data-cy="input-new-pass"], input[type="password"]', 'NewPass123!')
           cy.typeIfExists('[data-cy="input-confirm-pass"], input[type="password"]', 'DifferentPass!')
-          cy.clickIfExists('[data-cy="btn-change-pass"], button[type="submit"]').then(() => {
-            cy.get('.error-message, [data-cy="error"]', { timeout: 5000 }).should('exist')
-          })
+          cy.clickIfExists('[data-cy="btn-change-pass"], button[type="submit"]')
+          cy.get('.error-message, [data-cy="error"]', { timeout: 5000 }).should('exist')
         }
-      })
+      }
+
+      cy.get('body', { timeout: 5000 }).then(changePasswordWithMismatch)
     })
   })
 
   it('should change password successfully', () => {
     cy.clickIfExists('[data-cy="tab-security"], [role="tab"]').then(() => {
-      cy.get('body').then(($security) => {
+      const changePasswordSuccessfully = ($security) => {
         if ($security.find('[data-cy="input-current-pass"], input[type="password"]').length >= 3) {
           cy.typeIfExists('[data-cy="input-current-pass"], input[type="password"]', 'OldPass123!')
           cy.get('[data-cy="input-new-pass"], input[type="password"]').eq(1).type('NewPass123!')
           cy.typeIfExists('[data-cy="input-confirm-pass"], input[type="password"]', 'NewPass123!')
-          cy.clickIfExists('[data-cy="btn-change-pass"], button[type="submit"]').then(() => {
-            cy.get('body', { timeout: 5000 }).should('be.visible')
-          })
+          cy.clickIfExists('[data-cy="btn-change-pass"], button[type="submit"]')
+          cy.get('body', { timeout: 5000 }).should('be.visible')
         }
-      })
+      }
+
+      cy.get('body', { timeout: 5000 }).then(changePasswordSuccessfully)
     })
   })
 })

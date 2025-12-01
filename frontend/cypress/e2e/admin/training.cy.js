@@ -54,15 +54,16 @@ describe('Admin Training & Datasets', () => {
     cy.clickIfExists('[data-cy="btn-start-training"], button').then(() => {
       cy.get('[data-cy="modal-training-config"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
       
-      cy.get('body').then(($modal) => {
+      const configureTraining = ($modal) => {
         if ($modal.find('[data-cy="select-epochs"], select').length > 0) {
           cy.selectIfExists('[data-cy="select-epochs"], select', '50')
           cy.selectIfExists('[data-cy="select-batch-size"], select', '16')
-          cy.clickIfExists('[data-cy="btn-confirm-training"], button[type="submit"]').then(() => {
-            cy.get('body', { timeout: 5000 }).should('be.visible')
-          })
+          cy.clickIfExists('[data-cy="btn-confirm-training"], button[type="submit"]')
+          cy.get('body', { timeout: 5000 }).should('be.visible')
         }
-      })
+      }
+
+      cy.get('body', { timeout: 5000 }).then(configureTraining)
     })
   })
 
@@ -82,20 +83,24 @@ describe('Admin Training & Datasets', () => {
   })
 
   it('should validate dataset deletion', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="tab-datasets"], [role="tab"]').length > 0) {
-        cy.get('[data-cy="tab-datasets"], [role="tab"]').first().click()
-        cy.get('[data-cy="btn-delete-dataset"], button', { timeout: 5000 }).then(($btns) => {
-          if ($btns.length > 0) {
-            cy.wrap($btns.first()).click({ force: true })
-            cy.get('.swal2-title, [role="dialog"] h2', { timeout: 5000 }).should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('eliminar') || text.includes('delete') || text.includes('¿') || $el.length > 0
-            })
-          }
+    const clickDeleteAndVerify = ($btns) => {
+      if ($btns.length > 0) {
+        cy.wrap($btns.first()).click({ force: true })
+        cy.get('.swal2-title, [role="dialog"] h2', { timeout: 5000 }).should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return text.includes('eliminar') || text.includes('delete') || text.includes('¿') || $el.length > 0
         })
       }
-    })
+    }
+
+    const openDatasetsTab = ($body) => {
+      if ($body.find('[data-cy="tab-datasets"], [role="tab"]').length > 0) {
+        cy.get('[data-cy="tab-datasets"], [role="tab"]').first().click()
+        cy.get('[data-cy="btn-delete-dataset"], button', { timeout: 5000 }).then(clickDeleteAndVerify)
+      }
+    }
+
+    cy.get('body').then(openDatasetsTab)
   })
 })
 

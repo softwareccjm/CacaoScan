@@ -69,11 +69,10 @@ vi.mock('@/composables/usePrediction', () => ({
 
 describe('ImageUpload', () => {
   let wrapper
-  let router
 
   beforeEach(() => {
     setActivePinia(createPinia())
-    router = createRouter({
+    createRouter({
       history: createWebHistory(),
       routes: [{ path: '/', component: { template: '<div>Home</div>' } }]
     })

@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from '../../support/helpers'
 
 describe('Authentication - Advanced Scenarios', () => {
   
@@ -32,7 +31,6 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle incorrect credentials', () => {
-      const apiBaseUrl = getApiBaseUrl()
       cy.interceptError('POST', '/auth/login/', 401, { detail: 'Credenciales inválidas' }, 'loginError')
       
       cy.get('body').then(($body) => {
@@ -51,7 +49,6 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle server error during login', () => {
-      const apiBaseUrl = getApiBaseUrl()
       cy.interceptError('POST', '/auth/login/', 500, {}, 'loginError')
       
       cy.get('body').then(($body) => {
@@ -68,15 +65,18 @@ describe('Authentication - Advanced Scenarios', () => {
     it('should toggle password visibility', () => {
       cy.get('body').then(($body) => {
         if ($body.find('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').length > 0) {
-          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().then(($input) => {
+          const togglePasswordVisibility = ($input) => {
             const initialType = $input.attr('type')
-            cy.get('body').then(($toggle) => {
+            const clickToggleButton = ($toggle) => {
               if ($toggle.find('[data-cy="btn-toggle-password"], button[type="button"]').length > 0) {
                 cy.get('[data-cy="btn-toggle-password"], button[type="button"]').first().click()
                 cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().should('have.attr', 'type', initialType === 'password' ? 'text' : 'password')
               }
-            })
-          })
+            }
+            cy.get('body', { timeout: 3000 }).then(clickToggleButton)
+          }
+
+          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().then(togglePasswordVisibility)
         } else {
           cy.get('body').should('be.visible')
         }
@@ -92,25 +92,29 @@ describe('Authentication - Advanced Scenarios', () => {
     it('should validate password complexity', () => {
       cy.get('body').then(($body) => {
         if ($body.find('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').length > 0) {
-          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().type('weak')
-          cy.get('body').then(($strength) => {
+          const verifyWeakPasswordStrength = ($strength) => {
             if ($strength.find('.password-strength-meter, [data-cy="password-strength"]').length > 0) {
               cy.get('.password-strength-meter, [data-cy="password-strength"]').should('satisfy', ($el) => {
                 const text = $el.text().toLowerCase()
                 return text.includes('débil') || text.includes('weak') || text.length > 0
               })
             }
-          })
+          }
+
+          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().type('weak')
+          cy.get('body', { timeout: 3000 }).then(verifyWeakPasswordStrength)
           
-          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().clear().type('StrongPass123!')
-          cy.get('body').then(($strong) => {
+          const verifyStrongPasswordStrength = ($strong) => {
             if ($strong.find('.password-strength-meter, [data-cy="password-strength"]').length > 0) {
               cy.get('.password-strength-meter, [data-cy="password-strength"]').should('satisfy', ($el) => {
                 const text = $el.text().toLowerCase()
                 return text.includes('fuerte') || text.includes('strong') || text.length > 0
               })
             }
-          })
+          }
+
+          cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().clear().type('StrongPass123!')
+          cy.get('body', { timeout: 3000 }).then(verifyStrongPasswordStrength)
         } else {
           cy.get('body').should('be.visible')
         }
@@ -133,27 +137,32 @@ describe('Authentication - Advanced Scenarios', () => {
           cy.get('[data-cy="input-name"], [data-cy="first-name-input"], input[name*="name"]').first().type('New User')
           cy.get('[data-cy="input-email"], [data-cy="email-input"], input[type="email"]').first().type('existing@example.com')
           cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().type('Pass123!')
-          cy.get('body').then(($confirm) => {
+          const fillConfirmPassword = ($confirm) => {
             if ($confirm.find('[data-cy="input-confirm-password"], input[type="password"]').length > 1) {
               cy.get('[data-cy="input-confirm-password"], input[type="password"]').last().type('Pass123!')
             }
-          })
-          cy.get('body').then(($terms) => {
+          }
+
+          const checkTerms = ($terms) => {
             if ($terms.find('[data-cy="check-terms"], input[type="checkbox"]').length > 0) {
               cy.get('[data-cy="check-terms"], input[type="checkbox"]').first().check({ force: true })
             }
-          })
-          cy.get('[data-cy="btn-submit-register"], [data-cy="register-button"], button[type="submit"]').first().click()
+          }
 
-          cy.wait('@registerFail', { timeout: 10000 })
-          cy.get('body', { timeout: 5000 }).then(($error) => {
+          const verifyEmailExistsError = ($error) => {
             if ($error.find('.error-message, [data-cy="error-message"]').length > 0) {
               cy.get('.error-message, [data-cy="error-message"]').should('satisfy', ($el) => {
                 const text = $el.text().toLowerCase()
                 return text.includes('ya está registrado') || text.includes('already') || text.length > 0
               })
             }
-          })
+          }
+
+          cy.get('body', { timeout: 3000 }).then(fillConfirmPassword)
+          cy.get('body', { timeout: 3000 }).then(checkTerms)
+          cy.get('[data-cy="btn-submit-register"], [data-cy="register-button"], button[type="submit"]').first().click()
+          cy.wait('@registerFail', { timeout: 10000 })
+          cy.get('body', { timeout: 5000 }).then(verifyEmailExistsError)
         } else {
           cy.get('body').should('be.visible')
         }
@@ -170,18 +179,22 @@ describe('Authentication - Advanced Scenarios', () => {
           cy.get('[data-cy="input-name"], [data-cy="first-name-input"], input[name*="name"]').first().type('Valid User')
           cy.get('[data-cy="input-email"], [data-cy="email-input"], input[type="email"]').first().type('valid@example.com')
           cy.get('[data-cy="input-password"], [data-cy="password-input"], input[type="password"]').first().type('Pass123!')
-          cy.get('body').then(($confirm) => {
+          const fillConfirmPasswordForTerms = ($confirm) => {
             if ($confirm.find('[data-cy="input-confirm-password"], input[type="password"]').length > 1) {
               cy.get('[data-cy="input-confirm-password"], input[type="password"]').last().type('Pass123!')
             }
-          })
-          cy.get('body').then(($submit) => {
+          }
+
+          const verifySubmitButtonDisabled = ($submit) => {
             if ($submit.find('[data-cy="btn-submit-register"], [data-cy="register-button"], button[type="submit"]').length > 0) {
               cy.get('[data-cy="btn-submit-register"], [data-cy="register-button"], button[type="submit"]').first().should('satisfy', ($btn) => {
                 return $btn.is(':disabled') || $btn.length > 0
               })
             }
-          })
+          }
+
+          cy.get('body', { timeout: 3000 }).then(fillConfirmPasswordForTerms)
+          cy.get('body', { timeout: 3000 }).then(verifySubmitButtonDisabled)
         } else {
           cy.get('body').should('be.visible')
         }
@@ -197,7 +210,7 @@ describe('Authentication - Advanced Scenarios', () => {
         if ($body.find('[data-cy="input-email"], [data-cy="email-input"], input[type="email"]').length > 0) {
           cy.get('[data-cy="input-email"], [data-cy="email-input"], input[type="email"]').first().type('user@example.com')
           cy.get('[data-cy="btn-submit"], [data-cy="send-reset-button"], button[type="submit"]').first().click()
-          cy.get('body', { timeout: 5000 }).then(($success) => {
+          const verifyPasswordResetSuccess = ($success) => {
             if ($success.find('.swal2-success, [data-cy="success-message"]').length > 0) {
               cy.get('.swal2-success, [data-cy="success-message"]').should('be.visible')
             } else {
@@ -205,7 +218,9 @@ describe('Authentication - Advanced Scenarios', () => {
                 return url.includes('/forgot') || url.includes('/login') || url.length > 0
               })
             }
-          })
+          }
+
+          cy.get('body', { timeout: 5000 }).then(verifyPasswordResetSuccess)
         } else {
           cy.get('body').should('be.visible')
         }
@@ -213,7 +228,6 @@ describe('Authentication - Advanced Scenarios', () => {
     })
 
     it('should handle non-existent email for reset', () => {
-      const apiBaseUrl = getApiBaseUrl()
       cy.interceptError('POST', '/auth/password_reset/', 404, { detail: 'Email no encontrado' }, 'resetFail')
       
       cy.visit('/auth/forgot-password')
@@ -223,7 +237,7 @@ describe('Authentication - Advanced Scenarios', () => {
           cy.get('[data-cy="input-email"], [data-cy="email-input"], input[type="email"]').first().type('nobody@example.com')
           cy.get('[data-cy="btn-submit"], [data-cy="send-reset-button"], button[type="submit"]').first().click()
           cy.wait('@resetFail', { timeout: 10000 })
-          cy.get('body', { timeout: 5000 }).then(($error) => {
+          const verifyResetErrorOrUrl = ($error) => {
             if ($error.find('.swal2-error, [data-cy="error-message"]').length > 0) {
               cy.get('.swal2-error, [data-cy="error-message"]').should('be.visible')
             } else {
@@ -231,7 +245,9 @@ describe('Authentication - Advanced Scenarios', () => {
                 return url.includes('/forgot') || url.includes('/login') || url.length > 0
               })
             }
-          })
+          }
+
+          cy.get('body', { timeout: 5000 }).then(verifyResetErrorOrUrl)
         } else {
           cy.get('body').should('be.visible')
         }

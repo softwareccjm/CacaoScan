@@ -217,7 +217,7 @@ describe('Router Configuration', () => {
         fullPath: '/admin/dashboard'
       }
 
-      const result = await router.beforeEach(to, { path: '/' })
+      await router.beforeEach(to, { path: '/' })
 
       expect(mockAuthStore.updateLastActivity).toHaveBeenCalled()
     })

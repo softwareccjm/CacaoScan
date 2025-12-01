@@ -21,11 +21,12 @@ describe('Deep Dive: Analysis Interaction', () => {
   it('should zoom in and out of the image', () => {
     cy.clickIfExists('[data-cy="btn-zoom-in"], button, .zoom-in').then(() => {
       cy.get('[data-cy="image-canvas"], canvas, img', { timeout: 5000 }).should('exist')
-      cy.get('body').then(($afterZoom) => {
-        cy.clickIfExists('[data-cy="btn-reset-zoom"], button').then(() => {
-          cy.get('[data-cy="image-canvas"], canvas, img').should('exist')
-        })
-      })
+      const resetZoom = () => {
+        cy.clickIfExists('[data-cy="btn-reset-zoom"], button')
+        cy.get('[data-cy="image-canvas"], canvas, img').should('exist')
+      }
+
+      cy.get('body', { timeout: 5000 }).then(() => resetZoom())
     })
   })
 
@@ -40,24 +41,27 @@ describe('Deep Dive: Analysis Interaction', () => {
 
   it('should add comments to the analysis', () => {
     cy.clickIfExists('[data-cy="btn-add-comment"], button').then(() => {
-      cy.get('body').then(($afterClick) => {
+      const addComment = ($afterClick) => {
         if ($afterClick.find('[data-cy="input-comment"], textarea, input').length > 0) {
           cy.get('[data-cy="input-comment"], textarea, input').first().type('Observación importante sobre esta muestra.')
           cy.get('[data-cy="btn-post-comment"], button[type="submit"]').first().click()
           cy.get('[data-cy="comments-list"], .comments, .comment-list', { timeout: 5000 }).should('exist')
         }
-      })
+      }
+
+      cy.get('body', { timeout: 5000 }).then(addComment)
     })
   })
 
   it('should switch between visual and tabular view', () => {
     cy.clickIfExists('[data-cy="view-mode-table"], button, [role="tab"]').then(() => {
       cy.get('table, .table', { timeout: 5000 }).should('exist')
-      cy.get('body').then(($afterTable) => {
-        cy.clickIfExists('[data-cy="view-mode-visual"], button, [role="tab"]').then(() => {
-          cy.get('[data-cy="image-canvas"], canvas, img', { timeout: 5000 }).should('exist')
-        })
-      })
+      const switchToVisualView = () => {
+        cy.clickIfExists('[data-cy="view-mode-visual"], button, [role="tab"]')
+        cy.get('[data-cy="image-canvas"], canvas, img', { timeout: 5000 }).should('exist')
+      }
+
+      cy.get('body', { timeout: 5000 }).then(() => switchToVisualView())
     })
   })
 })

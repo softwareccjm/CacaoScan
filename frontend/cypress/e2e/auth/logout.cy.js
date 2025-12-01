@@ -7,21 +7,7 @@ describe('Autenticación - Logout', () => {
     cy.visit('/admin/dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="user-menu"], .user-menu, button, a').length > 0) {
-        cy.get('[data-cy="user-menu"], .user-menu, button, a').first().click({ force: true })
-        cy.get('body').then(($menu) => {
-          if ($menu.find('[data-cy="logout-button"], button, a').length > 0) {
-            cy.get('[data-cy="logout-button"], button, a').first().click({ force: true })
-            cy.get('body', { timeout: 3000 }).then(($confirm) => {
-              if ($confirm.find('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').length > 0) {
-                cy.get('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').first().click()
-              }
-            })
-          }
-        })
-      }
-    })
+    cy.performLogout()
     cy.url({ timeout: 10000 }).should('include', '/login')
     cy.window().then((win) => {
       expect(win.localStorage.getItem('access_token')).to.be.null
@@ -37,21 +23,7 @@ describe('Autenticación - Logout', () => {
       cy.visit(page)
       cy.get('body', { timeout: 10000 }).should('be.visible')
       
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-cy="user-menu"], .user-menu, button, a').length > 0) {
-          cy.get('[data-cy="user-menu"], .user-menu, button, a').first().click({ force: true })
-          cy.get('body').then(($menu) => {
-            if ($menu.find('[data-cy="logout-button"], button, a').length > 0) {
-              cy.get('[data-cy="logout-button"], button, a').first().click({ force: true })
-              cy.get('body', { timeout: 3000 }).then(($confirm) => {
-                if ($confirm.find('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').length > 0) {
-                  cy.get('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').first().click()
-                }
-              })
-            }
-          })
-        }
-      })
+      cy.performLogout()
       cy.url({ timeout: 10000 }).should('include', '/login')
       if (index < pages.length - 1) {
         cy.login('admin')
@@ -68,21 +40,7 @@ describe('Autenticación - Logout', () => {
       expect(hasToken).to.not.be.null
     })
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="user-menu"], .user-menu, button, a').length > 0) {
-        cy.get('[data-cy="user-menu"], .user-menu, button, a').first().click({ force: true })
-        cy.get('body').then(($menu) => {
-          if ($menu.find('[data-cy="logout-button"], button, a').length > 0) {
-            cy.get('[data-cy="logout-button"], button, a').first().click({ force: true })
-            cy.get('body', { timeout: 3000 }).then(($confirm) => {
-              if ($confirm.find('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').length > 0) {
-                cy.get('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').first().click()
-              }
-            })
-          }
-        })
-      }
-    })
+    cy.performLogout()
     cy.window().then((win) => {
       expect(win.localStorage.getItem('access_token')).to.be.null
       expect(win.localStorage.getItem('auth_token')).to.be.null
@@ -94,72 +52,84 @@ describe('Autenticación - Logout', () => {
     cy.visit('/admin/dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
+    const clickLogoutButton = ($menu) => {
+      if ($menu.find('[data-cy="logout-button"], button').length > 0) {
+        cy.get('[data-cy="logout-button"], button').first().click({ force: true })
+        cy.visit('/admin/agricultores')
+        cy.url({ timeout: 10000 }).should('include', '/login')
+      }
+    }
+
+    const openUserMenu = ($body) => {
       if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
         cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
-        cy.get('body').then(($menu) => {
-          if ($menu.find('[data-cy="logout-button"], button').length > 0) {
-            cy.get('[data-cy="logout-button"], button').first().click({ force: true })
-            
-            cy.visit('/admin/agricultores')
-            
-            cy.url({ timeout: 10000 }).should('include', '/login')
-          }
-        })
+        cy.get('body', { timeout: 3000 }).then(clickLogoutButton)
       }
-    })
+    }
+
+    cy.get('body', { timeout: 10000 }).then(openUserMenu)
   })
 
   it('debe mostrar mensaje de confirmación antes del logout', () => {
     cy.visit('/admin/dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
-        cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
-        cy.get('body').then(($menu) => {
-          if ($menu.find('[data-cy="logout-button"], button').length > 0) {
-            cy.get('[data-cy="logout-button"], button').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($modal) => {
-              if ($modal.find('[data-cy="logout-confirmation-modal"], .swal2-container, [role="dialog"]').length > 0) {
-                cy.get('[data-cy="logout-confirmation-modal"], .swal2-container, [role="dialog"]').should('exist')
-                cy.get('[data-cy="cancel-logout"], .swal2-cancel, button').first().click()
-                cy.url({ timeout: 5000 }).should('satisfy', (url) => {
-                  return url.includes('/admin/dashboard') || url.includes('/admin')
-                })
-              }
-            })
-          }
+    const verifyAndCancelLogout = ($modal) => {
+      if ($modal.find('[data-cy="logout-confirmation-modal"], .swal2-container, [role="dialog"]').length > 0) {
+        cy.get('[data-cy="logout-confirmation-modal"], .swal2-container, [role="dialog"]').should('exist')
+        cy.get('[data-cy="cancel-logout"], .swal2-cancel, button').first().click()
+        cy.url({ timeout: 5000 }).should('satisfy', (url) => {
+          return url.includes('/admin/dashboard') || url.includes('/admin')
         })
       }
-    })
+    }
+
+    const clickLogoutForConfirmation = ($menu) => {
+      if ($menu.find('[data-cy="logout-button"], button').length > 0) {
+        cy.get('[data-cy="logout-button"], button').first().click({ force: true })
+        cy.get('body', { timeout: 5000 }).then(verifyAndCancelLogout)
+      }
+    }
+
+    const openUserMenuForConfirmation = ($body) => {
+      if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
+        cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
+        cy.get('body', { timeout: 3000 }).then(clickLogoutForConfirmation)
+      }
+    }
+
+    cy.get('body', { timeout: 10000 }).then(openUserMenuForConfirmation)
   })
 
   it('debe cancelar logout desde modal de confirmación', () => {
     cy.visit('/admin/dashboard')
     cy.get('body', { timeout: 10000 }).should('be.visible')
     
-    cy.get('body').then(($body) => {
+    const cancelLogout = ($modal) => {
+      if ($modal.find('[data-cy="cancel-logout"], .swal2-cancel, button').length > 0) {
+        cy.get('[data-cy="cancel-logout"], .swal2-cancel, button').first().click()
+        cy.url({ timeout: 5000 }).should('satisfy', (url) => {
+          return url.includes('/admin/dashboard') || url.includes('/admin')
+        })
+        cy.get('[data-cy="admin-dashboard"], body', { timeout: 5000 }).should('exist')
+      }
+    }
+
+    const clickLogoutToCancel = ($menu) => {
+      if ($menu.find('[data-cy="logout-button"], button').length > 0) {
+        cy.get('[data-cy="logout-button"], button').first().click({ force: true })
+        cy.get('body', { timeout: 5000 }).then(cancelLogout)
+      }
+    }
+
+    const openUserMenuToCancel = ($body) => {
       if ($body.find('[data-cy="user-menu"], .user-menu, button').length > 0) {
         cy.get('[data-cy="user-menu"], .user-menu, button').first().click({ force: true })
-        cy.get('body').then(($menu) => {
-          if ($menu.find('[data-cy="logout-button"], button').length > 0) {
-            cy.get('[data-cy="logout-button"], button').first().click({ force: true })
-            
-            cy.get('body', { timeout: 5000 }).then(($modal) => {
-              if ($modal.find('[data-cy="cancel-logout"], .swal2-cancel, button').length > 0) {
-                cy.get('[data-cy="cancel-logout"], .swal2-cancel, button').first().click()
-                cy.url({ timeout: 5000 }).should('satisfy', (url) => {
-                  return url.includes('/admin/dashboard') || url.includes('/admin')
-                })
-                cy.get('[data-cy="admin-dashboard"], body', { timeout: 5000 }).should('exist')
-              }
-            })
-          }
-        })
+        cy.get('body', { timeout: 3000 }).then(clickLogoutToCancel)
       }
-    })
+    }
+
+    cy.get('body', { timeout: 10000 }).then(openUserMenuToCancel)
   })
 
   it('debe hacer logout automático cuando el token expira', () => {

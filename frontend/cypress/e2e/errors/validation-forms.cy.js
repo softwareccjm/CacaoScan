@@ -1,4 +1,4 @@
-import { verifySelectorsExist, openModal, fillFieldAndSubmit, verifyErrorMessage } from '../../support/helpers'
+import { verifySelectorsExist, openModal } from '../../support/helpers'
 
 describe('Manejo de Errores - Validación y Formularios', () => {
   beforeEach(() => {
@@ -63,19 +63,23 @@ describe('Manejo de Errores - Validación y Formularios', () => {
           })
         }
         
-        cy.get('body').then(($strong) => {
-          if ($strong.find('[data-cy="password-input"], input[type="password"]').length > 0) {
-            cy.get('[data-cy="password-input"], input[type="password"]').first().clear().type('StrongPassword123!', { force: true })
-            cy.get('body', { timeout: 2000 }).then(($afterStrong) => {
-              if ($afterStrong.find('[data-cy="password-strength"], .password-strength').length > 0) {
-                cy.get('[data-cy="password-strength"], .password-strength').should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('fuerte') || text.includes('strong') || text.length > 0
-                })
-              }
+        const verifyPasswordStrength = ($afterStrong) => {
+          if ($afterStrong.find('[data-cy="password-strength"], .password-strength').length > 0) {
+            cy.get('[data-cy="password-strength"], .password-strength').should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('fuerte') || text.includes('strong') || text.length > 0
             })
           }
-        })
+        }
+
+        const typeStrongPassword = ($strong) => {
+          if ($strong.find('[data-cy="password-input"], input[type="password"]').length > 0) {
+            cy.get('[data-cy="password-input"], input[type="password"]').first().clear().type('StrongPassword123!', { force: true })
+            cy.get('body', { timeout: 2000 }).then(verifyPasswordStrength)
+          }
+        }
+
+        cy.get('body').then(typeStrongPassword)
       } else {
         cy.get('body').should('be.visible')
       }
@@ -89,21 +93,24 @@ describe('Manejo de Errores - Validación y Formularios', () => {
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="password-input"], input[type="password"]').length > 0) {
         cy.get('[data-cy="password-input"], input[type="password"]').first().type('Password123!', { force: true })
-        cy.get('body').then(($confirm) => {
+        const verifyPasswordMatchError = ($error) => {
+          if ($error.find('[data-cy="password-match-error"], .error-message').length > 0) {
+            cy.get('[data-cy="password-match-error"], .error-message').first().should('satisfy', ($el) => {
+              const text = $el.text().toLowerCase()
+              return text.includes('coinciden') || text.includes('match') || text.includes('contraseña') || text.length > 0
+            })
+          }
+        }
+
+        const fillConfirmPassword = ($confirm) => {
           if ($confirm.find('[data-cy="confirm-password-input"], input[type="password"]').length > 0) {
             cy.get('[data-cy="confirm-password-input"], input[type="password"]').first().type('DifferentPassword123!', { force: true })
             cy.get('[data-cy="register-button"], button[type="submit"]').first().click({ force: true })
-            
-            cy.get('body', { timeout: 3000 }).then(($error) => {
-              if ($error.find('[data-cy="password-match-error"], .error-message').length > 0) {
-                cy.get('[data-cy="password-match-error"], .error-message').first().should('satisfy', ($el) => {
-                  const text = $el.text().toLowerCase()
-                  return text.includes('coinciden') || text.includes('match') || text.includes('contraseña') || text.length > 0
-                })
-              }
-            })
+            cy.get('body', { timeout: 3000 }).then(verifyPasswordMatchError)
           }
-        })
+        }
+
+        cy.get('body').then(fillConfirmPassword)
       } else {
         cy.get('body').should('be.visible')
       }
@@ -122,14 +129,16 @@ describe('Manejo de Errores - Validación y Formularios', () => {
             cy.get('[data-cy="finca-nombre"], input').first().type('A', { force: true })
             cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
             
-            cy.get('body', { timeout: 3000 }).then(($error) => {
+            const verifyFieldLengthError = ($error) => {
               if ($error.find('[data-cy="finca-nombre-error"], .error-message').length > 0) {
                 cy.get('[data-cy="finca-nombre-error"], .error-message').first().should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('caracteres') || text.includes('al menos') || text.includes('3') || text.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 3000 }).then(verifyFieldLengthError)
           }
         })
       } else {
@@ -150,14 +159,16 @@ describe('Manejo de Errores - Validación y Formularios', () => {
             cy.get('[data-cy="finca-area"], input[type="number"]').first().type('-10', { force: true })
             cy.get('[data-cy="save-finca"], button[type="submit"]').first().click({ force: true })
             
-            cy.get('body', { timeout: 3000 }).then(($error) => {
+            const verifyNumericRangeError = ($error) => {
               if ($error.find('[data-cy="finca-area-error"], .error-message').length > 0) {
                 cy.get('[data-cy="finca-area-error"], .error-message').first().should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('positiva') || text.includes('negativo') || text.includes('área') || text.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 3000 }).then(verifyNumericRangeError)
           }
         })
       } else {

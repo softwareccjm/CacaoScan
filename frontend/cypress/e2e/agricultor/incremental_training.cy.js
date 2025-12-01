@@ -56,21 +56,27 @@ describe('Incremental Training Contribution', () => {
 
   it('should require labeling for uploaded images', () => {
     uploadImageAndProcess('training_sample.jpg', ($afterUpload) => {
-      cy.clickIfExists('[data-cy="btn-submit-contribution"], button[type="submit"]').then(() => {
+      const verifyLabelRequired = () => {
+        cy.clickIfExists('[data-cy="btn-submit-contribution"], button[type="submit"]')
         cy.get('.error-message, [data-cy="error"]', { timeout: 5000 }).should('satisfy', ($el) => {
           const text = $el.text().toLowerCase()
           return text.includes('etiqueta') || text.includes('label') || text.includes('requerid') || $el.length > 0
         })
-      })
+      }
+
+      verifyLabelRequired()
     })
   })
 
   it('should allow tagging images', () => {
     uploadImageAndProcess('training_sample.jpg', ($afterUpload) => {
       selectLabelAndAdd('Monilia', ($afterSelect) => {
-        cy.clickIfExists('[data-cy="btn-add-tag"], button').then(() => {
+        const addTag = () => {
+          cy.clickIfExists('[data-cy="btn-add-tag"], button')
           cy.get('.tag-chip, .tag, [data-cy="tag"]', { timeout: 5000 }).should('exist')
-        })
+        }
+
+        addTag()
       })
     })
   })
@@ -78,11 +84,13 @@ describe('Incremental Training Contribution', () => {
   it('should submit contribution successfully', () => {
     uploadImageAndProcess('training_sample.jpg', ($afterUpload) => {
       selectLabelAndAdd('Sana', ($afterSelect) => {
-        cy.typeIfExists('[data-cy="input-notes"], textarea', 'Imagen tomada con buena luz').then(() => {
-          cy.clickIfExists('[data-cy="btn-submit-contribution"], button[type="submit"]').then(() => {
-            cy.get('body', { timeout: 5000 }).should('be.visible')
-          })
-        })
+        const submitContribution = () => {
+          cy.typeIfExists('[data-cy="input-notes"], textarea', 'Imagen tomada con buena luz')
+          cy.clickIfExists('[data-cy="btn-submit-contribution"], button[type="submit"]')
+          cy.get('body', { timeout: 5000 }).should('be.visible')
+        }
+
+        submitContribution()
       })
     })
   })

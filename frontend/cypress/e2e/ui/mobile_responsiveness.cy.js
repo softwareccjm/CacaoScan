@@ -42,7 +42,7 @@ describe('Mobile Responsiveness', () => {
         cy.get('body').then(($body) => {
           if ($body.find('[data-cy="stat-card-fincas"], .stat-card, .card, [data-cy="card"]').length > 0) {
             cy.get('[data-cy="stat-card-fincas"], .stat-card, .card, [data-cy="card"]').first().should('satisfy', ($el) => {
-              const width = parseInt($el.css('width')) || 0
+              const width = Number.parseInt($el.css('width') || '0', 10)
               // Basic check if it takes full width roughly or exists
               return width > 300 || width > 0 || $el.length > 0
             })

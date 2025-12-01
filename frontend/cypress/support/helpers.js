@@ -497,6 +497,130 @@ export function clickRetryIfExists() {
 }
 
 /**
+ * Executes actions within a modal without deep nesting
+ * @param {string} buttonSelector - Selector for button that opens modal
+ * @param {Function} modalActions - Function that receives modal context and executes actions
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function executeInModal(buttonSelector, modalActions) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(buttonSelector).length > 0) {
+      cy.get(buttonSelector).first().click({ force: true })
+      return cy.get('body', { timeout: 5000 }).then(($modal) => {
+        return modalActions($modal)
+      })
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Executes actions if element exists, reducing nesting
+ * @param {string} selector - CSS selector to check
+ * @param {Function} actions - Function to execute if element exists
+ * @param {Function} elseActions - Optional function to execute if element doesn't exist
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function ifElementExists(selector, actions, elseActions) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(selector).length > 0) {
+      return cy.get(selector).first().then(($element) => {
+        return actions($element, $body)
+      })
+    }
+    if (elseActions) {
+      return elseActions($body)
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Fills multiple fields in a modal without deep nesting
+ * @param {Object} fields - Object mapping selectors to values
+ * @param {string} submitSelector - Selector for submit button
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillModalFields(fields, submitSelector) {
+  return cy.get('body').then(($modal) => {
+    for (const [selector, value] of Object.entries(fields)) {
+      if ($modal.find(selector).length > 0) {
+        cy.get(selector).first().type(value, { force: true })
+      }
+    }
+    if (submitSelector && $modal.find(submitSelector).length > 0) {
+      cy.get(submitSelector).first().click({ force: true })
+      return cy.get('body', { timeout: 5000 }).should('be.visible')
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Clicks element and waits for next action without nesting
+ * @param {string} selector - CSS selector
+ * @param {Function} nextAction - Function to execute after click
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickAndContinue(selector, nextAction) {
+  return cy.get(selector).first().click({ force: true }).then(() => {
+    return cy.get('body', { timeout: 5000 }).then(($body) => {
+      if (nextAction) {
+        return nextAction($body)
+      }
+      return cy.wrap(null)
+    })
+  })
+}
+
+/**
+ * Executes logout flow without deep nesting
+ * @param {Function} afterLogout - Optional callback after logout
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function performLogout(afterLogout) {
+  const openUserMenu = ($body) => {
+    if ($body.find('[data-cy="user-menu"], .user-menu, button, a').length > 0) {
+      cy.get('[data-cy="user-menu"], .user-menu, button, a').first().click({ force: true })
+      return cy.get('body', { timeout: 3000 }).then(clickLogoutButton)
+    }
+    return cy.wrap(null)
+  }
+
+  const clickLogoutButton = ($menu) => {
+    if ($menu.find('[data-cy="logout-button"], button, a').length > 0) {
+      cy.get('[data-cy="logout-button"], button, a').first().click({ force: true })
+      return cy.get('body', { timeout: 3000 }).then(confirmLogout)
+    }
+    return cy.wrap(null)
+  }
+
+  const confirmLogout = ($confirm) => {
+    if ($confirm.find('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').length > 0) {
+      cy.get('[data-cy="confirm-logout"], .swal2-confirm, button[type="button"]').first().click()
+    }
+    if (afterLogout) {
+      afterLogout()
+    }
+  }
+
+  return cy.get('body').then(openUserMenu)
+}
+
+/**
+ * Executes actions in sequence without deep nesting
+ * @param {Array<Function>} actions - Array of action functions
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function executeActions(actions) {
+  let chain = cy.wrap(null)
+  for (const action of actions) {
+    chain = chain.then(() => action())
+  }
+  return chain
+}
+
+/**
  * Verifies that a row matches expected filter criteria
  * @param {JQuery} $row - jQuery row element
  * @param {string} expectedText - Expected text to match (case-insensitive)
@@ -568,5 +692,162 @@ export function verifyUrlPatterns(patterns, timeout = 10000) {
 export function setupNotificationsIntercept(response, alias = 'getUnread') {
   const apiBaseUrl = getApiBaseUrl()
   return cy.intercept('GET', `${apiBaseUrl}/notifications/**`, response).as(alias)
+}
+
+/**
+ * Executes action after clicking if element exists, reducing nesting
+ * @param {string} selector - CSS selector
+ * @param {Function} action - Function to execute after click
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickIfExistsAndContinue(selector, action) {
+  return clickIfExists(selector).then((clicked) => {
+    if (!clicked) return cy.wrap(null)
+    cy.get('body', { timeout: 5000 }).should('be.visible')
+    return action ? action() : cy.wrap(null)
+  })
+}
+
+/**
+ * Executes action after selecting if element exists, reducing nesting
+ * @param {string} selector - CSS selector
+ * @param {string} value - Value to select
+ * @param {Function} action - Function to execute after select
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function selectIfExistsAndContinue(selector, value, action) {
+  return selectIfExists(selector, value).then((selected) => {
+    if (!selected) return cy.wrap(null)
+    return action ? action() : cy.wrap(null)
+  })
+}
+
+/**
+ * Executes action after typing if element exists, reducing nesting
+ * @param {string} selector - CSS selector
+ * @param {string} text - Text to type
+ * @param {Function} action - Function to execute after type
+ * @param {Object} options - Type options
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function typeIfExistsAndContinue(selector, text, action, options = {}) {
+  return typeIfExists(selector, text, options).then((typed) => {
+    if (!typed) return cy.wrap(null)
+    return action ? action() : cy.wrap(null)
+  })
+}
+
+/**
+ * Verifies selectors exist in body context, reducing nesting
+ * @param {Array<string>} selectors - Array of CSS selectors
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function verifySelectorsInBody(selectors, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    verifySelectorsExist(selectors, $body, timeout)
+  })
+}
+
+/**
+ * Clicks element and verifies error message, reducing nesting
+ * @param {string} clickSelector - Selector for element to click
+ * @param {string} errorSelector - Selector for error message
+ * @param {Array<string>} expectedTexts - Expected error text fragments
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickAndVerifyError(clickSelector, errorSelector, expectedTexts) {
+  return clickIfExists(clickSelector).then((clicked) => {
+    if (!clicked) return cy.wrap(null)
+    return cy.get('body', { timeout: 5000 }).then(($body) => {
+      if ($body.find(errorSelector).length > 0) {
+        cy.get(errorSelector).first().should('satisfy', ($el) => {
+          const text = $el.text().toLowerCase()
+          return expectedTexts.some(expected => text.includes(expected)) || text.length > 0
+        })
+      }
+    })
+  })
+}
+
+/**
+ * Fills form fields in sequence, reducing nesting
+ * @param {Array<{selector: string, value: string, options?: Object}>} fields - Array of field definitions
+ * @param {string} submitSelector - Selector for submit button
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function fillFormFieldsSequence(fields, submitSelector) {
+  let chain = cy.wrap(null)
+  for (const field of fields) {
+    chain = chain.then(() => {
+      return typeIfExists(field.selector, field.value, field.options || {})
+    })
+  }
+  if (submitSelector) {
+    chain = chain.then(() => {
+      return clickIfExists(submitSelector).then((clicked) => {
+        if (clicked) {
+          return cy.get('body', { timeout: 5000 }).should('be.visible')
+        }
+        return cy.wrap(null)
+      })
+    })
+  }
+  return chain
+}
+
+/**
+ * Executes action if element found in body, reducing nesting
+ * @param {string} selector - CSS selector to find
+ * @param {Function} action - Function to execute with found element
+ * @param {Function} elseAction - Optional function if element not found
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function ifFoundInBody(selector, action, elseAction) {
+  return cy.get('body').then(($body) => {
+    if ($body.find(selector).length > 0) {
+      return cy.get(selector).first().then(($element) => {
+        return action ? action($element, $body) : cy.wrap(null)
+      })
+    }
+    if (elseAction) {
+      return elseAction($body)
+    }
+    return cy.wrap(null)
+  })
+}
+
+/**
+ * Clicks element and waits for next element, reducing nesting
+ * @param {string} clickSelector - Selector for element to click
+ * @param {string} waitSelector - Selector to wait for after click
+ * @param {Function} action - Optional function to execute after wait
+ * @returns {Cypress.Chainable} Cypress chainable
+ */
+export function clickAndWaitFor(clickSelector, waitSelector, action) {
+  return clickIfExists(clickSelector).then((clicked) => {
+    if (!clicked) return cy.wrap(null)
+    return cy.get(waitSelector, { timeout: 5000 }).then(($element) => {
+      return action ? action($element) : cy.wrap(null)
+    })
+  })
+}
+
+/**
+ * Verifies element exists with multiple selector options, reducing nesting
+ * @param {Array<string>} selectors - Array of CSS selectors to try
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Cypress.Chainable<boolean>} True if any selector found
+ */
+export function verifyAnySelectorExists(selectors, timeout = 5000) {
+  return cy.get('body', { timeout }).then(($body) => {
+    for (const selector of selectors) {
+      if ($body.find(selector).length > 0) {
+        cy.get(selector, { timeout }).should('exist')
+        return cy.wrap(true)
+      }
+    }
+    return cy.wrap(false)
+  })
 }
 

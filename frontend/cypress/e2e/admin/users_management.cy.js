@@ -146,14 +146,16 @@ describe('Admin User Management', () => {
           if (btn.length > 0) {
             cy.wrap(btn).click({ force: true })
             cy.get('.swal2-container, [role="dialog"]', { timeout: 5000 }).should('exist')
-            cy.get('body').then(($dialog) => {
+            const verifyDeleteDialog = ($dialog) => {
               if ($dialog.find('.swal2-title, [role="dialog"] h2').length > 0) {
                 cy.get('.swal2-title, [role="dialog"] h2', { timeout: 3000 }).should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('seguro') || text.includes('sure') || text.includes('¿') || $el.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 5000 }).then(verifyDeleteDialog)
           }
         })
       } else {
@@ -170,13 +172,14 @@ describe('Admin User Management', () => {
           const btn = $row.find('[data-cy="btn-delete"], button, a, [role="button"]').first()
           if (btn.length > 0) {
             cy.wrap(btn).click({ force: true })
-            cy.get('body').then(($dialog) => {
+            const handleCancelDialog = ($dialog) => {
               const cancel = $dialog.find('.swal2-cancel, button[type="button"], [data-cy="btn-cancel"]')
               if (cancel.length > 0) {
                 cy.wrap(cancel.first()).click()
                 cy.get('.swal2-container, [role="dialog"]', { timeout: 3000 }).should('not.exist')
               }
-            })
+            }
+            cy.get('body', { timeout: 5000 }).then(handleCancelDialog)
           }
         })
       } else {
@@ -189,26 +192,34 @@ describe('Admin User Management', () => {
     cy.get('body').then(($body) => {
       const rows = $body.find('table tbody tr, .table-row, [data-cy="user-row"], tbody tr')
       if (rows.length > 0) {
-        cy.get('body').should('be.visible')
+        cy.get('[data-cy="delete-user"], .delete-button, button').first().click({ force: true })
+        cy.get('[data-cy="confirm-delete"], .confirm-button, button').first().click({ force: true })
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+        cy.get('[data-cy="user-row"], .table-row').should('have.length.at.least', 0)
       } else {
+        cy.log('No users found to delete')
         cy.get('body').should('be.visible')
       }
     })
   })
 
   it('should paginate user list', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('.pagination, [data-cy="pagination"], .pager').length > 0) {
-        cy.get('.pagination, [data-cy="pagination"], .pager').should('exist')
-        cy.get('.pagination .next, [data-cy="next-page"], button').then(($next) => {
-          if ($next.length > 0 && !$next.is(':disabled')) {
-            cy.wrap($next.first()).click()
-            cy.url({ timeout: 5000 }).should('satisfy', (url) => {
-              return url.includes('page=2') || url.includes('page=') || url.length > 0
-            })
-          }
+    const clickNextPage = ($next) => {
+      if ($next.length > 0 && !$next.is(':disabled')) {
+        cy.wrap($next.first()).click()
+        cy.url({ timeout: 5000 }).should('satisfy', (url) => {
+          return url.includes('page=2') || url.includes('page=') || url.length > 0
         })
       }
-    })
+    }
+
+    const handlePagination = ($body) => {
+      if ($body.find('.pagination, [data-cy="pagination"], .pager').length > 0) {
+        cy.get('.pagination, [data-cy="pagination"], .pager').should('exist')
+        cy.get('.pagination .next, [data-cy="next-page"], button').then(clickNextPage)
+      }
+    }
+
+    cy.get('body').then(handlePagination)
   })
 })

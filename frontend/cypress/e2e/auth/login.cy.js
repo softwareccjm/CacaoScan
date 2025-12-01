@@ -124,11 +124,13 @@ describe('Autenticación - Login', () => {
         verifyRequiredField('[data-cy="email-input"], input[type="text"], input[type="email"]')
         verifyRequiredField('[data-cy="password-input"], input[type="password"]')
         
-        cy.get('body', { timeout: 3000 }).then(($errors) => {
+        const verifyErrorsExist = ($errors) => {
           if ($errors.find('[data-cy="email-error"], [data-cy="password-error"]').length > 0) {
             cy.get('[data-cy="email-error"], [data-cy="password-error"]').first().should('exist')
           }
-        })
+        }
+
+        cy.get('body', { timeout: 3000 }).then(verifyErrorsExist)
       }
     })
   })
@@ -163,14 +165,16 @@ describe('Autenticación - Login', () => {
         cy.logout()
         cy.visit('/login')
         
-        cy.get('body', { timeout: 5000 }).then(($form) => {
+        const verifyLoginForm = ($form) => {
           if ($form.find('[data-cy="email-input"], input[type="text"], input[type="email"]').length > 0) {
             cy.get('[data-cy="email-input"], input[type="text"], input[type="email"]').first().should('be.visible')
           }
           if ($form.find('[data-cy="login-form"], form').length > 0) {
             cy.get('[data-cy="login-form"], form').should('be.visible')
           }
-        })
+        }
+
+        cy.get('body', { timeout: 5000 }).then(verifyLoginForm)
       })
     })
   })

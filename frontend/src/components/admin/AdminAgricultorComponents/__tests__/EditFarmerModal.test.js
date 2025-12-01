@@ -58,8 +58,6 @@ vi.mock('sweetalert2', () => ({
 
 describe('EditFarmerModal', () => {
   let wrapper
-  let authApi
-  let personasApi
 
   const mockFarmer = {
     id: 1,
@@ -73,8 +71,6 @@ describe('EditFarmerModal', () => {
   beforeEach(async () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    authApi = mockAuthApi
-    personasApi = mockPersonasApi
   })
 
   it('should render modal', () => {

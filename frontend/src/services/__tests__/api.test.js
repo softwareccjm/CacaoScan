@@ -264,15 +264,21 @@ describe('API Service', () => {
     })
 
     it('should redirect to login when refresh token expires', async () => {
-      // Mock localStorage to return null for refresh_token
+      // Mock localStorage to return null for refresh_token but other values for other keys
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'refresh_token') return null
-        return null
+        if (key === 'access_token') return 'expired-access-token'
+        if (key === 'user_data') return JSON.stringify({ id: 1, email: 'test@example.com' })
+        return undefined
       })
 
       // Should redirect to login when no refresh token
       const refreshToken = localStorageMock.getItem('refresh_token')
       expect(refreshToken).toBe(null)
+      
+      // Verify other keys still return values
+      const accessToken = localStorageMock.getItem('access_token')
+      expect(accessToken).toBe('expired-access-token')
     })
   })
 

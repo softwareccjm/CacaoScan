@@ -60,48 +60,51 @@ describe('Admin System Configuration', () => {
   })
 
   it('should validate maintenance mode toggle', () => {
-    cy.get('body').then(($body) => {
-      if ($body.find('[data-cy="toggle-maintenance"], input[type="checkbox"]').length > 0) {
-        cy.get('[data-cy="toggle-maintenance"], input[type="checkbox"]').first().click({ force: true })
-        clickIfExists('[data-cy="btn-save-general"], button[type="submit"]').then(() => {
-          cy.get('body', { timeout: 5000 }).should('be.visible')
-          cy.get('[data-cy="toggle-maintenance"], input[type="checkbox"]').first().click({ force: true })
-          clickIfExists('[data-cy="btn-save-general"], button[type="submit"]').then(() => {
-            cy.get('body', { timeout: 5000 }).should('be.visible')
-          })
-        })
-      }
+    const toggleMaintenance = () => {
+      cy.get('[data-cy="toggle-maintenance"], input[type="checkbox"]').first().click({ force: true })
+    }
+
+    const saveAndWait = () => {
+      clickIfExists('[data-cy="btn-save-general"], button[type="submit"]')
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+    }
+
+    ifElementExists('[data-cy="toggle-maintenance"], input[type="checkbox"]', () => {
+      toggleMaintenance()
+      saveAndWait()
+      toggleMaintenance()
+      saveAndWait()
     })
   })
 
   it('should update password policy settings', () => {
-    clickIfExists('[data-cy="tab-security"], [role="tab"]').then(() => {
-      typeIfExists('[data-cy="input-min-pass-length"], input[type="number"]', '10', { clear: true }).then(() => {
-        clickIfExists('[data-cy="btn-save-security"], button[type="submit"]').then(() => {
-          cy.get('body', { timeout: 5000 }).should('be.visible')
-        })
-      })
-    })
+    const updatePasswordPolicy = () => {
+      typeIfExists('[data-cy="input-min-pass-length"], input[type="number"]', '10', { clear: true })
+      clickIfExists('[data-cy="btn-save-security"], button[type="submit"]')
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+    }
+
+    clickIfExists('[data-cy="tab-security"], [role="tab"]').then(updatePasswordPolicy)
   })
 
   it('should validate invalid values in analysis thresholds', () => {
-    clickIfExists('[data-cy="tab-analysis"], [role="tab"]').then(() => {
-      typeIfExists('[data-cy="input-confidence-threshold"], input[type="number"]', '150', { clear: true }).then(() => {
-        clickIfExists('[data-cy="btn-save-analysis"], button[type="submit"]').then(() => {
-          cy.get('.error-message, [data-cy="error"], .alert-error', { timeout: 5000 }).should('exist')
-        })
-      })
-    })
+    const validateInvalidThreshold = () => {
+      typeIfExists('[data-cy="input-confidence-threshold"], input[type="number"]', '150', { clear: true })
+      clickIfExists('[data-cy="btn-save-analysis"], button[type="submit"]')
+      cy.get('.error-message, [data-cy="error"], .alert-error', { timeout: 5000 }).should('exist')
+    }
+
+    clickIfExists('[data-cy="tab-analysis"], [role="tab"]').then(validateInvalidThreshold)
   })
 
   it('should update analysis default model', () => {
-    clickIfExists('[data-cy="tab-analysis"], [role="tab"]').then(() => {
-      selectIfExists('[data-cy="select-model"], select', 'v2.0').then(() => {
-        clickIfExists('[data-cy="btn-save-analysis"], button[type="submit"]').then(() => {
-          cy.get('body', { timeout: 5000 }).should('be.visible')
-        })
-      })
-    })
+    const updateModel = () => {
+      selectIfExists('[data-cy="select-model"], select', 'v2.0')
+      clickIfExists('[data-cy="btn-save-analysis"], button[type="submit"]')
+      cy.get('body', { timeout: 5000 }).should('be.visible')
+    }
+
+    clickIfExists('[data-cy="tab-analysis"], [role="tab"]').then(updateModel)
   })
 
   it('should show reset to defaults confirmation', () => {

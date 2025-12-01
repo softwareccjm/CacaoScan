@@ -1155,3 +1155,32 @@ Cypress.Commands.add('verifyRowFilter', ($row, expectedText) => {
 Cypress.Commands.add('selectAndVerifyRows', (selectSelector, selectValue, rowSelector) => {
   return helpers.selectAndVerifyRows(selectSelector, selectValue, rowSelector)
 })
+
+/**
+ * Executes logout flow without deep nesting
+ * @returns {Cypress.Chainable}
+ */
+Cypress.Commands.add('performLogout', () => {
+  return helpers.performLogout()
+})
+
+/**
+ * Executes actions within a modal without deep nesting
+ * @param {string} buttonSelector - Selector for button that opens modal
+ * @param {Function} modalActions - Function that receives modal context and executes actions
+ * @returns {Cypress.Chainable}
+ */
+Cypress.Commands.add('executeInModal', (buttonSelector, modalActions) => {
+  return helpers.executeInModal(buttonSelector, modalActions)
+})
+
+/**
+ * Executes actions if element exists, reducing nesting
+ * @param {string} selector - CSS selector to check
+ * @param {Function} actions - Function to execute if element exists
+ * @param {Function} elseActions - Optional function to execute if element doesn't exist
+ * @returns {Cypress.Chainable}
+ */
+Cypress.Commands.add('ifElementExists', (selector, actions, elseActions) => {
+  return helpers.ifElementExists(selector, actions, elseActions)
+})

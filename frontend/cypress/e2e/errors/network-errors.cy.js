@@ -135,14 +135,16 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@validationError', { timeout: 10000 })
             
-            cy.get('body', { timeout: 5000 }).then(($error) => {
+            const verifyValidationError = ($error) => {
               if ($error.find('[data-cy="validation-error"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="validation-error"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('validación') || text.includes('validacion') || text.includes('error') || text.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 5000 }).then(verifyValidationError)
           }
         })
       } else {
@@ -166,14 +168,16 @@ describe('Manejo de Errores - Errores de Red', () => {
             
             cy.wait('@rateLimit', { timeout: 10000 })
             
-            cy.get('body', { timeout: 5000 }).then(($error) => {
+            const verifyRateLimitError = ($error) => {
               if ($error.find('[data-cy="error-message"], .error-message, .swal2-error').length > 0) {
                 cy.get('[data-cy="error-message"], .error-message, .swal2-error').first().should('satisfy', ($el) => {
                   const text = $el.text().toLowerCase()
                   return text.includes('límite') || text.includes('tasa') || text.includes('excedido') || text.includes('429') || text.length > 0
                 })
               }
-            })
+            }
+
+            cy.get('body', { timeout: 5000 }).then(verifyRateLimitError)
           }
         })
       } else {

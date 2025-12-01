@@ -28,46 +28,52 @@ describe('Autenticación - Recuperación de Contraseña', () => {
   it('debe enviar email de recuperación exitosamente', () => {
     cy.fixture('users').then((users) => {
       const user = users.farmer
+      const verifySuccessMessage = ($result) => {
+        if ($result.find('[data-cy="success-message"], .swal2-success').length > 0) {
+          cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
+            const text = $el.text().toLowerCase()
+            return text.includes('recuperación') || text.includes('enviado') || text.includes('email') || text.length > 0
+          })
+        } else {
+          cy.url().should('satisfy', (url) => {
+            return url.includes('/forgot') || url.includes('/login') || url.length > 0
+          })
+        }
+      }
+
       cy.clickForgotPasswordLink(() => {
-        cy.fillEmailAndSubmit(user.email, ($result) => {
-          if ($result.find('[data-cy="success-message"], .swal2-success').length > 0) {
-            cy.get('[data-cy="success-message"], .swal2-success').should('satisfy', ($el) => {
-              const text = $el.text().toLowerCase()
-              return text.includes('recuperación') || text.includes('enviado') || text.includes('email') || text.length > 0
-            })
-          } else {
-            cy.url().should('satisfy', (url) => {
-              return url.includes('/forgot') || url.includes('/login') || url.length > 0
-            })
-          }
-        })
+        cy.fillEmailAndSubmit(user.email, verifySuccessMessage)
       })
     })
   })
 
   it('debe mostrar error si el email no existe', () => {
     cy.clickForgotPasswordLink(() => {
-      cy.fillEmailAndSubmit('noexiste@test.com', ($error) => {
+      const verifyErrorMessage = ($error) => {
         if ($error.find('[data-cy="error-message"], .swal2-error, .error-message').length > 0) {
           cy.get('[data-cy="error-message"], .swal2-error, .error-message').first().should('satisfy', ($el) => {
             const text = $el.text().toLowerCase()
             return text.includes('no encontrado') || text.includes('not found') || text.includes('error') || text.length > 0
           })
         }
-      })
+      }
+
+      cy.fillEmailAndSubmit('noexiste@test.com', verifyErrorMessage)
     })
   })
 
   it('debe validar formato de email en recuperación', () => {
     cy.clickForgotPasswordLink(() => {
-      cy.fillEmailAndSubmit('email-invalido', ($error) => {
+      const verifyEmailFormatError = ($error) => {
         if ($error.find('[data-cy="email-error"], .error-message').length > 0) {
           cy.get('[data-cy="email-error"], .error-message').first().should('satisfy', ($el) => {
             const text = $el.text().toLowerCase()
             return text.includes('formato') || text.includes('inválido') || text.includes('email') || text.length > 0
           })
         }
-      })
+      }
+
+      cy.fillEmailAndSubmit('email-invalido', verifyEmailFormatError)
     })
   })
 
@@ -75,7 +81,7 @@ describe('Autenticación - Recuperación de Contraseña', () => {
     cy.get('body').then(($body) => {
       if ($body.find('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').length > 0) {
         cy.get('[data-cy="forgot-password-link"], a[href*="forgot"], a[href*="reset"]').first().click({ force: true })
-        cy.get('body', { timeout: 5000 }).then(($forgot) => {
+        const navigateBackToLogin = ($forgot) => {
           if ($forgot.find('[data-cy="back-to-login-link"], a[href*="login"]').length > 0) {
             cy.get('[data-cy="back-to-login-link"], a[href*="login"]').first().click()
             cy.url({ timeout: 5000 }).should('satisfy', (url) => {
@@ -86,7 +92,9 @@ describe('Autenticación - Recuperación de Contraseña', () => {
               return url.includes('/forgot') || url.includes('/login') || url.length > 0
             })
           }
-        })
+        }
+
+        cy.get('body', { timeout: 5000 }).then(navigateBackToLogin)
       } else {
         cy.get('body').should('be.visible')
       }

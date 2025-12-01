@@ -26,7 +26,7 @@ describe('Basic Performance Metrics', () => {
     // Mock large dataset - generate mock data directly instead of using fixture
     const apiBaseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:8000/api/v1'
     const largeFincasList = {
-      results: Array(100).fill(null).map((_, i) => ({
+      results: Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         nombre: `Finca ${i + 1}`,
         ubicacion: `Ubicación ${i + 1}`,

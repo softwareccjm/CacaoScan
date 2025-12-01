@@ -125,7 +125,6 @@ describe('Pagination', () => {
     })
 
     // Check if separator span with "..." exists
-    const ellipsis = wrapper.find('span:contains("...")')
     // If separator should be shown based on currentPage position
     // For currentPage=5 and maxVisiblePages=5, it might show separator
     expect(wrapper.html()).toContain('...')

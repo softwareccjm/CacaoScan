@@ -7,34 +7,33 @@ describe('Admin Farmer Management', () => {
   })
 
   const clickTabIfExists = (tabSelector, callback) => {
-    cy.get('body').then(($body) => {
+    const handleTabClick = ($body) => {
       if ($body.find(tabSelector).length > 0) {
         cy.get(tabSelector).click()
         if (callback) callback()
       } else {
         cy.get('body').should('be.visible')
       }
-    })
+    }
+    cy.get('body', { timeout: 5000 }).then(handleTabClick)
   }
 
   const interactWithFirstRow = (rowSelector, rowCallback) => {
-    cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
+    const handleFirstRow = ($rows) => {
       if ($rows.length > 0) {
-        cy.wrap($rows.first()).then(($row) => {
-          rowCallback($row)
-        })
+        cy.wrap($rows.first()).then(rowCallback)
       }
-    })
+    }
+    cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(handleFirstRow)
   }
 
   const interactWithLastRow = (rowSelector, rowCallback) => {
-    cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(($rows) => {
+    const handleLastRow = ($rows) => {
       if ($rows.length > 0) {
-        cy.wrap($rows.last()).then(($row) => {
-          rowCallback($row)
-        })
+        cy.wrap($rows.last()).then(rowCallback)
       }
-    })
+    }
+    cy.get('table tbody tr, [data-cy="farmer-item"]', { timeout: 5000 }).then(handleLastRow)
   }
 
   const fillRejectionForm = (reason) => {
@@ -60,20 +59,23 @@ describe('Admin Farmer Management', () => {
   })
 
   it('should verify a farmer account', () => {
+    const verifyFarmerInModal = ($modal) => {
+      if ($modal.find('[data-cy="check-doc-id"]').length > 0) {
+        cy.get('[data-cy="check-doc-id"]').check()
+        cy.get('[data-cy="check-doc-property"]').check()
+        cy.get('[data-cy="btn-approve"], button[type="submit"]').first().click()
+        cy.get('body', { timeout: 5000 }).should('be.visible')
+      }
+    }
+
+    const clickVerifyButton = ($row) => {
+      cy.wrap($row).find('[data-cy="btn-verify"], button').first().click({ force: true })
+      cy.get('[data-cy="modal-verify-docs"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
+      cy.get('body', { timeout: 5000 }).then(verifyFarmerInModal)
+    }
+
     clickTabIfExists('[data-cy="tab-pending"]', () => {
-      interactWithFirstRow('table tbody tr, [data-cy="farmer-item"]', ($row) => {
-        cy.wrap($row).find('[data-cy="btn-verify"], button').first().click({ force: true })
-        cy.get('[data-cy="modal-verify-docs"], .modal, [role="dialog"]', { timeout: 5000 }).should('exist')
-        
-        cy.get('body').then(($modal) => {
-          if ($modal.find('[data-cy="check-doc-id"]').length > 0) {
-            cy.get('[data-cy="check-doc-id"]').check()
-            cy.get('[data-cy="check-doc-property"]').check()
-            cy.get('[data-cy="btn-approve"], button[type="submit"]').first().click()
-            cy.get('body', { timeout: 5000 }).should('be.visible')
-          }
-        })
-      })
+      interactWithFirstRow('table tbody tr, [data-cy="farmer-item"]', clickVerifyButton)
     })
   })
 

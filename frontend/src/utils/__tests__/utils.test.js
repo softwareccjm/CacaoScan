@@ -12,20 +12,20 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 const formatDate = (date, format = 'DD/MM/YYYY') => {
   if (!date) return ''
   const d = new Date(date)
-  if (isNaN(d.getTime())) return ''
+  if (Number.isNaN(d.getTime())) return ''
   
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
   
   return format
-    .replace('DD', day)
-    .replace('MM', month)
-    .replace('YYYY', year)
+    .replaceAll('DD', day)
+    .replaceAll('MM', month)
+    .replaceAll('YYYY', year)
 }
 
 const formatNumber = (number, decimals = 2) => {
-  if (typeof number !== 'number' || isNaN(number)) return '0'
+  if (typeof number !== 'number' || Number.isNaN(number)) return '0'
   return number.toFixed(decimals)
 }
 
@@ -186,7 +186,7 @@ describe('Number Utilities', () => {
 
   it('maneja porcentajes inválidos', () => {
     expect(formatPercentage('invalid')).toBe('0%')
-    expect(formatPercentage(NaN)).toBe('0%')
+    expect(formatPercentage(Number.NaN)).toBe('0%')
   })
 })
 
@@ -336,10 +336,14 @@ describe('String Utilities', () => {
     if (!str) return ''
     return str
       .toLowerCase()
+      // eslint-disable-next-line prefer-regex-literals
       .replace(/[^a-z0-9 -]/g, '')
+      // eslint-disable-next-line prefer-regex-literals
       .replace(/\s+/g, '-')
+      // eslint-disable-next-line prefer-regex-literals
       .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      // eslint-disable-next-line prefer-regex-literals
+      .replace(/(^-+|-+$)/g, '')
       .trim()
   }
 
@@ -434,8 +438,9 @@ describe('Array Utilities', () => {
 describe('Object Utilities', () => {
   const deepClone = (obj) => {
     if (obj === null || typeof obj !== 'object') return obj
-    if (obj instanceof Date) return new Date(obj.getTime())
-    if (obj instanceof Array) return obj.map(item => deepClone(item))
+    // Use Object.prototype.toString for more reliable Date checking
+    if (Object.prototype.toString.call(obj) === '[object Date]') return new Date(obj.getTime())
+    if (Array.isArray(obj)) return obj.map(item => deepClone(item))
     if (typeof obj === 'object') {
       const clonedObj = {}
       for (const key in obj) {

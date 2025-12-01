@@ -43,10 +43,12 @@ vi.mock('@/composables/useFormValidation', () => ({
       )
     },
     isValidPhone: (phone) => {
+      // eslint-disable-next-line prefer-regex-literals
       const digits = String(phone).replace(/\D/g, '')
       return digits.length >= 7 && digits.length <= 15
     },
     isValidDocument: (doc) => {
+      // eslint-disable-next-line prefer-regex-literals
       const digits = String(doc).replace(/\D/g, '')
       return digits.length >= 6 && digits.length <= 11
     },

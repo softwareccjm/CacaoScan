@@ -1,4 +1,4 @@
-import { verifySelectorsExist, clickIfExists, selectIfExists, typeIfExists } from '../../support/helpers'
+import { verifySelectorsExist, clickIfExists, typeIfExists } from '../../support/helpers'
 
 describe('Gestión de Fincas - CRUD', () => {
   beforeEach(() => {
@@ -49,23 +49,27 @@ describe('Gestión de Fincas - CRUD', () => {
         }
         
         cy.get('body', { timeout: 5000 }).should('be.visible')
+        const verifySuccessNotification = ($success) => {
+          if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
+            cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+          }
+        }
+
+        const saveFinca = () => {
+          clickIfExists('[data-cy="save-finca"], button[type="submit"]').then((saved) => {
+            if (saved) {
+              cy.get('body', { timeout: 5000 }).then(verifySuccessNotification)
+            }
+          })
+        }
+
         fillFincaForm({
           nombre: fincaData.nombre || 'Finca Test',
           ubicacion: fincaData.ubicacion || 'Test Location',
           area: fincaData.area_total || 10,
           descripcion: fincaData.descripcion || 'Test description'
         }).then(() => {
-          clickIfExists('[data-cy="map-container"], .map-container', { x: 300, y: 200 }).then(() => {
-            clickIfExists('[data-cy="save-finca"], button[type="submit"]').then((saved) => {
-              if (saved) {
-                cy.get('body', { timeout: 5000 }).then(($success) => {
-                  if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                    cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                  }
-                })
-              }
-            })
-          })
+          clickIfExists('[data-cy="map-container"], .map-container', { x: 300, y: 200 }).then(saveFinca)
         })
       })
     })
@@ -82,14 +86,16 @@ describe('Gestión de Fincas - CRUD', () => {
       clickIfExists('[data-cy="save-finca"], button[type="submit"]').then((saved) => {
         if (!saved) return
         
-        cy.get('body', { timeout: 3000 }).then(($errors) => {
+        const verifyRequiredErrors = ($errors) => {
           const errorSelectors = [
             '[data-cy="finca-nombre-error"]',
             '[data-cy="finca-ubicacion-error"]',
             '[data-cy="finca-area-error"]'
           ]
           verifySelectorsExist(errorSelectors, $errors, 3000)
-        })
+        }
+
+        cy.get('body', { timeout: 3000 }).then(verifyRequiredErrors)
       })
     })
   })
@@ -155,17 +161,20 @@ describe('Gestión de Fincas - CRUD', () => {
         if (!editClicked) return
         
         cy.get('body', { timeout: 5000 }).should('be.visible')
-        typeIfExists('[data-cy="finca-nombre"], input[name*="nombre"]', 'Finca Editada', { clear: true }).then(() => {
-          typeIfExists('[data-cy="finca-descripcion"], textarea', 'Descripción actualizada', { clear: true }).then(() => {
-            clickIfExists('[data-cy="save-finca"], button[type="submit"]').then(() => {
-              cy.get('body', { timeout: 5000 }).then(($success) => {
-                if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-                  cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-                }
-              })
-            })
-          })
-        })
+        const verifySuccessNotification = ($success) => {
+          if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
+            cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+          }
+        }
+
+        const saveEditedFinca = () => {
+          clickIfExists('[data-cy="save-finca"], button[type="submit"]')
+          cy.get('body', { timeout: 5000 }).then(verifySuccessNotification)
+        }
+
+        typeIfExists('[data-cy="finca-nombre"], input[name*="nombre"]', 'Finca Editada', { clear: true })
+        typeIfExists('[data-cy="finca-descripcion"], textarea', 'Descripción actualizada', { clear: true })
+        saveEditedFinca()
       })
     })
   })
@@ -182,14 +191,16 @@ describe('Gestión de Fincas - CRUD', () => {
         if (!deleteClicked) return
         
         cy.get('body', { timeout: 5000 }).should('be.visible')
+        const verifyDeleteSuccess = ($success) => {
+          if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
+            cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
+          }
+        }
+
         clickIfExists('[data-cy="confirm-delete"], .swal2-confirm, button').then((confirmed) => {
-          if (!confirmed) return
-          
-          cy.get('body', { timeout: 5000 }).then(($success) => {
-            if ($success.find('[data-cy="notification-success"], .swal2-success').length > 0) {
-              cy.get('[data-cy="notification-success"], .swal2-success').should('exist')
-            }
-          })
+          if (confirmed) {
+            cy.get('body', { timeout: 5000 }).then(verifyDeleteSuccess)
+          }
         })
       })
     })
@@ -207,16 +218,18 @@ describe('Gestión de Fincas - CRUD', () => {
         if (!deleteClicked) return
         
         cy.get('body', { timeout: 5000 }).should('be.visible')
+        const verifyFincaRemains = ($remains) => {
+          if ($remains.find('[data-cy="finca-details"]').length > 0) {
+            cy.get('[data-cy="finca-details"]').should('be.visible')
+          } else {
+            cy.get('body').should('be.visible')
+          }
+        }
+
         clickIfExists('[data-cy="cancel-delete"], .swal2-cancel, button').then((cancelled) => {
-          if (!cancelled) return
-          
-          cy.get('body', { timeout: 5000 }).then(($remains) => {
-            if ($remains.find('[data-cy="finca-details"]').length > 0) {
-              cy.get('[data-cy="finca-details"]').should('be.visible')
-            } else {
-              cy.get('body').should('be.visible')
-            }
-          })
+          if (cancelled) {
+            cy.get('body', { timeout: 5000 }).then(verifyFincaRemains)
+          }
         })
       })
     })

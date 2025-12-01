@@ -136,14 +136,16 @@ describe('Autenticación - Registro', () => {
         })
         cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
 
-        cy.get('body', { timeout: 5000 }).then(($error) => {
+        const verifyPasswordMismatch = ($error) => {
           if ($error.find('[data-cy="password-match-error"], .error-message').length > 0) {
             cy.get('[data-cy="password-match-error"], .error-message').first().should('satisfy', ($el) => {
               const text = $el.text().toLowerCase()
               return text.includes('no coinciden') || text.includes('no match') || text.includes('password') || text.length > 0
             })
           }
-        })
+        }
+
+        cy.get('body', { timeout: 5000 }).then(verifyPasswordMismatch)
       } else {
         cy.get('body').should('be.visible')
       }
@@ -158,26 +160,30 @@ describe('Autenticación - Registro', () => {
       if ($body.find('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').length > 0) {
         for (const password of weakPasswords) {
           cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().clear().type(password)
-          cy.get('body').then(($strength) => {
+          const verifyWeakPassword = ($strength) => {
             if ($strength.find('[data-cy="password-strength"], .password-strength-meter').length > 0) {
               cy.get('[data-cy="password-strength"], .password-strength-meter').should('satisfy', ($el) => {
                 const text = $el.text().toLowerCase()
                 return text.includes('débil') || text.includes('weak') || text.length > 0
               })
             }
-          })
+          }
+
+          cy.get('body', { timeout: 3000 }).then(verifyWeakPassword)
         }
 
         const strongPassword = generatePassword()
         cy.get('[data-cy="password-input"], [data-cy="input-password"], input[type="password"]').first().clear().type(strongPassword)
-        cy.get('body').then(($strong) => {
+        const verifyStrongPassword = ($strong) => {
           if ($strong.find('[data-cy="password-strength"], .password-strength-meter').length > 0) {
             cy.get('[data-cy="password-strength"], .password-strength-meter').should('satisfy', ($el) => {
               const text = $el.text().toLowerCase()
               return text.includes('fuerte') || text.includes('strong') || text.length > 0
             })
           }
-        })
+        }
+
+        cy.get('body', { timeout: 3000 }).then(verifyStrongPassword)
       } else {
         cy.get('body').should('be.visible')
       }
@@ -212,14 +218,16 @@ describe('Autenticación - Registro', () => {
         })
         cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
 
-        cy.get('body', { timeout: 5000 }).then(($error) => {
+        const verifyTermsError = ($error) => {
           if ($error.find('[data-cy="terms-error"], .error-message').length > 0) {
             cy.get('[data-cy="terms-error"], .error-message').first().should('satisfy', ($el) => {
               const text = $el.text().toLowerCase()
               return text.includes('aceptar') || text.includes('términos') || text.includes('terms') || text.length > 0
             })
           }
-        })
+        }
+
+        cy.get('body', { timeout: 5000 }).then(verifyTermsError)
       } else {
         cy.get('body').should('be.visible')
       }
@@ -248,14 +256,16 @@ describe('Autenticación - Registro', () => {
         cy.get('[data-cy="email-input"], [data-cy="input-email"], input[type="email"]').first().type('email-invalido')
         cy.get('[data-cy="register-button"], [data-cy="btn-submit-register"], button[type="submit"]').first().click()
 
-        cy.get('body', { timeout: 3000 }).then(($error) => {
+        const verifyEmailFormatError = ($error) => {
           if ($error.find('[data-cy="email-error"], .error-message').length > 0) {
             cy.get('[data-cy="email-error"], .error-message').first().should('satisfy', ($el) => {
               const text = $el.text().toLowerCase()
               return text.includes('formato') || text.includes('inválido') || text.includes('email') || text.length > 0
             })
           }
-        })
+        }
+
+        cy.get('body', { timeout: 3000 }).then(verifyEmailFormatError)
       }
     })
   })
