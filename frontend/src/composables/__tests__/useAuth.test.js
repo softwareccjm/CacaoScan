@@ -186,6 +186,166 @@ describe('useAuth', () => {
       expect(auth.userRole.value).toBe('admin')
       expect(auth.isAdmin.value).toBe(true)
     })
+
+    it('should reflect user role changes', () => {
+      mockAuthStore.userRole = 'farmer'
+      mockAuthStore.isFarmer = true
+      
+      expect(auth.userRole.value).toBe('farmer')
+      expect(auth.isFarmer.value).toBe(true)
+    })
+
+    it('should reflect analyst role', () => {
+      mockAuthStore.userRole = 'analyst'
+      mockAuthStore.isAnalyst = true
+      
+      expect(auth.userRole.value).toBe('analyst')
+      expect(auth.isAnalyst.value).toBe(true)
+    })
+
+    it('should reflect verification status', () => {
+      mockAuthStore.isVerified = true
+      
+      expect(auth.isVerified.value).toBe(true)
+    })
+
+    it('should reflect user full name', () => {
+      mockAuthStore.userFullName = 'John Doe'
+      
+      expect(auth.userFullName.value).toBe('John Doe')
+    })
+
+    it('should reflect user initials', () => {
+      mockAuthStore.userInitials = 'JD'
+      
+      expect(auth.userInitials.value).toBe('JD')
+    })
+  })
+
+  describe('resendEmailVerification', () => {
+    it('should resend email verification successfully', async () => {
+      mockAuthStore.resendEmailVerification = vi.fn().mockResolvedValue({ success: true })
+      
+      const result = await auth.resendEmailVerification('test@example.com')
+      
+      expect(mockAuthStore.resendEmailVerification).toHaveBeenCalledWith('test@example.com')
+      expect(result.success).toBe(true)
+      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+    })
+
+    it('should handle resend email verification error', async () => {
+      const error = new Error('Failed to resend')
+      mockAuthStore.resendEmailVerification = vi.fn().mockRejectedValue(error)
+      
+      await expect(auth.resendEmailVerification('test@example.com')).rejects.toThrow()
+      expect(auth.error.value).toBe('Failed to resend')
+    })
+  })
+
+  describe('requestPasswordReset', () => {
+    it('should request password reset successfully', async () => {
+      mockAuthStore.requestPasswordReset = vi.fn().mockResolvedValue({ success: true })
+      
+      const result = await auth.requestPasswordReset('test@example.com')
+      
+      expect(mockAuthStore.requestPasswordReset).toHaveBeenCalledWith('test@example.com')
+      expect(result.success).toBe(true)
+      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+    })
+
+    it('should handle password reset request error', async () => {
+      const error = new Error('Email not found')
+      mockAuthStore.requestPasswordReset = vi.fn().mockRejectedValue(error)
+      
+      await expect(auth.requestPasswordReset('test@example.com')).rejects.toThrow()
+      expect(auth.error.value).toBe('Email not found')
+    })
+  })
+
+  describe('confirmPasswordReset', () => {
+    it('should confirm password reset successfully', async () => {
+      const authApi = await import('@/services/authApi')
+      vi.mocked(authApi.default.confirmPasswordReset).mockResolvedValue({ success: true })
+      
+      const resetData = {
+        uid: 'uid123',
+        token: 'token123',
+        newPassword: 'newpass123',
+        confirmPassword: 'newpass123'
+      }
+      
+      const result = await auth.confirmPasswordReset(resetData)
+      
+      expect(authApi.default.confirmPasswordReset).toHaveBeenCalledWith(resetData)
+      expect(result.success).toBe(true)
+      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+    })
+
+    it('should handle password reset confirmation error', async () => {
+      const authApi = await import('@/services/authApi')
+      const error = new Error('Invalid token')
+      vi.mocked(authApi.default.confirmPasswordReset).mockRejectedValue(error)
+      
+      const resetData = {
+        uid: 'uid123',
+        token: 'invalid',
+        newPassword: 'newpass123',
+        confirmPassword: 'newpass123'
+      }
+      
+      await expect(auth.confirmPasswordReset(resetData)).rejects.toThrow()
+      expect(auth.error.value).toBe('Invalid token')
+    })
+  })
+
+  describe('verifyEmailFromToken', () => {
+    it('should verify email from token successfully', async () => {
+      mockAuthStore.verifyEmailFromToken = vi.fn().mockResolvedValue({ success: true })
+      
+      const result = await auth.verifyEmailFromToken('token123')
+      
+      expect(mockAuthStore.verifyEmailFromToken).toHaveBeenCalledWith('token123')
+      expect(result.success).toBe(true)
+      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+    })
+
+    it('should handle verify email from token error', async () => {
+      const error = new Error('Invalid token')
+      mockAuthStore.verifyEmailFromToken = vi.fn().mockRejectedValue(error)
+      
+      await expect(auth.verifyEmailFromToken('invalid')).rejects.toThrow()
+      expect(auth.error.value).toBe('Invalid token')
+    })
+  })
+
+  describe('error handling', () => {
+    it('should handle network errors gracefully', async () => {
+      const error = new Error('Network error')
+      error.response = { status: 500 }
+      mockAuthStore.login.mockRejectedValue(error)
+      
+      await expect(auth.login({ email: 'test@example.com', password: 'pass' })).rejects.toThrow()
+      expect(auth.error.value).toBe('Network error')
+    })
+
+    it('should handle errors without message', async () => {
+      const error = new Error()
+      mockAuthStore.login.mockRejectedValue(error)
+      
+      await expect(auth.login({ email: 'test@example.com', password: 'pass' })).rejects.toThrow()
+      expect(auth.error.value).toBe('Error al iniciar sesión')
+    })
+  })
+
+  describe('logout redirect', () => {
+    it('should not redirect when redirectToLogin is false', async () => {
+      mockAuthStore.logout.mockResolvedValue()
+      
+      await auth.logout(false)
+      
+      expect(mockAuthStore.logout).toHaveBeenCalledWith(false)
+      expect(mockRouter.push).not.toHaveBeenCalled()
+    })
   })
 })
 

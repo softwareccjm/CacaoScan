@@ -28,7 +28,14 @@ export default defineConfig({
         '**/cypress/**',
         '**/*.cy.js',
         'dist/',
-        'coverage/'
+        'coverage/',
+        // App entry points (not testable)
+        'src/App.vue',
+        'src/main.js',
+        // Example files (not testable)
+        'src/components/common/BaseFormField.example.vue',
+        // Barrel exports (not testable)
+        'src/services/api/index.js'
       ],
       thresholds: {
         global: {

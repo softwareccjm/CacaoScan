@@ -124,6 +124,86 @@ describe('GlobalLoader', () => {
     wrapper.unmount()
     expect(globalThis.removeEventListener).toHaveBeenCalled()
   })
+
+  it('should handle route-loading-start event', async () => {
+    wrapper = mountComponent()
+    await wrapper.vm.$nextTick()
+
+    const event = new CustomEvent('route-loading-start', { detail: { title: 'Loading', message: 'Please wait' } })
+    window.dispatchEvent(event)
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(wrapper.vm.isLoading).toBe(true)
+  })
+
+  it('should handle route-loading-end event', async () => {
+    wrapper = mountComponent()
+    await wrapper.vm.$nextTick()
+
+    wrapper.vm.isLoading = true
+    const event = new CustomEvent('route-loading-end')
+    window.dispatchEvent(event)
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(wrapper.vm.isLoading).toBe(false)
+  })
+
+  it('should handle api-loading-start event', async () => {
+    wrapper = mountComponent()
+    await wrapper.vm.$nextTick()
+
+    const event = new CustomEvent('api-loading-start', { detail: { title: 'Loading', message: 'Please wait' } })
+    window.dispatchEvent(event)
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(wrapper.vm.isLoading).toBe(true)
+  })
+
+  it('should handle api-loading-end event', async () => {
+    wrapper = mountComponent()
+    await wrapper.vm.$nextTick()
+
+    wrapper.vm.isLoading = true
+    const event = new CustomEvent('api-loading-end')
+    window.dispatchEvent(event)
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(wrapper.vm.isLoading).toBe(false)
+  })
+
+  it('should hide loading when hideGlobalLoading is called', async () => {
+    wrapper = mountComponent()
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    wrapper.vm.isLoading = true
+    if (globalThis.hideGlobalLoading) {
+      globalThis.hideGlobalLoading()
+    }
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(wrapper.vm.isLoading).toBe(false)
+  })
+
+  it('should update title and message when showGlobalLoading is called', async () => {
+    wrapper = mountComponent()
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    if (globalThis.showGlobalLoading) {
+      globalThis.showGlobalLoading('New Title', 'New Message')
+    }
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(wrapper.vm.title).toBe('New Title')
+    expect(wrapper.vm.message).toBe('New Message')
+  })
 })
 
 
