@@ -10,6 +10,10 @@ if NOT exist coverage.xml (
     echo ERROR: coverage.xml NO SE GENERO
     exit /b 1
 )
+
+REM Fix coverage.xml paths for SonarQube (in case it was generated on a different machine)
+python fix_coverage_paths.py coverage.xml
+
 cd ..
 
 echo ============================

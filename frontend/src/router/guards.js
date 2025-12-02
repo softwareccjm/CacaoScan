@@ -123,7 +123,7 @@ export const requireAdmin = createCompositeGuard(
  * Guard para verificar si el usuario puede subir imágenes
  */
 export const requireCanUpload = async (to, from, next) => {
-  const authStore = getAuthStore()
+  const authStore = useAuthStore()
 
   if (!authStore.isAuthenticated) {
     next({
@@ -150,6 +150,7 @@ export const requireCanUpload = async (to, from, next) => {
         message: 'No tienes permisos para subir imágenes'
       }
     })
+    return
   } else {
     next({
       name: 'EmailVerification',
@@ -157,16 +158,15 @@ export const requireCanUpload = async (to, from, next) => {
         message: 'Debes verificar tu email para subir imágenes'
       }
     })
+    return
   }
-
-  next()
 }
 
 /**
  * Guard que actualiza actividad del usuario
  */
 export const updateActivity = async (to, from, next) => {
-  const authStore = getAuthStore()
+  const authStore = useAuthStore()
 
   if (authStore.isAuthenticated) {
     authStore.updateLastActivity()
