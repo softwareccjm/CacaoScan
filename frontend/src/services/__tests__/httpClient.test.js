@@ -7,8 +7,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import axios from 'axios'
 import { get, post, put, patch, del, upload, download, httpClient } from '../httpClient.js'
 
-// Mock dependencies
-vi.mock('axios', () => {
+// Use vi.hoisted() to define mocks before vi.mock() hoisting
+const { mockAxiosInstance, mockCreate } = vi.hoisted(() => {
   const mockAxiosInstance = {
     get: vi.fn(),
     post: vi.fn(),
@@ -24,9 +24,14 @@ vi.mock('axios', () => {
       }
     }
   }
+  const mockCreate = vi.fn(() => mockAxiosInstance)
+  return { mockAxiosInstance, mockCreate }
+})
+
+vi.mock('axios', () => {
   return {
     default: {
-      create: vi.fn(() => mockAxiosInstance)
+      create: mockCreate
     }
   }
 })
@@ -66,14 +71,15 @@ globalThis.console = {
 }
 
 describe('httpClient', () => {
-  let mockAxiosInstance
-
   beforeEach(() => {
-    vi.clearAllMocks()
+    // Clear mocks but preserve mockCreate calls since it's called at module import
+    mockAxiosInstance.get.mockClear()
+    mockAxiosInstance.post.mockClear()
+    mockAxiosInstance.put.mockClear()
+    mockAxiosInstance.patch.mockClear()
+    mockAxiosInstance.delete.mockClear()
+    localStorageMock.getItem.mockClear()
     localStorageMock.getItem.mockReturnValue(null)
-    
-    // Get the mock instance
-    mockAxiosInstance = axios.default.create()
     
     // Setup default successful responses
     mockAxiosInstance.get.mockResolvedValue({ data: { success: true } })
@@ -85,18 +91,21 @@ describe('httpClient', () => {
 
   describe('client creation', () => {
     it('should create axios instance with correct base URL', () => {
-      expect(axios.default.create).toHaveBeenCalled()
-      const callArgs = axios.default.create.mock.calls[0][0]
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockCreate.mock.calls.length).toBeGreaterThan(0)
+      const callArgs = mockCreate.mock.calls[0][0]
       expect(callArgs.baseURL).toBe('https://api.example.com/api/v1')
     })
 
     it('should configure axios with timeout', () => {
-      const callArgs = axios.default.create.mock.calls[0][0]
+      expect(mockCreate.mock.calls.length).toBeGreaterThan(0)
+      const callArgs = mockCreate.mock.calls[0][0]
       expect(callArgs.timeout).toBe(15000)
     })
 
     it('should configure default headers', () => {
-      const callArgs = axios.default.create.mock.calls[0][0]
+      expect(mockCreate.mock.calls.length).toBeGreaterThan(0)
+      const callArgs = mockCreate.mock.calls[0][0]
       expect(callArgs.headers['Content-Type']).toBe('application/json')
       expect(callArgs.headers['Accept']).toBe('application/json')
     })
@@ -104,13 +113,25 @@ describe('httpClient', () => {
 
   describe('request interceptor', () => {
     it('should add auth token to headers when available', async () => {
+      // Verify interceptor was configured
+      expect(mockAxiosInstance.interceptors.request.use).toHaveBeenCalled()
+      
+      // Get the interceptor function that was registered
+      const requestInterceptor = mockAxiosInstance.interceptors.request.use.mock.calls[0]?.[0]
+      expect(requestInterceptor).toBeDefined()
+      
+      // Configure localStorage mock
       localStorageMock.getItem.mockReturnValue('test-token')
       
-      // Trigger request interceptor by making a request
-      await get('/test')
+      // Execute interceptor manually to test its behavior
+      const config = { headers: {} }
+      const modifiedConfig = requestInterceptor(config)
       
-      // Check that getItem was called for auth_token
+      // Verify interceptor called localStorage.getItem with 'auth_token'
       expect(localStorageMock.getItem).toHaveBeenCalledWith('auth_token')
+      
+      // Verify Authorization header was added
+      expect(modifiedConfig.headers.Authorization).toBe('Bearer test-token')
     })
 
     it('should not add auth token when not available', async () => {
@@ -399,4 +420,3 @@ describe('httpClient', () => {
     })
   })
 })
-

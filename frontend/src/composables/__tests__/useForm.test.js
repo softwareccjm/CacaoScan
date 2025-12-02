@@ -21,7 +21,17 @@ vi.mock('../useFormValidation', () => ({
     removeError: vi.fn(),
     hasErrors: vi.fn(() => false),
     mapServerErrors: vi.fn(),
-    handleFormSubmit: vi.fn(),
+    handleFormSubmit: vi.fn(async (submitFn, validateFn, onSuccess, onError) => {
+      try {
+        const result = await submitFn()
+        return onSuccess ? onSuccess(result) : result
+      } catch (error) {
+        if (onError) {
+          onError(error)
+        }
+        throw error
+      }
+    }),
     scrollToFirstError: vi.fn(),
     validateNameField: vi.fn(),
     validateEmailField: vi.fn(),
@@ -154,8 +164,9 @@ describe('useForm', () => {
       const onSubmit = vi.fn().mockRejectedValue(new Error('Submit failed'))
       const formWithHandler = useForm({ onSubmit })
 
-      await formWithHandler.handleSubmit()
+      await expect(formWithHandler.handleSubmit()).rejects.toThrow('Submit failed')
 
+      expect(onSubmit).toHaveBeenCalled()
       expect(formWithHandler.isSubmitting.value).toBe(false)
     })
   })

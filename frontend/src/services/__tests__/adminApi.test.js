@@ -39,7 +39,11 @@ vi.mock('../datasetApi.js', () => ({
   trainRegressionModel: vi.fn(),
   trainVisionModel: vi.fn(),
   getTrainingJobStatus: vi.fn(),
-  getTrainingJobs: vi.fn()
+  getTrainingJobs: vi.fn(),
+  formatNumber: vi.fn((value, decimals = 2) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return 'N/A'
+    return Number.parseFloat(value).toFixed(decimals)
+  })
 }))
 
 describe('adminApi', () => {
@@ -210,11 +214,14 @@ describe('adminApi', () => {
 
   describe('estimateTrainingTime', () => {
     it('should estimate training time', () => {
-      const result = estimateTrainingTime({
-        dataset_size: 1000,
-        epochs: 50,
-        batch_size: 32
-      })
+      const result = estimateTrainingTime(
+        'regression',
+        {
+          epochs: 50,
+          batch_size: 32
+        },
+        1000
+      )
 
       expect(result.totalSeconds).toBeGreaterThan(0)
       expect(result.formatted).toBeDefined()
