@@ -10,7 +10,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import BaseChart from '@/components/common/BaseChart.vue'
 
 const props = defineProps({
@@ -35,6 +35,12 @@ const props = defineProps({
     default: 'bg-white p-6 rounded-lg shadow-sm border border-gray-200'
   }
 })
+
+watch(() => props.chartData, (value) => {
+  if (!value) {
+    throw new Error('PieChart: chartData prop is required')
+  }
+}, { immediate: true })
 
 const defaultPieOptions = {
   responsive: true,

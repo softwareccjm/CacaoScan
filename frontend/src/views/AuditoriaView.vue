@@ -464,7 +464,7 @@ export default {
     };
 
     const handleAuditTypeChange = async () => {
-      await loadAuditData();
+      await loadAuditData(filters.value);
     };
 
     const handlePeriodChange = async () => {
@@ -593,6 +593,7 @@ export default {
     onUnmounted(() => {
       if (realTimeInterval.value) {
         clearInterval(realTimeInterval.value);
+        realTimeInterval.value = null;
       }
       globalThis.removeEventListener('resize', checkScreenSize);
     });

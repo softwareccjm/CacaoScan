@@ -68,8 +68,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, useSlots } from 'vue'
 import { generateSecureId } from '@/utils/security'
+
+const slots = useSlots()
 
 const props = defineProps({
   modelValue: {
@@ -167,7 +169,7 @@ const selectClass = computed(() => {
     ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500'
     : ''
 
-  const prefixPadding = props.prefixIcon || props.$slots.prefix ? 'pl-10' : ''
+  const prefixPadding = props.prefixIcon || slots.prefix ? 'pl-10' : ''
   const suffixPadding = props.multiple ? '' : 'pr-10'
 
   return [

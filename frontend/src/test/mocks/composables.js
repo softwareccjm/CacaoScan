@@ -35,12 +35,15 @@ export function createMockUseFormValidation(overrides = {}) {
     isValidEmail: (email) => {
       if (typeof email !== 'string') return false
       const trimmed = email.trim()
+      const atIndex = trimmed.indexOf('@')
       return (
         trimmed.length >= 5 &&
         trimmed.includes('@') &&
         trimmed.includes('.') &&
-        trimmed.indexOf('@') > 0 &&
-        trimmed.lastIndexOf('.') > trimmed.indexOf('@') + 1
+        atIndex > 0 &&
+        trimmed[atIndex - 1] !== '.' &&
+        trimmed[atIndex + 1] !== '.' &&
+        trimmed.lastIndexOf('.') > atIndex + 1
       )
     },
     isValidPhone: (phone) => {

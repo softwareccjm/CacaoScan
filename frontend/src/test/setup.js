@@ -36,6 +36,16 @@ const router = createRouter({
   ]
 })
 
+// Make router install idempotent to prevent "Cannot redefine property: $route" errors
+const originalInstall = router.install
+router.install = function(app, ...args) {
+  // Check if router is already installed by checking if $route exists
+  if (app.config.globalProperties.$route) {
+    return
+  }
+  return originalInstall.call(this, app, ...args)
+}
+
 config.global.plugins = [pinia, router]
 
 // Mock global de window.matchMedia

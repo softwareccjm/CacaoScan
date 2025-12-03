@@ -218,7 +218,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, useSlots } from 'vue'
 import { useTable } from '@/composables/useTable'
 import { usePagination } from '@/composables/usePagination'
 
@@ -296,6 +296,9 @@ const props = defineProps({
 
 const emit = defineEmits(['sort', 'row-click', 'row-select', 'select-all'])
 
+// Get slots
+const slots = useSlots()
+
 // Use table composable
 const table = useTable({
   initialSortKey: '',
@@ -311,13 +314,13 @@ const pagination = props.enablePagination
   : null
 
 // Expose table state
-const { sortKey, sortOrder, selectedRows, isSelectAll } = table
+const { sortKey, sortOrder, selectedRows, isSelectAll, isRowSelected } = table
 
 // Computed
 const totalColumns = computed(() => {
   let count = props.columns.length
   if (props.enableSelection) count++
-  if (props.$slots.actions) count++
+  if (slots.actions) count++
   return count
 })
 

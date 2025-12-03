@@ -98,9 +98,19 @@ const defaultBarOptions = {
 }
 
 const mergedOptions = computed(() => {
-  return {
-    ...defaultBarOptions,
-    ...props.options
+  // Deep merge function for nested objects
+  const deepMerge = (target, source) => {
+    const result = { ...target }
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = deepMerge(target[key] || {}, source[key])
+      } else {
+        result[key] = source[key]
+      }
+    }
+    return result
   }
+  
+  return deepMerge(defaultBarOptions, props.options)
 })
 </script>

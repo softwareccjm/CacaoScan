@@ -10,7 +10,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import BaseChart from './BaseChart.vue'
 
 const props = defineProps({
@@ -44,6 +44,15 @@ const props = defineProps({
     default: true
   }
 })
+
+watch(() => props.data, (value) => {
+  if (!Array.isArray(value)) {
+    throw new Error('TrendChart: data prop must be an array')
+  }
+  if (value.length === 0) {
+    throw new Error('TrendChart: data prop must have at least one element')
+  }
+}, { immediate: true })
 
 // Transform data to BaseChart format
 const chartData = computed(() => {

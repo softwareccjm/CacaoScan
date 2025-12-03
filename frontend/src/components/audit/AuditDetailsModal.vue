@@ -158,7 +158,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <template #footer>
       <div class="flex justify-between items-center w-full">

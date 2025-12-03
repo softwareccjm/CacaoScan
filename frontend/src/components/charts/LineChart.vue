@@ -59,10 +59,29 @@ const defaultOptions = {
   }
 }
 
-const mergedOptions = computed(() => {
-  return {
-    ...defaultOptions,
-    ...props.chartOptions
+const deepMerge = (target, source) => {
+  const output = { ...target }
+  if (isObject(target) && isObject(source)) {
+    Object.keys(source).forEach(key => {
+      if (isObject(source[key])) {
+        if (!(key in target)) {
+          Object.assign(output, { [key]: source[key] })
+        } else {
+          output[key] = deepMerge(target[key], source[key])
+        }
+      } else {
+        Object.assign(output, { [key]: source[key] })
+      }
+    })
   }
+  return output
+}
+
+const isObject = (item) => {
+  return item && typeof item === 'object' && !Array.isArray(item)
+}
+
+const mergedOptions = computed(() => {
+  return deepMerge(defaultOptions, props.chartOptions)
 })
 </script>

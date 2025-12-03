@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-widget" :class="widgetClass">
+  <div class="dashboard-widget" :class="widgetClass" @click="handleClick">
     <div class="widget-header">
       <div class="widget-title">
         <i v-if="icon" :class="icon" class="widget-icon"></i>
@@ -19,17 +19,17 @@
     </div>
     
     <div class="widget-content">
-      <div v-if="loading" class="widget-loading">
-        <div class="loading-spinner"></div>
-        <p>{{ loadingText }}</p>
-      </div>
-      
-      <div v-else-if="error" class="widget-error">
+      <div v-if="error" class="widget-error">
         <i class="fas fa-exclamation-triangle"></i>
         <p>{{ error }}</p>
         <button v-if="retryable" @click="handleRetry" class="retry-btn">
           Reintentar
         </button>
+      </div>
+      
+      <div v-else-if="loading" class="widget-loading">
+        <div class="loading-spinner"></div>
+        <p>{{ loadingText }}</p>
       </div>
       
       <div v-else class="widget-body">
