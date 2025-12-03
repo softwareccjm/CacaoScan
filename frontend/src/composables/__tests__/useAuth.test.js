@@ -10,7 +10,7 @@ import { useNotificationStore } from '@/stores/notifications'
 import authApi from '@/services/authApi'
 
 // Use vi.hoisted() to define mocks before vi.mock() hoisting
-const { mockAuthStore, mockNotificationStore, mockRouter } = vi.hoisted(() => {
+const { mockAuthStore, mockNotificationStore, mockRouter, mockAuthApi } = vi.hoisted(() => {
   const mockAuthStore = {
     isAuthenticated: false,
     user: null,
@@ -38,7 +38,11 @@ const { mockAuthStore, mockNotificationStore, mockRouter } = vi.hoisted(() => {
     replace: vi.fn()
   }
 
-  return { mockAuthStore, mockNotificationStore, mockRouter }
+  const mockAuthApi = {
+    confirmPasswordReset: vi.fn()
+  }
+
+  return { mockAuthStore, mockNotificationStore, mockRouter, mockAuthApi }
 })
 
 vi.mock('@/stores/auth', () => ({
@@ -59,6 +63,10 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/router', () => ({
   default: mockRouter
+}))
+
+vi.mock('@/services/authApi', () => ({
+  default: mockAuthApi
 }))
 
 describe('useAuth', () => {
@@ -264,8 +272,7 @@ describe('useAuth', () => {
 
   describe('confirmPasswordReset', () => {
     it('should confirm password reset successfully', async () => {
-      const authApi = await import('@/services/authApi')
-      vi.mocked(authApi.default.confirmPasswordReset).mockResolvedValue({ success: true })
+      mockAuthApi.confirmPasswordReset.mockResolvedValue({ success: true })
       
       const resetData = {
         uid: 'uid123',
@@ -276,15 +283,14 @@ describe('useAuth', () => {
       
       const result = await auth.confirmPasswordReset(resetData)
       
-      expect(authApi.default.confirmPasswordReset).toHaveBeenCalledWith(resetData)
+      expect(mockAuthApi.confirmPasswordReset).toHaveBeenCalledWith(resetData)
       expect(result.success).toBe(true)
       expect(mockNotificationStore.addNotification).toHaveBeenCalled()
     })
 
     it('should handle password reset confirmation error', async () => {
-      const authApi = await import('@/services/authApi')
       const error = new Error('Invalid token')
-      vi.mocked(authApi.default.confirmPasswordReset).mockRejectedValue(error)
+      mockAuthApi.confirmPasswordReset.mockRejectedValue(error)
       
       const resetData = {
         uid: 'uid123',

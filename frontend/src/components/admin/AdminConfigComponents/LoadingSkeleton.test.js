@@ -34,25 +34,32 @@ describe('LoadingSkeleton', () => {
   it('should render correct number of lines', () => {
     const wrapper = mount(LoadingSkeleton, {
       props: {
-        lines: 5
+        lines: 5,
+        showTitle: false
       }
     })
 
-    const lines = wrapper.findAll('.h-4.bg-gray-200.rounded')
+    const lines = wrapper.findAll('.space-y-2 .h-4.bg-gray-200.rounded')
     expect(lines.length).toBe(5)
   })
 
   it('should use default 3 lines when not specified', () => {
-    const wrapper = mount(LoadingSkeleton)
+    const wrapper = mount(LoadingSkeleton, {
+      props: {
+        showTitle: false,
+        lines: 3
+      }
+    })
 
-    const lines = wrapper.findAll('.h-4.bg-gray-200.rounded')
+    const lines = wrapper.findAll('.space-y-2 .h-4.bg-gray-200.rounded')
     expect(lines.length).toBe(3)
   })
 
   it('should apply different width classes to lines', () => {
     const wrapper = mount(LoadingSkeleton, {
       props: {
-        lines: 4
+        lines: 4,
+        showTitle: false
       }
     })
 

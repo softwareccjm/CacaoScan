@@ -33,12 +33,14 @@ describe('BaseStatsCard', () => {
       props: {
         label: 'Test Label',
         value: '100',
-        color: 'green'
+        color: 'green',
+        icon: '📊'
       }
     })
 
-    const card = wrapper.find('.bg-green-50')
-    expect(card.exists()).toBe(true)
+    const iconContainer = wrapper.find('.bg-green-100')
+    expect(iconContainer.exists()).toBe(true)
+    expect(iconContainer.classes()).toContain('text-green-600')
   })
 
   it('should show trend indicator when trend is positive', () => {

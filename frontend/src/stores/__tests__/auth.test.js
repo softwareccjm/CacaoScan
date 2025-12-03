@@ -592,6 +592,13 @@ describe('Auth Store', () => {
   describe('getRedirectPath', () => {
     beforeEach(() => {
       router.currentRoute.value = { path: '/' }
+      // Recreate store to ensure latest version with getRedirectPath
+      setActivePinia(createPinia())
+      store = useAuthStore()
+    })
+
+    it('should have getRedirectPath function', () => {
+      expect(typeof store.getRedirectPath).toBe('function')
     })
 
     it('should return admin dashboard path for admin role', () => {

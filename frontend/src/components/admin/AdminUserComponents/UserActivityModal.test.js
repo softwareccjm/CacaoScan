@@ -8,7 +8,7 @@ const mockExportData = vi.fn()
 vi.mock('@/components/common/BaseModal.vue', () => ({
   default: {
     name: 'BaseModal',
-    template: '<div v-if="show"><slot></slot></div>',
+    template: '<div v-if="show" class="base-modal"><slot name="header"></slot><slot></slot><slot name="footer"></slot></div>',
     props: ['show', 'title', 'subtitle', 'maxWidth'],
     emits: ['close', 'update:show']
   }
@@ -42,6 +42,8 @@ describe('UserActivityModal', () => {
     { id: 2, accion: 'logout', timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(), user_agent: 'Firefox' }
   ]
 
+  let wrapper
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetActivityLogs.mockResolvedValue({
@@ -56,8 +58,16 @@ describe('UserActivityModal', () => {
     mockExportData.mockResolvedValue({ data: new Blob(['test'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) })
   })
 
+  afterEach(() => {
+    // Clean up wrapper
+    if (wrapper) {
+      wrapper.unmount()
+      wrapper = null
+    }
+  })
+
   it('should render modal', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -67,7 +77,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should load activities on mount', async () => {
-    mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -79,7 +89,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should calculate activities today', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -94,7 +104,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should calculate most common action', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -110,7 +120,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should return N/A when no activities', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -123,7 +133,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should calculate last activity time', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -140,7 +150,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should load activities with filters', async () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -159,7 +169,7 @@ describe('UserActivityModal', () => {
   it('should handle error when loading activities', async () => {
     mockGetActivityLogs.mockRejectedValue(new Error('Network error'))
 
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -172,7 +182,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should calculate start date from period', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -185,7 +195,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should clear filters', async () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -204,7 +214,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should change page', async () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -222,18 +232,29 @@ describe('UserActivityModal', () => {
   })
 
   it('should export activities', async () => {
+    const originalCreateElement = document.createElement
+    const originalAppendChild = document.body.appendChild
+    const originalRemoveChild = document.body.removeChild
+    const originalCreateObjectURL = global.URL.createObjectURL
+    const originalRevokeObjectURL = global.URL.revokeObjectURL
+    
     global.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
     global.URL.revokeObjectURL = vi.fn()
-    document.createElement = vi.fn().mockReturnValue({
-      href: '',
-      download: '',
-      click: vi.fn(),
-      remove: vi.fn()
+    document.createElement = vi.fn().mockImplementation((tagName) => {
+      if (tagName === 'a') {
+        return {
+          href: '',
+          download: '',
+          click: vi.fn(),
+          remove: vi.fn()
+        }
+      }
+      return originalCreateElement.call(document, tagName)
     })
     document.body.appendChild = vi.fn()
     document.body.removeChild = vi.fn()
 
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -243,12 +264,19 @@ describe('UserActivityModal', () => {
     await wrapper.vm.$nextTick()
 
     expect(mockExportData).toHaveBeenCalled()
+    
+    // Restore original methods
+    document.createElement = originalCreateElement
+    document.body.appendChild = originalAppendChild
+    document.body.removeChild = originalRemoveChild
+    global.URL.createObjectURL = originalCreateObjectURL
+    global.URL.revokeObjectURL = originalRevokeObjectURL
   })
 
   it('should handle error when exporting activities', async () => {
     mockExportData.mockRejectedValue(new Error('Export error'))
 
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -261,7 +289,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should close modal and emit close event', async () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -273,7 +301,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should format date time correctly', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -286,7 +314,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should return correct activity icon', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -308,7 +336,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should return correct action class', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }
@@ -328,7 +356,7 @@ describe('UserActivityModal', () => {
   })
 
   it('should detect browser from user agent', () => {
-    const wrapper = mount(UserActivityModal, {
+    wrapper = mount(UserActivityModal, {
       props: {
         user: mockUser
       }

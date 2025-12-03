@@ -3,9 +3,9 @@ import { mount } from '@vue/test-utils'
 import SelectField from './SelectField.vue'
 
 // Mock crypto for testing
-global.crypto = {
+vi.stubGlobal('crypto', {
   getRandomValues: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4, 5, 6]))
-}
+})
 
 describe('SelectField', () => {
   const mockOptions = [

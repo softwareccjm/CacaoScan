@@ -1,9 +1,38 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+
+// Mock services before importing component - use vi.hoisted for hoisting
+const { mockGetUsers, mockGetFincas } = vi.hoisted(() => ({
+  mockGetUsers: vi.fn(),
+  mockGetFincas: vi.fn()
+}))
+
+vi.mock('@/services/authApi', () => ({
+  default: {
+    getUsers: mockGetUsers
+  }
+}))
+
+vi.mock('@/services/fincasApi', () => ({
+  getFincas: mockGetFincas
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: vi.fn(() => ({
+    user: { id: 1, username: 'admin', is_superuser: true }
+  }))
+}))
+
 import BatchInfoForm from './BatchInfoForm.vue'
 
 describe('BatchInfoForm', () => {
   let wrapper
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetUsers.mockResolvedValue({ results: [] })
+    mockGetFincas.mockResolvedValue({ results: [] })
+  })
 
   afterEach(() => {
     if (wrapper) {
@@ -90,8 +119,7 @@ describe('BatchInfoForm', () => {
   })
 
   it('should load agricultores on mount', async () => {
-    const { default: authApi } = await import('@/services/authApi')
-    authApi.getUsers = vi.fn().mockResolvedValue({
+    mockGetUsers.mockResolvedValue({
       results: [
         { id: 1, username: 'farmer1', is_superuser: false, is_staff: false, role: 'farmer' },
         { id: 2, username: 'admin', is_superuser: true, is_staff: true, role: 'admin' }
@@ -100,7 +128,7 @@ describe('BatchInfoForm', () => {
 
     wrapper = mount(BatchInfoForm, {
       props: {
-        formData: {
+        modelValue: {
           farmer: '',
           finca: '',
           lote: '',
@@ -112,18 +140,17 @@ describe('BatchInfoForm', () => {
     })
 
     await wrapper.vm.$nextTick()
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
 
-    expect(authApi.getUsers).toHaveBeenCalled()
+    expect(mockGetUsers).toHaveBeenCalled()
   })
 
   it('should handle error when loading agricultores', async () => {
-    const { default: authApi } = await import('@/services/authApi')
-    authApi.getUsers = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockGetUsers.mockRejectedValue(new Error('Network error'))
 
     wrapper = mount(BatchInfoForm, {
       props: {
-        formData: {
+        modelValue: {
           farmer: '',
           finca: '',
           lote: '',
@@ -135,14 +162,13 @@ describe('BatchInfoForm', () => {
     })
 
     await wrapper.vm.$nextTick()
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
 
     expect(wrapper.vm.agricultores).toEqual([])
   })
 
   it('should load all fincas on mount', async () => {
-    const { getFincas } = await import('@/services/fincasApi')
-    getFincas = vi.fn().mockResolvedValue({
+    mockGetFincas.mockResolvedValue({
       results: [
         { id: 1, nombre: 'Finca 1', agricultor_id: 1 },
         { id: 2, nombre: 'Finca 2', agricultor_id: 2 }
@@ -151,7 +177,7 @@ describe('BatchInfoForm', () => {
 
     wrapper = mount(BatchInfoForm, {
       props: {
-        formData: {
+        modelValue: {
           farmer: '',
           finca: '',
           lote: '',
@@ -165,16 +191,15 @@ describe('BatchInfoForm', () => {
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    expect(getFincas).toHaveBeenCalled()
+    expect(mockGetFincas).toHaveBeenCalled()
   })
 
   it('should handle error when loading fincas', async () => {
-    const { getFincas } = await import('@/services/fincasApi')
-    getFincas = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockGetFincas.mockRejectedValue(new Error('Network error'))
 
     wrapper = mount(BatchInfoForm, {
       props: {
-        formData: {
+        modelValue: {
           farmer: '',
           finca: '',
           lote: '',
@@ -303,8 +328,7 @@ describe('BatchInfoForm', () => {
   })
 
   it('should filter fincas by userId for agricultor role', async () => {
-    const { getFincas } = await import('@/services/fincasApi')
-    getFincas = vi.fn().mockResolvedValue({
+    mockGetFincas.mockResolvedValue({
       results: [
         { id: 1, nombre: 'Finca 1', agricultor_id: 1 },
         { id: 2, nombre: 'Finca 2', agricultor_id: 2 }
@@ -313,7 +337,7 @@ describe('BatchInfoForm', () => {
 
     wrapper = mount(BatchInfoForm, {
       props: {
-        formData: {
+        modelValue: {
           farmer: '',
           finca: '',
           lote: '',
@@ -332,9 +356,13 @@ describe('BatchInfoForm', () => {
   })
 
   it('should set farmer from userName for agricultor role', async () => {
+    mockGetFincas.mockResolvedValue({
+      results: []
+    })
+
     wrapper = mount(BatchInfoForm, {
       props: {
-        formData: {
+        modelValue: {
           farmer: '',
           finca: '',
           lote: '',
@@ -347,7 +375,7 @@ describe('BatchInfoForm', () => {
     })
 
     await wrapper.vm.$nextTick()
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
 
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
   })

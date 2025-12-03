@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import FarmerDetailModal from './FarmerDetailModal.vue'
 
-const mockGetUser = vi.fn()
-const mockGetFincas = vi.fn()
+// Use vi.hoisted() to define mocks before vi.mock() hoisting
+const { mockGetUser, mockGetFincas } = vi.hoisted(() => {
+  return {
+    mockGetUser: vi.fn(),
+    mockGetFincas: vi.fn()
+  }
+})
 
 vi.mock('@/components/common/BaseModal.vue', () => ({
   default: {
@@ -23,6 +27,8 @@ vi.mock('@/services/authApi', () => ({
 vi.mock('@/services/fincasApi', () => ({
   getFincas: mockGetFincas
 }))
+
+import FarmerDetailModal from './FarmerDetailModal.vue'
 
 describe('FarmerDetailModal', () => {
   const mockFarmer = {
@@ -84,12 +90,18 @@ describe('FarmerDetailModal', () => {
 
     const wrapper = mount(FarmerDetailModal, {
       props: {
-        farmer: { ...mockFarmer, id: 1 }
+        farmer: { ...mockFarmer, id: null }
       }
     })
 
     await wrapper.vm.$nextTick()
-    await wrapper.vm.loadFarmersFincas(1)
+    
+    // Change farmer prop to trigger the watcher
+    await wrapper.setProps({ farmer: { ...mockFarmer, id: 1 } })
+    
+    // Wait for async operations to complete
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.totalArea).toBe('30.8')
@@ -100,12 +112,18 @@ describe('FarmerDetailModal', () => {
 
     const wrapper = mount(FarmerDetailModal, {
       props: {
-        farmer: { ...mockFarmer, id: 1 }
+        farmer: { ...mockFarmer, id: null }
       }
     })
 
     await wrapper.vm.$nextTick()
-    await wrapper.vm.loadFarmersFincas(1)
+    
+    // Change farmer prop to trigger the watcher
+    await wrapper.setProps({ farmer: { ...mockFarmer, id: 1 } })
+    
+    // Wait for async operations to complete
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.totalArea).toBe('0.0')
@@ -153,12 +171,18 @@ describe('FarmerDetailModal', () => {
 
     const wrapper = mount(FarmerDetailModal, {
       props: {
-        farmer: { ...mockFarmer, id: 1 }
+        farmer: { ...mockFarmer, id: null }
       }
     })
 
     await wrapper.vm.$nextTick()
-    await wrapper.vm.loadFarmersFincas(1)
+    
+    // Change farmer prop to trigger the watcher
+    await wrapper.setProps({ farmer: { ...mockFarmer, id: 1 } })
+    
+    // Wait for async operations to complete
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.fincasList).toEqual([])
@@ -169,12 +193,18 @@ describe('FarmerDetailModal', () => {
 
     const wrapper = mount(FarmerDetailModal, {
       props: {
-        farmer: { ...mockFarmer, id: 1 }
+        farmer: { ...mockFarmer, id: null }
       }
     })
 
     await wrapper.vm.$nextTick()
-    await wrapper.vm.loadFarmerDetails(1)
+    
+    // Change farmer prop to trigger the watcher
+    await wrapper.setProps({ farmer: { ...mockFarmer, id: 1 } })
+    
+    // Wait for async operations to complete
+    await wrapper.vm.$nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.persona).toBeNull()

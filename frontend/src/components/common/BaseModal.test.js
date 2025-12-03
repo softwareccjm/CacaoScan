@@ -120,6 +120,7 @@ describe('BaseModal', () => {
     const wrapper = mount(BaseModal, {
       props: {
         show: true,
+        title: 'Test Title',
         subtitle: 'Test Subtitle'
       }
     })

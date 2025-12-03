@@ -5,7 +5,25 @@ import FarmersTable from './FarmersTable.vue'
 vi.mock('./DataTable.vue', () => ({
   default: {
     name: 'DataTable',
-    template: '<div><slot name="cell-farmer"></slot><slot name="cell-farm"></slot><slot name="cell-status"></slot><slot name="cell-actions"></slot><slot name="pagination"></slot></div>',
+    template: `
+      <div>
+        <template v-for="row in data" :key="row.id">
+          <div v-if="$slots['cell-farmer']">
+            <slot name="cell-farmer" :row="row"></slot>
+          </div>
+          <div v-if="$slots['cell-farm']">
+            <slot name="cell-farm" :row="row"></slot>
+          </div>
+          <div v-if="$slots['cell-status']">
+            <slot name="cell-status" :row="row"></slot>
+          </div>
+          <div v-if="$slots['cell-actions']">
+            <slot name="cell-actions" :row="row"></slot>
+          </div>
+        </template>
+        <slot name="pagination"></slot>
+      </div>
+    `,
     props: ['columns', 'data', 'showTableInfo']
   }
 }))

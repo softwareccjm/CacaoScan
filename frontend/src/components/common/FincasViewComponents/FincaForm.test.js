@@ -239,13 +239,20 @@ describe('FincaForm', () => {
     expect(agricultorSelect.exists()).toBe(true)
   })
 
-  it('should not show agricultor select for non-admin', () => {
+  it('should not show agricultor select for non-admin', async () => {
+    const { useAuthStore } = await import('@/stores/auth')
+    vi.mocked(useAuthStore).mockReturnValue({
+      isAdmin: false
+    })
+
     wrapper = mount(FincaForm, {
       props: {
         finca: null,
         isEditing: false
       }
     })
+
+    await nextTick()
 
     const agricultorSelect = wrapper.find('#finca-form-agricultor')
     expect(agricultorSelect.exists()).toBe(false)
@@ -372,7 +379,29 @@ describe('FincaForm', () => {
       }
     }
 
+    // Ensure validateFincaData returns true for valid form
+    const fincasApi = await import('@/services/fincasApi')
+    vi.mocked(fincasApi.default.validateFincaData).mockReturnValue({
+      isValid: true,
+      errors: []
+    })
+
+    // Reset and configure mock to reject before mounting
+    mockCreate.mockReset()
     mockCreate.mockRejectedValue(error)
+    
+    // Update the store mock with the new create function
+    mockFincasStore.create = mockCreate
+
+    // Ensure mock is configured before mounting
+    const { useFincasStore } = await import('@/stores/fincas')
+    vi.mocked(useFincasStore).mockReturnValue(mockFincasStore)
+    
+    const { useNotifications } = await import('@/composables/useNotifications')
+    vi.mocked(useNotifications).mockReturnValue({
+      showSuccess: mockShowSuccess,
+      showError: mockShowError
+    })
 
     wrapper = mount(FincaForm, {
       props: {
@@ -382,39 +411,33 @@ describe('FincaForm', () => {
     })
 
     await nextTick()
+    await wrapper.vm.$nextTick()
 
-    const nombreInput = wrapper.find('#finca-form-nombre')
-    const ubicacionInput = wrapper.find('#finca-form-ubicacion')
-    const departamentoSelect = wrapper.find('#finca-form-departamento')
-    const municipioSelect = wrapper.find('#finca-form-municipio')
-    const hectareasInput = wrapper.find('#finca-form-hectareas')
-
-    if (nombreInput.exists()) {
-      await nombreInput.setValue('Nueva Finca')
-    }
-    if (ubicacionInput.exists()) {
-      await ubicacionInput.setValue('Nueva Ubicación')
-    }
-    if (departamentoSelect.exists()) {
-      await departamentoSelect.setValue('Cundinamarca')
-    }
-    if (municipioSelect.exists()) {
-      await municipioSelect.setValue('Bogotá')
-    }
-    if (hectareasInput.exists()) {
-      await hectareasInput.setValue('5')
+    // Set form data directly to ensure values are set
+    if (wrapper.vm.formData) {
+      wrapper.vm.formData.nombre = 'Nueva Finca'
+      wrapper.vm.formData.ubicacion = 'Nueva Ubicación'
+      wrapper.vm.formData.departamento = 'Cundinamarca'
+      wrapper.vm.formData.municipio = 'Bogotá'
+      wrapper.vm.formData.hectareas = '5'
     }
 
     await nextTick()
+    await wrapper.vm.$nextTick()
+    // Wait a bit more for reactive updates
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     const form = wrapper.find('form')
     if (form.exists()) {
       await form.trigger('submit')
+      
+      // Wait for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await nextTick()
       await nextTick()
 
-      await new Promise(resolve => setTimeout(resolve, 100))
-      await nextTick()
-
+      expect(mockCreate).toHaveBeenCalled()
+      // The component should call showError when handling server errors
       expect(mockShowError).toHaveBeenCalled()
     }
   })

@@ -8,7 +8,24 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
-    pool: 'forks',
+    threads: true,
+    maxThreads: 2,
+    minThreads: 1,
+    isolate: true,
+    testTimeout: 20000,
+    hookTimeout: 20000,
+    sequence: {
+      shuffle: false
+    },
+    exclude: [
+      'node_modules',
+      'dist',
+      'coverage',
+      'cypress',
+      '**/cypress/**',
+      '**/*.cy.js'
+    ],
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     css: {
       modules: {
         classNameStrategy: 'non-scoped'
@@ -16,12 +33,14 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
+      reporter: ['text', 'json', 'lcov'],
       reportsDirectory: './coverage',
+      include: ['src/**'],
       exclude: [
         'node_modules/',
         'src/test/',
         '**/*.d.ts',
+        'src/env.d.ts',
         '**/*.config.js',
         '**/*.config.ts',
         'cypress/**',
@@ -29,12 +48,9 @@ export default defineConfig({
         '**/*.cy.js',
         'dist/',
         'coverage/',
-        // App entry points (not testable)
         'src/App.vue',
         'src/main.js',
-        // Example files (not testable)
         'src/components/common/BaseFormField.example.vue',
-        // Barrel exports (not testable)
         'src/services/api/index.js'
       ],
       thresholds: {

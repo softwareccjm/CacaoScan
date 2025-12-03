@@ -56,6 +56,7 @@ describe('ImageUploader', () => {
     if (wrapper) {
       wrapper.unmount()
     }
+    vi.unstubAllGlobals()
   })
 
   it('should render image uploader component', () => {
@@ -137,9 +138,10 @@ describe('ImageUploader', () => {
   })
 
   it('should generate secure ID using crypto.randomUUID', () => {
-    global.crypto = {
-      randomUUID: vi.fn().mockReturnValue('test-uuid')
-    }
+    const mockRandomUUID = vi.fn().mockReturnValue('test-uuid')
+    vi.stubGlobal('crypto', {
+      randomUUID: mockRandomUUID
+    })
 
     wrapper = mount(ImageUploader, {
       props: {
@@ -149,12 +151,15 @@ describe('ImageUploader', () => {
 
     const id = wrapper.vm.generateSecureId()
     expect(id).toBe('test-uuid')
+    expect(mockRandomUUID).toHaveBeenCalled()
   })
 
   it('should generate secure ID using crypto.getRandomValues as fallback', () => {
-    global.crypto = {
-      getRandomValues: vi.fn().mockReturnValue(new Uint32Array([1, 2, 3, 4]))
-    }
+    const mockGetRandomValues = vi.fn().mockReturnValue(new Uint32Array([1, 2, 3, 4]))
+    vi.stubGlobal('crypto', {
+      getRandomValues: mockGetRandomValues,
+      randomUUID: undefined
+    })
 
     wrapper = mount(ImageUploader, {
       props: {
@@ -164,12 +169,13 @@ describe('ImageUploader', () => {
 
     const id = wrapper.vm.generateSecureId()
     expect(id).toBeTruthy()
+    expect(mockGetRandomValues).toHaveBeenCalled()
   })
 
   it('should get image key from File object', () => {
     const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' })
-    file.size = 1000
-    file.lastModified = 1234567890
+    Object.defineProperty(file, 'size', { value: 1000, writable: false })
+    Object.defineProperty(file, 'lastModified', { value: 1234567890, writable: false })
 
     wrapper = mount(ImageUploader, {
       props: {

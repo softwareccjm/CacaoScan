@@ -3,9 +3,9 @@ import { mount } from '@vue/test-utils'
 import InputField from './InputField.vue'
 
 // Mock crypto for testing
-global.crypto = {
+vi.stubGlobal('crypto', {
   getRandomValues: vi.fn().mockReturnValue(new Uint32Array([123456]))
-}
+})
 
 describe('InputField', () => {
   it('should render input field', () => {

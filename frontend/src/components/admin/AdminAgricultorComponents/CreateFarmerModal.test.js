@@ -1,18 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
-import CreateFarmerModal from './CreateFarmerModal.vue'
+import { ref, reactive } from 'vue'
 
-const mockShowSuccess = vi.fn()
-const mockShowError = vi.fn()
-const mockCargarMunicipios = vi.fn()
-const mockLimpiarMunicipios = vi.fn()
-const mockIsValidEmail = vi.fn()
-const mockIsValidPhone = vi.fn()
-const mockIsValidDocument = vi.fn()
-const mockIsValidBirthdate = vi.fn()
-const mockValidatePassword = vi.fn()
-const mockClearErrors = vi.fn()
+const { mockRegister, mockShowSuccess, mockShowError, mockCargarMunicipios, mockLimpiarMunicipios, mockIsValidEmail, mockIsValidPhone, mockIsValidDocument, mockIsValidBirthdate, mockValidatePassword, mockClearErrors } = vi.hoisted(() => ({
+  mockRegister: vi.fn(),
+  mockShowSuccess: vi.fn(),
+  mockShowError: vi.fn(),
+  mockCargarMunicipios: vi.fn(),
+  mockLimpiarMunicipios: vi.fn(),
+  mockIsValidEmail: vi.fn(),
+  mockIsValidPhone: vi.fn(),
+  mockIsValidDocument: vi.fn(),
+  mockIsValidBirthdate: vi.fn(),
+  mockValidatePassword: vi.fn(),
+  mockClearErrors: vi.fn()
+}))
+
+// Create refs outside of vi.hoisted to avoid initialization issues
+const mockTiposDocumento = ref([{ codigo: 'CC', nombre: 'Cédula' }])
+const mockGeneros = ref([{ codigo: 'M', nombre: 'Masculino' }])
+const mockDepartamentos = ref([{ id: 1, codigo: '05', nombre: 'Antioquia' }])
+const mockMunicipios = ref([])
+const mockIsLoadingCatalogos = ref(false)
+
+import CreateFarmerModal from './CreateFarmerModal.vue'
 
 vi.mock('@/components/common/BaseModal.vue', () => ({
   default: {
@@ -47,20 +58,22 @@ vi.mock('@/composables/useNotifications', () => ({
 
 vi.mock('@/composables/useCatalogos', () => ({
   useCatalogos: () => ({
-    tiposDocumento: ref([{ codigo: 'CC', nombre: 'Cédula' }]),
-    generos: ref([{ codigo: 'M', nombre: 'Masculino' }]),
-    departamentos: ref([{ id: 1, codigo: '05', nombre: 'Antioquia' }]),
-    municipios: ref([]),
-    isLoadingCatalogos: ref(false),
+    tiposDocumento: mockTiposDocumento,
+    generos: mockGeneros,
+    departamentos: mockDepartamentos,
+    municipios: mockMunicipios,
+    isLoadingCatalogos: mockIsLoadingCatalogos,
     cargarCatalogos: vi.fn(),
     cargarMunicipios: mockCargarMunicipios,
     limpiarMunicipios: mockLimpiarMunicipios
   })
 }))
 
+const mockErrors = reactive({})
+
 vi.mock('@/composables/useFormValidation', () => ({
   useFormValidation: () => ({
-    errors: ref({}),
+    errors: mockErrors,
     isValidEmail: mockIsValidEmail,
     isValidPhone: mockIsValidPhone,
     isValidDocument: mockIsValidDocument,
@@ -87,7 +100,6 @@ vi.mock('@/services/api', () => ({
   }
 }))
 
-const mockRegister = vi.fn()
 vi.mock('@/services/authApi', () => ({
   default: {
     register: mockRegister
@@ -96,6 +108,30 @@ vi.mock('@/services/authApi', () => ({
 
 describe('CreateFarmerModal', () => {
   let wrapper
+
+  beforeEach(() => {
+    // Clear errors object
+    Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+    // Clear all mocks before each test
+    vi.clearAllMocks()
+    
+    // Set default return value for validatePassword to return object with isValid
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
+    mockIsValidEmail.mockReturnValue(true)
+    mockIsValidDocument.mockReturnValue(true)
+    mockIsValidPhone.mockReturnValue(true)
+    mockIsValidBirthdate.mockReturnValue(true)
+    // Configure clearErrors to clear the mockErrors object
+    mockClearErrors.mockImplementation(() => {
+      Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+    })
+  })
 
   afterEach(() => {
     if (wrapper) {
@@ -134,7 +170,13 @@ describe('CreateFarmerModal', () => {
     mockRegister.mockResolvedValue({ data: { user: { id: 1 } } })
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidDocument.mockReturnValue(true)
-    mockValidatePassword.mockReturnValue(true)
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -162,7 +204,13 @@ describe('CreateFarmerModal', () => {
     mockIsValidDocument.mockReturnValue(false)
     mockIsValidPhone.mockReturnValue(false)
     mockIsValidBirthdate.mockReturnValue(false)
-    mockValidatePassword.mockReturnValue(false)
+    mockValidatePassword.mockReturnValue({
+      length: false,
+      uppercase: false,
+      lowercase: false,
+      number: false,
+      isValid: false
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -234,15 +282,25 @@ describe('CreateFarmerModal', () => {
   })
 
   it('should validate password requirements', async () => {
+    // Configure mock to return invalid password when called with 'weak'
+    mockValidatePassword.mockReturnValue({
+      length: false,
+      uppercase: false,
+      lowercase: false,
+      number: false,
+      isValid: false
+    })
+
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
     await wrapper.vm.$nextTick()
 
     wrapper.vm.form.password = 'weak'
     wrapper.vm.form.confirmPassword = 'weak'
-    wrapper.vm.isPasswordValid = { value: false }
+    await wrapper.vm.$nextTick() // Wait for computed to update
 
     wrapper.vm.validateForm()
+    await wrapper.vm.$nextTick() // Wait for errors to be set
 
     expect(wrapper.vm.errors.password).toBeDefined()
   })
@@ -281,7 +339,9 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.departamento = '05'
     wrapper.vm.form.municipio = '1'
 
-    wrapper.vm.municipios.value = [{ id: 1, nombre: 'Medellín' }]
+    // Set municipios and departamentos in the shared refs
+    mockMunicipios.value = [{ id: 1, nombre: 'Medellín' }]
+    mockDepartamentos.value = [{ id: 1, codigo: '05', nombre: 'Antioquia' }]
 
     const farmerData = wrapper.vm.buildFarmerData()
 
@@ -447,7 +507,13 @@ describe('CreateFarmerModal', () => {
     mockRegister.mockResolvedValue({ data: { user: { id: 1 } } })
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidDocument.mockReturnValue(true)
-    mockValidatePassword.mockReturnValue(true)
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -459,7 +525,10 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.numeroDocumento = '1234567890'
     wrapper.vm.form.password = 'Password123!'
     wrapper.vm.form.confirmPassword = 'Password123!'
-    wrapper.vm.isPasswordValid = { value: true }
+    wrapper.vm.form.departamento = '05'
+    wrapper.vm.form.municipio = '1'
+    wrapper.vm.form.tipoDocumento = 'CC'
+    wrapper.vm.form.genero = 'M'
 
     await wrapper.vm.handleSubmit()
     await wrapper.vm.$nextTick()
@@ -477,7 +546,13 @@ describe('CreateFarmerModal', () => {
     })
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidDocument.mockReturnValue(true)
-    mockValidatePassword.mockReturnValue(true)
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -508,7 +583,13 @@ describe('CreateFarmerModal', () => {
     })
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidDocument.mockReturnValue(true)
-    mockValidatePassword.mockReturnValue(true)
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -520,7 +601,10 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.numeroDocumento = '1234567890'
     wrapper.vm.form.password = 'Password123!'
     wrapper.vm.form.confirmPassword = 'Password123!'
-    wrapper.vm.isPasswordValid = { value: true }
+    wrapper.vm.form.departamento = '05'
+    wrapper.vm.form.municipio = '1'
+    wrapper.vm.form.tipoDocumento = 'CC'
+    wrapper.vm.form.genero = 'M'
 
     await wrapper.vm.handleSubmit()
     await wrapper.vm.$nextTick()
@@ -530,12 +614,19 @@ describe('CreateFarmerModal', () => {
   })
 
   it('should handle submit with error without response', async () => {
-    mockRegister.mockRejectedValue({
-      message: 'Network error'
-    })
+    const networkError = new Error('Network error')
+    // Ensure response is not defined at all
+    delete networkError.response
+    mockRegister.mockRejectedValue(networkError)
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidDocument.mockReturnValue(true)
-    mockValidatePassword.mockReturnValue(true)
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -556,10 +647,20 @@ describe('CreateFarmerModal', () => {
   })
 
   it('should handle submit with error without message', async () => {
-    mockRegister.mockRejectedValue({})
+    const errorWithoutMessage = new Error()
+    // Ensure response and message are not defined at all
+    delete errorWithoutMessage.response
+    delete errorWithoutMessage.message
+    mockRegister.mockRejectedValue(errorWithoutMessage)
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidDocument.mockReturnValue(true)
-    mockValidatePassword.mockReturnValue(true)
+    mockValidatePassword.mockReturnValue({
+      length: true,
+      uppercase: true,
+      lowercase: true,
+      number: true,
+      isValid: true
+    })
 
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
@@ -598,11 +699,24 @@ describe('CreateFarmerModal', () => {
     wrapper = mount(CreateFarmerModal)
     await wrapper.vm.openModal()
     await wrapper.vm.$nextTick()
+    
+    // Wait for any initial watcher executions to complete
+    await wrapper.vm.$nextTick()
+    
+    // Clear all mocks after component initialization to ignore any calls during mount
+    mockCargarMunicipios.mockClear()
+    mockLimpiarMunicipios.mockClear()
 
-    wrapper.vm.form.departamento = ''
+    // Ensure departamento is already empty (it should be by default)
+    expect(wrapper.vm.form.departamento).toBe('')
+    
+    // Set municipio to test clearing
     wrapper.vm.form.municipio = '1'
+    await wrapper.vm.$nextTick()
 
+    // Call onDepartamentoChange with empty departamento
     await wrapper.vm.onDepartamentoChange()
+    await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.form.municipio).toBe('')
     expect(mockLimpiarMunicipios).toHaveBeenCalled()
@@ -626,7 +740,7 @@ describe('CreateFarmerModal', () => {
     await wrapper.vm.$nextTick()
 
     wrapper.vm.form.departamento = '05'
-    wrapper.vm.municipios.value = []
+    mockMunicipios.value = []
     await wrapper.vm.$nextTick()
 
     const text = wrapper.text()
