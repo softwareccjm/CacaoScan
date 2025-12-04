@@ -336,5 +336,113 @@ describe('ConfigStore', () => {
       expect(configApi.getMLConfig).toHaveBeenCalled()
     })
   })
+
+  describe('_handleAuthStoreImportError', () => {
+    it('should handle MODULE_NOT_FOUND error', async () => {
+      const error = { code: 'MODULE_NOT_FOUND', message: 'Cannot find module' }
+      const result = configStore._handleAuthStoreImportError(error)
+      
+      expect(result).toBe(null)
+    })
+
+    it('should throw non-MODULE_NOT_FOUND errors', () => {
+      const error = { code: 'OTHER_ERROR', message: 'Other error' }
+      
+      expect(() => configStore._handleAuthStoreImportError(error)).toThrow()
+    })
+  })
+
+  describe('loadAll error handling', () => {
+    it('should handle 403 error silently', async () => {
+      mockAuthStore.isAdmin = false
+      const error = new Error('Forbidden')
+      error.response = { status: 403 }
+
+      configApi.getSystemConfig.mockRejectedValue(error)
+
+      const result = await configStore.loadAll()
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should handle 500 error silently', async () => {
+      mockAuthStore.isAdmin = false
+      const error = new Error('Server error')
+      error.response = { status: 500 }
+
+      configApi.getSystemConfig.mockRejectedValue(error)
+
+      const result = await configStore.loadAll()
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should log unexpected errors', async () => {
+      mockAuthStore.isAdmin = false
+      const error = new Error('Unexpected error')
+      error.response = { status: 404 }
+
+      configApi.getSystemConfig.mockRejectedValue(error)
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await configStore.loadAll()
+
+      expect(consoleSpy).toHaveBeenCalled()
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('saveGeneral edge cases', () => {
+    it('should handle saved data with partial fields', async () => {
+      const data = {
+        nombre_sistema: 'New System'
+      }
+
+      configApi.saveGeneralConfig.mockResolvedValue({
+        nombre_sistema: 'New System'
+      })
+
+      await configStore.saveGeneral(data)
+
+      expect(configStore.general.nombre_sistema).toBe('New System')
+    })
+
+    it('should preserve logo_url when not in saved data', async () => {
+      configStore.general.logo_url = 'existing-logo.png'
+      const data = {
+        nombre_sistema: 'New System'
+      }
+
+      configApi.saveGeneralConfig.mockResolvedValue({
+        nombre_sistema: 'New System'
+      })
+
+      await configStore.saveGeneral(data)
+
+      expect(configStore.general.logo_url).toBe('existing-logo.png')
+    })
+  })
+
+  describe('_updateConfigState edge cases', () => {
+    it('should handle empty general object', () => {
+      configStore._updateConfigState({}, null, null, null)
+      expect(configStore.general.nombre_sistema).toBe('CacaoScan')
+    })
+
+    it('should handle empty security object', () => {
+      configStore._updateConfigState(null, {}, null, null)
+      expect(configStore.security.recaptcha_enabled).toBe(true)
+    })
+
+    it('should handle null values with nullish coalescing', () => {
+      configStore._updateConfigState(null, {
+        recaptcha_enabled: null,
+        two_factor_auth: null
+      }, null, null)
+      
+      expect(configStore.security.recaptcha_enabled).toBe(true)
+      expect(configStore.security.two_factor_auth).toBe(false)
+    })
+  })
 })
 

@@ -143,6 +143,15 @@ const truncateText = (text, maxLength) => {
   if (text.length <= maxLength) return text
   return text.substring(0, maxLength) + '...'
 }
+
+// Expose methods and computed properties for testing
+defineExpose({
+  formatDateTime,
+  formatDuration,
+  truncateText,
+  cardVariant,
+  cardIcon
+})
 </script>
 
 <style scoped>

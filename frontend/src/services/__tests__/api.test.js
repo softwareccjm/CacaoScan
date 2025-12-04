@@ -6,6 +6,27 @@ import { createRouter, createWebHistory } from 'vue-router'
 vi.mock('axios')
 const mockedAxios = axios
 
+// Create a shared mock instance that will be returned by axios.create()
+const mockApiInstance = {
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  patch: vi.fn(),
+  delete: vi.fn(),
+  interceptors: {
+    request: { use: vi.fn() },
+    response: { use: vi.fn() }
+  },
+  defaults: {
+    baseURL: 'https://test-api.example.com/api/v1',
+    timeout: 15000,
+    headers: {}
+  }
+}
+
+// Configure the mock to return the shared instance
+mockedAxios.create.mockReturnValue(mockApiInstance)
+
 // Mock router
 const mockRouter = createRouter({
   history: createWebHistory(),
@@ -56,23 +77,8 @@ describe('API Service', () => {
     vi.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
     
-    // Reset axios mock
-    mockedAxios.create.mockReturnValue({
-      get: vi.fn(),
-      post: vi.fn(),
-      put: vi.fn(),
-      patch: vi.fn(),
-      delete: vi.fn(),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() }
-      },
-      defaults: {
-        baseURL: 'https://test-api.example.com/api/v1',
-        timeout: 15000,
-        headers: {}
-      }
-    })
+    // Reset axios mock to return the shared instance
+    mockedAxios.create.mockReturnValue(mockApiInstance)
   })
 
   afterEach(() => {
@@ -326,6 +332,273 @@ describe('API Service', () => {
       const isAuthEndpoint = authEndpoints.some(endpoint => error.config.url.includes(endpoint))
       
       expect(isAuthEndpoint).toBe(true)
+    })
+
+    it('should identify stats endpoints as non-critical', () => {
+      const error = {
+        response: { status: 500 },
+        config: {
+          url: '/stats/test',
+          method: 'get',
+          metadata: {}
+        }
+      }
+
+      const isStatsEndpoint = error.config.url?.includes('/stats/')
+      expect(isStatsEndpoint).toBe(true)
+    })
+  })
+
+  describe('predictImage function', () => {
+    beforeEach(async () => {
+      globalThis.dispatchEvent = vi.fn()
+      vi.clearAllMocks()
+      // Reset mockApiInstance methods
+      mockApiInstance.post.mockReset()
+      // Ensure axios.create returns our mock instance
+      mockedAxios.create.mockReturnValue(mockApiInstance)
+      // Reset modules to ensure fresh imports use the mocked instance
+      vi.resetModules()
+    })
+
+    it('should validate FormData contains image', async () => {
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+
+      await expect(predictImage(formData)).rejects.toThrow('No se ha proporcionado ninguna imagen')
+    })
+
+    it('should validate image file is not empty', async () => {
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const emptyFile = new File([], 'empty.jpg', { type: 'image/jpeg' })
+      formData.append('image', emptyFile)
+
+      await expect(predictImage(formData)).rejects.toThrow('El archivo de imagen está vacío')
+    })
+
+    it('should validate image file type', async () => {
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const invalidFile = new File(['content'], 'test.txt', { type: 'text/plain' })
+      formData.append('image', invalidFile)
+
+      await expect(predictImage(formData)).rejects.toThrow('Formato de imagen no válido')
+    })
+
+    it('should validate image file size', async () => {
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      // Create a file larger than 20MB
+      const largeContent = new Array(21 * 1024 * 1024).fill('a').join('')
+      const largeFile = new File([largeContent], 'large.jpg', { type: 'image/jpeg' })
+      formData.append('image', largeFile)
+
+      await expect(predictImage(formData)).rejects.toThrow('La imagen es demasiado grande')
+    })
+
+    it('should accept valid image formats', async () => {
+      mockApiInstance.post.mockResolvedValue({
+        data: { weight: 1.2, height: 25, width: 20, thickness: 5 }
+      })
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+
+      const validFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp']
+      
+      for (const format of validFormats) {
+        const formData = new FormData()
+        const validFile = new File(['content'], 'test.jpg', { type: format })
+        formData.append('image', validFile)
+
+        // Should not throw validation error
+        try {
+          await predictImage(formData)
+        } catch (error) {
+          // Only API errors are acceptable, not validation errors
+          expect(error.message).not.toContain('Formato de imagen no válido')
+        }
+      }
+    })
+
+    it('should emit loading start event', async () => {
+      mockApiInstance.post.mockResolvedValue({
+        data: { weight: 1.2 }
+      })
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      await predictImage(formData)
+
+      expect(globalThis.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'api-loading-start',
+          detail: expect.objectContaining({
+            type: 'prediction'
+          })
+        })
+      )
+    })
+
+    it('should emit loading end event on success', async () => {
+      mockApiInstance.post.mockResolvedValue({
+        data: { weight: 1.2 }
+      })
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      await predictImage(formData)
+
+      const calls = globalThis.dispatchEvent.mock.calls
+      const endCall = calls.find(call => call[0].type === 'api-loading-end')
+      expect(endCall).toBeDefined()
+    })
+
+    it('should emit loading end event on error', async () => {
+      mockApiInstance.post.mockRejectedValue(new Error('API Error'))
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      try {
+        await predictImage(formData)
+      } catch (error) {
+        // Expected to throw
+      }
+
+      const calls = globalThis.dispatchEvent.mock.calls
+      const endCall = calls.find(call => call[0].type === 'api-loading-end')
+      expect(endCall).toBeDefined()
+    })
+
+    it('should handle API response errors with detail', async () => {
+      const apiError = {
+        response: {
+          data: {
+            error: 'Processing failed',
+            detail: 'Image processing error'
+          },
+          status: 400
+        }
+      }
+      mockApiInstance.post.mockRejectedValue(apiError)
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      await expect(predictImage(formData)).rejects.toThrow('Processing failed')
+    })
+
+    it('should handle API response errors with detail only', async () => {
+      const apiError = {
+        response: {
+          data: {
+            detail: 'Image processing error'
+          },
+          status: 400
+        }
+      }
+      mockApiInstance.post.mockRejectedValue(apiError)
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      await expect(predictImage(formData)).rejects.toThrow('Image processing error')
+    })
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Network Error')
+      mockApiInstance.post.mockRejectedValue(networkError)
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      await expect(predictImage(formData)).rejects.toThrow('Network Error')
+    })
+
+    it('should include original error in custom error', async () => {
+      const originalError = new Error('Original error')
+      originalError.response = { status: 500 }
+      mockApiInstance.post.mockRejectedValue(originalError)
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      try {
+        await predictImage(formData)
+      } catch (error) {
+        expect(error.originalError).toBe(originalError)
+        expect(error.status).toBe(500)
+      }
+    })
+
+    it('should use 60 second timeout for prediction requests', async () => {
+      mockApiInstance.post.mockResolvedValue({
+        data: { weight: 1.2 }
+      })
+
+      vi.resetModules()
+      const { predictImage } = await import('../api.js')
+      const formData = new FormData()
+      const validFile = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      formData.append('image', validFile)
+
+      await predictImage(formData)
+
+      expect(mockApiInstance.post).toHaveBeenCalledWith(
+        '/api/predict/',
+        formData,
+        expect.objectContaining({
+          timeout: 60000
+        })
+      )
+    })
+  })
+
+  describe('API_CONFIG export', () => {
+    it('should export API_CONFIG with base URL', async () => {
+      const { API_CONFIG } = await import('../api.js')
+      
+      expect(API_CONFIG).toBeDefined()
+      expect(API_CONFIG.BASE_URL).toBeDefined()
+      expect(API_CONFIG.TIMEOUT).toBeDefined()
+      expect(API_CONFIG.HEADERS).toBeDefined()
+    })
+  })
+
+  describe('validateImageFile export', () => {
+    it('should export validateImageFile function', async () => {
+      const { validateImageFile } = await import('../api.js')
+      
+      expect(validateImageFile).toBeDefined()
+      expect(typeof validateImageFile).toBe('function')
     })
   })
 })

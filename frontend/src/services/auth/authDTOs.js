@@ -77,10 +77,18 @@ export function normalizeRegisterResponse(rawResponse, userData = {}) {
 export function normalizeUser(rawUser) {
   if (!rawUser) return null
   
+  // Generate username from email only if email contains @
+  const generateUsernameFromEmail = (email) => {
+    if (!email || !email.includes('@')) {
+      return ''
+    }
+    return email.split('@')[0]
+  }
+  
   return {
     id: rawUser.id,
     email: rawUser.email,
-    username: rawUser.username || rawUser.email?.split('@')[0] || '',
+    username: rawUser.username || generateUsernameFromEmail(rawUser.email) || '',
     first_name: rawUser.first_name || rawUser.primer_nombre || '',
     last_name: rawUser.last_name || rawUser.primer_apellido || '',
     role: rawUser.role || rawUser.user_role || 'farmer',

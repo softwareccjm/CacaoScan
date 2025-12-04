@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useWebSocketBase } from './useWebSocketBase'
 
@@ -167,10 +167,10 @@ export function useWebSocket() {
   
   // Computed
   const connectionStatus = computed(() => {
-    if (notificationSocket.isConnecting.value || 
-        systemStatusSocket.isConnecting.value || 
-        auditSocket.isConnecting.value || 
-        userStatsSocket.isConnecting.value) {
+    if (socketRefs.notificationSocket?.isConnecting.value || 
+        socketRefs.systemStatusSocket?.isConnecting.value || 
+        socketRefs.auditSocket?.isConnecting.value || 
+        socketRefs.userStatsSocket?.isConnecting.value) {
       return 'connecting'
     }
     if (hasAnyConnection.value) {
@@ -183,29 +183,29 @@ export function useWebSocket() {
   })
   
   const hasAnyConnection = computed(() => {
-    return (notificationSocket?.isConnected.value) ||
-           (systemStatusSocket?.isConnected.value) ||
-           (auditSocket?.isConnected.value) ||
-           (userStatsSocket?.isConnected.value)
+    return !!(socketRefs.notificationSocket?.isConnected.value) ||
+           !!(socketRefs.systemStatusSocket?.isConnected.value) ||
+           !!(socketRefs.auditSocket?.isConnected.value) ||
+           !!(socketRefs.userStatsSocket?.isConnected.value)
   })
   
   const reconnectAttempts = computed(() => {
     const attempts = []
-    if (notificationSocket) attempts.push(notificationSocket.reconnectAttempts.value)
-    if (systemStatusSocket) attempts.push(systemStatusSocket.reconnectAttempts.value)
-    if (auditSocket) attempts.push(auditSocket.reconnectAttempts.value)
-    if (userStatsSocket) attempts.push(userStatsSocket.reconnectAttempts.value)
+    if (socketRefs.notificationSocket) attempts.push(socketRefs.notificationSocket.reconnectAttempts.value)
+    if (socketRefs.systemStatusSocket) attempts.push(socketRefs.systemStatusSocket.reconnectAttempts.value)
+    if (socketRefs.auditSocket) attempts.push(socketRefs.auditSocket.reconnectAttempts.value)
+    if (socketRefs.userStatsSocket) attempts.push(socketRefs.userStatsSocket.reconnectAttempts.value)
     return attempts.length > 0 ? Math.max(...attempts) : 0
   })
   
   // Referencias a las conexiones (se crean dinámicamente en connect)
-  // Using object to allow mutation in tests
-  const socketRefs = {
+  // Using reactive object to allow mutation in tests and maintain reactivity
+  const socketRefs = reactive({
     notificationSocket: null,
     systemStatusSocket: null,
     auditSocket: null,
     userStatsSocket: null
-  }
+  })
   
   // Aliases para compatibilidad con código existente
   let notificationSocket = null
@@ -224,7 +224,7 @@ export function useWebSocket() {
     
     try {
       // Desconectar conexiones existentes
-      disconnect()
+      internalMethods.disconnect()
       
       // Crear conexión de notificaciones
       const notificationUrl = `${wsConfig.baseUrl}/notifications/${authStore.user.id}/`
@@ -292,33 +292,39 @@ export function useWebSocket() {
   }
   
   const disconnect = () => {
-    if (notificationSocket) {
-      notificationSocket.disconnect()
+    if (socketRefs.notificationSocket) {
+      socketRefs.notificationSocket.disconnect()
       notificationSocket = null
       socketRefs.notificationSocket = null
     }
-    if (systemStatusSocket) {
-      systemStatusSocket.disconnect()
+    if (socketRefs.systemStatusSocket) {
+      socketRefs.systemStatusSocket.disconnect()
       systemStatusSocket = null
       socketRefs.systemStatusSocket = null
     }
-    if (auditSocket) {
-      auditSocket.disconnect()
+    if (socketRefs.auditSocket) {
+      socketRefs.auditSocket.disconnect()
       auditSocket = null
       socketRefs.auditSocket = null
     }
-    if (userStatsSocket) {
-      userStatsSocket.disconnect()
+    if (socketRefs.userStatsSocket) {
+      socketRefs.userStatsSocket.disconnect()
       userStatsSocket = null
       socketRefs.userStatsSocket = null
     }
     connectionError.value = null
   }
   
+  // Internal method references for reconnect to use (allows mocking in tests)
+  const internalMethods = {
+    disconnect,
+    connect
+  }
+  
   const reconnect = () => {
-    disconnect()
+    internalMethods.disconnect()
     setTimeout(() => {
-      connect()
+      internalMethods.connect()
     }, wsConfig.reconnectDelay)
   }
   
@@ -371,16 +377,16 @@ export function useWebSocket() {
   
   // Métodos específicos de auditoría
   const getAuditStats = () => {
-    if (auditSocket) {
-      auditSocket.send({
+    if (socketRefs.auditSocket) {
+      socketRefs.auditSocket.send({
         type: 'get_audit_stats'
       })
     }
   }
   
   const getRecentActivity = () => {
-    if (auditSocket) {
-      auditSocket.send({
+    if (socketRefs.auditSocket) {
+      socketRefs.auditSocket.send({
         type: 'get_recent_activity'
       })
     }
@@ -388,8 +394,8 @@ export function useWebSocket() {
   
   // Métodos específicos de sistema
   const getSystemStatus = () => {
-    if (systemStatusSocket) {
-      systemStatusSocket.send({
+    if (socketRefs.systemStatusSocket) {
+      socketRefs.systemStatusSocket.send({
         type: 'get_status'
       })
     }
@@ -397,8 +403,8 @@ export function useWebSocket() {
   
   // Métodos específicos de usuarios
   const getUserStats = () => {
-    if (userStatsSocket) {
-      userStatsSocket.send({
+    if (socketRefs.userStatsSocket) {
+      socketRefs.userStatsSocket.send({
         type: 'get_stats'
       })
     }
@@ -407,10 +413,10 @@ export function useWebSocket() {
   // Computed para estado agregado
   const isConnected = computed(() => hasAnyConnection.value)
   const isConnecting = computed(() => 
-    (notificationSocket?.isConnecting.value) ||
-    (systemStatusSocket?.isConnecting.value) ||
-    (auditSocket?.isConnecting.value) ||
-    (userStatsSocket?.isConnecting.value)
+    (socketRefs.notificationSocket?.isConnecting.value) ||
+    (socketRefs.systemStatusSocket?.isConnecting.value) ||
+    (socketRefs.auditSocket?.isConnecting.value) ||
+    (socketRefs.userStatsSocket?.isConnecting.value)
   )
   
   // Lifecycle
@@ -451,7 +457,7 @@ export function useWebSocket() {
           clearInterval(heartbeatInterval)
           heartbeatInterval = null
         }
-        disconnect()
+        internalMethods.disconnect()
       })
     }
   })
@@ -471,7 +477,7 @@ export function useWebSocket() {
       }, 1000)
     } else if (!newUser && oldUser) {
       // Usuario deslogueado, desconectar
-      disconnect()
+      internalMethods.disconnect()
     }
   }, { immediate: true })
   
@@ -505,8 +511,14 @@ export function useWebSocket() {
     },
     
     // Métodos
-    connect,
-    disconnect,
+    get connect() { return internalMethods.connect },
+    set connect(value) { 
+      internalMethods.connect = value
+    },
+    get disconnect() { return internalMethods.disconnect },
+    set disconnect(value) { 
+      internalMethods.disconnect = value
+    },
     reconnect,
     ping,
     

@@ -348,7 +348,9 @@ export default {
 
     return {
       pieChart,
-      barChart
+      barChart,
+      createPieChart,
+      createBarChart
     };
   }
 };

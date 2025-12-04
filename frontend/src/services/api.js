@@ -520,19 +520,24 @@ export async function predictImage(formData) {
     // Extraer mensaje de error más descriptivo
     let errorMessage = 'Error inesperado al procesar la imagen'
     
-    if (error.response?.data?.error) {
-      errorMessage = error.response.data.error
-    } else if (error.response?.data?.detail) {
-      errorMessage = error.response.data.detail
-    } else if (error.message) {
-      errorMessage = error.message
+    // Ensure error exists before accessing its properties
+    if (error) {
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.message) {
+        errorMessage = error.message
+      }
     }
 
     // Crear error personalizado con información útil
     const customError = new Error(errorMessage)
-    customError.originalError = error
-    customError.status = error.response?.status
-    customError.statusText = error.response?.statusText
+    if (error) {
+      customError.originalError = error
+      customError.status = error.response?.status
+      customError.statusText = error.response?.statusText
+    }
 
     throw customError
 

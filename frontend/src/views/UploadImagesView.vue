@@ -98,6 +98,7 @@
           v-for="img in uploadedImages"
           :key="img.id"
           class="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+          data-testid="uploaded-image"
         >
           <img
             :src="img.image_url || img.image"
@@ -138,12 +139,14 @@ const removeFile = (index) => {
   files.value.splice(index, 1)
 }
 
-const clearFiles = () => {
+const clearFiles = (clearStatus = true) => {
   files.value = []
   if (fileInput.value) {
     fileInput.value.value = ''
   }
-  uploadStatus.value = null
+  if (clearStatus) {
+    uploadStatus.value = null
+  }
 }
 
 const formatFileSize = (bytes) => {
@@ -206,8 +209,8 @@ const uploadImages = async () => {
         errors: errors || []
       }
       
-      // Limpiar archivos subidos exitosamente
-      clearFiles()
+      // Limpiar archivos subidos exitosamente (pero mantener el status)
+      clearFiles(false)
     } else {
       uploadStatus.value = {
         type: 'error',

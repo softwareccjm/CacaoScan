@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import BaseTable from '../BaseTable.vue'
 
 describe('BaseTable', () => {
@@ -394,6 +395,193 @@ describe('BaseTable', () => {
       await selectAllCheckbox.setChecked(true)
       expect(wrapper.emitted('select-all')).toBeTruthy()
     }
+  })
+
+  it('should show selected rows count in table info', async () => {
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: mockData,
+        enableSelection: true,
+        showTableInfo: true
+      }
+    })
+
+    // Select some rows using the composable method
+    wrapper.vm.selectRow(1)
+    wrapper.vm.selectRow(2)
+    await nextTick()
+
+    expect(wrapper.text()).toContain('seleccionado')
+  })
+
+  it('should handle caption prop', () => {
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: mockData,
+        caption: 'Test Caption'
+      }
+    })
+
+    const caption = wrapper.find('caption')
+    expect(caption.exists()).toBe(true)
+    expect(caption.text()).toBe('Test Caption')
+  })
+
+  it('should handle ariaLabel prop', () => {
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: mockData,
+        ariaLabel: 'Custom Label'
+      }
+    })
+
+    const table = wrapper.find('table')
+    expect(table.attributes('aria-label')).toBe('Custom Label')
+  })
+
+  it('should handle emptySubtext prop', () => {
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: [],
+        emptySubtext: 'Custom subtext'
+      }
+    })
+
+    expect(wrapper.text()).toContain('Custom subtext')
+  })
+
+  it('should handle column align right', () => {
+    const rightAlignedColumns = [
+      { key: 'name', label: 'Name' },
+      { key: 'age', label: 'Age', align: 'right' }
+    ]
+
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: rightAlignedColumns,
+        data: mockData
+      }
+    })
+
+    const ageHeader = wrapper.findAll('th').find(th => th.text().includes('Age'))
+    expect(ageHeader.classes()).toContain('text-right')
+  })
+
+  it('should handle column width prop', () => {
+    const columnsWithWidth = [
+      { key: 'name', label: 'Name', width: 'w-1/2' }
+    ]
+
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: columnsWithWidth,
+        data: mockData
+      }
+    })
+
+    const header = wrapper.find('th')
+    expect(header.classes()).toContain('w-1/2')
+  })
+
+  it('should handle column className prop', () => {
+    const columnsWithClass = [
+      { key: 'name', label: 'Name', className: 'custom-class' }
+    ]
+
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: columnsWithClass,
+        data: mockData
+      }
+    })
+
+    const cell = wrapper.find('td')
+    expect(cell.classes()).toContain('custom-class')
+  })
+
+  it('should handle column emptyText prop', () => {
+    const columnsWithEmptyText = [
+      { key: 'name', label: 'Name', emptyText: 'N/A' }
+    ]
+
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: columnsWithEmptyText,
+        data: [{ id: 1, name: null }]
+      }
+    })
+
+    expect(wrapper.text()).toContain('N/A')
+  })
+
+  it('should handle sort order toggle', async () => {
+    const sortableColumns = [
+      { key: 'name', label: 'Name', sortable: true }
+    ]
+
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: sortableColumns,
+        data: mockData
+      }
+    })
+
+    const header = wrapper.find('th')
+    await header.trigger('click')
+    await header.trigger('click')
+
+    expect(wrapper.emitted('sort')).toBeTruthy()
+    expect(wrapper.emitted('sort').length).toBe(2)
+  })
+
+  it('should not sort when column is not sortable', async () => {
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: mockData
+      }
+    })
+
+    const header = wrapper.find('th')
+    await header.trigger('click')
+
+    expect(wrapper.emitted('sort')).toBeFalsy()
+  })
+
+  it('should handle pagination with multiple pages', () => {
+    const largeData = Array.from({ length: 25 }, (_, i) => ({
+      id: i + 1,
+      name: `User ${i + 1}`,
+      age: 20 + i
+    }))
+
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: largeData,
+        enablePagination: true,
+        itemsPerPage: 10
+      }
+    })
+
+    expect(wrapper.vm.pagination).toBeTruthy()
+    expect(wrapper.vm.processedData.length).toBe(10)
+  })
+
+  it('should show empty state with custom emptySubtext', () => {
+    wrapper = mount(BaseTable, {
+      props: {
+        columns: mockColumns,
+        data: [],
+        emptySubtext: 'Try again later'
+      }
+    })
+
+    expect(wrapper.text()).toContain('Try again later')
   })
 })
 

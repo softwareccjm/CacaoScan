@@ -358,31 +358,57 @@ export function useReports(options = {}) {
    */
   const pollForCompletion = async (reportId, interval = 3000, maxAttempts = 60) => {
     let attempts = 0
+    let timeoutId = null
+    let isResolved = false
     
     return new Promise((resolve, reject) => {
       const poll = async () => {
+        // Prevent execution if promise already resolved/rejected
+        if (isResolved) {
+          return
+        }
+        
         try {
           attempts++
           const status = await checkReportStatus(reportId)
           
           if (status.estado === 'completado') {
+            isResolved = true
+            if (timeoutId) {
+              clearTimeout(timeoutId)
+            }
             const report = await reportsService.getReportDetails(reportId)
             resolve(report)
             return
           }
           
           if (status.estado === 'error' || status.estado === 'fallido') {
+            isResolved = true
+            if (timeoutId) {
+              clearTimeout(timeoutId)
+            }
             reject(new Error(status.mensaje_error || 'Error al generar el reporte'))
             return
           }
           
           if (attempts >= maxAttempts) {
+            isResolved = true
+            if (timeoutId) {
+              clearTimeout(timeoutId)
+            }
             reject(new Error('Tiempo de espera agotado'))
             return
           }
           
-          setTimeout(poll, interval)
+          // Only schedule next poll if promise hasn't been resolved
+          if (!isResolved) {
+            timeoutId = setTimeout(poll, interval)
+          }
         } catch (err) {
+          isResolved = true
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+          }
           reject(err)
         }
       }

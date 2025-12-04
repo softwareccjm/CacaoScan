@@ -144,6 +144,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { escapeHTML } from '@/utils/security'
 
 const props = defineProps({

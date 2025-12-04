@@ -204,5 +204,268 @@ describe('AccessDenied', () => {
 
     expect(wrapper.text()).toMatch(/Agricultor|Usuario/i)
   })
+
+  it('should display correct error title for verification_required', async () => {
+    mockRoute.query = { error: 'verification_required' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Verificación Requerida')
+  })
+
+  it('should display correct error title when message is provided', async () => {
+    mockRoute.query = { message: 'Custom error message' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Acceso Denegado')
+  })
+
+  it('should display default error title', async () => {
+    mockRoute.query = {}
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Sin Permisos')
+  })
+
+  it('should display correct error message for access_denied', async () => {
+    mockRoute.query = { error: 'access_denied' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('No tienes autorización')
+  })
+
+  it('should display correct error message for insufficient_permissions', async () => {
+    mockRoute.query = { error: 'insufficient_permissions' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('permisos necesarios')
+  })
+
+  it('should display correct error message for verification_required', async () => {
+    mockRoute.query = { error: 'verification_required' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('verificar tu dirección de email')
+  })
+
+  it('should display message from query when provided', async () => {
+    mockRoute.query = { message: 'Custom message' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Custom message')
+  })
+
+  it('should display default message for authenticated user', async () => {
+    mockAuthStore.isAuthenticated = true
+    mockRoute.query = {}
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Contacta al administrador')
+  })
+
+  it('should get redirect path for analyst role', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.user = { role: 'analyst' }
+    mockAuthStore.userRole = 'analyst'
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 
+          'router-link': { 
+            template: '<a><slot></slot></a>',
+            props: ['to']
+          } 
+        }
+      }
+    })
+
+    const redirectPath = wrapper.vm.getRedirectPath()
+    expect(redirectPath).toBe('/analisis')
+  })
+
+  it('should get redirect path for farmer role', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.user = { role: 'farmer' }
+    mockAuthStore.userRole = 'farmer'
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 
+          'router-link': { 
+            template: '<a><slot></slot></a>',
+            props: ['to']
+          } 
+        }
+      }
+    })
+
+    const redirectPath = wrapper.vm.getRedirectPath()
+    expect(redirectPath).toBe('/agricultor-dashboard')
+  })
+
+  it('should get default redirect path when no user', () => {
+    mockAuthStore.isAuthenticated = false
+    mockAuthStore.user = null
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } }
+      }
+    })
+
+    const redirectPath = wrapper.vm.getRedirectPath()
+    expect(redirectPath).toBe('/')
+  })
+
+  it('should get default redirect path for unknown role', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.user = { role: 'unknown' }
+    mockAuthStore.userRole = 'unknown'
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } }
+      }
+    })
+
+    const redirectPath = wrapper.vm.getRedirectPath()
+    expect(redirectPath).toBe('/')
+  })
+
+  it('should show canUploadImages link when user can upload', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.canUploadImages = true
+    mockAuthStore.user = { id: 1 }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 
+          'router-link': { 
+            template: '<a><slot></slot></a>',
+            props: ['to']
+          } 
+        },
+        plugins: []
+      }
+    })
+
+    expect(wrapper.text()).toContain('Analizar Cacao')
+  })
+
+  it('should handle needsVerification with message containing verificar', async () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.isVerified = false
+    mockRoute.query = { message: 'Debes verificar tu email' }
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.needsVerification).toBe(true)
+  })
+
+  it('should display role text for analyst', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.user = { role: 'analyst' }
+    mockAuthStore.userRole = 'analyst'
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    expect(wrapper.text()).toContain('Analista')
+  })
+
+  it('should display role text for admin', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.user = { role: 'admin' }
+    mockAuthStore.userRole = 'admin'
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    expect(wrapper.text()).toContain('Administrador')
+  })
+
+  it('should display default role text for unknown role', () => {
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.user = { role: 'unknown' }
+    mockAuthStore.userRole = 'unknown'
+    
+    wrapper = mount(AccessDenied, {
+      global: {
+        stubs: { 'router-link': { template: '<a>Link</a>' } },
+        plugins: []
+      }
+    })
+
+    expect(wrapper.text()).toContain('Usuario')
+  })
 })
 

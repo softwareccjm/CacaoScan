@@ -179,7 +179,11 @@ const brandName = computed(() => configStore.brandName)
 
 const userName = computed(() => {
   const user = authStore.user
-  return user ? `${user.first_name} ${user.last_name}`.trim() || user.username : 'Admin User'
+  if (!user) return 'Admin User'
+  if (user.first_name && user.last_name) {
+    return `${user.first_name} ${user.last_name}`.trim()
+  }
+  return user.username || 'Admin User'
 })
 
 const userRole = computed(() => {
@@ -208,7 +212,8 @@ const kpiCards = computed(() => {
   
   let avgQuality = 0
   const confidence = stats.value?.predictions?.average_confidence
-  if (confidence !== undefined && confidence !== null) {
+  // Only use confidence if it's a valid positive number, otherwise use avg_quality fallback
+  if (confidence !== undefined && confidence !== null && Number(confidence) > 0) {
     avgQuality = Math.round(Number(confidence) * 100)
   } else if (stats.value?.avg_quality !== undefined && stats.value?.avg_quality !== null) {
     avgQuality = Number(stats.value.avg_quality)
@@ -343,7 +348,7 @@ const failedReportsLabel = ref('Fallidos')
 // Functions
 const toggleSidebarCollapse = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value
-  localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value)
+  localStorage.setItem('sidebarCollapsed', String(isSidebarCollapsed.value))
 }
 
 const loadDashboardData = async () => {
@@ -376,29 +381,34 @@ const loadStats = async () => {
     const response = await adminStore.getGeneralStats()
     const data = response.data || {}
     
+    // Merge data with defaults to ensure all expected properties exist
     const statsData = {
       users: data.users || { total: 0, this_week: 0, this_month: 0 },
       fincas: data.fincas || { total: 0, this_week: 0, this_month: 0 },
       images: data.images || { total: 0, this_week: 0, this_month: 0 },
-      predictions: data.predictions || { average_confidence: 0 },
+      // Only set predictions default if not provided in data
+      ...(data.predictions ? { predictions: data.predictions } : {}),
       activity_by_day: data.activity_by_day || { labels: [], data: [] },
       quality_distribution: data.quality_distribution || { excelente: 0, buena: 0, regular: 0, baja: 0 },
-      ...data
+      ...data  // Spread data last to allow custom properties like avg_quality to override
     }
     
-    Object.assign(stats.value, statsData)
+    // Reassign to ensure reactivity - completely replace to trigger computed updates
+    stats.value = statsData
     lastUpdateTime.value = new Date()
     
     updateActivityChartFromStats()
     updateQualityChartFromStats()
   } catch (error) {
     console.error('Error loading stats:', error)
+    // Set default values but still throw to let loadDashboardData handle the error
     stats.value = {
       users: { total: 0 },
       fincas: { total: 0 },
       images: { total: 0 },
       predictions: { average_confidence: 0 }
     }
+    throw error
   } finally {
     isRefreshing.value = false
   }

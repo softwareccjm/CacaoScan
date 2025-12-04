@@ -71,7 +71,12 @@ const containerClass = computed(() => {
     bordered: 'border-2',
     shadow: 'shadow-md'
   }
-  return variants[props.variant]
+  return variants[props.variant] || ''
+})
+
+// Expose computed property for testing
+defineExpose({
+  containerClass
 })
 </script>
 

@@ -434,6 +434,253 @@ describe('Notifications Store', () => {
       expect(store.loading).toBe(false)
       expect(store.error).toBe(null)
     })
+
+    it('should handle fetchNotificationDetails', async () => {
+      const mockResponse = {
+        data: { id: 1, titulo: 'Details' }
+      }
+
+      api.get.mockResolvedValue(mockResponse)
+
+      const result = await store.fetchNotificationDetails(1)
+
+      expect(api.get).toHaveBeenCalledWith('/notifications/1/')
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should handle fetchNotificationDetails error', async () => {
+      const error = new Error('Not found')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.fetchNotificationDetails(1)).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should not update unreadCount if notification already read', async () => {
+      store.notifications = [
+        { id: 1, leida: true }
+      ]
+      store.unreadCount = 0
+
+      api.post.mockResolvedValue({})
+
+      await store.markAsRead(1)
+
+      expect(store.unreadCount).toBe(0)
+    })
+
+    it('should handle markAsRead when notification not found', async () => {
+      store.notifications = []
+      store.unreadCount = 0
+
+      api.post.mockResolvedValue({})
+
+      await store.markAsRead(999)
+
+      expect(store.unreadCount).toBe(0)
+    })
+
+    it('should handle markAsRead error', async () => {
+      const error = new Error('Mark read failed')
+      api.post.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.markAsRead(1)).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle markAllAsRead error', async () => {
+      const error = new Error('Mark all read failed')
+      api.post.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.markAllAsRead()).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle getUnreadCount error', async () => {
+      const error = new Error('Get count failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.getUnreadCount()).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle getNotificationStats error', async () => {
+      const error = new Error('Get stats failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.getNotificationStats()).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle createNotification error', async () => {
+      const error = new Error('Create failed')
+      api.post.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.createNotification({})).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle updateRealtimeNotification when notification not found', () => {
+      store.notifications = []
+      store.unreadCount = 0
+
+      const notification = {
+        id: 999,
+        leida: true
+      }
+
+      store.updateRealtimeNotification(notification)
+
+      expect(store.notifications).toHaveLength(0)
+      expect(store.unreadCount).toBe(0)
+    })
+
+    it('should handle updateRealtimeNotification when unread becomes read', () => {
+      store.notifications = [
+        { id: 1, leida: false }
+      ]
+      store.unreadCount = 1
+
+      const updated = {
+        id: 1,
+        leida: true
+      }
+
+      store.updateRealtimeNotification(updated)
+
+      expect(store.notifications[0].leida).toBe(true)
+      expect(store.unreadCount).toBe(0)
+    })
+
+    it('should handle updateRealtimeNotification when read becomes unread', () => {
+      store.notifications = [
+        { id: 1, leida: true }
+      ]
+      store.unreadCount = 0
+
+      const updated = {
+        id: 1,
+        leida: false
+      }
+
+      store.updateRealtimeNotification(updated)
+
+      expect(store.notifications[0].leida).toBe(false)
+      expect(store.unreadCount).toBe(1)
+    })
+
+    it('should handle searchNotifications error', async () => {
+      const error = new Error('Search failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.searchNotifications('test')).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle filterByType error', async () => {
+      const error = new Error('Filter failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.filterByType('info')).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle filterByReadStatus error', async () => {
+      const error = new Error('Filter failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.filterByReadStatus(false)).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle goToPage error', async () => {
+      const error = new Error('Page failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.goToPage(2)).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle changePageSize error', async () => {
+      const error = new Error('Change size failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.changePageSize(50)).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle exportNotifications error', async () => {
+      const error = new Error('Export failed')
+      api.get.mockRejectedValue(error)
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await expect(store.exportNotifications('json')).rejects.toThrow()
+
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('should handle fetchNotifications with array response', async () => {
+      const mockResponse = {
+        data: [
+          { id: 1, titulo: 'Test', leida: false }
+        ]
+      }
+
+      api.get.mockResolvedValue(mockResponse)
+
+      await store.fetchNotifications()
+
+      expect(store.notifications).toHaveLength(1)
+    })
+
+    it('should handle fetchNotifications without pagination data', async () => {
+      const mockResponse = {
+        data: {
+          results: [{ id: 1, titulo: 'Test', leida: false }]
+        }
+      }
+
+      api.get.mockResolvedValue(mockResponse)
+
+      await store.fetchNotifications()
+
+      expect(store.pagination.currentPage).toBe(1)
+      expect(store.pagination.totalPages).toBe(1)
+    })
   })
 })
 

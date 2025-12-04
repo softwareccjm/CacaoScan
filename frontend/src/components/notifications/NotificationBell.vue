@@ -300,8 +300,10 @@ export default {
               showToast(data.notification)
             }
             
-            // Refresh notifications
-            loadRecentNotifications()
+            // Refresh notifications with error handling
+            loadRecentNotifications().catch(err => {
+              console.error('Error refreshing notifications from websocket:', err)
+            })
           }
         }
       }
@@ -309,14 +311,17 @@ export default {
 
     // Close dropdown when clicking outside
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.notification-bell')) {
+      if (event.target && typeof event.target.closest === 'function' && !event.target.closest('.notification-bell')) {
         showDropdown.value = false
       }
     }
 
     // Lifecycle
     onMounted(() => {
-      loadRecentNotifications()
+      // Handle potential errors to prevent unhandled promise rejections
+      loadRecentNotifications().catch(err => {
+        console.error('Error loading recent notifications on mount:', err)
+      })
       connectWebSocket()
       document.addEventListener('click', handleClickOutside)
     })

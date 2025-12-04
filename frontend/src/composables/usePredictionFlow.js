@@ -88,7 +88,7 @@ export function usePredictionFlow() {
     }
 
     if (!imageFile.value && !store.currentImage) {
-      return { isValid: false, error: 'Debes subir una imagen para analizar' }
+      return { isValid: false, error: 'No hay imagen disponible para analizar' }
     }
 
     return { isValid: true, error: null }
@@ -211,6 +211,7 @@ export function usePredictionFlow() {
     imageFile,
     imagePreview,
     isExecuting,
+    executionError,
     predictionResult,
     loading,
     error,

@@ -38,11 +38,14 @@ const router = createRouter({
 
 // Make router install idempotent to prevent "Cannot redefine property: $route" errors
 const originalInstall = router.install
+const installedApps = new WeakSet()
+
 router.install = function(app, ...args) {
-  // Check if router is already installed by checking if $route exists
-  if (app.config.globalProperties.$route) {
+  // Check if router is already installed on this app instance
+  if (installedApps.has(app) || app.config.globalProperties.$route) {
     return
   }
+  installedApps.add(app)
   return originalInstall.call(this, app, ...args)
 }
 

@@ -86,6 +86,34 @@ describe('useEmailValidation', () => {
       expect(isValidEmail('user@exam_ple.com')).toBe(false)
       expect(isValidEmail('user@exam+ple.com')).toBe(false)
     })
+
+    it('should reject domain part that is too long', () => {
+      const longDomain = 'a'.repeat(254) + '.com'
+      expect(isValidEmail(`user@${longDomain}`)).toBe(false)
+    })
+
+    it('should reject domain with empty parts', () => {
+      expect(isValidEmail('user@.com')).toBe(false)
+      expect(isValidEmail('user@example.')).toBe(false)
+    })
+
+    it('should reject domain with less than 2 parts', () => {
+      expect(isValidEmail('user@domain')).toBe(false)
+    })
+
+    it('should handle codePointAt returning undefined', () => {
+      // This tests the edge case where codePointAt might return undefined
+      // We can't directly test this, but we can test with empty string
+      expect(isValidEmail('')).toBe(false)
+    })
+
+    it('should validate domain with multiple dots', () => {
+      expect(isValidEmail('user@example.co.uk')).toBe(true)
+    })
+
+    it('should reject local part with invalid characters', () => {
+      expect(isValidEmail('user@name@example.com')).toBe(false)
+    })
   })
 
   describe('useEmailValidation', () => {

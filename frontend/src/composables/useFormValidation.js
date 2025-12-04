@@ -129,12 +129,21 @@ export function useFormValidation() {
    * @returns {object} - Objeto con checks de validación
    */
   const validatePassword = (password) => {
+    if (!password) {
+      return {
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        isValid: false
+      }
+    }
     return {
-      length: password && password.length >= 8,
-      uppercase: password && /[A-Z]/.test(password),
-      lowercase: password && /[a-z]/.test(password),
-      number: password && /\d/.test(password),
-      isValid: password && password.length >= 8 && /[A-Z]/.test(password) && 
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      isValid: password.length >= 8 && /[A-Z]/.test(password) && 
                /[a-z]/.test(password) && /\d/.test(password)
     }
   }
@@ -268,7 +277,8 @@ export function useFormValidation() {
       const result = await submitFn()
       
       if (onSuccess) {
-        onSuccess(result)
+        const successResult = onSuccess(result)
+        return successResult !== undefined ? successResult : result
       }
       
       return result
@@ -729,4 +739,5 @@ export function useFormValidation() {
     validatingFields
   }
 }
+
 

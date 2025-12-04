@@ -772,6 +772,7 @@ export default {
       selectedReports,
       selectedReport,
       deleteConfirmMessage,
+      pendingDeleteId,
 
       // Props para componentes
       brandName,
@@ -813,7 +814,8 @@ export default {
       refreshReports,
       exportFiltered,
       bulkExport,
-      bulkDelete
+      bulkDelete,
+      getFilteredReports
     };
   }
 };

@@ -96,7 +96,7 @@ export function usePrediction(options = {}) {
         if (apiData.nivel_confianza) {
           if (apiData.nivel_confianza > 0.8) {
             return 'high'
-          } else if (apiData.nivel_confianza > 0.6) {
+          } else if (apiData.nivel_confianza >= 0.6) {
             return 'medium'
           }
           return 'low'
@@ -204,14 +204,14 @@ export function usePrediction(options = {}) {
     
     const imageToUse = getImageFromStore()
     if (!imageToUse) {
-      throw new Error('No hay imagen disponible para analizar')
+      throw new Error('No hay imagen disponible')
     }
     
     if (imageToUse instanceof File) {
       return createImageFormData(imageToUse)
     }
     
-    throw new Error('Formato de imagen no soportado para predicción directa')
+    throw new Error('Formato de imagen no soportado')
   }
 
   /**
@@ -410,6 +410,7 @@ export function usePrediction(options = {}) {
     // State
     selectedMethod,
     isLoading: loading,
+    isLoadingRef: isLoading, // Expose ref directly for testing
     error,
     result: predictionResult,
     resultRef: result, // Expose ref directly for testing
@@ -427,7 +428,9 @@ export function usePrediction(options = {}) {
     selectMethod,
     setImage,
     executePrediction,
+    executePredictionApi,
     validateBeforeExecution,
+    prepareFormData,
     reset,
     clearError,
     getMethodInfo,
@@ -435,7 +438,8 @@ export function usePrediction(options = {}) {
     mapApiResponseToPredictionData,
 
     // File upload helpers (re-exported from useFileUpload)
-    fileUpload: {
+    // If custom fileUpload was provided, return it directly, otherwise return wrapped version
+    fileUpload: options.fileUpload || {
       isDragging: fileUpload.isDragging,
       selectedFile: fileUpload.selectedFile,
       imagePreview: fileUpload.imagePreview,

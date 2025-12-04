@@ -111,7 +111,7 @@ export function useChartConfig(options = {}) {
             },
             label: (context) => {
               const label = context.dataset.label || ''
-              const value = context.parsed.y || context.parsed || context.raw
+              const value = context.parsed?.y || context.parsed || context.raw
               const formattedValue = typeof value === 'number' ? value.toLocaleString() : value
               return `${label}: ${formattedValue}`
             }

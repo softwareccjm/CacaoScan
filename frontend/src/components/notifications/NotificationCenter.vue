@@ -332,7 +332,10 @@ export default {
     }
 
     const refreshNotifications = () => {
-      loadNotifications()
+      // Handle potential errors to prevent unhandled promise rejections
+      loadNotifications().catch(err => {
+        console.error('Error refreshing notifications:', err)
+      })
     }
 
     const setFilter = (filter) => {
@@ -480,7 +483,10 @@ export default {
 
     // Lifecycle
     onMounted(() => {
-      loadNotifications()
+      // Handle potential errors to prevent unhandled promise rejections
+      loadNotifications().catch(err => {
+        console.error('Error loading notifications on mount:', err)
+      })
       connectWebSocket()
     })
 

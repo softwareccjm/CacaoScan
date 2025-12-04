@@ -251,6 +251,189 @@ describe('useFileUpload', () => {
       expect(result).toBe(false)
       expect(upload.error.value).toBe('Archivo requerido')
     })
+
+    it('should handle validation error', async () => {
+      const { getImageValidationError } = await import('@/utils/imageValidationUtils')
+      getImageValidationError.mockReturnValueOnce('File too large')
+      
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      const result = await upload.processFile(file)
+      
+      expect(result).toBe(false)
+      expect(upload.error.value).toBe('File too large')
+    })
+
+    it('should create preview when enabled', async () => {
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      global.FileReader = class {
+        onload = null
+        onerror = null
+        readAsDataURL() {
+          setTimeout(() => {
+            if (this.onload) {
+              this.onload({ target: { result: 'data:image/jpeg;base64,test' } })
+            }
+          }, 0)
+        }
+      }
+      
+      const result = await upload.processFile(file)
+      
+      expect(result).toBe(true)
+      expect(upload.imagePreview.value).toBeTruthy()
+    })
+
+    it('should handle preview error gracefully', async () => {
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      global.FileReader = class {
+        onload = null
+        onerror = null
+        readAsDataURL() {
+          setTimeout(() => {
+            if (this.onerror) {
+              this.onerror({ target: { error: { message: 'Read error' } } })
+            }
+          }, 0)
+        }
+      }
+      
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const result = await upload.processFile(file)
+      
+      expect(result).toBe(true)
+      expect(upload.imagePreview.value).toBe(null)
+      expect(consoleWarn).toHaveBeenCalled()
+      consoleWarn.mockRestore()
+    })
+
+    it('should not create preview when disabled', async () => {
+      const uploadNoPreview = useFileUpload({ enablePreview: false })
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      
+      const result = await uploadNoPreview.processFile(file)
+      
+      expect(result).toBe(true)
+      expect(uploadNoPreview.imagePreview.value).toBe(null)
+    })
+
+    it('should not create preview for non-image files', async () => {
+      const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
+      
+      const result = await upload.processFile(file)
+      
+      expect(result).toBe(true)
+      expect(upload.imagePreview.value).toBe(null)
+    })
+  })
+
+  describe('handleDrop', () => {
+    it('should process dropped file', async () => {
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      const event = {
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          files: [file]
+        }
+      }
+      
+      await upload.handleDrop(event)
+      
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(upload.isDragging.value).toBe(false)
+      expect(upload.selectedFile.value).toBe(file)
+    })
+
+    it('should handle empty drop', async () => {
+      const event = {
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          files: []
+        }
+      }
+      
+      await upload.handleDrop(event)
+      
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(upload.isDragging.value).toBe(false)
+    })
+  })
+
+  describe('createPreview', () => {
+    it('should create preview for image file', async () => {
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      global.FileReader = class {
+        onload = null
+        onerror = null
+        readAsDataURL() {
+          setTimeout(() => {
+            if (this.onload) {
+              this.onload({ target: { result: 'data:image/jpeg;base64,test' } })
+            }
+          }, 0)
+        }
+      }
+      
+      const preview = await upload.processFile(file)
+      expect(preview).toBe(true)
+    })
+
+    it('should reject preview on FileReader error', async () => {
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      global.FileReader = class {
+        onload = null
+        onerror = null
+        readAsDataURL() {
+          setTimeout(() => {
+            if (this.onerror) {
+              this.onerror({ target: { error: { message: 'Read error' } } })
+            }
+          }, 0)
+        }
+      }
+      
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      await upload.processFile(file)
+      consoleWarn.mockRestore()
+    })
+
+    it('should return null for non-image when preview disabled', async () => {
+      const uploadNoPreview = useFileUpload({ enablePreview: false })
+      const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
+      
+      const preview = await uploadNoPreview.processFile(file)
+      expect(preview).toBe(true)
+    })
+  })
+
+  describe('formatFileSize edge cases', () => {
+    it('should format GB size', () => {
+      expect(upload.formatFileSize(1024 * 1024 * 1024)).toContain('GB')
+    })
+
+    it('should handle very small sizes', () => {
+      expect(upload.formatFileSize(1)).toContain('Bytes')
+    })
+  })
+
+  describe('getFormData edge cases', () => {
+    it('should return empty FormData when no file', () => {
+      upload.selectedFile.value = null
+      const formData = upload.getFormData()
+      
+      expect(formData).toBeInstanceOf(FormData)
+      expect(formData.get('image')).toBe(null)
+    })
+
+    it('should exclude undefined metadata', () => {
+      const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
+      upload.selectedFile.value = file
+      const metadata = { title: 'Test', undefinedValue: undefined }
+      
+      const formData = upload.getFormData(metadata)
+      
+      expect(formData.get('title')).toBe('Test')
+      expect(formData.has('undefinedValue')).toBe(false)
+    })
   })
 })
 

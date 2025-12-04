@@ -191,14 +191,14 @@ export function usePagination(options = {}) {
     }
 
     // Read from query params
-    if (routeObj.query.page) {
+    if (routeObj && routeObj.query && routeObj.query.page) {
       const page = Number.parseInt(routeObj.query.page, 10)
       if (!Number.isNaN(page) && page >= 1) {
         currentPage.value = page
       }
     }
 
-    if (routeObj.query.page_size) {
+    if (routeObj && routeObj.query && routeObj.query.page_size) {
       const pageSize = Number.parseInt(routeObj.query.page_size, 10)
       if (!Number.isNaN(pageSize) && pageSize > 0) {
         itemsPerPage.value = pageSize
@@ -207,7 +207,7 @@ export function usePagination(options = {}) {
 
     // Watch for changes and update query params
     const updateQuery = () => {
-      if (routerObj) {
+      if (routerObj && routeObj && routeObj.query) {
         routerObj.replace({
           query: {
             ...routeObj.query,

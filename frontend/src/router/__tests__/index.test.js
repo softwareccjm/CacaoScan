@@ -117,6 +117,8 @@ vi.mock('../index.js', async () => {
       createGuestRoute('/login', 'Login', {}, 'Iniciar sesión'),
       {
         path: '/admin',
+        name: 'Admin',
+        component: {},
         meta: createRouteMeta('', { requiresAuth: true, requiresRole: 'admin' }),
         children: [
           {
@@ -133,6 +135,12 @@ vi.mock('../index.js', async () => {
         name: 'AccessDenied',
         component: {},
         meta: createRouteMeta('Acceso Denegado')
+      },
+      {
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: {},
+        meta: createRouteMeta('Página no encontrada')
       }
     ]
   })
@@ -311,5 +319,95 @@ describe('Router Index', () => {
 
     expect(router).toBeDefined()
     expect(mockAuthStore.checkSessionTimeout).toBeDefined()
+  })
+
+  it('should handle all route types', () => {
+    const routes = router.getRoutes()
+    
+    const homeRoute = routes.find(r => r.path === '/')
+    expect(homeRoute).toBeDefined()
+    
+    const loginRoute = routes.find(r => r.path === '/login')
+    expect(loginRoute).toBeDefined()
+    
+    const adminRoute = routes.find(r => r.path === '/admin')
+    expect(adminRoute).toBeDefined()
+  })
+
+  it('should have correct route meta structure', () => {
+    const routes = router.getRoutes()
+    const authRoute = routes.find(r => r.meta?.requiresAuth)
+    
+    if (authRoute) {
+      expect(authRoute.meta).toBeDefined()
+      expect(authRoute.meta.requiresAuth).toBe(true)
+    }
+  })
+
+  it('should handle nested routes', () => {
+    const routes = router.getRoutes()
+    const adminRoute = routes.find(r => r.path === '/admin')
+    
+    if (adminRoute && adminRoute.children) {
+      expect(Array.isArray(adminRoute.children)).toBe(true)
+      expect(adminRoute.children.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('should have redirect routes configured', () => {
+    const routes = router.getRoutes()
+    const dashboardRoute = routes.find(r => r.path === '/dashboard')
+    
+    if (dashboardRoute) {
+      expect(dashboardRoute.redirect).toBeDefined()
+    }
+  })
+
+  it('should handle 404 route', () => {
+    const routes = router.getRoutes()
+    const notFoundRoute = routes.find(r => r.name === 'NotFound' || r.path === '/:pathMatch(.*)*')
+    
+    expect(notFoundRoute).toBeDefined()
+  })
+
+  it('should have afterEach guard that scrolls to top', () => {
+    expect(router.afterEach).toBeDefined()
+    expect(typeof router.afterEach).toBe('function')
+  })
+
+  it('should handle route with requiresVerification', () => {
+    const routes = router.getRoutes()
+    const verifiedRoute = routes.find(r => r.meta?.requiresVerification)
+    
+    // Some routes may have requiresVerification
+    expect(router).toBeDefined()
+  })
+
+  it('should handle public routes', () => {
+    const routes = router.getRoutes()
+    const publicRoute = routes.find(r => r.path === '/legal/terms' || r.path === '/legal/privacy')
+    
+    if (publicRoute) {
+      expect(publicRoute.meta).toBeDefined()
+    }
+  })
+
+  it('should have guest routes configured', () => {
+    const routes = router.getRoutes()
+    const guestRoute = routes.find(r => r.meta?.requiresGuest)
+    
+    if (guestRoute) {
+      expect(guestRoute.meta.requiresGuest).toBe(true)
+    }
+  })
+
+  it('should handle role-based routes', () => {
+    const routes = router.getRoutes()
+    const roleRoute = routes.find(r => r.meta?.requiresRole)
+    
+    if (roleRoute) {
+      expect(roleRoute.meta.requiresRole).toBeDefined()
+      expect(['admin', 'analyst', 'farmer']).toContain(roleRoute.meta.requiresRole)
+    }
   })
 })

@@ -679,6 +679,11 @@ const loadUserStats = async () => {
     const handleToggleStatus = async (user) => {
       console.log('Toggle status for user:', user);
       
+      if (!user) {
+        console.error('User is undefined or null');
+        return;
+      }
+      
       try {
         // Marcar el usuario como actualizándose
         user.isUpdating = true;
@@ -717,8 +722,10 @@ const loadUserStats = async () => {
           confirmButtonColor: '#ef4444'
         });
       } finally {
-        // Remover el estado de actualización
-        user.isUpdating = false;
+        // Remover el estado de actualización solo si user existe
+        if (user) {
+          user.isUpdating = false;
+        }
       }
     };
 
@@ -839,8 +846,13 @@ const loadUserStats = async () => {
         return
       }
 
-      loadUserStats()
-      loadUsers()
+      // Load data with error handling to prevent unhandled promise rejections
+      loadUserStats().catch(err => {
+        console.error('Error loading user stats on mount:', err)
+      })
+      loadUsers().catch(err => {
+        console.error('Error loading users on mount:', err)
+      })
       
       // Conectar a WebSocket para estadísticas en tiempo real
       setupWebSocketConnection()
