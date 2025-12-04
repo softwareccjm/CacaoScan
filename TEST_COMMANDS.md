@@ -42,7 +42,7 @@ run_tests.bat
 
 ---
 
-## 🎨 Frontend (Vue/Vitest/Cypress)
+## 🎨 Frontend (Vue/Vitest)
 
 ### Tests Unitarios (Vitest)
 
@@ -55,7 +55,7 @@ pnpm test:unit
 #### Ejecutar tests unitarios con coverage
 ```bash
 cd frontend
-pnpm test:unit:coverage
+pnpm test:coverage
 ```
 
 #### Ejecutar tests en modo watch (desarrollo)
@@ -67,45 +67,13 @@ pnpm test:unit:watch
 #### Ejecutar tests con coverage para SonarQube
 ```bash
 cd frontend
-pnpm test:coverage:sonar
+pnpm test:coverage
 ```
 
-### Tests E2E (Cypress)
-
-#### Modo interactivo (abre interfaz gráfica)
-```bash
-cd frontend
-pnpm cypress:open
-```
-
-#### Modo headless (ejecuta todos los tests)
-```bash
-cd frontend
-pnpm cypress:run
-```
-
-#### Tests E2E específicos por categoría
-```bash
-cd frontend
-pnpm test:auth        # Tests de autenticación
-pnpm test:fincas      # Tests de fincas y lotes
-pnpm test:reports     # Tests de reportes
-pnpm test:navigation  # Tests de navegación y rutas
-pnpm test:images      # Tests de imágenes
-pnpm test:admin       # Tests de administración
-pnpm test:ui          # Tests de UI/UX
-```
-
-### Ejecutar todos los tests (unitarios + E2E)
+### Ejecutar todos los tests
 ```bash
 cd frontend
 pnpm test:all
-```
-
-### Ejecutar todos los tests con coverage
-```bash
-cd frontend
-pnpm test:all:coverage
 ```
 
 ---
@@ -145,12 +113,6 @@ pnpm test:unit
 # Debe mostrar todos los tests pasando
 ```
 
-### Frontend - E2E
-```bash
-cd frontend
-pnpm cypress:run
-# Debe ejecutar todos los tests Cypress
-```
 
 ---
 

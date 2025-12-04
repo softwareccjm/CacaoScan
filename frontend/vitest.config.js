@@ -30,10 +30,7 @@ export default defineConfig({
     exclude: [
       'node_modules',
       'dist',
-      'coverage',
-      'cypress',
-      '**/cypress/**',
-      '**/*.cy.js'
+      'coverage'
     ],
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     css: {
@@ -53,9 +50,6 @@ export default defineConfig({
         'src/env.d.ts',
         '**/*.config.js',
         '**/*.config.ts',
-        'cypress/**',
-        '**/cypress/**',
-        '**/*.cy.js',
         'dist/',
         'coverage/',
         'src/App.vue',
