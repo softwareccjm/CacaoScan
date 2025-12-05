@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAuthForm } from '../useAuthForm.js'
 
 // Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const MOCK_PASSWORD = 'ExampleValue#123'
-const MOCK_SHORT_PASSWORD = 'MockValue_55'
+const TEST_PASSWORD_VALID = 'ExampleValue#123'
+const TEST_PASSWORD_SHORT = 'MockValue_55'
 
 // Mock dependencies
 vi.mock('../useForm', () => ({
@@ -80,13 +80,13 @@ describe('useAuthForm', () => {
 
   describe('validatePassword', () => {
     it('should validate password with minimum length', () => {
-      const error = authForm.validatePassword(MOCK_PASSWORD)
+      const error = authForm.validatePassword(TEST_PASSWORD_VALID)
       
       expect(error).toBeNull()
     })
 
     it('should reject password too short', () => {
-      const error = authForm.validatePassword('pass')
+      const error = authForm.validatePassword(TEST_PASSWORD_SHORT)
       
       expect(error).toBeTruthy()
     })
@@ -101,7 +101,7 @@ describe('useAuthForm', () => {
   describe('validateAuthForm', () => {
     it('should validate form correctly', () => {
       authForm.form.email = 'test@example.com'
-      authForm.form.password = MOCK_PASSWORD
+      authForm.form.password = TEST_PASSWORD_VALID
       
       const isValid = authForm.validateAuthForm()
       
@@ -110,7 +110,7 @@ describe('useAuthForm', () => {
 
     it('should fail validation with invalid email', () => {
       authForm.form.email = 'in'
-      authForm.form.password = 'ExampleValue#123'
+      authForm.form.password = TEST_PASSWORD_VALID
       
       const isValid = authForm.validateAuthForm()
       
@@ -121,11 +121,11 @@ describe('useAuthForm', () => {
   describe('handleAuthSubmit', () => {
     it('should handle form submission successfully', async () => {
       authForm.form.email = 'test@example.com'
-      authForm.form.password = MOCK_PASSWORD
+      authForm.form.password = TEST_PASSWORD_VALID
       const onSubmit = vi.fn().mockResolvedValue({ success: true })
       
       const formWithHandler = useAuthForm({ onSubmit })
-      formWithHandler.form = { email: 'test@example.com', password: MOCK_PASSWORD }
+      formWithHandler.form = { email: 'test@example.com', password: TEST_PASSWORD_VALID }
       
       const result = await formWithHandler.handleAuthSubmit()
       
@@ -134,7 +134,7 @@ describe('useAuthForm', () => {
 
     it('should prevent submission if validation fails', async () => {
       authForm.form.email = 'invalid'
-      authForm.form.password = MOCK_SHORT_PASSWORD
+      authForm.form.password = TEST_PASSWORD_SHORT
       
       const result = await authForm.handleAuthSubmit()
       

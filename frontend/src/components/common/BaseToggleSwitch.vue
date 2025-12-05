@@ -12,7 +12,7 @@
         :id="fieldId"
         type="button"
         role="switch"
-        :aria-checked="String(isChecked)"
+        :aria-checked="String(modelValue)"
         :aria-label="ariaLabel"
         :aria-disabled="String(disabled)"
         :class="[
@@ -105,12 +105,6 @@ const fieldId = `toggle-${generateSecureId()}`
 
 const ariaLabel = computed(() => {
   return props.label || 'Toggle switch'
-})
-
-// Computed property to ensure aria-checked always has a valid string value
-// This satisfies ARIA requirements for role="switch" and SonarQube S6807
-const isChecked = computed(() => {
-  return Boolean(props.modelValue)
 })
 
 const activeClasses = computed(() => {

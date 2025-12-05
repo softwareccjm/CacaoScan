@@ -274,87 +274,87 @@ TEMPLATES = [
 WSGI_APPLICATION = 'cacaoscan.wsgi.application'
 
 # Database configuration - simple and clean
+def _decode_bytes_to_string(value: bytes) -> str:
+    """Decode bytes to string with multiple fallback strategies."""
+    try:
+        return value.decode('utf-8', errors='replace')
+    except Exception:
+        try:
+            return value.decode('latin-1', errors='replace')
+        except Exception:
+            return value.decode('utf-8', errors='ignore')
+
+def _normalize_to_string(value) -> str:
+    """Normalize value to string, handling bytes and other types."""
+    if not value:
+        return ""
+    
+    if isinstance(value, bytes):
+        return _decode_bytes_to_string(value)
+    
+    if not isinstance(value, str):
+        try:
+            return str(value)
+        except Exception:
+            return ""
+    
+    return value
+
+def _remove_bom_and_problematic_bytes(value: str) -> str:
+    """Remove BOM and problematic bytes from string."""
+    if value.startswith('\ufeff'):
+        value = value[1:]
+    
+    try:
+        value_bytes = value.encode('utf-8', errors='replace')
+        value_bytes = value_bytes.replace(b'\xf3', b'')
+        return value_bytes.decode('utf-8', errors='replace')
+    except Exception:
+        try:
+            return value.encode('ascii', errors='ignore').decode('ascii')
+        except Exception:
+            return ""
+
+def _remove_invalid_chars(value: str) -> str:
+    """Remove invalid characters from string."""
+    invalid_chars = ['\x00', '\xef', '\xbb', '\xbf']
+    for char in invalid_chars:
+        value = value.replace(char, '')
+    return value
+
+def _filter_valid_utf8_chars(value: str) -> str:
+    """Filter out invalid UTF-8 characters, keeping only valid ones."""
+    cleaned = []
+    for char in value:
+        ord_val = ord(char)
+        if (32 <= ord_val <= 126) or char in '\t\n\r':
+            cleaned.append(char)
+        elif ord_val > 127:
+            try:
+                char.encode('utf-8', errors='strict')
+                cleaned.append(char)
+            except UnicodeEncodeError:
+                pass
+    return ''.join(cleaned)
+
+def _finalize_utf8_encoding(value: str) -> str:
+    """Final validation and encoding fix for UTF-8."""
+    try:
+        value.encode('utf-8', errors='strict')
+        return value
+    except UnicodeEncodeError:
+        return value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+
 def clean_value(value: str) -> str:
     """
     Clean database connection parameter value.
     Removes invalid bytes, BOM, and ensures UTF-8 safe encoding.
     """
-    if not value:
-        return value or ""
-    
-    # Convert to string if needed - handle bytes explicitly
-    if isinstance(value, bytes):
-        try:
-            # First try UTF-8 with error handling
-            value = value.decode('utf-8', errors='replace')
-        except Exception:
-            try:
-                # Fallback to latin-1
-                value = value.decode('latin-1', errors='replace')
-            except Exception:
-                # Last resort: replace all invalid bytes
-                value = value.decode('utf-8', errors='ignore')
-    
-    # Convert to string if not already
-    if not isinstance(value, str):
-        try:
-            value = str(value)
-        except Exception:
-            return ""
-    
-    # Remove UTF-8 BOM
-    if value.startswith('\ufeff'):
-        value = value[1:]
-    
-    # Remove problematic bytes by converting to bytes and back
-    # This ensures we catch all invalid UTF-8 sequences
-    try:
-        # Encode to bytes to catch invalid sequences
-        value_bytes = value.encode('utf-8', errors='replace')
-        # Remove the problematic byte 0xf3 specifically
-        value_bytes = value_bytes.replace(b'\xf3', b'')
-        # Decode back to string
-        value = value_bytes.decode('utf-8', errors='replace')
-    except Exception:
-        # If that fails, use a more aggressive approach
-        try:
-            # Remove all non-ASCII bytes if they cause issues
-            value = value.encode('ascii', errors='ignore').decode('ascii')
-        except Exception:
-            # Last resort: empty string
-            value = ""
-    
-    # Remove specific problematic characters
-    invalid_chars = ['\x00', '\xef', '\xbb', '\xbf']
-    for char in invalid_chars:
-        value = value.replace(char, '')
-    
-    # Remove non-printable ASCII control characters (keep space, tab, newline)
-    cleaned = []
-    for char in value:
-        ord_val = ord(char)
-        # Keep printable ASCII, tabs, newlines, carriage returns
-        if (32 <= ord_val <= 126) or char in '\t\n\r':
-            cleaned.append(char)
-        # Keep valid UTF-8 characters (basic multilingual plane)
-        elif ord_val > 127:
-            # Validate it's a valid UTF-8 character
-            try:
-                char.encode('utf-8', errors='strict')
-                cleaned.append(char)
-            except UnicodeEncodeError:
-                pass  # Skip invalid UTF-8 characters
-    
-    value = ''.join(cleaned)
-    
-    # Final validation: ensure valid UTF-8 encoding
-    try:
-        value.encode('utf-8', errors='strict')
-    except UnicodeEncodeError:
-        # If encoding fails, use replace strategy
-        value = value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
-    
-    return value
+    value = _normalize_to_string(value)
+    value = _remove_bom_and_problematic_bytes(value)
+    value = _remove_invalid_chars(value)
+    value = _filter_valid_utf8_chars(value)
+    return _finalize_utf8_encoding(value)
 
 # Determinar si estamos en modo test (usado para configuración de logging)
 IS_TESTING = (

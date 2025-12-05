@@ -564,6 +564,58 @@ class AnalysisService(BaseService):
                 ValidationServiceError(f"Error loading models: {str(e)}")
             )
     
+    def _get_mock_predictor(self):
+        """Get a mock predictor for testing."""
+        from unittest.mock import Mock
+        predictor = Mock()
+        predictor.predict.return_value = {
+            'quality_score': 85.5,
+            'maturity_percentage': 75.0,
+            'defects_count': 2,
+            'recommendations': ['Cosecha recomendada']
+        }
+        return predictor
+    
+    def _get_predictor(self):
+        """Get predictor with fallback to mock."""
+        try:
+            from training.services import get_predictor
+            predictor = get_predictor()
+            if predictor is None:
+                raise ImportError("Predictor not available")
+            return predictor
+        except (ImportError, AttributeError) as e:
+            self.log_warning(f"Predictor not available ({type(e).__name__}), using mock")
+            return self._get_mock_predictor()
+    
+    def _get_mock_prediction_result(self):
+        """Get mock prediction result."""
+        return {
+            'quality_score': 85.5,
+            'maturity_percentage': 75.0,
+            'defects_count': 2,
+            'recommendations': ['Cosecha recomendada']
+        }
+    
+    def _perform_prediction(self, predictor, image):
+        """Perform prediction on image with fallback to mock."""
+        try:
+            if not (hasattr(image, 'image') and image.image):
+                return self._get_mock_predictor().predict.return_value
+            
+            from PIL import Image as PILImage
+            import io
+            image_file = image.image
+            if not hasattr(image_file, 'read'):
+                return self._get_mock_predictor().predict.return_value
+            
+            image_data = image_file.read()
+            pil_image = PILImage.open(io.BytesIO(image_data))
+            return predictor.predict(pil_image)
+        except Exception as e:
+            self.log_warning(f"Error in prediction, using mock: {str(e)}")
+            return self._get_mock_prediction_result()
+    
     def analyze_image(self, image_id: int, user: User) -> ServiceResult:
         """
         Analyzes an existing image using ML models.
@@ -598,49 +650,9 @@ class AnalysisService(BaseService):
                 from ..base import PermissionServiceError
                 return ServiceResult.error(PermissionServiceError("No tienes permisos para analizar esta imagen"))
             
-            # Try to get predictor (with fallback to mock)
-            try:
-                from training.services import get_predictor
-                predictor = get_predictor()
-                if predictor is None:
-                    raise ImportError("Predictor not available")
-            except (ImportError, AttributeError) as e:
-                # Use mock predictor for tests
-                self.log_warning(f"Predictor not available ({type(e).__name__}), using mock")
-                from unittest.mock import Mock
-                predictor = Mock()
-                predictor.predict.return_value = {
-                    'quality_score': 85.5,
-                    'maturity_percentage': 75.0,
-                    'defects_count': 2,
-                    'recommendations': ['Cosecha recomendada']
-                }
-            
-            # Perform prediction
-            try:
-                # Try to load image for prediction
-                if hasattr(image, 'image') and image.image:
-                    from PIL import Image as PILImage
-                    import io
-                    image_file = image.image
-                    if hasattr(image_file, 'read'):
-                        image_data = image_file.read()
-                        pil_image = PILImage.open(io.BytesIO(image_data))
-                        prediction_result = predictor.predict(pil_image)
-                    else:
-                        # Fallback to mock
-                        prediction_result = predictor.predict.return_value
-                else:
-                    # Fallback to mock
-                    prediction_result = predictor.predict.return_value
-            except Exception as e:
-                self.log_warning(f"Error in prediction, using mock: {str(e)}")
-                prediction_result = {
-                    'quality_score': 85.5,
-                    'maturity_percentage': 75.0,
-                    'defects_count': 2,
-                    'recommendations': ['Cosecha recomendada']
-                }
+            # Get predictor and perform prediction
+            predictor = self._get_predictor()
+            prediction_result = self._perform_prediction(predictor, image)
             
             # Create or update prediction
             from decimal import Decimal

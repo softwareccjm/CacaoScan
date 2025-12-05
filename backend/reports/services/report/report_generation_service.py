@@ -38,6 +38,73 @@ class ReportGenerationService(BaseService):
     def __init__(self):
         super().__init__()
     
+    def _parse_and_validate_dates(self, report_data: Dict[str, Any]) -> tuple[datetime | None, datetime | None, ServiceResult | None]:
+        """Parse and validate dates from report data. Returns (fecha_inicio, fecha_fin, error)."""
+        try:
+            fecha_inicio = report_data['fecha_inicio']
+            fecha_fin = report_data['fecha_fin']
+            
+            if isinstance(fecha_inicio, str):
+                fecha_inicio = datetime.fromisoformat(fecha_inicio.replace('Z', '+00:00'))
+            if isinstance(fecha_fin, str):
+                fecha_fin = datetime.fromisoformat(fecha_fin.replace('Z', '+00:00'))
+            
+            if fecha_inicio.tzinfo is None:
+                fecha_inicio = timezone.make_aware(fecha_inicio)
+            if fecha_fin.tzinfo is None:
+                fecha_fin = timezone.make_aware(fecha_fin)
+            
+            if fecha_inicio > fecha_fin:
+                return None, None, ServiceResult.validation_error(
+                    "La fecha de inicio debe ser anterior a la fecha de fin",
+                    details={"field": "fecha_inicio"}
+                )
+            
+            return fecha_inicio, fecha_fin, None
+        except (ValueError, TypeError, AttributeError) as e:
+            return None, None, ServiceResult.validation_error(
+                "Formato de fecha inválido. Use formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)",
+                details={"field": "fecha_inicio" if 'fecha_inicio' in str(e) else "fecha_fin", "error": str(e)}
+            )
+    
+    def _normalize_report_type(self, report_type: str, report_data: Dict[str, Any]) -> str:
+        """Normalize report type, handling aliases."""
+        if report_type == 'analisis_periodo':
+            report_type = 'analisis_general'
+            report_data['tipo_reporte'] = 'analisis_general'
+        return report_type
+    
+    def _generate_report_by_type(self, report_type: str, user: User, report_data: Dict[str, Any], fecha_inicio: datetime, fecha_fin: datetime) -> ServiceResult | None:
+        """Generate report based on type. Returns error if validation fails."""
+        if report_type == 'analisis_general':
+            self._generate_general_analysis_report(user, fecha_inicio, fecha_fin)
+        elif report_type == 'analisis_por_finca':
+            finca_id = report_data.get('finca_id')
+            if not finca_id:
+                return ServiceResult.validation_error(
+                    "finca_id es requerido para reportes por finca",
+                    details={"field": "finca_id"}
+                )
+            self._generate_finca_analysis_report(user, finca_id, fecha_inicio, fecha_fin)
+        elif report_type == 'analisis_por_lote':
+            lote_id = report_data.get('lote_id')
+            if not lote_id:
+                return ServiceResult.validation_error(
+                    "lote_id es requerido para reportes por lote",
+                    details={"field": "lote_id"}
+                )
+            self._generate_lote_analysis_report(user, lote_id, fecha_inicio, fecha_fin)
+        elif report_type == 'estadisticas_usuario':
+            self._generate_user_statistics_report(user, fecha_inicio, fecha_fin)
+        else:
+            return ServiceResult.validation_error(
+                f"Tipo de reporte no válido: {report_type}",
+                details={"field": "tipo_reporte", "allowed_types": [
+                    'analisis_general', 'analisis_periodo', 'analisis_por_finca', 'analisis_por_lote', 'estadisticas_usuario'
+                ]}
+            )
+        return None
+    
     def generate_analysis_report(self, user: User, report_data: Dict[str, Any]) -> ServiceResult:
         """
         Generates an analysis report for cacao grains.
@@ -50,83 +117,26 @@ class ReportGenerationService(BaseService):
             ServiceResult with generated report data
         """
         try:
-            # Validate required fields
             required_fields = ['tipo_reporte', 'fecha_inicio', 'fecha_fin']
             self.validate_required_fields(report_data, required_fields)
             
-            # Validate and parse dates
-            try:
-                fecha_inicio = report_data['fecha_inicio']
-                fecha_fin = report_data['fecha_fin']
-                
-                # Parse dates if they are strings
-                if isinstance(fecha_inicio, str):
-                    fecha_inicio = datetime.fromisoformat(fecha_inicio.replace('Z', '+00:00'))
-                if isinstance(fecha_fin, str):
-                    fecha_fin = datetime.fromisoformat(fecha_fin.replace('Z', '+00:00'))
-                
-                # Convert to timezone-aware if needed
-                if fecha_inicio.tzinfo is None:
-                    fecha_inicio = timezone.make_aware(fecha_inicio)
-                if fecha_fin.tzinfo is None:
-                    fecha_fin = timezone.make_aware(fecha_fin)
-                
-                if fecha_inicio > fecha_fin:
-                    return ServiceResult.validation_error(
-                        "La fecha de inicio debe ser anterior a la fecha de fin",
-                        details={"field": "fecha_inicio"}
-                    )
-            except (ValueError, TypeError, AttributeError) as e:
-                return ServiceResult.validation_error(
-                    "Formato de fecha inválido. Use formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)",
-                    details={"field": "fecha_inicio" if 'fecha_inicio' in str(e) else "fecha_fin", "error": str(e)}
-                )
+            fecha_inicio, fecha_fin, error = self._parse_and_validate_dates(report_data)
+            if error:
+                return error
             
-            # Generate report data according to type
             report_type = report_data['tipo_reporte']
-            
-            # Validate report type
             if not report_type or not report_type.strip():
                 return ServiceResult.validation_error(
                     "El tipo de reporte es requerido",
                     details={"field": "tipo_reporte"}
                 )
             
-            # Handle analisis_periodo (alias for analisis_general)
-            if report_type == 'analisis_periodo':
-                report_type = 'analisis_general'
-                report_data['tipo_reporte'] = 'analisis_general'
+            report_type = self._normalize_report_type(report_type, report_data)
             
-            if report_type == 'analisis_general':
-                self._generate_general_analysis_report(user, fecha_inicio, fecha_fin)
-            elif report_type == 'analisis_por_finca':
-                finca_id = report_data.get('finca_id')
-                if not finca_id:
-                    return ServiceResult.validation_error(
-                        "finca_id es requerido para reportes por finca",
-                        details={"field": "finca_id"}
-                    )
-                self._generate_finca_analysis_report(user, finca_id, fecha_inicio, fecha_fin)
-            elif report_type == 'analisis_por_lote':
-                lote_id = report_data.get('lote_id')
-                if not lote_id:
-                    return ServiceResult.validation_error(
-                        "lote_id es requerido para reportes por lote",
-                        details={"field": "lote_id"}
-                    )
-                self._generate_lote_analysis_report(user, lote_id, fecha_inicio, fecha_fin)
-            elif report_type == 'estadisticas_usuario':
-                self._generate_user_statistics_report(user, fecha_inicio, fecha_fin)
-            else:
-                return ServiceResult.validation_error(
-                    f"Tipo de reporte no válido: {report_type}",
-                    details={"field": "tipo_reporte", "allowed_types": [
-                        'analisis_general', 'analisis_periodo', 'analisis_por_finca', 'analisis_por_lote', 'estadisticas_usuario'
-                    ]}
-                )
+            error = self._generate_report_by_type(report_type, user, report_data, fecha_inicio, fecha_fin)
+            if error:
+                return error
             
-            # Create report record
-            # Use original tipo_reporte from report_data (may be 'analisis_periodo')
             original_tipo_reporte = report_data.get('tipo_reporte', report_type)
             reporte = ReporteGenerado(
                 usuario=user,
@@ -142,7 +152,6 @@ class ReportGenerationService(BaseService):
             
             reporte.save()
             
-            # Create audit log
             self.create_audit_log(
                 user=user,
                 action="report_generated",

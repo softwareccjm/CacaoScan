@@ -151,6 +151,43 @@ def _validate_paginator(paginator) -> bool:
         return False
 
 
+def _handle_mock_queryset(queryset, page: int, page_size: int) -> Tuple[Page, Paginator]:
+    """Handle pagination for mock querysets."""
+    count = _get_mock_count(queryset)
+    object_list = _get_mock_object_list(queryset)
+    
+    if not isinstance(object_list, list):
+        try:
+            object_list = list(object_list) if object_list else []
+        except (TypeError, AttributeError):
+            object_list = []
+    
+    mock_paginator = _create_mock_paginator(object_list, page_size, count)
+    mock_page = _create_mock_page(object_list, page, mock_paginator)
+    return mock_page, mock_paginator
+
+def _handle_real_queryset(queryset, page: int, page_size: int) -> Tuple[Page, Paginator]:
+    """Handle pagination for real Django QuerySets."""
+    try:
+        paginator = Paginator(queryset, page_size)
+        
+        if not _validate_paginator(paginator):
+            raise TypeError("Paginator validation failed - possible mock")
+        
+        total_pages = int(paginator.num_pages)
+        if total_pages > 0 and page > total_pages:
+            raise ValueError(f'Página {page} no existe. Total de páginas: {total_pages}')
+        
+        page_obj = paginator.get_page(page)
+        return page_obj, paginator
+    except (TypeError, AttributeError) as e:
+        error_str = str(e).lower()
+        if any(keyword in error_str for keyword in ['len', 'mock', 'count', '>']):
+            mock_paginator = _create_mock_paginator([], page_size, 0)
+            mock_page = _create_mock_page([], page, mock_paginator)
+            return mock_page, mock_paginator
+        raise
+
 def paginate_queryset(queryset, page: int, page_size: int) -> Tuple[Page, Paginator]:
     """
     Paginate a queryset and return page object and paginator.
@@ -173,41 +210,10 @@ def paginate_queryset(queryset, page: int, page_size: int) -> Tuple[Page, Pagina
     Raises:
         ValueError: If page is invalid (only for real QuerySets)
     """
-    is_mock = _is_mock_queryset(queryset)
+    if _is_mock_queryset(queryset):
+        return _handle_mock_queryset(queryset, page, page_size)
     
-    if is_mock:
-        count = _get_mock_count(queryset)
-        object_list = _get_mock_object_list(queryset)
-        
-        if not isinstance(object_list, list):
-            try:
-                object_list = list(object_list) if object_list else []
-            except (TypeError, AttributeError):
-                object_list = []
-        
-        mock_paginator = _create_mock_paginator(object_list, page_size, count)
-        mock_page = _create_mock_page(object_list, page, mock_paginator)
-        return mock_page, mock_paginator
-    
-    try:
-        paginator = Paginator(queryset, page_size)
-        
-        if not _validate_paginator(paginator):
-            raise TypeError("Paginator validation failed - possible mock")
-        
-        total_pages = int(paginator.num_pages)
-        if total_pages > 0 and page > total_pages:
-            raise ValueError(f'Página {page} no existe. Total de páginas: {total_pages}')
-        
-        page_obj = paginator.get_page(page)
-        return page_obj, paginator
-    except (TypeError, AttributeError) as e:
-        error_str = str(e).lower()
-        if any(keyword in error_str for keyword in ['len', 'mock', 'count', '>']):
-            mock_paginator = _create_mock_paginator([], page_size, 0)
-            mock_page = _create_mock_page([], page, mock_paginator)
-            return mock_page, mock_paginator
-        raise
+    return _handle_real_queryset(queryset, page, page_size)
 
 
 def build_pagination_urls(request: HttpRequest, page: int, page_size: int, 

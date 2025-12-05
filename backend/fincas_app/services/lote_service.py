@@ -42,6 +42,93 @@ class LoteService(BaseService):
     def __init__(self):
         super().__init__()
     
+    def _extract_lote_data(self, lote_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract and normalize lote data from input."""
+        return {
+            'finca_id': lote_data.get('finca_id') or lote_data.get('finca'),
+            'area_hectareas': lote_data.get('area') or lote_data.get('area_hectareas') or lote_data.get('hectareas'),
+            'nombre': lote_data.get('nombre', ''),
+            'identificador': lote_data.get('identificador', ''),
+            'variedad': lote_data.get('variedad', '')
+        }
+    
+    def _validate_lote_required_fields(self, finca_id, area_hectareas, nombre, identificador) -> ServiceResult | None:
+        """Validate required fields for lote creation."""
+        if not finca_id:
+            return ServiceResult.validation_error(
+                "El ID de la finca es requerido",
+                details={"field": "finca_id"}
+            )
+        
+        if not area_hectareas:
+            return ServiceResult.validation_error(
+                "El área es requerida",
+                details={"field": "area"}
+            )
+        
+        if not nombre and not identificador:
+            return ServiceResult.validation_error(
+                "El nombre o identificador del lote es requerido",
+                details={"field": "nombre"}
+            )
+        
+        return None
+    
+    def _get_finca_for_user(self, finca_id: int, user: User) -> tuple[Finca | None, ServiceResult | None]:
+        """Get finca for user, returning (finca, error_result)."""
+        try:
+            if user.is_superuser or user.is_staff:
+                finca = Finca.objects.select_related('agricultor').get(id=finca_id)
+            else:
+                finca = Finca.objects.select_related('agricultor').get(id=finca_id, agricultor=user)
+            return finca, None
+        except Finca.DoesNotExist:
+            return None, ServiceResult.not_found_error(ERROR_FINCA_NOT_FOUND)
+    
+    def _validate_lote_area(self, area_hectareas, finca) -> ServiceResult | None:
+        """Validate lote area."""
+        from decimal import Decimal
+        try:
+            area_hectareas = Decimal(str(area_hectareas))
+            if area_hectareas < 0:
+                return ServiceResult.validation_error(
+                    "El área debe ser mayor o igual a 0",
+                    details={"field": "area"}
+                )
+            if area_hectareas > finca.hectareas:
+                return ServiceResult.validation_error(
+                    "El área del lote no puede exceder el área de la finca",
+                    details={"field": "area", "finca_area": float(finca.hectareas)}
+                )
+            return None
+        except (ValueError, TypeError):
+            return ServiceResult.validation_error(
+                "El área debe ser un número válido",
+                details={"field": "area"}
+            )
+    
+    def _validate_lote_text_fields(self, nombre: str, identificador: str, variedad: str, finca: Finca) -> ServiceResult | None:
+        """Validate text fields for lote."""
+        if identificador and Lote.objects.filter(finca=finca, identificador=identificador).exists():
+            return ServiceResult.validation_error(
+                "Ya existe un lote con este identificador en la finca",
+                details={"field": "identificador"}
+            )
+        
+        if nombre and len(nombre.strip()) < 2:
+            return ServiceResult.validation_error(
+                "El nombre del lote debe tener al menos 2 caracteres",
+                details={"field": "nombre"}
+            )
+        
+        if not variedad or len(variedad.strip()) < 2:
+            return ServiceResult.validation_error(
+                "La variedad es requerida y debe tener al menos 2 caracteres",
+                details={"field": "variedad"}
+            )
+        
+        return None
+    
     def create_lote(self, lote_data: Dict[str, Any], user: User) -> ServiceResult:
         """
         Creates a new lote.
@@ -54,82 +141,31 @@ class LoteService(BaseService):
             ServiceResult with created lote data
         """
         try:
-            # Handle finca_id and area for backward compatibility
-            finca_id = lote_data.get('finca_id') or lote_data.get('finca')
-            area_hectareas = lote_data.get('area') or lote_data.get('area_hectareas') or lote_data.get('hectareas')
-            nombre = lote_data.get('nombre', '')
-            identificador = lote_data.get('identificador', '')
+            extracted = self._extract_lote_data(lote_data)
+            finca_id = extracted['finca_id']
+            area_hectareas = extracted['area_hectareas']
+            nombre = extracted['nombre']
+            identificador = extracted['identificador']
+            variedad = extracted['variedad']
             
-            # Validate required fields
-            if not finca_id:
-                return ServiceResult.validation_error(
-                    "El ID de la finca es requerido",
-                    details={"field": "finca_id"}
-                )
+            error = self._validate_lote_required_fields(finca_id, area_hectareas, nombre, identificador)
+            if error:
+                return error
             
-            if not area_hectareas:
-                return ServiceResult.validation_error(
-                    "El área es requerida",
-                    details={"field": "area"}
-                )
+            finca, error = self._get_finca_for_user(finca_id, user)
+            if error:
+                return error
             
-            if not nombre and not identificador:
-                return ServiceResult.validation_error(
-                    "El nombre o identificador del lote es requerido",
-                    details={"field": "nombre"}
-                )
+            error = self._validate_lote_area(area_hectareas, finca)
+            if error:
+                return error
             
-            # Validate that the finca belongs to the user (optimized)
-            try:
-                if user.is_superuser or user.is_staff:
-                    finca = Finca.objects.select_related('agricultor').get(id=finca_id)
-                else:
-                    finca = Finca.objects.select_related('agricultor').get(id=finca_id, agricultor=user)
-            except Finca.DoesNotExist:
-                return ServiceResult.not_found_error(ERROR_FINCA_NOT_FOUND)
-            
-            # Validate area
             from decimal import Decimal
-            try:
-                area_hectareas = Decimal(str(area_hectareas))
-                if area_hectareas < 0:
-                    return ServiceResult.validation_error(
-                        "El área debe ser mayor o igual a 0",
-                        details={"field": "area"}
-                    )
-                # Check if area exceeds finca area
-                if area_hectareas > finca.hectareas:
-                    return ServiceResult.validation_error(
-                        "El área del lote no puede exceder el área de la finca",
-                        details={"field": "area", "finca_area": float(finca.hectareas)}
-                    )
-            except (ValueError, TypeError):
-                return ServiceResult.validation_error(
-                    "El área debe ser un número válido",
-                    details={"field": "area"}
-                )
+            area_hectareas = Decimal(str(area_hectareas))
             
-            # Validate unique identifier in the finca (if provided)
-            if identificador and Lote.objects.filter(finca=finca, identificador=identificador).exists():
-                return ServiceResult.validation_error(
-                    "Ya existe un lote con este identificador en la finca",
-                    details={"field": "identificador"}
-                )
-            
-            # Validate nombre (if provided)
-            if nombre and len(nombre.strip()) < 2:
-                return ServiceResult.validation_error(
-                    "El nombre del lote debe tener al menos 2 caracteres",
-                    details={"field": "nombre"}
-                )
-            
-            # Validate variedad
-            variedad = lote_data.get('variedad', '')
-            if not variedad or len(variedad.strip()) < 2:
-                return ServiceResult.validation_error(
-                    "La variedad es requerida y debe tener al menos 2 caracteres",
-                    details={"field": "variedad"}
-                )
+            error = self._validate_lote_text_fields(nombre, identificador, variedad, finca)
+            if error:
+                return error
             
             # Create lote
             lote = Lote(
@@ -303,6 +339,67 @@ class LoteService(BaseService):
                 ValidationServiceError("Internal error getting details", details={"original_error": str(e)})
             )
     
+    def _get_lote_for_user(self, lote_id: int, user: User) -> tuple[Lote | None, ServiceResult | None]:
+        """Get lote for user, returning (lote, error_result)."""
+        try:
+            if user.is_superuser or user.is_staff:
+                lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id)
+            else:
+                lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id, finca__agricultor=user)
+            return lote, None
+        except Lote.DoesNotExist:
+            return None, ServiceResult.not_found_error(ERROR_LOTE_NOT_FOUND)
+    
+    def _normalize_update_data(self, lote_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize update data for backward compatibility."""
+        if 'area' in lote_data:
+            lote_data['area_hectareas'] = lote_data.pop('area')
+        if 'finca_id' in lote_data:
+            lote_data['finca'] = lote_data.pop('finca_id')
+        return lote_data
+    
+    def _validate_update_identifier(self, lote: Lote, lote_data: Dict[str, Any]) -> ServiceResult | None:
+        """Validate identifier uniqueness if changing."""
+        if 'identificador' not in lote_data:
+            return None
+        
+        if lote_data['identificador'] == lote.identificador:
+            return None
+        
+        if Lote.objects.filter(finca=lote.finca, identificador=lote_data['identificador']).exists():
+            return ServiceResult.validation_error(
+                "A lote with this identifier already exists in the finca",
+                details={"field": "identificador"}
+            )
+        
+        return None
+    
+    def _validate_update_area(self, lote: Lote, lote_data: Dict[str, Any]) -> ServiceResult | None:
+        """Validate area if provided in update."""
+        if 'area_hectareas' not in lote_data:
+            return None
+        
+        from decimal import Decimal
+        try:
+            area_hectareas = Decimal(str(lote_data['area_hectareas']))
+            if area_hectareas < 0:
+                return ServiceResult.validation_error(
+                    "El área debe ser mayor o igual a 0",
+                    details={"field": "area"}
+                )
+            if area_hectareas > lote.finca.hectareas:
+                return ServiceResult.validation_error(
+                    "El área del lote no puede exceder el área de la finca",
+                    details={"field": "area", "finca_area": float(lote.finca.hectareas)}
+                )
+            lote_data['area_hectareas'] = area_hectareas
+            return None
+        except (ValueError, TypeError):
+            return ServiceResult.validation_error(
+                "El área debe ser un número válido",
+                details={"field": "area"}
+            )
+    
     def update_lote(self, lote_id: int, user: User, lote_data: Dict[str, Any]) -> ServiceResult:
         """
         Updates a lote.
@@ -316,50 +413,19 @@ class LoteService(BaseService):
             ServiceResult with updated lote
         """
         try:
-            try:
-                if user.is_superuser or user.is_staff:
-                    lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id)
-                else:
-                    lote = Lote.objects.select_related('finca', 'finca__agricultor').get(id=lote_id, finca__agricultor=user)
-            except Lote.DoesNotExist:
-                return ServiceResult.not_found_error(ERROR_LOTE_NOT_FOUND)
+            lote, error = self._get_lote_for_user(lote_id, user)
+            if error:
+                return error
             
-            # Validate unique identifier if changing
-            if 'identificador' in lote_data and lote_data['identificador'] != lote.identificador:
-                if Lote.objects.filter(finca=lote.finca, identificador=lote_data['identificador']).exists():
-                    return ServiceResult.validation_error(
-                        "A lote with this identifier already exists in the finca",
-                        details={"field": "identificador"}
-                    )
+            lote_data = self._normalize_update_data(lote_data)
             
-            # Handle area and finca_id for backward compatibility
-            if 'area' in lote_data:
-                lote_data['area_hectareas'] = lote_data.pop('area')
-            if 'finca_id' in lote_data:
-                lote_data['finca'] = lote_data.pop('finca_id')
+            error = self._validate_update_identifier(lote, lote_data)
+            if error:
+                return error
             
-            # Validate area if provided
-            if 'area_hectareas' in lote_data:
-                from decimal import Decimal
-                try:
-                    area_hectareas = Decimal(str(lote_data['area_hectareas']))
-                    if area_hectareas < 0:
-                        return ServiceResult.validation_error(
-                            "El área debe ser mayor o igual a 0",
-                            details={"field": "area"}
-                        )
-                    # Check if area exceeds finca area
-                    if area_hectareas > lote.finca.hectareas:
-                        return ServiceResult.validation_error(
-                            "El área del lote no puede exceder el área de la finca",
-                            details={"field": "area", "finca_area": float(lote.finca.hectareas)}
-                        )
-                    lote_data['area_hectareas'] = area_hectareas
-                except (ValueError, TypeError):
-                    return ServiceResult.validation_error(
-                        "El área debe ser un número válido",
-                        details={"field": "area"}
-                    )
+            error = self._validate_update_area(lote, lote_data)
+            if error:
+                return error
             
             # Save original data for log
             original_data = {

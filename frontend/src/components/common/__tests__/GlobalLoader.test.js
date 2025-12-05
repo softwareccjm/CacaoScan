@@ -102,10 +102,8 @@ describe('GlobalLoader', () => {
       wrapper.unmount()
     }
     if (container) {
-      try {
+      if (container.parentNode) {
         container.remove()
-      } catch (e) {
-        // Container may have already been removed - ignore error silently
       }
       container = null
     }

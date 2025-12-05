@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAudit } from '../useAudit.js'
-import { useNotificationStore } from '@/stores/notifications'
 import * as auditApi from '@/services/auditApi'
 
 // Mock dependencies

@@ -8,7 +8,7 @@ import { useFormValidation } from '../useFormValidation'
 import { useCatalogos } from '../useCatalogos'
 
 // Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const MOCK_PASSWORD = 'ExampleValue#123'
+const TEST_PASSWORD_VALID = 'ExampleValue#123'
 
 // Mock dependencies
 vi.mock('../useFormValidation', () => ({
@@ -382,7 +382,7 @@ describe('useForm', () => {
         validateBirthdateField: vi.fn()
       })
 
-      const newForm = useForm({ initialValues: { password: MOCK_PASSWORD, confirmPassword: MOCK_PASSWORD } })
+      const newForm = useForm({ initialValues: { password: TEST_PASSWORD_VALID, confirmPassword: TEST_PASSWORD_VALID } })
       newForm.validateField('password')
 
       expect(validatePasswordFields).toHaveBeenCalled()
@@ -412,7 +412,7 @@ describe('useForm', () => {
         validateBirthdateField: vi.fn()
       })
 
-      const newForm = useForm({ initialValues: { password: MOCK_PASSWORD } })
+      const newForm = useForm({ initialValues: { password: TEST_PASSWORD_VALID } })
       newForm.validateField('password')
 
       expect(validatePassword).toHaveBeenCalled()

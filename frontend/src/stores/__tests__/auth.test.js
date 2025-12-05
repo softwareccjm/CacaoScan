@@ -10,11 +10,11 @@ import authApi from '@/services/authApi'
 import router from '@/router'
 
 // Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const MOCK_PASSWORD = 'ExampleValue#123'
-const MOCK_WRONG_PASSWORD = 'SampleValue_A'
-const MOCK_WEAK_PASSWORD = 'MockValue_55'
-const MOCK_OLD_PASSWORD = 'NeutralValue_X'
-const MOCK_NEW_PASSWORD = 'AnotherValue_Y'
+const TEST_PASSWORD_VALID = 'ExampleValue#123'
+const TEST_PASSWORD_WRONG = 'SampleValue_A'
+const TEST_PASSWORD_WEAK = 'MockValue_55'
+const TEST_PASSWORD_OLD = 'NeutralValue_X'
+const TEST_PASSWORD_NEW = 'AnotherValue_Y'
 
 // Mock dependencies
 vi.mock('@/services/authApi', () => ({
@@ -276,7 +276,7 @@ describe('Auth Store', () => {
 
   describe('login', () => {
     it('should login successfully', async () => {
-      const credentials = { email: 'test@example.com', password: MOCK_PASSWORD }
+      const credentials = { email: 'test@example.com', password: TEST_PASSWORD_VALID }
       authApi.login.mockResolvedValue({
         token: 'access-token',
         refresh: 'refresh-token',
@@ -294,7 +294,7 @@ describe('Auth Store', () => {
     })
 
     it('should handle login error', async () => {
-      const credentials = { email: 'test@example.com', password: MOCK_WRONG_PASSWORD }
+      const credentials = { email: 'test@example.com', password: TEST_PASSWORD_WRONG }
       authApi.login.mockRejectedValue({
         response: {
           data: { message: 'Invalid credentials' }
@@ -310,7 +310,7 @@ describe('Auth Store', () => {
 
   describe('register', () => {
     it('should register successfully with verification required', async () => {
-      const userData = { email: 'new@example.com', password: MOCK_PASSWORD }
+      const userData = { email: 'new@example.com', password: TEST_PASSWORD_VALID }
       authApi.register.mockResolvedValue({
         success: true,
         data: {
@@ -326,7 +326,7 @@ describe('Auth Store', () => {
     })
 
     it('should handle registration error', async () => {
-      const userData = { email: 'test@example.com', password: MOCK_WEAK_PASSWORD }
+      const userData = { email: 'test@example.com', password: TEST_PASSWORD_WEAK }
       authApi.register.mockRejectedValue({
         response: {
           data: { message: 'Password too weak' }
@@ -416,8 +416,8 @@ describe('Auth Store', () => {
       authApi.changePassword.mockResolvedValue({ success: true })
       
       const result = await store.changePassword({
-        old_password: MOCK_OLD_PASSWORD,
-        new_password: MOCK_NEW_PASSWORD
+        old_password: TEST_PASSWORD_OLD,
+        new_password: TEST_PASSWORD_NEW
       })
       
       expect(result.success).toBe(true)
@@ -432,8 +432,8 @@ describe('Auth Store', () => {
       })
       
       const result = await store.changePassword({
-        old_password: MOCK_WRONG_PASSWORD,
-        new_password: MOCK_NEW_PASSWORD
+        old_password: TEST_PASSWORD_WRONG,
+        new_password: TEST_PASSWORD_NEW
       })
       
       expect(result.success).toBe(false)
@@ -763,7 +763,7 @@ describe('Auth Store', () => {
 
   describe('register edge cases', () => {
     it('should handle registration with legacy token format', async () => {
-      const userData = { email: 'new@example.com', password: MOCK_PASSWORD }
+      const userData = { email: 'new@example.com', password: TEST_PASSWORD_VALID }
       authApi.register.mockResolvedValue({
         success: true,
         token: 'legacy-token',
@@ -779,7 +779,7 @@ describe('Auth Store', () => {
     })
 
     it('should handle registration with access/refresh format', async () => {
-      const userData = { email: 'new@example.com', password: MOCK_PASSWORD }
+      const userData = { email: 'new@example.com', password: TEST_PASSWORD_VALID }
       authApi.register.mockResolvedValue({
         success: true,
         access: 'access-token',

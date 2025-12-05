@@ -53,6 +53,80 @@ class ActivityLogListView(PaginationMixin, AdminPermissionMixin, APIView):
         },
         tags=['Auditoría']
     )
+    def _get_empty_response(self):
+        """Return empty response when ActivityLog is not available."""
+        return Response({
+            'results': [],
+            'count': 0,
+            'page': 1,
+            'page_size': 50,
+            'total_pages': 0,
+            'next': None,
+            'previous': None,
+        }, status=status.HTTP_200_OK)
+    
+    def _apply_text_filters(self, queryset, request):
+        """Apply text-based filters to queryset."""
+        usuario = request.GET.get('usuario', '').strip()
+        if usuario:
+            queryset = queryset.filter(user__username__icontains=usuario)
+        
+        accion = request.GET.get('accion', '').strip()
+        if accion:
+            queryset = queryset.filter(action=accion)
+        
+        modelo = request.GET.get('modelo', '').strip()
+        if modelo:
+            queryset = queryset.filter(resource_type__icontains=modelo)
+        
+        ip_address = request.GET.get('ip_address', '').strip()
+        if ip_address:
+            queryset = queryset.filter(ip_address__icontains=ip_address)
+        
+        return queryset
+    
+    def _apply_date_filters(self, queryset, request):
+        """Apply date filters to queryset. Returns (queryset, error_response)."""
+        fecha_desde = request.GET.get('fecha_desde')
+        if fecha_desde:
+            try:
+                fecha_desde = timezone.datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__gte=fecha_desde)
+            except ValueError:
+                return None, Response({
+                    'error': ERROR_INVALID_DATE_FORMAT,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        fecha_hasta = request.GET.get('fecha_hasta')
+        if fecha_hasta:
+            try:
+                fecha_hasta = timezone.datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+                queryset = queryset.filter(timestamp__date__lte=fecha_hasta)
+            except ValueError:
+                return None, Response({
+                    'error': ERROR_INVALID_DATE_FORMAT,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return queryset, None
+    
+    def _serialize_logs(self, logs):
+        """Serialize logs for response."""
+        return [{
+            'id': log.id,
+            'usuario': log.user.username if log.user else 'Usuario Anónimo',
+            'accion': log.action,
+            'accion_display': log.action,
+            'modelo': log.resource_type,
+            'objeto_id': log.resource_id,
+            'descripcion': log.details.get('description', '') if isinstance(log.details, dict) else str(log.details),
+            'ip_address': log.ip_address,
+            'timestamp': log.timestamp.isoformat(),
+            'datos_antes': log.details.get('before', {}) if isinstance(log.details, dict) else {},
+            'datos_despues': log.details.get('after', {}) if isinstance(log.details, dict) else {},
+        } for log in logs]
+    
     def get(self, request):
         """Listar logs de actividad con filtros."""
         try:
@@ -60,79 +134,19 @@ class ActivityLogListView(PaginationMixin, AdminPermissionMixin, APIView):
                 return self.admin_permission_denied('No tienes permisos para acceder a los logs de actividad')
             
             if ActivityLog is None:
-                # Si el modelo no está disponible, retornar vacío
-                return Response({
-                    'results': [],
-                    'count': 0,
-                    'page': 1,
-                    'page_size': 50,
-                    'total_pages': 0,
-                    'next': None,
-                    'previous': None,
-                }, status=status.HTTP_200_OK)
+                return self._get_empty_response()
             
             queryset = ActivityLog.objects.all().select_related('user').order_by('-timestamp')
+            queryset = self._apply_text_filters(queryset, request)
             
-            # Aplicar filtros
-            usuario = request.GET.get('usuario', '').strip()
-            if usuario:
-                queryset = queryset.filter(user__username__icontains=usuario)
-            
-            accion = request.GET.get('accion', '').strip()
-            if accion:
-                queryset = queryset.filter(action=accion)
-            
-            modelo = request.GET.get('modelo', '').strip()
-            if modelo:
-                queryset = queryset.filter(resource_type__icontains=modelo)
-            
-            ip_address = request.GET.get('ip_address', '').strip()
-            if ip_address:
-                queryset = queryset.filter(ip_address__icontains=ip_address)
-            
-            # Filtros de fecha
-            fecha_desde = request.GET.get('fecha_desde')
-            if fecha_desde:
-                try:
-                    fecha_desde = timezone.datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-                    queryset = queryset.filter(timestamp__date__gte=fecha_desde)
-                except ValueError:
-                    return Response({
-                        'error': ERROR_INVALID_DATE_FORMAT,
-                        'status': 'error'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            fecha_hasta = request.GET.get('fecha_hasta')
-            if fecha_hasta:
-                try:
-                    fecha_hasta = timezone.datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-                    queryset = queryset.filter(timestamp__date__lte=fecha_hasta)
-                except ValueError:
-                    return Response({
-                        'error': ERROR_INVALID_DATE_FORMAT,
-                        'status': 'error'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Paginar usando el mixin con serialización personalizada
-            def serialize_logs(logs):
-                return [{
-                    'id': log.id,
-                    'usuario': log.user.username if log.user else 'Usuario Anónimo',
-                    'accion': log.action,
-                    'accion_display': log.action,  # No hay método get_accion_display, usar action directamente
-                    'modelo': log.resource_type,
-                    'objeto_id': log.resource_id,
-                    'descripcion': log.details.get('description', '') if isinstance(log.details, dict) else str(log.details),
-                    'ip_address': log.ip_address,
-                    'timestamp': log.timestamp.isoformat(),
-                    'datos_antes': log.details.get('before', {}) if isinstance(log.details, dict) else {},
-                    'datos_despues': log.details.get('after', {}) if isinstance(log.details, dict) else {},
-                } for log in logs]
+            queryset, error_response = self._apply_date_filters(queryset, request)
+            if error_response:
+                return error_response
             
             return self.paginate_queryset(
                 request,
                 queryset,
-                serializer_func=serialize_logs,
+                serializer_func=self._serialize_logs,
                 extra_data=None
             )
             
@@ -169,6 +183,63 @@ class LoginHistoryListView(PaginationMixin, AdminPermissionMixin, APIView):
         },
         tags=['Auditoría']
     )
+    def _apply_login_text_filters(self, queryset, request):
+        """Apply text-based filters to login history queryset."""
+        usuario = request.GET.get('usuario', '').strip()
+        if usuario:
+            queryset = queryset.filter(user__username__icontains=usuario)
+        
+        ip_address = request.GET.get('ip_address', '').strip()
+        if ip_address:
+            queryset = queryset.filter(ip_address__icontains=ip_address)
+        
+        success = request.GET.get('success')
+        if success is not None:
+            success_bool = success.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(login_successful=success_bool)
+        
+        return queryset
+    
+    def _apply_login_date_filters(self, queryset, request):
+        """Apply date filters to login history queryset. Returns (queryset, error_response)."""
+        fecha_desde = request.GET.get('fecha_desde')
+        if fecha_desde:
+            try:
+                fecha_desde = timezone.datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+                queryset = queryset.filter(login_time__date__gte=fecha_desde)
+            except ValueError:
+                return None, Response({
+                    'error': ERROR_INVALID_DATE_FORMAT,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        fecha_hasta = request.GET.get('fecha_hasta')
+        if fecha_hasta:
+            try:
+                fecha_hasta = timezone.datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+                queryset = queryset.filter(login_time__date__lte=fecha_hasta)
+            except ValueError:
+                return None, Response({
+                    'error': ERROR_INVALID_DATE_FORMAT,
+                    'status': 'error'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return queryset, None
+    
+    def _serialize_logins(self, logins):
+        """Serialize logins for response."""
+        return [{
+            'id': login.id,
+            'usuario': login.user.username if login.user else 'Usuario Anónimo',
+            'ip_address': login.ip_address,
+            'user_agent': login.user_agent,
+            'login_time': login.login_time.isoformat(),
+            'logout_time': login.logout_time.isoformat() if login.logout_time else None,
+            'session_duration': str(login.session_duration) if login.session_duration else None,
+            'success': login.login_successful,
+            'failure_reason': login.failure_reason,
+        } for login in logins]
+    
     def get(self, request):
         """Listar historial de logins con filtros."""
         try:
@@ -176,62 +247,16 @@ class LoginHistoryListView(PaginationMixin, AdminPermissionMixin, APIView):
                 return self.admin_permission_denied('No tienes permisos para acceder al historial de logins')
             
             queryset = LoginHistory.objects.all().select_related('user')
+            queryset = self._apply_login_text_filters(queryset, request)
             
-            # Aplicar filtros
-            usuario = request.GET.get('usuario', '').strip()
-            if usuario:
-                queryset = queryset.filter(user__username__icontains=usuario)
-            
-            ip_address = request.GET.get('ip_address', '').strip()
-            if ip_address:
-                queryset = queryset.filter(ip_address__icontains=ip_address)
-            
-            success = request.GET.get('success')
-            if success is not None:
-                success_bool = success.lower() in ['true', '1', 'yes']
-                queryset = queryset.filter(login_successful=success_bool)
-            
-            # Filtros de fecha
-            fecha_desde = request.GET.get('fecha_desde')
-            if fecha_desde:
-                try:
-                    fecha_desde = timezone.datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-                    queryset = queryset.filter(login_time__date__gte=fecha_desde)
-                except ValueError:
-                    return Response({
-                        'error': ERROR_INVALID_DATE_FORMAT,
-                        'status': 'error'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            fecha_hasta = request.GET.get('fecha_hasta')
-            if fecha_hasta:
-                try:
-                    fecha_hasta = timezone.datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-                    queryset = queryset.filter(login_time__date__lte=fecha_hasta)
-                except ValueError:
-                    return Response({
-                        'error': ERROR_INVALID_DATE_FORMAT,
-                        'status': 'error'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Paginar usando el mixin con serialización personalizada
-            def serialize_logins(logins):
-                return [{
-                    'id': login.id,
-                    'usuario': login.user.username if login.user else 'Usuario Anónimo',
-                    'ip_address': login.ip_address,
-                    'user_agent': login.user_agent,
-                    'login_time': login.login_time.isoformat(),
-                    'logout_time': login.logout_time.isoformat() if login.logout_time else None,
-                    'session_duration': str(login.session_duration) if login.session_duration else None,
-                    'success': login.login_successful,  # Usar el campo real
-                    'failure_reason': login.failure_reason,
-                } for login in logins]
+            queryset, error_response = self._apply_login_date_filters(queryset, request)
+            if error_response:
+                return error_response
             
             return self.paginate_queryset(
                 request,
                 queryset,
-                serializer_func=serialize_logins,
+                serializer_func=self._serialize_logins,
                 extra_data=None
             )
             

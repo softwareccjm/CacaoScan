@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 
 // Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const MOCK_SHORT_PASSWORD = 'MockValue_55'
+const TEST_PASSWORD_SHORT = 'MockValue_55'
 import {
   createFormData,
   formDataToObject,
@@ -286,7 +286,7 @@ describe('formDataUtils', () => {
     })
 
     it('should validate with custom validator', () => {
-      const data = { password: MOCK_SHORT_PASSWORD }
+      const data = { password: TEST_PASSWORD_SHORT }
       const rules = {
         password: {
           validator: (value) => value.length >= 8 || 'Password must be at least 8 characters'

@@ -270,6 +270,75 @@ class IncrementalDataUploadView(IncrementalViewMixin, APIView):
             )
         }
     )
+    def _decode_csv_file(self, csv_file):
+        """Decode CSV file with multiple encoding attempts."""
+        csv_bytes = csv_file.read()
+        if isinstance(csv_bytes, str):
+            return csv_bytes
+        
+        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+        for encoding in encodings:
+            try:
+                return csv_bytes.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        
+        return csv_bytes.decode('latin-1', errors='ignore')
+    
+    def _read_csv_data(self, csv_file):
+        """Read and validate CSV data."""
+        import pandas as pd
+        import io
+        
+        csv_content = self._decode_csv_file(csv_file)
+        df = pd.read_csv(io.StringIO(csv_content))
+        
+        required_columns = ['ID', 'ALTO', 'ANCHO', 'GROSOR', 'PESO']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            return None, f"Columnas faltantes en CSV: {', '.join(missing_columns)}"
+        
+        return df, None
+    
+    def _convert_csv_to_data(self, df):
+        """Convert CSV DataFrame to expected data format."""
+        new_data = []
+        for _, row in df.iterrows():
+            record = {
+                'id': int(row['ID']),
+                'image_path': f"backend/media/cacao_images/raw/{int(row['ID'])}.bmp",
+                'alto': float(row['ALTO']),
+                'ancho': float(row['ANCHO']),
+                'grosor': float(row['GROSOR']),
+                'peso': float(row['PESO'])
+            }
+            new_data.append(record)
+        return new_data
+    
+    def _process_images_zip(self, images_zip):
+        """Process images ZIP file if provided."""
+        if not images_zip:
+            return
+        
+        import zipfile
+        import tempfile
+        import os
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with zipfile.ZipFile(images_zip, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            
+            images_dir = Path("backend/media/cacao_images/raw")
+            images_dir.mkdir(parents=True, exist_ok=True)
+            
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+                    if file.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                        src_path = os.path.join(root, file)
+                        dst_path = images_dir / f"{file}"
+                        os.rename(src_path, dst_path)
+    
     def post(self, request):
         """
         Sube datos para entrenamiento incremental.
@@ -286,75 +355,14 @@ class IncrementalDataUploadView(IncrementalViewMixin, APIView):
             if validation_error:
                 return validation_error
             
-            # Procesar archivo CSV
-            import pandas as pd
-            import io
+            df, error = self._read_csv_data(csv_file)
+            if error:
+                return self.handle_validation_error(error)
             
-            # Leer CSV de forma segura desde bytes
-            csv_bytes = csv_file.read()
-            if isinstance(csv_bytes, str):
-                csv_content = csv_bytes
-            else:
-                # Try multiple encodings in order
-                encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-                csv_content = None
-                for encoding in encodings:
-                    try:
-                        csv_content = csv_bytes.decode(encoding)
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                if csv_content is None:
-                    # Last resort: use latin-1 with errors='ignore'
-                    csv_content = csv_bytes.decode('latin-1', errors='ignore')
-            df = pd.read_csv(io.StringIO(csv_content))
+            new_data = self._convert_csv_to_data(df)
+            self._process_images_zip(images_zip)
             
-            # Validar columnas requeridas
-            required_columns = ['ID', 'ALTO', 'ANCHO', 'GROSOR', 'PESO']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            
-            if missing_columns:
-                return self.handle_validation_error(
-                    f"Columnas faltantes en CSV: {', '.join(missing_columns)}"
-                )
-            
-            # Convertir a formato esperado
-            new_data = []
-            for _, row in df.iterrows():
-                record = {
-                    'id': int(row['ID']),
-                    'image_path': f"backend/media/cacao_images/raw/{int(row['ID'])}.bmp",
-                    'alto': float(row['ALTO']),
-                    'ancho': float(row['ANCHO']),
-                    'grosor': float(row['GROSOR']),
-                    'peso': float(row['PESO'])
-                }
-                new_data.append(record)
-            
-            # Procesar imágenes ZIP si se proporciona
-            if images_zip:
-                import zipfile
-                import tempfile
-                import os
-                
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    with zipfile.ZipFile(images_zip, 'r') as zip_ref:
-                        zip_ref.extractall(temp_dir)
-                    
-                    # Mover imágenes a directorio correcto
-                    images_dir = Path("backend/media/cacao_images/raw")
-                    images_dir.mkdir(parents=True, exist_ok=True)
-                    
-                    for root, dirs, files in os.walk(temp_dir):
-                        for file in files:
-                            if file.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                                src_path = os.path.join(root, file)
-                                dst_path = images_dir / f"{file}"
-                                os.rename(src_path, dst_path)
-            
-            # Guardar datos en sistema incremental
             from ml.regression.incremental_train import IncrementalDataManager
-            
             data_manager = IncrementalDataManager()
             version = data_manager.add_new_data(new_data, f"upload_{target}_{timezone.now().strftime('%Y%m%d_%H%M%S')}")
             
@@ -363,7 +371,7 @@ class IncrementalDataUploadView(IncrementalViewMixin, APIView):
                     'version': version,
                     'samples_count': len(new_data),
                     'target': target,
-                    'data_preview': new_data[:5]  # Primeros 5 registros como preview
+                    'data_preview': new_data[:5]
                 },
                 message=f"Datos subidos exitosamente. Versión {version} creada con {len(new_data)} muestras",
                 status_code=status.HTTP_200_OK

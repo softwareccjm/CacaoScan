@@ -51,34 +51,37 @@ class Command(BaseCommand):
             logger.error(f"Error checking training jobs: {e}", exc_info=True)
             raise CommandError(f'Error al verificar entrenamientos: {str(e)}')
 
+    def _is_does_not_exist_exception(self, exception: Exception) -> bool:
+        """Check if exception is a DoesNotExist exception (handles mocks)."""
+        if not hasattr(TrainingJob, 'DoesNotExist'):
+            return False
+        
+        does_not_exist = TrainingJob.DoesNotExist
+        
+        # Check if DoesNotExist is a valid type (not a Mock)
+        try:
+            is_valid_type = isinstance(does_not_exist, type) or (
+                hasattr(does_not_exist, '__bases__') and hasattr(does_not_exist, '__name__')
+            )
+            if is_valid_type and isinstance(exception, does_not_exist):
+                return True
+        except (TypeError, AttributeError):
+            pass
+        
+        # For mocked tests where DoesNotExist is set to Exception
+        if does_not_exist == Exception and isinstance(exception, Exception):
+            return True
+        
+        return False
+    
     def _handle_single_job(self, job_id):
         """Handle displaying details for a single job."""
         try:
             job = TrainingJob.objects.get(job_id=job_id)
             self._display_job_details(job)
         except Exception as e:
-            # Check if this is a DoesNotExist exception (real or mocked)
-            # The test mocks DoesNotExist as Exception, so we need to handle both cases
-            if hasattr(TrainingJob, 'DoesNotExist'):
-                does_not_exist = TrainingJob.DoesNotExist
-                # Check if DoesNotExist is a valid type (not a Mock)
-                try:
-                    # Try to check if it's a type/class
-                    is_valid_type = isinstance(does_not_exist, type) or (hasattr(does_not_exist, '__bases__') and hasattr(does_not_exist, '__name__'))
-                    if is_valid_type:
-                        # Check if the exception is an instance of DoesNotExist
-                        if isinstance(e, does_not_exist):
-                            raise CommandError(f'Job {job_id} no encontrado')
-                except (TypeError, AttributeError):
-                    # DoesNotExist is a Mock or not a valid type, check if it's Exception
-                    pass
-                
-                # For mocked tests where DoesNotExist is set to Exception
-                # Check if TrainingJob.DoesNotExist is actually Exception (mocked)
-                if does_not_exist == Exception and isinstance(e, Exception):
-                    # This is a mocked DoesNotExist, treat it as "not found"
-                    raise CommandError(f'Job {job_id} no encontrado')
-            # If it's any other exception, log and re-raise as CommandError
+            if self._is_does_not_exist_exception(e):
+                raise CommandError(f'Job {job_id} no encontrado')
             logger.error(f"Error getting job {job_id}: {e}", exc_info=True)
             raise CommandError(f'Error al obtener job {job_id}: {str(e)}')
 

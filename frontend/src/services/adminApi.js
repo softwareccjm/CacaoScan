@@ -13,10 +13,10 @@
  * Mantiene funciones base de datasetApi para reutilización
  */
 import { 
-  trainRegressionModel as baseTrainRegression,
-  trainVisionModel as baseTrainVision,
-  getTrainingJobStatus as baseGetJobStatus,
-  getTrainingJobs as baseGetJobs,
+  trainRegressionModel,
+  trainVisionModel,
+  getTrainingJobStatus,
+  getTrainingJobs,
   formatNumber
 } from './datasetApi.js'
 
@@ -147,9 +147,9 @@ const startAdvancedTraining = async (modelType, config, dataFilters = {}, experi
     
     // Usar funciones base pero con parámetros extendidos (DRY)
     if (modelType === 'regression') {
-      return await baseTrainRegression(trainingParams);
+      return await trainRegressionModel(trainingParams);
     } else if (modelType === 'vision') {
-      return await baseTrainVision(trainingParams);
+      return await trainVisionModel(trainingParams);
     } else {
       throw new Error(`Tipo de modelo no soportado: ${modelType}`);
     }
@@ -463,14 +463,12 @@ const startMLTraining = async (config = {}) => {
 }
 
 // Re-exportar funciones base necesarias para compatibilidad (DRY)
-// NOSONAR: Cannot use export...from with aliases - requires explicit export statement
-// Using export...from would require separate statements for each alias, which is less maintainable
 export {
-  baseTrainRegression as trainRegressionModel,
-  baseTrainVision as trainVisionModel,
-  baseGetJobStatus as getTrainingJobStatus,
-  baseGetJobs as getTrainingJobs
-}
+  trainRegressionModel,
+  trainVisionModel,
+  getTrainingJobStatus,
+  getTrainingJobs
+} from './datasetApi.js'
 
 // Exportar funciones avanzadas
 export {
@@ -516,10 +514,10 @@ export default {
   formatAdvancedTrainingMetrics,
   
   // Re-exportación de funciones base
-  trainRegressionModel: baseTrainRegression,
-  trainVisionModel: baseTrainVision,
-  getTrainingJobStatus: baseGetJobStatus,
-  getTrainingJobs: baseGetJobs
+  trainRegressionModel,
+  trainVisionModel,
+  getTrainingJobStatus,
+  getTrainingJobs
   
   // Nota: TRAINING_PRESETS, DATA_FILTERS y ADMIN_TRAINING_CONFIG 
   // están disponibles como named exports arriba

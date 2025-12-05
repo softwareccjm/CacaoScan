@@ -254,30 +254,39 @@ class ModelMetricsUpdateSerializer(serializers.ModelSerializer):
             'knowledge_retention', 'notes', 'is_best_model', 'is_production_model'
         ]
     
+    def _validate_metric_value(self, value: float, metric_name: str, min_value: float = None, max_value: float = None) -> str | None:
+        """Validate a single metric value. Returns error message or None."""
+        if value is None:
+            return None
+        
+        if min_value is not None and value < min_value:
+            return f"{metric_name} debe ser mayor o igual a {min_value}"
+        
+        if max_value is not None and value > max_value:
+            return f"{metric_name} debe ser menor o igual a {max_value}"
+        
+        return None
+    
     def validate(self, data):
         """Validate serializer data."""
         errors = []
         
         # Validate main metrics
-        if 'r2_score' in data:
-            r2_score = data['r2_score']
-            if r2_score is not None and (r2_score < 0 or r2_score > 1):
-                errors.append("R² score debe estar entre 0 y 1")
+        r2_error = self._validate_metric_value(data.get('r2_score'), "R² score", min_value=0, max_value=1)
+        if r2_error:
+            errors.append(r2_error)
         
-        if 'mae' in data:
-            mae = data['mae']
-            if mae is not None and mae < 0:
-                errors.append("MAE debe ser mayor o igual a 0")
+        mae_error = self._validate_metric_value(data.get('mae'), "MAE", min_value=0)
+        if mae_error:
+            errors.append(mae_error)
         
-        if 'mse' in data:
-            mse = data['mse']
-            if mse is not None and mse < 0:
-                errors.append("MSE debe ser mayor o igual a 0")
+        mse_error = self._validate_metric_value(data.get('mse'), "MSE", min_value=0)
+        if mse_error:
+            errors.append(mse_error)
         
-        if 'rmse' in data:
-            rmse = data['rmse']
-            if rmse is not None and rmse < 0:
-                errors.append("RMSE debe ser mayor o igual a 0")
+        rmse_error = self._validate_metric_value(data.get('rmse'), "RMSE", min_value=0)
+        if rmse_error:
+            errors.append(rmse_error)
         
         if errors:
             raise serializers.ValidationError(errors)
