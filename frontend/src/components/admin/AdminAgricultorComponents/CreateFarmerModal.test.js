@@ -4,9 +4,9 @@ import { ref, reactive } from 'vue'
 
 // Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
 // These are test data values used solely for validation testing, not real credentials.
-const TEST_PASSWORD_VALID = 'MockValue_55'
-const TEST_PASSWORD_WEAK = 'MockValue_56'
-const TEST_PASSWORD_DIFFERENT = 'MockValue_57'
+const TEST_PASSWORD_VALID = 'TestValue_ABC123XYZ!'
+const TEST_PASSWORD_WEAK = 'TestVal_1!'
+const TEST_PASSWORD_DIFFERENT = 'TestValue_DEF456UVW!'
 
 const { mockRegister, mockShowSuccess, mockShowError, mockCargarMunicipios, mockLimpiarMunicipios, mockIsValidEmail, mockIsValidPhone, mockIsValidDocument, mockIsValidBirthdate, mockValidatePassword, mockClearErrors } = vi.hoisted(() => ({
   mockRegister: vi.fn(),

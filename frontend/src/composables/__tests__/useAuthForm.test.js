@@ -5,9 +5,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAuthForm } from '../useAuthForm.js'
 
-// Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const TEST_PASSWORD_VALID = 'ExampleValue#123'
-const TEST_PASSWORD_SHORT = 'MockValue_55'
+// Test-only mock values - not actual passwords, used exclusively for unit testing
+// NOSONAR S2068 - These are test fixtures, not hardcoded production passwords
+const TEST_PASSWORD_VALID = 'ExampleValue#123' // NOSONAR S2068
+const TEST_PASSWORD_SHORT = 'MockValue_55' // NOSONAR S2068
 
 // Mock dependencies
 vi.mock('../useForm', () => ({

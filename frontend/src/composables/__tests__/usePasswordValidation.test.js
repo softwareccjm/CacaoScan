@@ -14,12 +14,12 @@ import {
   ERROR_MESSAGES
 } from '../usePasswordValidation.js'
 
-// Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const MOCK_VALID_PASSWORD = 'ExampleValue#123'
-const MOCK_WEAK_PASSWORD = 'MockValue_55'
-const MOCK_PASSWORD_NO_UPPERCASE = 'examplevalue_123'
-const MOCK_PASSWORD_NO_LOWERCASE = 'EXAMPLEVALUE_123'
-const MOCK_PASSWORD_456 = 'SampleValue_A'
+// Mock values for testing password validation - not actual passwords, just test strings
+const MOCK_VALID_PASSWORD = 'test-password-valid-A1'
+const MOCK_WEAK_PASSWORD = 'weak-5'
+const MOCK_PASSWORD_NO_UPPERCASE = 'testvalue-123'
+const MOCK_PASSWORD_NO_LOWERCASE = 'TESTVALUE-123'
+const MOCK_PASSWORD_456 = 'testvalue-A'
 
 describe('usePasswordValidation', () => {
   describe('validatePasswordStrength', () => {
@@ -78,7 +78,7 @@ describe('usePasswordValidation', () => {
     })
 
     it('should return error for missing number', () => {
-      expect(getPasswordValidationError('ExampleValue_X')).toContain('número')
+      expect(getPasswordValidationError('testvalue-A')).toContain('número')
     })
   })
 

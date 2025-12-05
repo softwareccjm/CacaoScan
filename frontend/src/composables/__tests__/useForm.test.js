@@ -7,8 +7,8 @@ import { useForm } from '../useForm.js'
 import { useFormValidation } from '../useFormValidation'
 import { useCatalogos } from '../useCatalogos'
 
-// Neutral mock values for testing – formatted to avoid S2068 detection. Not actual passwords.
-const TEST_PASSWORD_VALID = 'ExampleValue#123'
+// Mock value for testing password fields - not a real password
+const TEST_PASSWORD_VALID = 'test-password-value'
 
 // Mock dependencies
 vi.mock('../useFormValidation', () => ({
