@@ -24,14 +24,6 @@ class SystemSettingsView(AdminPermissionMixin, APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     
-    def get_permissions(self):
-        """
-        Solo los administradores pueden acceder a esta vista.
-        """
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]
-    
     def get(self, request):
         """
         Obtener la configuración del sistema.
@@ -51,6 +43,10 @@ class SystemSettingsView(AdminPermissionMixin, APIView):
         Actualizar la configuración del sistema.
         Solo permite actualizar, no crear (es un singleton).
         """
+        # Check admin permission
+        if not self.is_admin_user(request.user):
+            return self.admin_permission_denied()
+        
         try:
             settings = SystemSettings.get_singleton()
             serializer = SystemSettingsSerializer(

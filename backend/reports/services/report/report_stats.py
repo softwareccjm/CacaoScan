@@ -156,8 +156,8 @@ def get_activity_stats(filtros):
     return {
         'total_activities': queryset.count(),
         'activities_today': queryset.filter(timestamp__date=timezone.now().date()).count(),
-        'activities_by_action': dict(queryset.values('accion').annotate(count=Count('id')).values_list('accion', 'count')),
-        'top_users': list(queryset.values('usuario__username').annotate(count=Count('id')).order_by('-count')[:10]),
+        'activities_by_action': dict(queryset.values('action').annotate(count=Count('id')).values_list('action', 'count')),
+        'top_users': list(queryset.values('user__username').annotate(count=Count('id')).order_by('-count')[:10]),
     }
 
 

@@ -266,7 +266,7 @@ class CacaoReportPDFGenerator:
             story.extend(self._create_login_stats_section(login_stats))
             
             # Actividades recientes
-            recent_activities = ActivityLog.objects.select_related('usuario').order_by('-timestamp')[:50]
+            recent_activities = ActivityLog.objects.select_related('user').order_by('-timestamp')[:50]
             if recent_activities:
                 story.extend(self._create_recent_activities_table(recent_activities))
             
@@ -505,15 +505,24 @@ class CacaoReportPDFGenerator:
     
     def _create_recent_activities_table(self, activities):
         """Crear tabla de actividades recientes."""
-        data = [['Fecha', 'Usuario', 'Acción', 'Modelo', 'Descripción']]
+        data = [['Fecha', 'Usuario', 'Acción', 'Tipo Recurso', 'Detalles']]
         
         for activity in activities:
+            details_str = ''
+            if isinstance(activity.details, dict):
+                details_str = activity.details.get('description', str(activity.details))
+            else:
+                details_str = str(activity.details)
+            
+            if len(details_str) > 50:
+                details_str = details_str[:50] + '...'
+            
             data.append([
                 activity.timestamp.strftime('%d/%m/%Y %H:%M'),
-                activity.usuario.username if activity.usuario else 'Anónimo',
-                activity.get_accion_display(),
-                activity.modelo,
-                activity.descripcion[:50] + '...' if len(activity.descripcion) > 50 else activity.descripcion,
+                activity.user.username if activity.user else 'Anónimo',
+                activity.action,
+                activity.resource_type or 'N/A',
+                details_str,
             ])
         
         return self._create_section_with_table(

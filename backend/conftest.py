@@ -1,12 +1,18 @@
 """
 Pytest configuration and fixtures for CacaoScan backend tests.
 """
+import os
+import django
+
+# Configure Django settings before importing Django models
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cacaoscan.settings')
+django.setup()
+
 import pytest
 from django.contrib.auth.models import User
 from django.test import RequestFactory
 from unittest.mock import Mock, MagicMock
 import tempfile
-import os
 from pathlib import Path
 
 
@@ -126,4 +132,5 @@ def mock_service_result():
 def enable_db_access_for_all_tests(db):
     """Enable database access for all tests."""
     pass
+
 

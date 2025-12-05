@@ -59,6 +59,7 @@ class ExcelAgricultoresGenerator(ExcelBaseGenerator):
     def _get_farmer_name(self, farmer):
         """Get farmer name safely."""
         try:
+            name = ''
             if farmer.first_name or farmer.last_name:
                 name = f"{farmer.first_name or ''} {farmer.last_name or ''}".strip()
             if not name:

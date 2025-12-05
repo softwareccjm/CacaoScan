@@ -46,7 +46,8 @@ class FincaValidationService(BaseService):
             if 'departamento' in finca_data:
                 validations['departamento'] = {'min_length': 2, 'max_length': 100}
             if 'hectareas' in finca_data:
-                validations['hectareas'] = {'type': (int, float), 'min': 0.01}
+                from decimal import Decimal
+                validations['hectareas'] = {'type': (int, float, Decimal), 'min': 0.01}
             
             if validations:
                 self.validate_field_values(finca_data, validations)

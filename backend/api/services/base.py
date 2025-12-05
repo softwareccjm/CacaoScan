@@ -58,6 +58,10 @@ class BaseService:
         """Log de error."""
         self.logger.error(message, extra=kwargs)
     
+    def log_debug(self, message: str, **kwargs):
+        """Log de debug."""
+        self.logger.debug(message, extra=kwargs)
+    
     def validate_user_permission(self, user: User, permission: str, resource: Any = None) -> bool:
         """
         Valida permisos de usuario.

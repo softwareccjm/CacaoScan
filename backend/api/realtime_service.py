@@ -266,6 +266,12 @@ class RealtimeNotificationService:
         if Notification is None:
             logger.debug("Servicio de notificaciones no disponible; no se crea notificación")
             return None
+        
+        # Verify that create_notification method exists
+        if not hasattr(Notification, 'create_notification'):
+            logger.error("Notification model does not have create_notification method")
+            return None
+        
         try:
             user = User.objects.get(id=user_id)
             

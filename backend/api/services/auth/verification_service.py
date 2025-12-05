@@ -31,9 +31,14 @@ class VerificationService(BaseService):
         """
         try:
             from ...utils.model_imports import get_models_safely
-            get_models_safely({
+            models = get_models_safely({
                 'EmailVerificationToken': 'auth_app.models.EmailVerificationToken'
             })
+            EmailVerificationToken = models['EmailVerificationToken']
+            if EmailVerificationToken is None:
+                return ServiceResult.error(
+                    ValidationServiceError("Modelo EmailVerificationToken no disponible")
+                )
             token_obj = EmailVerificationToken.objects.filter(token=token).first()
             
             if not token_obj:

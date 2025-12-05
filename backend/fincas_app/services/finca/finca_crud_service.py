@@ -117,7 +117,7 @@ class FincaCRUDService(BaseService):
             self.log_info(f"Finca {finca.id} creada por usuario {user.username}")
             
             return ServiceResult.success(
-                data=self._serialize_finca(finca),
+                data={'data': self._serialize_finca(finca)},
                 message="Finca creada exitosamente"
             )
             
@@ -312,7 +312,7 @@ class FincaCRUDService(BaseService):
             self.log_info(f"Finca {finca_id} actualizada por usuario {user.username}")
             
             return ServiceResult.success(
-                data=self._serialize_finca(finca),
+                data={'data': self._serialize_finca(finca)},
                 message="Finca actualizada exitosamente"
             )
             

@@ -279,7 +279,7 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
     
     def _create_quality_chart(self, stats):
         """Create quality distribution chart."""
-        if not stats['quality_distribution']:
+        if not stats.get('quality_distribution'):
             return
         
         chart_ws, original_ws = self._create_sheet_with_title(
@@ -288,7 +288,7 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
         )
         
         headers = ["Categoría", "Cantidad", "Porcentaje"]
-        total = stats['total_analyses']
+        total = stats.get('total_analyses', sum(stats['quality_distribution'].values()))
         data_rows = [
             [
                 category,
@@ -301,7 +301,7 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
         self._create_table_with_headers(
             headers,
             data_rows,
-            start_row=1,
+            start_row=3,
             column_widths=[20, 12, 12]
         )
         
@@ -313,9 +313,9 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
         chart.y_axis.title = 'Cantidad'
         chart.x_axis.title = 'Categoría'
         
-        last_row = len(data_rows) + 1
-        data = Reference(chart_ws, min_col=2, min_row=1, max_row=last_row, max_col=2)
-        cats = Reference(chart_ws, min_col=1, min_row=2, max_row=last_row)
+        last_row = len(data_rows) + 2  # +2 because headers are at row 3, data starts at row 4
+        data = Reference(chart_ws, min_col=2, min_row=3, max_row=last_row, max_col=2)
+        cats = Reference(chart_ws, min_col=1, min_row=4, max_row=last_row)
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(cats)
         
@@ -532,21 +532,27 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
             "Actividades del Sistema"
         )
         
-        queryset = ActivityLog.objects.select_related('usuario').order_by('-timestamp')[:100]
+        queryset = ActivityLog.objects.select_related('user').order_by('-timestamp')[:100]
         queryset = self._apply_date_filters(queryset, filtros, 'timestamp')
         
-        headers = ['Fecha', 'Usuario', 'Acción', 'Modelo', 'Descripción', 'IP']
-        data_rows = [
-            [
+        headers = ['Fecha', 'Usuario', 'Acción', 'Tipo Recurso', 'Detalles', 'IP']
+        data_rows = []
+        for activity in queryset:
+            if isinstance(activity.details, dict):
+                descripcion = activity.details.get('description', '')
+            else:
+                descripcion = str(activity.details)
+            
+            descripcion_truncada = descripcion[:50] + '...' if len(descripcion) > 50 else descripcion
+            
+            data_rows.append([
                 activity.timestamp.strftime(DATE_TIME_FORMAT),
-                activity.usuario.username if activity.usuario else 'Anónimo',
-                activity.get_accion_display(),
-                activity.modelo,
-                activity.descripcion[:50] + '...' if len(activity.descripcion) > 50 else activity.descripcion,
+                activity.user.username if activity.user else 'Anónimo',
+                activity.action,
+                activity.resource_type or 'N/A',
+                descripcion_truncada,
                 activity.ip_address or 'N/A',
-            ]
-            for activity in queryset
-        ]
+            ])
         
         self._create_table_with_headers(
             headers,
@@ -564,7 +570,7 @@ class ExcelAnalisisGenerator(ExcelBaseGenerator):
             "Historial de Logins"
         )
         
-        queryset = LoginHistory.objects.select_related('usuario').order_by('-login_time')[:100]
+        queryset = LoginHistory.objects.select_related('user').order_by('-login_time')[:100]
         queryset = self._apply_date_filters(queryset, filtros, 'login_time')
         
         headers = ['Fecha', 'Usuario', 'IP', 'Éxito', 'Duración', 'Razón Fallo']

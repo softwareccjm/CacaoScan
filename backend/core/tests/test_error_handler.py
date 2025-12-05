@@ -50,7 +50,8 @@ def test_process_exception_api_path(middleware, request_factory):
     assert response is not None
     assert isinstance(response, JsonResponse)
     assert response.status_code == 500
-    data = response.json()
+    import json
+    data = json.loads(response.content)
     assert data['success'] is False
     assert 'message' in data
     assert 'error_type' in data
@@ -62,4 +63,5 @@ def test_process_exception_non_api_path(middleware, request_factory):
     exception = Exception("Test exception")
     response = middleware.process_exception(request, exception)
     assert response is None
+
 

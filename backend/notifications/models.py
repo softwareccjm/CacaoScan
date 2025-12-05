@@ -72,6 +72,32 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notificación para {self.user.username}: {self.titulo}"
     
+    @classmethod
+    def create_notification(cls, user, tipo, titulo, mensaje, datos_extra=None):
+        """
+        Create a notification instance.
+        
+        Args:
+            user: User instance
+            tipo: Notification type
+            titulo: Notification title
+            mensaje: Notification message
+            datos_extra: Optional extra data dict
+            
+        Returns:
+            Notification instance
+        """
+        if datos_extra is None:
+            datos_extra = {}
+        
+        return cls.objects.create(
+            user=user,
+            tipo=tipo,
+            titulo=titulo,
+            mensaje=mensaje,
+            datos_extra=datos_extra
+        )
+    
     def mark_as_read(self):
         """Marca la notificación como leída."""
         if not self.leida:
@@ -97,3 +123,16 @@ class Notification(models.Model):
             return f"hace {minutos} minuto{'s' if minutos > 1 else ''}"
         else:
             return "hace unos momentos"
+    
+    @classmethod
+    def get_unread_count(cls, user):
+        """
+        Get count of unread notifications for a user.
+        
+        Args:
+            user: User instance
+            
+        Returns:
+            int: Count of unread notifications
+        """
+        return cls.objects.filter(user=user, leida=False).count()

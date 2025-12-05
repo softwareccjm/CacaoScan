@@ -36,13 +36,14 @@ class ExcelUsuariosGenerator(ExcelBaseGenerator):
             'ID Usuario', 'Nombre', 'Correo', 'Rol', 'Activo', 'Fecha Registro',
             'Finca', 'Departamento', 'Municipio', 'Área (ha)', 'Latitud', 'Longitud'
         ]
-        self.ws.append(headers)
-        
-        for col in self.ws[1]:
-            col.font = styles['bold_font']
-            col.fill = styles['header_fill']
-            col.alignment = styles['align_center']
-            col.border = styles['thin_border']
+        # Clear any existing content in row 1 and append headers
+        for col in range(1, len(headers) + 1):
+            cell = self.ws.cell(row=1, column=col)
+            cell.value = headers[col - 1]
+            cell.font = styles['bold_font']
+            cell.fill = styles['header_fill']
+            cell.alignment = styles['align_center']
+            cell.border = styles['thin_border']
         
         return headers
     
@@ -100,16 +101,19 @@ class ExcelUsuariosGenerator(ExcelBaseGenerator):
     
     def _auto_adjust_columns(self):
         """Auto-adjust column widths."""
-        for col in self.ws.columns:
-            max_length = 0
-            for cell in col:
-                try:
-                    if cell.value:
-                        max_length = max(max_length, len(str(cell.value)))
-                except Exception:
-                    pass
-            adjusted_width = min(max_length + 2, 50)
-            self.ws.column_dimensions[col[0].column_letter].width = adjusted_width
+        try:
+            for col in self.ws.columns:
+                max_length = 0
+                for cell in col:
+                    try:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    except Exception:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                self.ws.column_dimensions[col[0].column_letter].width = adjusted_width
+        except Exception:
+            logger.warning("Error auto-adjusting columns (non-critical)")
     
     def _show_empty_message(self, styles):
         """Show message when no users are available."""
