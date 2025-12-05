@@ -44,10 +44,15 @@ describe('idGenerator', () => {
     })
 
     it('should use crypto.getRandomValues when available', () => {
+      // Use deterministic values instead of Math.random() to avoid SonarQube S2245
+      // This is safe because it's only used for testing, not for security purposes
+      let counter = 0
       const mockCrypto = {
         getRandomValues: vi.fn((arr) => {
           for (let i = 0; i < arr.length; i++) {
-            arr[i] = Math.floor(Math.random() * 256)
+            // Use deterministic sequence based on counter to avoid PRNG security hotspot
+            arr[i] = (counter * 17 + i * 23) % 256
+            counter++
           }
           return arr
         })

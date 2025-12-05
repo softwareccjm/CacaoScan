@@ -12,8 +12,6 @@ import {
   apiDelete,
   fetchGet,
   fetchPost,
-  fetchPatch,
-  fetchDelete,
   extractErrorMessage,
   extractValidationErrors,
   makePaginatedRequest,

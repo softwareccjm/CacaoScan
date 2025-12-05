@@ -222,9 +222,8 @@ class ModelMetricsCreateSerializer(serializers.ModelSerializer):
         
         # Validate main metrics
         r2_score = data.get('r2_score')
-        if r2_score is not None:
-            if r2_score < 0 or r2_score > 1:
-                errors.append("R² score debe estar entre 0 y 1")
+        if r2_score is not None and (r2_score < 0 or r2_score > 1):
+            errors.append("R² score debe estar entre 0 y 1")
         
         mae = data.get('mae')
         if mae is not None and mae < 0:

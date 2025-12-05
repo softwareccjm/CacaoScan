@@ -75,7 +75,11 @@ class CacaoImage(TimeStampedModel):
     @property
     def filename(self):
         """Obtener nombre del archivo (compatibilidad con tests)."""
-        return self.file_name if self.file_name else (self.image.name if self.image else "")
+        if self.file_name:
+            return self.file_name
+        if self.image:
+            return self.image.name
+        return ""
 
 
 class CacaoPrediction(models.Model):

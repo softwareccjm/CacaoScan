@@ -78,11 +78,16 @@ vi.mock('@/composables/useAuditHelpers', () => ({
 describe('AuditTimeline', () => {
   let wrapper
 
+  // Mock IP addresses using RFC 5737 reserved documentation addresses
+  // These are safe for testing and won't trigger SonarQube S1313
+  const MOCK_IP_ADDRESS_1 = '203.0.113.1' // RFC 5737 - TEST-NET-3
+  const MOCK_IP_ADDRESS_2 = '203.0.113.2' // RFC 5737 - TEST-NET-3
+
   const createActivityData = () => [
     {
       id: 1,
       usuario: 'testuser',
-      ip_address: '192.168.1.1',
+      ip_address: MOCK_IP_ADDRESS_1,
       modelo: 'CacaoImage',
       accion: 'create',
       accion_display: 'Crear',
@@ -95,7 +100,7 @@ describe('AuditTimeline', () => {
     {
       id: 2,
       usuario: 'testuser2',
-      ip_address: '192.168.1.2',
+      ip_address: MOCK_IP_ADDRESS_2,
       modelo: 'Finca',
       accion: 'update',
       accion_display: 'Actualizar',
@@ -109,7 +114,7 @@ describe('AuditTimeline', () => {
     {
       id: 1,
       usuario: 'testuser',
-      ip_address: '192.168.1.1',
+      ip_address: MOCK_IP_ADDRESS_1,
       success: true,
       login_time: '2024-01-01T10:00:00Z',
       logout_time: '2024-01-01T12:00:00Z',
@@ -119,7 +124,7 @@ describe('AuditTimeline', () => {
     {
       id: 2,
       usuario: 'testuser2',
-      ip_address: '192.168.1.2',
+      ip_address: MOCK_IP_ADDRESS_2,
       success: false,
       login_time: '2024-01-01T11:00:00Z',
       logout_time: null,
@@ -233,7 +238,7 @@ describe('AuditTimeline', () => {
     })
 
     it('should display IP address', () => {
-      expect(wrapper.text()).toContain('192.168.1.1')
+      expect(wrapper.text()).toContain(MOCK_IP_ADDRESS_1)
     })
 
     it('should display modelo', () => {

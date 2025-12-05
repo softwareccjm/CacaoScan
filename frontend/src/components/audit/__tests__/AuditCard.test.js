@@ -113,10 +113,14 @@ vi.mock('@/components/common/BaseCard.vue', () => ({
 describe('AuditCard', () => {
   let wrapper
 
+  // Mock IP addresses using RFC 5737 reserved documentation addresses
+  // These are safe for testing and won't trigger SonarQube S1313
+  const MOCK_IP_ADDRESS = '203.0.113.1' // RFC 5737 - TEST-NET-3
+
   const createActivityData = () => ({
     id: 1,
     usuario: 'testuser',
-    ip_address: '192.168.1.1',
+    ip_address: MOCK_IP_ADDRESS,
     modelo: 'CacaoImage',
     accion: 'create',
     accion_display: 'Crear',
@@ -128,7 +132,7 @@ describe('AuditCard', () => {
   const createLoginData = () => ({
     id: 1,
     usuario: 'testuser',
-    ip_address: '192.168.1.1',
+    ip_address: MOCK_IP_ADDRESS,
     success: true,
     login_time: '2024-01-01T10:00:00Z',
     logout_time: '2024-01-01T12:00:00Z',
@@ -205,7 +209,7 @@ describe('AuditCard', () => {
     })
 
     it('should display IP address', () => {
-      expect(wrapper.text()).toContain('192.168.1.1')
+      expect(wrapper.text()).toContain(MOCK_IP_ADDRESS)
     })
 
     it('should display modelo', () => {
@@ -446,7 +450,7 @@ describe('AuditCard', () => {
       const button = wrapper.find('button')
       const clickEvent = new Event('click')
       clickEvent.stopPropagation = vi.fn()
-      await button.element.dispatchEvent(clickEvent)
+      button.element.dispatchEvent(clickEvent)
 
       // Button click should not bubble to card click
       const emitted = wrapper.emitted('view-details')

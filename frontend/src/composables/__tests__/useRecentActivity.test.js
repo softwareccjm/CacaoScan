@@ -2,7 +2,7 @@
  * Unit tests for useRecentActivity composable
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { useRecentActivity } from '../useRecentActivity.js'
 
 describe('useRecentActivity', () => {

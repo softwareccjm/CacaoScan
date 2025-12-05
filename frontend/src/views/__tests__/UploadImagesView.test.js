@@ -288,7 +288,6 @@ describe('UploadImagesView', () => {
       })
 
       const form = wrapper.find('form')
-      const submitEvent = new Event('submit', { cancelable: true })
       
       await form.trigger('submit')
       

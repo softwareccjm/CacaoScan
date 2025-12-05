@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAdminView } from '../useAdminView.js'
-import { useRouter } from 'vue-router'
 import { usePagination } from '../usePagination'
 import Swal from 'sweetalert2'
 
@@ -140,9 +139,10 @@ describe('useAdminView', () => {
       
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
       
-      vi.doMock('@/stores/auth', () => ({
+      const createAuthStoreMock = () => ({
         useAuthStore: () => mockAuthStore
-      }))
+      })
+      vi.doMock('@/stores/auth', createAuthStoreMock)
       
       await adminView.handleLogout()
       
@@ -395,12 +395,11 @@ describe('useAdminView', () => {
         pagination: {
           currentPage: 2,
           totalPages: 5,
-          totalItems: 100,
-          totalPages: 5
+          totalItems: 100
         }
       }
       
-      const view = useAdminView({
+      useAdminView({
         store: mockStore
       })
       
@@ -450,7 +449,7 @@ describe('useAdminView', () => {
       
       usePagination.mockReturnValueOnce(mockPagination)
       
-      const view = useAdminView({
+      useAdminView({
         store: { stats: {} },
         initialItemsPerPage: 50
       })

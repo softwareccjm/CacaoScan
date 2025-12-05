@@ -83,10 +83,15 @@ describe('AuditDetailsModal', () => {
   let mockRemove
   let mockClick
 
+  // Mock IP addresses using RFC 5737 reserved documentation addresses
+  // These are safe for testing and won't trigger SonarQube S1313
+  const MOCK_IP_ADDRESS = '203.0.113.1' // RFC 5737 - TEST-NET-3
+  const MOCK_IP_ADDRESS_ALT = '198.51.100.1' // RFC 5737 - TEST-NET-2
+
   const createActivityData = () => ({
     id: 1,
     usuario: 'testuser',
-    ip_address: '192.168.1.1',
+    ip_address: MOCK_IP_ADDRESS,
     modelo: 'CacaoImage',
     accion: 'create',
     accion_display: 'Crear',
@@ -101,7 +106,7 @@ describe('AuditDetailsModal', () => {
   const createLoginData = () => ({
     id: 1,
     usuario: 'testuser',
-    ip_address: '192.168.1.1',
+    ip_address: MOCK_IP_ADDRESS,
     success: true,
     login_time: '2024-01-01T10:00:00Z',
     logout_time: '2024-01-01T12:00:00Z',
@@ -147,13 +152,16 @@ describe('AuditDetailsModal', () => {
     }
     // Clean up any elements added to body
     const links = document.body.querySelectorAll('a[download]')
-    links.forEach(link => {
+    for (const link of links) {
       try {
         link.remove()
-      } catch (e) {
+      } catch (error) {
         // Element may have already been removed
+        if (error instanceof Error) {
+          // Log error if needed
+        }
       }
-    })
+    }
   })
 
   describe('Props validation', () => {
@@ -202,7 +210,7 @@ describe('AuditDetailsModal', () => {
     })
 
     it('should display IP address', () => {
-      expect(wrapper.text()).toContain('192.168.1.1')
+      expect(wrapper.text()).toContain(MOCK_IP_ADDRESS)
     })
 
     it('should display modelo', () => {
@@ -332,7 +340,7 @@ describe('AuditDetailsModal', () => {
     })
 
     it('should detect suspicious IP', () => {
-      const data = { ...createActivityData(), ip_address: '192.168.1.1' }
+      const data = { ...createActivityData(), ip_address: MOCK_IP_ADDRESS }
       wrapper = mount(AuditDetailsModal, {
         props: {
           data,
@@ -344,7 +352,7 @@ describe('AuditDetailsModal', () => {
     })
 
     it('should not show security section for normal activity', () => {
-      const data = { ...createActivityData(), accion: 'view', ip_address: '10.0.0.1' }
+      const data = { ...createActivityData(), accion: 'view', ip_address: MOCK_IP_ADDRESS_ALT }
       wrapper = mount(AuditDetailsModal, {
         props: {
           data,
@@ -445,10 +453,10 @@ describe('AuditDetailsModal', () => {
       let capturedBlobData = null
       
       // Create a class that extends Blob to capture the data
-      global.Blob = class extends OriginalBlob {
+      globalThis.Blob = class extends OriginalBlob {
         constructor(parts, options) {
           super(parts, options)
-          if (parts && parts[0]) {
+          if (parts?.[0]) {
             capturedBlobData = parts[0]
           }
         }
@@ -461,7 +469,7 @@ describe('AuditDetailsModal', () => {
       expect(parsedData.export_timestamp).toBeDefined()
       expect(parsedData.export_type).toBe('activity')
 
-      global.Blob = OriginalBlob
+      globalThis.Blob = OriginalBlob
     })
   })
 

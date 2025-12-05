@@ -4,8 +4,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useSidebarNavigation } from '../useSidebarNavigation.js'
-import { useRouter, useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 
 // Mock dependencies
 const mockRouter = {

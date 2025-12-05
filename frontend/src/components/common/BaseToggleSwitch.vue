@@ -11,9 +11,10 @@
       <button
         :id="fieldId"
         type="button"
-        :aria-checked="modelValue"
-        :aria-label="ariaLabel"
         role="switch"
+        :aria-checked="String(isChecked)"
+        :aria-label="ariaLabel"
+        :aria-disabled="String(disabled)"
         :class="[
           'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out',
           'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
@@ -21,6 +22,7 @@
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         ]"
         :disabled="disabled"
+        :tabindex="disabled ? -1 : 0"
         @click="handleToggle"
       >
         <span
@@ -103,6 +105,12 @@ const fieldId = `toggle-${generateSecureId()}`
 
 const ariaLabel = computed(() => {
   return props.label || 'Toggle switch'
+})
+
+// Computed property to ensure aria-checked always has a valid string value
+// This satisfies ARIA requirements for role="switch" and SonarQube S6807
+const isChecked = computed(() => {
+  return Boolean(props.modelValue)
 })
 
 const activeClasses = computed(() => {

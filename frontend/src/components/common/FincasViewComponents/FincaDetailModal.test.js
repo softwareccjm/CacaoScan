@@ -78,7 +78,6 @@ describe('FincaDetailModal', () => {
       if (fincaId === mockFinca.id) {
         mockCurrentFinca.value = mockFincaDetail
       }
-      return Promise.resolve()
     })
     mockClearCurrentFinca = vi.fn()
     mockCurrentFinca = { value: null }
@@ -160,7 +159,6 @@ describe('FincaDetailModal', () => {
       isLoading: { value: false },
       loadFinca: vi.fn(() => {
         mockCurrentFinca.value = mockFincaDetail
-        return Promise.resolve()
       }),
       clearCurrentFinca: mockClearCurrentFinca
     })
@@ -196,7 +194,6 @@ describe('FincaDetailModal', () => {
       isLoading: { value: false },
       loadFinca: vi.fn(() => {
         mockCurrentFinca.value = mockFincaDetail
-        return Promise.resolve()
       }),
       clearCurrentFinca: mockClearCurrentFinca
     })
@@ -324,7 +321,6 @@ describe('FincaDetailModal', () => {
         mockCurrentFincaForTest.value = mockFincaDetail
       }
       mockIsLoading.value = false
-      return Promise.resolve()
     })
     
     mockUseFincas.mockReturnValue({

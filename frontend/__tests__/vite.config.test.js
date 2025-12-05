@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 
 describe('vite.config.js', () => {
   let config

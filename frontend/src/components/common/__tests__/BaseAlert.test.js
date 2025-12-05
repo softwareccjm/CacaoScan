@@ -51,7 +51,7 @@ describe('BaseAlert', () => {
   describe('Variants', () => {
     const variants = ['error', 'success', 'warning', 'info', 'critical']
 
-    variants.forEach(variant => {
+    for (const variant of variants) {
       it(`should apply correct classes for ${variant} variant`, () => {
         wrapper = mount(BaseAlert, {
           props: {
@@ -62,7 +62,19 @@ describe('BaseAlert', () => {
 
         const alertElement = wrapper.find('.border-l-4')
         expect(alertElement.exists()).toBe(true)
-        expect(alertElement.classes()).toContain(`border-${variant === 'critical' ? 'red-600' : variant === 'error' ? 'red-400' : variant === 'success' ? 'green-400' : variant === 'warning' ? 'yellow-400' : 'blue-400'}`.replace(/border-red-600/, 'border-red-600').replace(/border-red-400/, 'border-red-400').replace(/border-green-400/, 'border-green-400').replace(/border-yellow-400/, 'border-yellow-400').replace(/border-blue-400/, 'border-blue-400'))
+        let expectedBorderClass
+        if (variant === 'critical') {
+          expectedBorderClass = 'border-red-600'
+        } else if (variant === 'error') {
+          expectedBorderClass = 'border-red-400'
+        } else if (variant === 'success') {
+          expectedBorderClass = 'border-green-400'
+        } else if (variant === 'warning') {
+          expectedBorderClass = 'border-yellow-400'
+        } else {
+          expectedBorderClass = 'border-blue-400'
+        }
+        expect(alertElement.classes()).toContain(expectedBorderClass)
       })
     })
   })

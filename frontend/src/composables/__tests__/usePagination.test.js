@@ -2,7 +2,7 @@
  * Unit tests for usePagination composable
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { usePagination } from '../usePagination.js'
 
 describe('usePagination', () => {
@@ -510,7 +510,7 @@ describe('usePagination', () => {
       }
 
       const pagination = usePagination()
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
 
       expect(pagination.currentPage.value).toBe(3)
       expect(pagination.itemsPerPage.value).toBe(25)
@@ -559,7 +559,7 @@ describe('usePagination', () => {
       }
 
       const pagination = usePagination()
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
 
       expect(typeof updateQuery).toBe('function')
       
@@ -575,8 +575,8 @@ describe('usePagination', () => {
       const pagination = usePagination()
       
       // Mock require to throw error
-      const originalRequire = global.require
-      global.require = vi.fn(() => {
+      const originalRequire = globalThis.require
+      globalThis.require = vi.fn(() => {
         throw new Error('Module not found')
       })
 
@@ -584,7 +584,7 @@ describe('usePagination', () => {
 
       expect(consoleWarn).toHaveBeenCalled()
       
-      global.require = originalRequire
+      globalThis.require = originalRequire
       consoleWarn.mockRestore()
     })
 
@@ -598,7 +598,7 @@ describe('usePagination', () => {
 
       const pagination = usePagination()
       pagination.currentPage.value = 1
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
       updateQuery()
 
       const replaceCall = mockRouter.replace.mock.calls[0][0]
@@ -615,7 +615,7 @@ describe('usePagination', () => {
 
       const pagination = usePagination({ initialItemsPerPage: 10 })
       pagination.itemsPerPage.value = 10
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
       updateQuery()
 
       const replaceCall = mockRouter.replace.mock.calls[0][0]

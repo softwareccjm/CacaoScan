@@ -81,7 +81,8 @@ export function formDataToObject(formData) {
 
   for (const [key, value] of formData.entries()) {
     // Handle array notation (key[0], key[1])
-    const arrayMatch = key.match(/^(.+)\[(\d+)\]$/)
+    // Use [^[]+ instead of .+ to avoid backtracking (ReDoS prevention)
+    const arrayMatch = key.match(/^([^[]+)\[(\d+)\]$/)
     if (arrayMatch) {
       const [, baseKey, index] = arrayMatch
       if (!object[baseKey]) {

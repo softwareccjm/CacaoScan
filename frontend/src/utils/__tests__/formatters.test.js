@@ -322,7 +322,10 @@ describe('formatters', () => {
 
     it('should round to 2 decimal places', () => {
       const result = formatFileSize(1536)
-      expect(result).toMatch(/\d+\.\d{1,2}/)
+      // Use bounded quantifier to prevent catastrophic backtracking
+      // Limit digits before decimal point to prevent DoS vulnerability
+      // Match: 1-20 digits, a dot, then 1-2 digits
+      expect(result).toMatch(/\d{1,20}\.\d{1,2}/)
     })
   })
 

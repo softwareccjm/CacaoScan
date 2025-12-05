@@ -131,10 +131,10 @@ describe('AnalysisSummaryCard', () => {
     // Should have quality score, defect count, plus 3 metrics
     expect(metricItems.length).toBeGreaterThanOrEqual(3)
     
-    metrics.forEach(metric => {
+    for (const metric of metrics) {
       expect(wrapper.text()).toContain(metric.name)
       expect(wrapper.text()).toContain(metric.value)
-    })
+    }
   })
 
   it('should display multiple metrics correctly', () => {
@@ -150,11 +150,11 @@ describe('AnalysisSummaryCard', () => {
       }
     })
 
-    metrics.forEach((metric, index) => {
+    for (const metric of metrics) {
       const metricText = wrapper.text()
       expect(metricText).toContain(metric.name)
       expect(metricText).toContain(metric.value)
-    })
+    }
   })
 
   it('should handle all props together', () => {

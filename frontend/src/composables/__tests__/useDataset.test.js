@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useDataset } from '../useDataset.js'
 import { getDatasetImages, getDatasetImage, updateDatasetImage, deleteDatasetImage } from '@/services/datasetApi'
-import { handleApiError } from '@/services/apiErrorHandler'
 
 // Mock dependencies
 vi.mock('@/services/datasetApi', () => ({
@@ -46,7 +45,7 @@ describe('useDataset', () => {
       }
       getDatasetImages.mockResolvedValue(mockResponse)
 
-      const result = await dataset.loadImages()
+      await dataset.loadImages()
 
       expect(getDatasetImages).toHaveBeenCalled()
       expect(dataset.images.value).toEqual([{ id: 1, url: 'image1.jpg' }])
@@ -68,7 +67,7 @@ describe('useDataset', () => {
       const mockImage = { id: 1, url: 'image1.jpg' }
       getDatasetImage.mockResolvedValue(mockImage)
 
-      const result = await dataset.loadImage(1)
+      await dataset.loadImage(1)
 
       expect(getDatasetImage).toHaveBeenCalledWith(1)
       expect(dataset.currentImage.value).toEqual(mockImage)

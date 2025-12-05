@@ -179,15 +179,15 @@ describe('imageValidationUtils', () => {
     let originalRevokeObjectURL
 
     beforeEach(() => {
-      originalImage = global.Image
-      originalCreateObjectURL = global.URL.createObjectURL
-      originalRevokeObjectURL = global.URL.revokeObjectURL
+      originalImage = globalThis.Image
+      originalCreateObjectURL = globalThis.URL.createObjectURL
+      originalRevokeObjectURL = globalThis.URL.revokeObjectURL
     })
 
     afterEach(() => {
-      global.Image = originalImage
-      global.URL.createObjectURL = originalCreateObjectURL
-      global.URL.revokeObjectURL = originalRevokeObjectURL
+      globalThis.Image = originalImage
+      globalThis.URL.createObjectURL = originalCreateObjectURL
+      globalThis.URL.revokeObjectURL = originalRevokeObjectURL
     })
 
     it('should validate image dimensions', async () => {
@@ -198,12 +198,12 @@ describe('imageValidationUtils', () => {
         onerror: null
       }
 
-      global.Image = vi.fn(function() {
+      globalThis.Image = vi.fn(function() {
         return mockImage
       })
 
-      global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-      global.URL.revokeObjectURL = vi.fn()
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+      globalThis.URL.revokeObjectURL = vi.fn()
 
       const file = new File(['test'], 'test.png', { type: 'image/png' })
 
@@ -242,12 +242,12 @@ describe('imageValidationUtils', () => {
         onerror: null
       }
 
-      global.Image = vi.fn(function() {
+      globalThis.Image = vi.fn(function() {
         return mockImage
       })
 
-      global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-      global.URL.revokeObjectURL = vi.fn()
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+      globalThis.URL.revokeObjectURL = vi.fn()
 
       const file = new File(['test'], 'test.png', { type: 'image/png' })
 
@@ -275,12 +275,12 @@ describe('imageValidationUtils', () => {
         onerror: null
       }
 
-      global.Image = vi.fn(function() {
+      globalThis.Image = vi.fn(function() {
         return mockImage
       })
 
-      global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-      global.URL.revokeObjectURL = vi.fn()
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+      globalThis.URL.revokeObjectURL = vi.fn()
 
       const file = new File(['test'], 'test.png', { type: 'image/png' })
 
@@ -361,7 +361,23 @@ describe('imageValidationUtils', () => {
 
     it('should handle decimal values', () => {
       const result = formatFileSize(1536)
-      expect(result).toMatch(/\d+\.\d+\sKB/)
+      // Use a safer validation approach that avoids ReDoS vulnerability
+      // Validate structure and content without vulnerable regex patterns
+      expect(result).toContain('KB')
+      // Split and validate parts separately to avoid regex backtracking
+      const parts = result.split(' ')
+      expect(parts.length).toBe(2)
+      expect(parts[1]).toBe('KB')
+      // Validate number format without complex regex
+      const numberPart = parts[0]
+      expect(numberPart).toContain('.')
+      const [integerPart, decimalPart] = numberPart.split('.')
+      expect(integerPart.length).toBeGreaterThan(0)
+      expect(integerPart.length).toBeLessThanOrEqual(10)
+      expect(decimalPart.length).toBeGreaterThan(0)
+      expect(decimalPart.length).toBeLessThanOrEqual(10)
+      expect(Number.parseFloat(numberPart)).toBeGreaterThan(0)
+      expect(Number.parseFloat(numberPart)).toBeLessThan(10)
     })
   })
 
@@ -404,7 +420,7 @@ describe('imageValidationUtils', () => {
 
     it('should handle filename with path', () => {
       expect(isImageFile('/path/to/image.jpg')).toBe(true)
-      expect(isImageFile('C:\\path\\to\\image.png')).toBe(true)
+      expect(isImageFile(String.raw`C:\path\to\image.png`)).toBe(true)
     })
   })
 })

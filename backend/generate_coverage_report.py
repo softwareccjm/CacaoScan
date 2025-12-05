@@ -233,7 +233,7 @@ def generate_report(output_file: str = "coverage_report.txt") -> None:
             
             # Mostrar líneas cubiertas y faltantes
             status = format_line_status(
-                {line: 1 for line in file_info['lines']},
+                dict.fromkeys(file_info['lines'], 1),
                 file_info['missing_lines']
             )
             report_lines.append(status)

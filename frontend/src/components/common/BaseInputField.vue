@@ -173,8 +173,9 @@ const props = defineProps({
       
       // Last resort: use timestamp + counter (not cryptographically secure but acceptable for DOM IDs)
       // This is acceptable since DOM IDs are not used for security purposes
+      // Using deterministic counter instead of Math.random() to avoid SonarQube S2245
       const timestamp = Date.now().toString(36)
-      const counter = (Date.now() % 1000000) + Math.floor(Math.random() * 1000)
+      const counter = (globalThis.__inputIdCounter = (globalThis.__inputIdCounter || 0) + 1)
       return `${prefix}-${timestamp}-${counter.toString(36)}`
     }
   }

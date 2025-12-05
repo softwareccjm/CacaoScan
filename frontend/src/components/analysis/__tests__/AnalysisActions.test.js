@@ -39,7 +39,7 @@ describe('AnalysisActions', () => {
   it('should emit download-pdf event when BaseAnalysisActions emits it', async () => {
     wrapper = mount(AnalysisActions)
 
-    const baseComponent = wrapper.findComponent({ name: 'BaseAnalysisActions' })
+    wrapper.findComponent({ name: 'BaseAnalysisActions' })
     const downloadButton = wrapper.find('[data-testid="download-pdf-btn"]')
 
     await downloadButton.trigger('click')
@@ -51,7 +51,7 @@ describe('AnalysisActions', () => {
   it('should emit new-analysis event when BaseAnalysisActions emits it', async () => {
     wrapper = mount(AnalysisActions)
 
-    const baseComponent = wrapper.findComponent({ name: 'BaseAnalysisActions' })
+    wrapper.findComponent({ name: 'BaseAnalysisActions' })
     const newAnalysisButton = wrapper.find('[data-testid="new-analysis-btn"]')
 
     await newAnalysisButton.trigger('click')

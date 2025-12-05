@@ -235,11 +235,11 @@ describe('UserActivityModal', () => {
     const originalCreateElement = document.createElement
     const originalAppendChild = document.body.appendChild
     const originalRemoveChild = document.body.removeChild
-    const originalCreateObjectURL = global.URL.createObjectURL
-    const originalRevokeObjectURL = global.URL.revokeObjectURL
+    const originalCreateObjectURL = globalThis.URL.createObjectURL
+    const originalRevokeObjectURL = globalThis.URL.revokeObjectURL
     
-    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
-    global.URL.revokeObjectURL = vi.fn()
+    globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
+    globalThis.URL.revokeObjectURL = vi.fn()
     document.createElement = vi.fn().mockImplementation((tagName) => {
       if (tagName === 'a') {
         return {
@@ -269,8 +269,8 @@ describe('UserActivityModal', () => {
     document.createElement = originalCreateElement
     document.body.appendChild = originalAppendChild
     document.body.removeChild = originalRemoveChild
-    global.URL.createObjectURL = originalCreateObjectURL
-    global.URL.revokeObjectURL = originalRevokeObjectURL
+    globalThis.URL.createObjectURL = originalCreateObjectURL
+    globalThis.URL.revokeObjectURL = originalRevokeObjectURL
   })
 
   it('should handle error when exporting activities', async () => {

@@ -100,11 +100,8 @@ class FincaSerializer(serializers.ModelSerializer):
         from core.utils import validate_longitude
         return validate_longitude(value)
     
-    def validate(self, attrs):
-        """General validations."""
-        from core.utils import validate_coordinates
-        errors = {}
-        
+    def _validate_required_fields(self, attrs, errors):
+        """Validate required fields."""
         municipio = attrs.get('municipio', '')
         if not municipio or (isinstance(municipio, str) and not municipio.strip()):
             errors['municipio'] = ["El municipio es requerido."]
@@ -112,19 +109,30 @@ class FincaSerializer(serializers.ModelSerializer):
         departamento = attrs.get('departamento', '')
         if not departamento or (isinstance(departamento, str) and not departamento.strip()):
             errors['departamento'] = ["El departamento es requerido."]
+
+    def _handle_coordinate_validation_error(self, e, errors):
+        """Handle coordinate validation errors."""
+        error_str = str(e)
+        if 'coordenadas_lat' in error_str or 'coordenadas_lng' in error_str:
+            errors.setdefault('non_field_errors', []).append(error_str)
+        else:
+            if 'coordenadas_lat' not in errors:
+                errors['coordenadas_lat'] = []
+            if 'coordenadas_lng' not in errors:
+                errors['coordenadas_lng'] = []
+            errors.setdefault('non_field_errors', []).append(error_str)
+
+    def validate(self, attrs):
+        """General validations."""
+        from core.utils import validate_coordinates
+        errors = {}
         
-        # Validate coordinates if provided
+        self._validate_required_fields(attrs, errors)
+        
         try:
             validate_coordinates(attrs)
         except Exception as e:
-            if 'coordenadas_lat' in str(e) or 'coordenadas_lng' in str(e):
-                errors.setdefault('non_field_errors', []).append(str(e))
-            else:
-                if 'coordenadas_lat' not in errors:
-                    errors['coordenadas_lat'] = []
-                if 'coordenadas_lng' not in errors:
-                    errors['coordenadas_lng'] = []
-                errors.setdefault('non_field_errors', []).append(str(e))
+            self._handle_coordinate_validation_error(e, errors)
         
         if errors:
             raise serializers.ValidationError(errors)
@@ -261,44 +269,52 @@ class LoteSerializer(serializers.ModelSerializer):
     def validate_area(self, value):
         """Validate area alias (maps to area_hectareas)."""
         if value is None:
-            return value
+            return None
         if value < 0:
             raise serializers.ValidationError("El área debe ser mayor o igual a 0.")
         if value > 1000:
             raise serializers.ValidationError("El área no puede ser mayor a 1,000 hectáreas.")
-        return value
+        # Normalize to float to ensure consistent type
+        return float(value)
     
-    def validate_fecha_cosecha(self, value):
-        """Validate harvest date."""
-        if value is None:
-            return value
+    def _parse_fecha_plantacion(self, fecha_plantacion):
+        """Parse fecha_plantacion from string to date if needed."""
+        if not fecha_plantacion:
+            return None
         
-        # Validate date is not too old
+        if isinstance(fecha_plantacion, str):
+            from datetime import datetime
+            try:
+                return datetime.strptime(fecha_plantacion, '%Y-%m-%d').date()
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(fecha_plantacion).date()
+                except ValueError:
+                    return None
+        return fecha_plantacion
+
+    def _validate_fecha_cosecha_basic(self, value):
+        """Validate basic fecha_cosecha constraints."""
         from datetime import date
+        from django.utils import timezone
+        
         if value.year < 1900:
             raise serializers.ValidationError("La fecha de cosecha debe ser posterior a 1900.")
         
-        # Validate date is not in the future (with some tolerance)
-        from django.utils import timezone
         today = timezone.now().date()
         if value > today:
             raise serializers.ValidationError("La fecha de cosecha no puede ser futura.")
+
+    def validate_fecha_cosecha(self, value):
+        """Validate harvest date."""
+        if value is None:
+            return None
         
-        # Validate against fecha_plantacion if provided
-        fecha_plantacion = self.initial_data.get('fecha_plantacion')
-        if fecha_plantacion:
-            if isinstance(fecha_plantacion, str):
-                from datetime import datetime
-                try:
-                    fecha_plantacion = datetime.strptime(fecha_plantacion, '%Y-%m-%d').date()
-                except ValueError:
-                    try:
-                        fecha_plantacion = datetime.fromisoformat(fecha_plantacion).date()
-                    except ValueError:
-                        pass  # Skip validation if date format is invalid
-            
-            if isinstance(fecha_plantacion, date) and value < fecha_plantacion:
-                raise serializers.ValidationError("La fecha de cosecha no puede ser anterior a la fecha de plantación.")
+        self._validate_fecha_cosecha_basic(value)
+        
+        fecha_plantacion = self._parse_fecha_plantacion(self.initial_data.get('fecha_plantacion'))
+        if fecha_plantacion and value < fecha_plantacion:
+            raise serializers.ValidationError("La fecha de cosecha no puede ser anterior a la fecha de plantación.")
         
         return value
     
@@ -312,16 +328,18 @@ class LoteSerializer(serializers.ModelSerializer):
         from core.utils import validate_longitude
         return validate_longitude(value)
     
+    def _handle_area_alias(self, attrs):
+        """Handle area alias mapping to area_hectareas."""
+        if 'area' in attrs and 'area_hectareas' not in attrs:
+            attrs['area_hectareas'] = attrs.pop('area')
+        elif 'area' in attrs and 'area_hectareas' in attrs:
+            attrs.pop('area')
+
     def validate(self, attrs):
         """General validations and handle area alias mapping."""
         from core.utils import validate_coordinates
         
-        # Handle area alias mapping to area_hectareas
-        if 'area' in attrs and 'area_hectareas' not in attrs:
-            attrs['area_hectareas'] = attrs.pop('area')
-        # If both are provided, prefer area_hectareas
-        elif 'area' in attrs and 'area_hectareas' in attrs:
-            attrs.pop('area')  # Remove alias, use area_hectareas
+        self._handle_area_alias(attrs)
         
         errors = {}
         
@@ -329,18 +347,10 @@ class LoteSerializer(serializers.ModelSerializer):
         if not variedad or (isinstance(variedad, str) and not variedad.strip()):
             errors['variedad'] = ["La variedad es requerida."]
         
-        # Validate coordinates if provided
         try:
             validate_coordinates(attrs)
         except Exception as e:
-            if 'coordenadas_lat' in str(e) or 'coordenadas_lng' in str(e):
-                errors.setdefault('non_field_errors', []).append(str(e))
-            else:
-                if 'coordenadas_lat' not in errors:
-                    errors['coordenadas_lat'] = []
-                if 'coordenadas_lng' not in errors:
-                    errors['coordenadas_lng'] = []
-                errors.setdefault('non_field_errors', []).append(str(e))
+            self._handle_coordinate_validation_error(e, errors)
         
         if errors:
             raise serializers.ValidationError(errors)

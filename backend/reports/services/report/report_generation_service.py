@@ -98,7 +98,7 @@ class ReportGenerationService(BaseService):
                 report_data['tipo_reporte'] = 'analisis_general'
             
             if report_type == 'analisis_general':
-                report_content = self._generate_general_analysis_report(user, fecha_inicio, fecha_fin)
+                self._generate_general_analysis_report(user, fecha_inicio, fecha_fin)
             elif report_type == 'analisis_por_finca':
                 finca_id = report_data.get('finca_id')
                 if not finca_id:
@@ -106,7 +106,7 @@ class ReportGenerationService(BaseService):
                         "finca_id es requerido para reportes por finca",
                         details={"field": "finca_id"}
                     )
-                report_content = self._generate_finca_analysis_report(user, finca_id, fecha_inicio, fecha_fin)
+                self._generate_finca_analysis_report(user, finca_id, fecha_inicio, fecha_fin)
             elif report_type == 'analisis_por_lote':
                 lote_id = report_data.get('lote_id')
                 if not lote_id:
@@ -114,9 +114,9 @@ class ReportGenerationService(BaseService):
                         "lote_id es requerido para reportes por lote",
                         details={"field": "lote_id"}
                     )
-                report_content = self._generate_lote_analysis_report(user, lote_id, fecha_inicio, fecha_fin)
+                self._generate_lote_analysis_report(user, lote_id, fecha_inicio, fecha_fin)
             elif report_type == 'estadisticas_usuario':
-                report_content = self._generate_user_statistics_report(user, fecha_inicio, fecha_fin)
+                self._generate_user_statistics_report(user, fecha_inicio, fecha_fin)
             else:
                 return ServiceResult.validation_error(
                     f"Tipo de reporte no válido: {report_type}",

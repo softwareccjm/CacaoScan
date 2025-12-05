@@ -52,7 +52,7 @@ const createMockVideo = () => {
   return mockVideo
 }
 
-global.navigator = {
+globalThis.navigator = {
   mediaDevices: {
     getUserMedia: vi.fn().mockResolvedValue({
       getTracks: () => [{ stop: vi.fn() }]
@@ -65,7 +65,7 @@ describe('CameraCapture', () => {
 
   beforeEach(() => {
     // Reset getUserMedia mock
-    global.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue({
+    globalThis.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue({
       getTracks: () => [{ stop: vi.fn() }]
     })
   })
@@ -146,7 +146,7 @@ describe('CameraCapture', () => {
       getTracks: () => [{ stop: mockStop }]
     }
     
-    global.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
+    globalThis.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
 
     const mockVideo = createMockVideo()
 
@@ -186,7 +186,7 @@ describe('CameraCapture', () => {
   })
 
   it('should handle camera error', async () => {
-    global.navigator.mediaDevices.getUserMedia = vi.fn().mockRejectedValue(new Error('Camera error'))
+    globalThis.navigator.mediaDevices.getUserMedia = vi.fn().mockRejectedValue(new Error('Camera error'))
 
     wrapper = mount(CameraCapture, {
       global: {
@@ -208,7 +208,7 @@ describe('CameraCapture', () => {
     const mockStream = {
       getTracks: () => [{ stop: vi.fn() }]
     }
-    global.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
+    globalThis.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
 
     wrapper = mount(CameraCapture, {
       global: {
@@ -228,7 +228,7 @@ describe('CameraCapture', () => {
     await wrapper.vm.$nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    expect(global.navigator.mediaDevices.getUserMedia).toHaveBeenCalled()
+    expect(globalThis.navigator.mediaDevices.getUserMedia).toHaveBeenCalled()
   })
 
   it('should capture photo correctly', () => {
@@ -290,7 +290,7 @@ describe('CameraCapture', () => {
     const mockStream = {
       getTracks: () => [{ stop: mockStop }]
     }
-    global.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
+    globalThis.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
 
     const mockVideo = createMockVideo()
 
@@ -372,7 +372,7 @@ describe('CameraCapture', () => {
     const mockStream = {
       getTracks: () => [{ stop: vi.fn() }]
     }
-    global.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
+    globalThis.navigator.mediaDevices.getUserMedia = vi.fn().mockResolvedValue(mockStream)
 
     const mockVideo = createMockVideo()
 
@@ -401,7 +401,7 @@ describe('CameraCapture', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
     await wrapper.vm.$nextTick()
 
-    expect(global.navigator.mediaDevices.getUserMedia).toHaveBeenCalled()
+    expect(globalThis.navigator.mediaDevices.getUserMedia).toHaveBeenCalled()
   })
 
   it('should stop camera on unmount', () => {

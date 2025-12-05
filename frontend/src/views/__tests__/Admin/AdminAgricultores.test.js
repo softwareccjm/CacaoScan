@@ -209,7 +209,7 @@ describe('AdminAgricultores', () => {
 
     it('should handle error loading farmers', async () => {
       const authApi = await import('@/services/authApi')
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       
       authApi.default.getUsers.mockRejectedValue(new Error('Load error'))
 
@@ -316,7 +316,7 @@ describe('AdminAgricultores', () => {
       const mockModal = { openModal: openModalSpy }
       
       // Set the ref value - try both $refs and direct access
-      if (wrapper.vm.$refs && wrapper.vm.$refs.createFarmerModalRef) {
+      if (wrapper.vm.$refs?.createFarmerModalRef) {
         // If ref exists in $refs, update it
         Object.assign(wrapper.vm.$refs.createFarmerModalRef, mockModal)
       }
@@ -342,7 +342,7 @@ describe('AdminAgricultores', () => {
     it('should handle farmer created', async () => {
       const authApi = await import('@/services/authApi')
       const fincasApi = await import('@/services/fincasApi')
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       
       authApi.default.getUsers.mockResolvedValue({ results: [] })
       fincasApi.getFincas.mockResolvedValue({ results: [] })
@@ -439,7 +439,7 @@ describe('AdminAgricultores', () => {
     })
 
     it('should delete farmer when confirmed', async () => {
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       const authApi = await import('@/services/authApi')
       
       Swal.default.fire.mockResolvedValue({ isConfirmed: true })
@@ -454,7 +454,7 @@ describe('AdminAgricultores', () => {
     })
 
     it('should handle delete error', async () => {
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       const authApi = await import('@/services/authApi')
       
       Swal.default.fire.mockResolvedValue({ isConfirmed: true })
@@ -501,7 +501,7 @@ describe('AdminAgricultores', () => {
     })
 
     it('should toggle farmer status', async () => {
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       const authApi = await import('@/services/authApi')
       
       authApi.default.toggleUserStatus.mockResolvedValue({})
@@ -517,7 +517,7 @@ describe('AdminAgricultores', () => {
     })
 
     it('should handle toggle error', async () => {
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       const authApi = await import('@/services/authApi')
       
       const error = { response: { data: { error: 'Toggle failed' } } }
@@ -559,7 +559,7 @@ describe('AdminAgricultores', () => {
     })
 
     it('should download report', async () => {
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       const reportsApi = await import('@/services/reportsApi')
       
       // Ensure the mock is set up
@@ -572,7 +572,7 @@ describe('AdminAgricultores', () => {
     })
 
     it('should handle download error', async () => {
-      const Swal = await import('sweetalert2')
+      await import('sweetalert2')
       const reportsApi = await import('@/services/reportsApi')
       
       // Ensure the mock is set up

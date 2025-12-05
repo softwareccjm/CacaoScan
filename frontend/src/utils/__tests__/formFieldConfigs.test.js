@@ -93,7 +93,9 @@ describe('formFieldConfigs', () => {
 
     it('should validate email with validator function', () => {
       const field = COMMON_FIELDS.email
-      const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+      // Safe email regex: limits local and domain parts to prevent ReDoS
+      // Uses bounded quantifiers and specific character classes
+      const isValidEmail = (val) => /^[a-zA-Z0-9._+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,}$/.test(val)
       
       expect(field.validator('', isValidEmail)).toBeTruthy()
       expect(field.validator('invalid', isValidEmail)).toBeTruthy()

@@ -47,6 +47,11 @@ describe('AuditStatsModal', () => {
   let mockRemove
   let mockClick
 
+  // Mock IP addresses using RFC 5737 reserved documentation addresses
+  // These are safe for testing and won't trigger SonarQube S1313
+  const MOCK_IP_ADDRESS_1 = '203.0.113.1' // RFC 5737 - TEST-NET-3
+  const MOCK_IP_ADDRESS_2 = '203.0.113.2' // RFC 5737 - TEST-NET-3
+
   const createStatsData = () => ({
     activity_log: {
       total_activities: 100,
@@ -78,8 +83,8 @@ describe('AuditStatsModal', () => {
         { date: '2024-01-03', count: 12 }
       ],
       top_ips: [
-        { ip_address: '192.168.1.1', count: 50 },
-        { ip_address: '192.168.1.2', count: 30 }
+        { ip_address: MOCK_IP_ADDRESS_1, count: 50 },
+        { ip_address: MOCK_IP_ADDRESS_2, count: 30 }
       ],
       avg_session_duration_minutes: 45
     },
@@ -174,7 +179,7 @@ describe('AuditStatsModal', () => {
 
     it('should render top IPs', () => {
       expect(wrapper.text()).toContain('Direcciones IP Más Frecuentes')
-      expect(wrapper.text()).toContain('192.168.1.1')
+      expect(wrapper.text()).toContain(MOCK_IP_ADDRESS_1)
     })
 
     it('should render average session duration', () => {
@@ -277,7 +282,7 @@ describe('AuditStatsModal', () => {
     it('should include export metadata', () => {
       const blobConstructor = Blob
       let capturedBlobData = null
-      global.Blob = vi.fn(function(parts, options) {
+      globalThis.Blob = vi.fn(function(parts, options) {
         capturedBlobData = parts[0]
         return new blobConstructor(parts, options)
       })
@@ -289,7 +294,7 @@ describe('AuditStatsModal', () => {
       expect(parsedData.export_timestamp).toBeDefined()
       expect(parsedData.export_type).toBe('audit_statistics')
 
-      global.Blob = blobConstructor
+      globalThis.Blob = blobConstructor
     })
   })
 

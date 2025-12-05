@@ -44,9 +44,9 @@ export default {
       // Parse date string to avoid timezone issues with YYYY-MM-DD format
       const dateParts = dateString.split('-');
       if (dateParts.length === 3) {
-        const year = parseInt(dateParts[0], 10);
-        const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
-        const day = parseInt(dateParts[2], 10);
+        const year = Number.parseInt(dateParts[0], 10);
+        const month = Number.parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
+        const day = Number.parseInt(dateParts[2], 10);
         const date = new Date(Date.UTC(year, month, day));
         return date.toLocaleDateString('es-ES', options);
       }

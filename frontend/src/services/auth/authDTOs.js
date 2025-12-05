@@ -79,7 +79,7 @@ export function normalizeUser(rawUser) {
   
   // Generate username from email only if email contains @
   const generateUsernameFromEmail = (email) => {
-    if (!email || !email.includes('@')) {
+    if (!email?.includes('@')) {
       return ''
     }
     return email.split('@')[0]

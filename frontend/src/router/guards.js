@@ -150,7 +150,6 @@ export const requireCanUpload = async (to, from, next) => {
         message: 'No tienes permisos para subir imágenes'
       }
     })
-    return
   } else {
     next({
       name: 'EmailVerification',
@@ -158,7 +157,6 @@ export const requireCanUpload = async (to, from, next) => {
         message: 'Debes verificar tu email para subir imágenes'
       }
     })
-    return
   }
 }
 

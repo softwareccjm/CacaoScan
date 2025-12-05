@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useWebSocket } from '../useWebSocket.js'
 import { useWebSocketBase } from '../useWebSocketBase'
-import { useAuthStore } from '@/stores/auth'
 
 // Mock dependencies
 const mockAuthStore = {

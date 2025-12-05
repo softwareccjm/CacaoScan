@@ -37,10 +37,21 @@ describe('PredictionResults', () => {
     }
     
     // Mock Blob if needed (already in setup.js but ensure it exists)
-    if (typeof globalThis.Blob === 'undefined') {
+    if (globalThis.Blob === undefined) {
       globalThis.Blob = class Blob {
         constructor(data) {
           this.data = data
+        }
+        
+        size = 0
+        type = ''
+        
+        async text() {
+          return ''
+        }
+        
+        async arrayBuffer() {
+          return new ArrayBuffer(0)
         }
       }
     }
@@ -318,7 +329,7 @@ describe('PredictionResults', () => {
       { level: 'unknown', label: 'Desconocida', class: 'bg-gray-400' }
     ]
 
-    confidenceLevels.forEach(({ level, label, class: expectedClass }) => {
+    for (const { level, label, class: expectedClass } of confidenceLevels) {
       it(`should display ${level} confidence correctly`, () => {
         const data = { ...mockPredictionData, confidence_level: level }
         const wrapper = mount(PredictionResults, {
@@ -331,7 +342,7 @@ describe('PredictionResults', () => {
         const indicator = wrapper.find('.w-3.h-3')
         expect(indicator.classes()).toContain(expectedClass.split(' ')[0])
       })
-    })
+    }
   })
 
   describe('prediction methods', () => {
@@ -342,7 +353,7 @@ describe('PredictionResults', () => {
       { method: 'unknown', label: 'Desconocido' }
     ]
 
-    methods.forEach(({ method, label }) => {
+    for (const { method, label } of methods) {
       it(`should format ${method} method correctly`, () => {
         const data = { ...mockPredictionData, prediction_method: method }
         const wrapper = mount(PredictionResults, {
@@ -353,7 +364,7 @@ describe('PredictionResults', () => {
 
         expect(wrapper.text()).toContain(label)
       })
-    })
+    }
   })
 
   describe('derived metrics', () => {
@@ -397,7 +408,7 @@ describe('PredictionResults', () => {
         ...mockPredictionData,
         weight_comparison: {
           vision_weight: 1.75,
-          regression_weight: 1.80,
+          regression_weight: 1.8,
           difference: 0.05,
           agreement_level: 'high'
         }
@@ -451,7 +462,7 @@ describe('PredictionResults', () => {
     })
 
     it('should format NaN as N/A', () => {
-      const data = { ...mockPredictionData, width: NaN }
+      const data = { ...mockPredictionData, width: Number.NaN }
       const wrapper = mount(PredictionResults, {
         props: {
           predictionData: data
@@ -472,7 +483,7 @@ describe('PredictionResults', () => {
       'unknown': 'Calidad desconocida'
     }
 
-    Object.entries(recommendations).forEach(([level, recommendation]) => {
+    for (const [level, recommendation] of Object.entries(recommendations)) {
       it(`should show ${level} recommendation`, () => {
         const data = { ...mockPredictionData, confidence_level: level }
         const wrapper = mount(PredictionResults, {
@@ -483,7 +494,7 @@ describe('PredictionResults', () => {
 
         expect(wrapper.text()).toContain(recommendation)
       })
-    })
+    }
   })
 
   describe('prop validation', () => {

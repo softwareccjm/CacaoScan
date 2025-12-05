@@ -5,7 +5,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
 import AuditoriaView from '../AuditoriaView.vue'
 
 const { mockAuditStore, mockUseAdminView, mockUseAdminSidebarProps, mockCalculatePeriodDates, mockSwal } = vi.hoisted(() => {
@@ -506,7 +505,7 @@ describe('AuditoriaView', () => {
     it('should handle period change', async () => {
       // Get the ref from the composable mock and set its value
       const adminViewResult = mockUseAdminView.mock.results[0]?.value
-      if (adminViewResult && adminViewResult.selectedPeriod) {
+      if (adminViewResult?.selectedPeriod) {
         adminViewResult.selectedPeriod.value = 'month'
       }
       await wrapper.vm.handlePeriodChange()
@@ -628,14 +627,14 @@ describe('AuditoriaView', () => {
     it('should handle page change', async () => {
       // Get the paginationComposable from the composable instance
       const composableInstance = mockUseAdminView.mock.results[0]?.value
-      if (!composableInstance || !composableInstance.paginationComposable) {
-        // If not available, create a spy on the mock
-        const goToPageSpy = vi.fn()
-        composableInstance.paginationComposable = { goToPage: goToPageSpy }
+      if (composableInstance?.paginationComposable) {
+        const goToPageSpy = vi.spyOn(composableInstance.paginationComposable, 'goToPage')
         await wrapper.vm.handlePageChange(2)
         expect(goToPageSpy).toHaveBeenCalledWith(2)
       } else {
-        const goToPageSpy = vi.spyOn(composableInstance.paginationComposable, 'goToPage')
+        // If not available, create a spy on the mock
+        const goToPageSpy = vi.fn()
+        composableInstance.paginationComposable = { goToPage: goToPageSpy }
         await wrapper.vm.handlePageChange(2)
         expect(goToPageSpy).toHaveBeenCalledWith(2)
       }
@@ -734,7 +733,7 @@ describe('AuditoriaView', () => {
       expect(wrapper.vm.realTimeInterval).not.toBeNull()
       
       // Spy on clearInterval to verify it's called
-      const clearIntervalSpy = vi.spyOn(global, 'clearInterval')
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
       
       wrapper.unmount()
       

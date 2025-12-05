@@ -124,7 +124,7 @@ describe('useAudit', () => {
         }
       })
 
-      const result = await audit.loadActivityLogs()
+      await audit.loadActivityLogs()
 
       expect(auditApi.getActivityLogs).toHaveBeenCalled()
       expect(audit.activityLogs.value).toHaveLength(1)
@@ -179,7 +179,7 @@ describe('useAudit', () => {
         }
       })
 
-      const result = await audit.loadLoginHistory()
+      await audit.loadLoginHistory()
 
       expect(auditApi.getLoginHistory).toHaveBeenCalled()
       expect(audit.loginHistory.value).toHaveLength(1)
@@ -271,7 +271,7 @@ describe('useAudit', () => {
         }
       })
 
-      const result = await audit.loadActivityLogs()
+      await audit.loadActivityLogs()
 
       expect(result).toEqual([])
       expect(audit.activityLogs.value).toEqual([])
@@ -319,7 +319,7 @@ describe('useAudit', () => {
         }
       })
 
-      const result = await audit.loadLoginHistory()
+      await audit.loadLoginHistory()
 
       expect(result).toEqual([])
       expect(audit.loginHistory.value).toEqual([])

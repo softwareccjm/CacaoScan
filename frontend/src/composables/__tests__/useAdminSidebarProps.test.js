@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAdminSidebarProps } from '../useAdminSidebarProps.js'
-import { useAuthStore } from '@/stores/auth'
 
 // Mock dependencies
 const mockAuthStore = {

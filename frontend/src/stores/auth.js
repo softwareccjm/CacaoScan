@@ -75,7 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Si se pasa directamente el token como string (solo access)
       accessToken.value = tokenData
       localStorage.setItem('access_token', tokenData)
-    } else if (tokenData && tokenData.access) {
+    } else if (tokenData?.access) {
       // Si se pasa un objeto con access y refresh token
       accessToken.value = tokenData.access
       localStorage.setItem('access_token', tokenData.access)

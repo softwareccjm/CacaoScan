@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import GlobalLoader from '../GlobalLoader.vue'
 
@@ -79,15 +79,16 @@ describe('GlobalLoader', () => {
     globalThis.dispatchEvent = (event) => {
       // Call stored handlers first
       const handlers = eventListeners.get(event.type) || []
-      handlers.forEach(handler => {
+      for (const handler of handlers) {
         if (typeof handler === 'function') {
           try {
             handler(event)
           } catch (error) {
             console.error('Error in event handler:', error)
+            throw error
           }
         }
-      })
+      }
       // Also call original if it exists
       if (originalDispatchEvent && typeof originalDispatchEvent === 'function') {
         return originalDispatchEvent.call(globalThis, event)
@@ -102,15 +103,17 @@ describe('GlobalLoader', () => {
     }
     if (container) {
       try {
-        document.body.removeChild(container)
+        container.remove()
       } catch (e) {
-        // Container may have already been removed
+        // Container may have already been removed - ignore error silently
       }
       container = null
     }
     // Clean up any teleported content
     const teleported = document.querySelectorAll('.fixed')
-    teleported.forEach(el => el.remove())
+    for (const el of teleported) {
+      el.remove()
+    }
     // Clean up global functions
     delete globalThis.showGlobalLoading
     delete globalThis.hideGlobalLoading

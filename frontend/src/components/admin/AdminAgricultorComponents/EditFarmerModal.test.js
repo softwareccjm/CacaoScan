@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import EditFarmerModal from './EditFarmerModal.vue'
 
@@ -275,7 +275,6 @@ describe('EditFarmerModal', () => {
 
   it('should handle non-404 error when loading persona data', async () => {
     const { personasApi } = await import('@/services')
-    const { useNotifications } = await import('@/composables/useNotifications')
     personasApi.getPersonaByUserId.mockRejectedValueOnce({ response: { status: 500 } })
 
     wrapper = mount(EditFarmerModal, {
@@ -307,8 +306,8 @@ describe('EditFarmerModal', () => {
     wrapper.vm.newFinca.departamento = '05'
     wrapper.vm.newFinca.hectareas = '10'
     wrapper.vm.newFinca.ubicacion = 'Test Location'
-    wrapper.vm.newFinca.coordenadas_lat = 1.0
-    wrapper.vm.newFinca.coordenadas_lng = 2.0
+    wrapper.vm.newFinca.coordenadas_lat = 1
+    wrapper.vm.newFinca.coordenadas_lng = 2
 
     wrapper.vm.resetNewFinca()
 

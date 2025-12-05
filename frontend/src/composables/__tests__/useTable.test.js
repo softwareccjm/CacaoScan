@@ -2,7 +2,7 @@
  * Unit tests for useTable composable
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { useTable } from '../useTable.js'
 
 describe('useTable', () => {

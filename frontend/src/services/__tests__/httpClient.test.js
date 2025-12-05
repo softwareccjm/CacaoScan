@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import axios from 'axios'
 import { get, post, put, patch, del, upload, download, httpClient } from '../httpClient.js'
 
 // Use vi.hoisted() to define mocks before vi.mock() hoisting
@@ -376,7 +375,7 @@ describe('httpClient', () => {
 
   describe('response interceptor - error handling', () => {
     it('should handle 401 unauthorized - clear tokens and redirect', async () => {
-      const router = await import('@/router')
+      await import('@/router')
       const error = {
         response: {
           status: 401,

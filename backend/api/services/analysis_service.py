@@ -580,16 +580,16 @@ class AnalysisService(BaseService):
             from api.utils.model_imports import get_models_safely
             
             models = get_models_safely({
-                'CacaoImage': 'images_app.models.CacaoImage',
-                'CacaoPrediction': 'images_app.models.CacaoPrediction'
+                'cacao_image': 'images_app.models.CacaoImage',
+                'cacao_prediction': 'images_app.models.CacaoPrediction'
             })
-            CacaoImage = models['CacaoImage']
-            CacaoPrediction = models['CacaoPrediction']
+            cacao_image_model = models['cacao_image']
+            cacao_prediction_model = models['cacao_prediction']
             
             # Get image
             try:
-                image = CacaoImage.objects.select_related('user').get(id=image_id)
-            except CacaoImage.DoesNotExist:
+                image = cacao_image_model.objects.select_related('user').get(id=image_id)
+            except cacao_image_model.DoesNotExist:
                 from ..base import NotFoundServiceError
                 return ServiceResult.error(NotFoundServiceError("Imagen no encontrada"))
             
@@ -604,8 +604,9 @@ class AnalysisService(BaseService):
                 predictor = get_predictor()
                 if predictor is None:
                     raise ImportError("Predictor not available")
-            except (ImportError, AttributeError, Exception):
+            except (ImportError, AttributeError) as e:
                 # Use mock predictor for tests
+                self.log_warning(f"Predictor not available ({type(e).__name__}), using mock")
                 from unittest.mock import Mock
                 predictor = Mock()
                 predictor.predict.return_value = {
@@ -643,7 +644,7 @@ class AnalysisService(BaseService):
             
             # Create or update prediction
             from decimal import Decimal
-            prediction, created = CacaoPrediction.objects.update_or_create(
+            prediction, _ = cacao_prediction_model.objects.update_or_create(
                 image=image,
                 defaults={
                     'user': user,

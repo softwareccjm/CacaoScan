@@ -118,7 +118,7 @@ describe('ReportsTimeline', () => {
     wrapper = createWrapper({ reports: mockReports })
     
     const items = wrapper.findAll('.timeline-item')
-    expect(items[items.length - 1].classes()).toContain('last')
+    expect(items.at(-1).classes()).toContain('last')
   })
 
   it('should display report title', () => {

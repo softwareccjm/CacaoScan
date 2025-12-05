@@ -108,19 +108,22 @@ class Command(BaseCommand):
         """, [table_name])
         return cursor.fetchone() is not None
     
+    # Constant for validation error message
+    IDENTIFIER_ERROR_MSG = "Identifier must be a non-empty string"
+    
     def _validate_identifier(self, identifier: str) -> str:
         """
         Valida y escapa un identificador SQL para prevenir inyección SQL.
         Solo permite caracteres alfanuméricos, guiones bajos y guiones.
         """
         if identifier is None:
-            raise ValueError("Identifier must be a non-empty string")
+            raise ValueError(self.IDENTIFIER_ERROR_MSG)
         
         if not isinstance(identifier, str):
-            raise ValueError("Identifier must be a non-empty string")
+            raise ValueError(self.IDENTIFIER_ERROR_MSG)
         
         if not identifier:
-            raise ValueError("Identifier must be a non-empty string")
+            raise ValueError(self.IDENTIFIER_ERROR_MSG)
         
         # Solo permitir caracteres alfanuméricos, guiones bajos y guiones
         # No permitir guiones (solo guiones bajos)
@@ -228,6 +231,30 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"✅ Creada FK correcta: {new_constraint_name}"))
             logger.info(f"FK created: {new_constraint_name}")
     
+    def _process_incorrect_fk(self, cursor, constraint_name: str, foreign_table: str, fix: bool) -> bool:
+        """
+        Process an incorrect foreign key constraint.
+        Returns True if issues remain (not fixed), False if fixed successfully.
+        """
+        self.stdout.write(
+            self.style.WARNING(
+                f"\n⚠️  PROBLEMA: FK apunta a '{foreign_table}' pero debería apuntar a 'api_finca'"
+            )
+        )
+        
+        if not fix:
+            self.stdout.write("   Usa --fix para corregir automáticamente")
+            return True
+        
+        try:
+            self._fix_incorrect_foreign_key(cursor, constraint_name, foreign_table)
+            return False
+        except CommandError:
+            raise
+        except Exception as e:
+            logger.error(f"Error fixing FK: {e}", exc_info=True)
+            raise CommandError(f'Error al corregir foreign key: {str(e)}')
+
     def _check_foreign_keys(self, fix: bool) -> bool:
         """Check and optionally fix foreign key constraints."""
         issues_found = False
@@ -244,23 +271,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"  - {constraint_name}: {table_name}.{column_name} -> {foreign_table}.{foreign_column}")
                 
                 if foreign_table != 'api_finca':
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"\n⚠️  PROBLEMA: FK apunta a '{foreign_table}' pero debería apuntar a 'api_finca'"
-                        )
-                    )
-                    issues_found = True
-                    
-                    if fix:
-                        try:
-                            self._fix_incorrect_foreign_key(cursor, constraint_name, foreign_table)
-                        except CommandError:
-                            raise
-                        except Exception as e:
-                            logger.error(f"Error fixing FK: {e}", exc_info=True)
-                            raise CommandError(f'Error al corregir foreign key: {str(e)}')
-                    else:
-                        self.stdout.write("   Usa --fix para corregir automáticamente")
+                    issues_found = self._process_incorrect_fk(cursor, constraint_name, foreign_table, fix)
                 else:
                     self.stdout.write(self.style.SUCCESS(f"   ✅ FK correcta: apunta a {foreign_table}"))
         
