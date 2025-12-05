@@ -232,7 +232,10 @@ class Command(BaseCommand):
             logger.info(f"FK created: {new_constraint_name}")
     
     def _process_incorrect_fk(self, cursor, constraint_name: str, foreign_table: str, fix: bool) -> bool:
-        """Process an incorrect foreign key constraint."""
+        """
+        Process an incorrect foreign key constraint.
+        Returns True if issues remain (not fixed), False if fixed successfully.
+        """
         self.stdout.write(
             self.style.WARNING(
                 f"\n⚠️  PROBLEMA: FK apunta a '{foreign_table}' pero debería apuntar a 'api_finca'"
@@ -245,13 +248,12 @@ class Command(BaseCommand):
         
         try:
             self._fix_incorrect_foreign_key(cursor, constraint_name, foreign_table)
+            return False
         except CommandError:
             raise
         except Exception as e:
             logger.error(f"Error fixing FK: {e}", exc_info=True)
             raise CommandError(f'Error al corregir foreign key: {str(e)}')
-        
-        return True
 
     def _check_foreign_keys(self, fix: bool) -> bool:
         """Check and optionally fix foreign key constraints."""

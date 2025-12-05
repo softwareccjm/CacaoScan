@@ -6,8 +6,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ReportDownloadButton from '../ReportDownloadButton.vue'
-import { useAuthStore } from '@/stores/auth'
-import { useNotificationStore } from '@/stores/notifications'
 
 // Mock stores
 const mockAuthStore = {
@@ -362,11 +360,13 @@ describe('ReportDownloadButton', () => {
         resolveDownload = resolve
       })
 
-      globalThis.fetch.mockReturnValueOnce(downloadPromise.then(() => ({
+      const createMockResponse = () => ({
         ok: true,
         headers: { get: vi.fn(() => null) },
         blob: vi.fn().mockResolvedValue(new Blob())
-      })))
+      })
+
+      globalThis.fetch.mockReturnValueOnce(downloadPromise.then(createMockResponse))
 
       const button = wrapper.find('button')
       await button.trigger('click')

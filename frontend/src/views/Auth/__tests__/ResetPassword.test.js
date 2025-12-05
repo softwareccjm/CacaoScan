@@ -266,7 +266,8 @@ describe('ResetPassword', () => {
 
   describe('Loading State', () => {
     it('should show loading state during submission', async () => {
-      api.post.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
+      const delayedResponse = () => new Promise(resolve => setTimeout(resolve, 100))
+      api.post.mockImplementation(delayedResponse)
 
       wrapper = createWrapper()
 
@@ -286,7 +287,8 @@ describe('ResetPassword', () => {
     })
 
     it('should disable submit button when loading', async () => {
-      api.post.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
+      const delayedResponse = () => new Promise(resolve => setTimeout(resolve, 100))
+      api.post.mockImplementation(delayedResponse)
 
       wrapper = createWrapper()
 

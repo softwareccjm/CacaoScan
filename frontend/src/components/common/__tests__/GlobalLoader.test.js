@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import GlobalLoader from '../GlobalLoader.vue'
 
@@ -105,7 +105,7 @@ describe('GlobalLoader', () => {
       try {
         container.remove()
       } catch (e) {
-        // Container may have already been removed
+        // Container may have already been removed - ignore error silently
       }
       container = null
     }

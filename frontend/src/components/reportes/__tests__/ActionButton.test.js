@@ -381,7 +381,7 @@ describe('ActionButton', () => {
     it('should accept valid variant values', () => {
       const validVariants = ['primary', 'secondary', 'danger']
       
-      validVariants.forEach(variant => {
+      for (const variant of validVariants) {
         wrapper = mount(ActionButton, {
           props: {
             label: 'Test',
@@ -391,13 +391,13 @@ describe('ActionButton', () => {
 
         expect(wrapper.exists()).toBe(true)
         wrapper.unmount()
-      })
+      }
     })
 
     it('should accept valid size values', () => {
       const validSizes = ['small', 'medium', 'large']
       
-      validSizes.forEach(size => {
+      for (const size of validSizes) {
         wrapper = mount(ActionButton, {
           props: {
             label: 'Test',
@@ -407,7 +407,7 @@ describe('ActionButton', () => {
 
         expect(wrapper.exists()).toBe(true)
         wrapper.unmount()
-      })
+      }
     })
   })
 
@@ -491,7 +491,7 @@ describe('ActionButton', () => {
     it('should handle disabled state with all variants', () => {
       const variants = ['primary', 'secondary', 'danger']
       
-      variants.forEach(variant => {
+      for (const variant of variants) {
         wrapper = mount(ActionButton, {
           props: {
             label: 'Disabled',
@@ -503,7 +503,7 @@ describe('ActionButton', () => {
         const button = wrapper.find('button')
         expect(button.element.disabled).toBe(true)
         wrapper.unmount()
-      })
+      }
     })
   })
 })

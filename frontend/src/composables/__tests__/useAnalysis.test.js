@@ -4,8 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAnalysis } from '../useAnalysis.js'
-import { usePredictionStore } from '@/stores/prediction'
-import { predictImage, predictImageYolo, predictImageSmart } from '@/services/predictionApi'
+import { predictImage, predictImageYolo } from '@/services/predictionApi'
 
 // Mock dependencies
 const mockStore = {
@@ -60,7 +59,7 @@ describe('useAnalysis', () => {
     })
 
     it('should analyze image with yolo method', async () => {
-      const mockResult = { data: { peso_estimado: 30.0 } }
+      const mockResult = { data: { peso_estimado: 30 } }
       predictImageYolo.mockResolvedValue(mockResult)
       
       const imageFile = new File([''], 'test.jpg')
@@ -120,7 +119,7 @@ describe('useAnalysis', () => {
     it('should calculate summary from results', () => {
       const results = [
         { peso_estimado: 25.5, ancho_mm: 10, altura_mm: 12, grosor_mm: 5 },
-        { peso_estimado: 30.0, ancho_mm: 12, altura_mm: 14, grosor_mm: 6 }
+        { peso_estimado: 30, ancho_mm: 12, altura_mm: 14, grosor_mm: 6 }
       ]
       
       const summary = analysis.getAnalysisSummary(results)

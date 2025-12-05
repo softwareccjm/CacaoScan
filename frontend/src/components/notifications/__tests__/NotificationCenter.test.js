@@ -62,15 +62,18 @@ describe('NotificationCenter', () => {
     ...overrides
   })
 
-  const createMockNotificationsResponse = (notifications = [], total = null) => ({
-    data: {
-      results: notifications,
-      count: total !== null ? total : notifications.length,
-      page: 1,
-      page_size: 20,
-      total_pages: Math.ceil((total !== null ? total : notifications.length) / 20)
+  const createMockNotificationsResponse = (notifications = [], total = null) => {
+    const count = total ?? notifications.length
+    return {
+      data: {
+        results: notifications,
+        count,
+        page: 1,
+        page_size: 20,
+        total_pages: Math.ceil(count / 20)
+      }
     }
-  })
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -119,13 +122,10 @@ describe('NotificationCenter', () => {
 
   describe('Loading state', () => {
     it('should show loading state when fetching notifications', async () => {
-      mockNotificationStore.getNotifications.mockImplementation(() => {
-        return new Promise(resolve => {
-          setTimeout(() => {
-            resolve(createMockNotificationsResponse([]))
-          }, 100)
-        })
+      const delayedResponse = () => new Promise(resolve => {
+        setTimeout(() => resolve(createMockNotificationsResponse([])), 100)
       })
+      mockNotificationStore.getNotifications.mockImplementation(delayedResponse)
 
       wrapper = mount(NotificationCenter)
       await nextTick()

@@ -361,7 +361,23 @@ describe('imageValidationUtils', () => {
 
     it('should handle decimal values', () => {
       const result = formatFileSize(1536)
-      expect(result).toMatch(/\d+\.\d+\sKB/)
+      // Use a safer validation approach that avoids ReDoS vulnerability
+      // Validate structure and content without vulnerable regex patterns
+      expect(result).toContain('KB')
+      // Split and validate parts separately to avoid regex backtracking
+      const parts = result.split(' ')
+      expect(parts.length).toBe(2)
+      expect(parts[1]).toBe('KB')
+      // Validate number format without complex regex
+      const numberPart = parts[0]
+      expect(numberPart).toContain('.')
+      const [integerPart, decimalPart] = numberPart.split('.')
+      expect(integerPart.length).toBeGreaterThan(0)
+      expect(integerPart.length).toBeLessThanOrEqual(10)
+      expect(decimalPart.length).toBeGreaterThan(0)
+      expect(decimalPart.length).toBeLessThanOrEqual(10)
+      expect(Number.parseFloat(numberPart)).toBeGreaterThan(0)
+      expect(Number.parseFloat(numberPart)).toBeLessThan(10)
     })
   })
 

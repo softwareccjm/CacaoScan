@@ -638,8 +638,9 @@ describe('FincaLotesView', () => {
     if (wrapper) {
       try {
         await wrapper.unmount()
-      } catch (e) {
-        // Ignore unmount errors
+      } catch (error) {
+        // Ignore unmount errors - component may already be unmounted
+        console.debug('Unmount error (expected in tests):', error)
       }
       wrapper = null
       // Wait longer to ensure router is fully cleaned up

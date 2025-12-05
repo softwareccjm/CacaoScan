@@ -34,16 +34,16 @@ class MockDataTransfer {
     // Return a FileList-like object
     const fileList = Object.create(Array.prototype)
     fileList.length = this._files.length
-    this._files.forEach((file, index) => {
+    for (const [index, file] of this._files.entries()) {
       fileList[index] = file
-    })
+    }
     fileList.item = (index) => this._files[index] || null
     return fileList
   }
 }
 
 // Make DataTransfer available globally
-global.DataTransfer = MockDataTransfer
+globalThis.DataTransfer = MockDataTransfer
 
 describe('ImageUploadCard', () => {
   let wrapper
