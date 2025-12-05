@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { nextTick, reactive } from 'vue'
 import { usePredictionFlow } from '../usePredictionFlow.js'
-import { usePredictionStore } from '@/stores/prediction'
 import { predictImage, predictImageYolo, predictImageSmart } from '@/services/predictionApi'
 
 // Mock dependencies - using reactive to ensure computed properties update correctly

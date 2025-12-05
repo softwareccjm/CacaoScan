@@ -452,7 +452,7 @@ const startMLTraining = async (config = {}) => {
     ...config,
     config_params: {
       ...defaultConfig.config_params,
-      ...(config.config_params || {})
+      ...config.config_params
     }
   }
   

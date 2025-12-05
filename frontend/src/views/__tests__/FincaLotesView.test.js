@@ -55,7 +55,7 @@ vi.mock('@/composables/usePagination', () => ({
 }))
 
 // Mock fetch globally
-global.fetch = vi.fn()
+globalThis.fetch = vi.fn()
 
 // Mock vue-router composables
 const mockRoute = {
@@ -159,7 +159,7 @@ describe('FincaLotesView', () => {
     mockPagination.updatePagination.mockClear()
 
     // Setup default fetch mocks
-    global.fetch.mockImplementation((url) => {
+    globalThis.fetch.mockImplementation((url) => {
       if (url.includes('/fincas/1/')) {
         return Promise.resolve({
           ok: true,
@@ -233,7 +233,7 @@ describe('FincaLotesView', () => {
     await new Promise(resolve => setTimeout(resolve, 200))
     await wrapper.vm.$nextTick()
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/fincas/1/'),
       expect.any(Object)
     )
@@ -246,7 +246,7 @@ describe('FincaLotesView', () => {
     await new Promise(resolve => setTimeout(resolve, 200))
     await wrapper.vm.$nextTick()
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/fincas/1/lotes/'),
       expect.any(Object)
     )
@@ -254,7 +254,7 @@ describe('FincaLotesView', () => {
 
   it('should display error state when loading fails', async () => {
     // Override the default mock to reject for loadLotes call
-    global.fetch.mockImplementation((url) => {
+    globalThis.fetch.mockImplementation((url) => {
       if (url.includes('/fincas/1/') && !url.includes('/lotes/')) {
         // Allow loadFinca to succeed
         return Promise.resolve({
@@ -371,7 +371,7 @@ describe('FincaLotesView', () => {
     
     // The beforeEach already sets up fetch mocks for both finca and lotes
     // Just ensure the lotes mock returns the correct data
-    global.fetch.mockImplementation((url) => {
+    globalThis.fetch.mockImplementation((url) => {
       if (url.includes('/fincas/1/') && !url.includes('/lotes/')) {
         return Promise.resolve({
           ok: true,
@@ -647,7 +647,7 @@ describe('FincaLotesView', () => {
     }
     
     // Mock fetch to return finca and lotes for all calls
-    global.fetch.mockImplementation((url) => {
+    globalThis.fetch.mockImplementation((url) => {
       if (url.includes('/fincas/1/') && !url.includes('/lotes/')) {
         return Promise.resolve({
           ok: true,
@@ -694,7 +694,7 @@ describe('FincaLotesView', () => {
     wrapper = createWrapper()
 
     await wrapper.vm.$nextTick()
-    wrapper.vm.lotes = Array(25).fill(null).map((_, i) => ({
+    wrapper.vm.lotes = new Array(25).fill(null).map((_, i) => ({
       id: i + 1,
       identificador: `LOTE-${i + 1}`,
       variedad: 'Criollo',
@@ -757,7 +757,7 @@ describe('FincaLotesView', () => {
     expect(retryButton.text()).toContain('Intentar nuevamente')
     
     // Mock fetch to track calls - loadLotes calls fetch
-    const fetchCallsBeforeClick = global.fetch.mock.calls.length
+    const fetchCallsBeforeClick = globalThis.fetch.mock.calls.length
     
     // Trigger click event on the button
     await retryButton.trigger('click')
@@ -768,11 +768,11 @@ describe('FincaLotesView', () => {
 
     // Verify that loadLotes was called by checking that fetch was called
     // loadLotes makes a fetch call to `/api/fincas/${fincaId.value}/lotes/`
-    expect(global.fetch).toHaveBeenCalled()
-    expect(global.fetch.mock.calls.length).toBeGreaterThan(fetchCallsBeforeClick)
+    expect(globalThis.fetch).toHaveBeenCalled()
+    expect(globalThis.fetch.mock.calls.length).toBeGreaterThan(fetchCallsBeforeClick)
     
     // Verify that the fetch call was made to the correct endpoint
-    const fetchCalls = global.fetch.mock.calls
+    const fetchCalls = globalThis.fetch.mock.calls
     const lotesFetchCall = fetchCalls.find(call => 
       call[0] && typeof call[0] === 'string' && call[0].includes('/lotes/')
     )

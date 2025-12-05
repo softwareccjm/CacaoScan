@@ -261,18 +261,18 @@ class LoteSerializer(serializers.ModelSerializer):
     def validate_area(self, value):
         """Validate area alias (maps to area_hectareas)."""
         if value is None:
-            return value
+            return None
         if value < 0:
             raise serializers.ValidationError("El área debe ser mayor o igual a 0.")
         if value > 1000:
             raise serializers.ValidationError("El área no puede ser mayor a 1,000 hectáreas.")
-        return value
+        # Normalize to float to ensure consistent type
+        return float(value)
     
     def validate_fecha_cosecha(self, value):
         """Validate harvest date."""
         if value is None:
-            return value
-        
+            return None
         # Validate date is not too old
         from datetime import date
         if value.year < 1900:
@@ -299,7 +299,7 @@ class LoteSerializer(serializers.ModelSerializer):
             
             if isinstance(fecha_plantacion, date) and value < fecha_plantacion:
                 raise serializers.ValidationError("La fecha de cosecha no puede ser anterior a la fecha de plantación.")
-        
+        # Return validated date (already a date object, no transformation needed)
         return value
     
     def validate_coordenadas_lat(self, value):

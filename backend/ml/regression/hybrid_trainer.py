@@ -391,13 +391,13 @@ class HybridTrainer:
             if is_best_loss:
                 self.best_val_loss = val_loss
                 self.best_epoch_loss = epoch + 1
-                checkpoint_path = self._save_checkpoint(epoch + 1, "best_loss.pt", is_best_loss=True)
+                self._save_checkpoint(epoch + 1, "best_loss.pt", is_best_loss=True)
                 logger.info(f"New best loss model saved (val_loss={val_loss:.4f})")
             
             if is_best_r2:
                 self.best_avg_r2 = avg_r2
                 self.best_epoch_r2 = epoch + 1
-                checkpoint_path = self._save_checkpoint(epoch + 1, "best_avg_r2.pt", is_best_r2=True)
+                self._save_checkpoint(epoch + 1, "best_avg_r2.pt", is_best_r2=True)
                 logger.info(f"New best R² model saved (avg_r2={avg_r2:.4f})")
             
             # Save last epoch

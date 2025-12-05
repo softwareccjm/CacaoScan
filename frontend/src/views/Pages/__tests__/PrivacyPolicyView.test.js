@@ -341,7 +341,7 @@ describe('PrivacyPolicyView', () => {
           }
         })
         
-        if (homeRouterLink && homeRouterLink.exists()) {
+        if (homeRouterLink?.exists()) {
           const toProp = homeRouterLink.props('to')
           const isHomeRoute = typeof toProp === 'string' 
             ? toProp === '/' 

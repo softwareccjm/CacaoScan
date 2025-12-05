@@ -150,7 +150,7 @@ describe('ActionButton', () => {
       })
 
       const button = wrapper.find('button')
-      const classes = button.classes()
+      button.classes()
       // Should still render (validator will prevent invalid values, but if it passes, defaults to primary)
       expect(button.exists()).toBe(true)
     })

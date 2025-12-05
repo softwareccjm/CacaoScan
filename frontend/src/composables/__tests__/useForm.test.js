@@ -447,7 +447,7 @@ describe('useForm', () => {
       const formWithValidator = useForm({ validator: customValidator })
       formWithValidator.form = { name: 'Test' }
 
-      const result = formWithValidator.validateForm()
+      formWithValidator.validateForm()
 
       expect(customValidator).toHaveBeenCalled()
     })
@@ -480,7 +480,7 @@ describe('useForm', () => {
       const newForm = useForm({ validator: customValidator })
       newForm.form = { name: 'Test' }
 
-      const result = newForm.validateForm()
+      newForm.validateForm()
 
       expect(setError).toHaveBeenCalledWith('name', 'Name error')
     })

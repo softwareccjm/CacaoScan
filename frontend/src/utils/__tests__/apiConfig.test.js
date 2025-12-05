@@ -32,7 +32,7 @@ describe('apiConfig', () => {
       delete globalThis.location
       
       // Clear build-time variable to test fallback behavior
-      const originalEnv = { ...import.meta.env }
+      { ...import.meta.env }
       const originalViteApiBaseUrl = import.meta.env.VITE_API_BASE_URL
       import.meta.env.VITE_API_BASE_URL = undefined
       

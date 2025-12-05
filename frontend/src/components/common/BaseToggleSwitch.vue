@@ -11,7 +11,7 @@
       <button
         :id="fieldId"
         type="button"
-        :aria-checked="modelValue"
+        :aria-checked="modelValue ? 'true' : 'false'"
         :aria-label="ariaLabel"
         role="switch"
         :class="[

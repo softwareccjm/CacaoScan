@@ -177,8 +177,7 @@ describe('services/apiErrorHandler', () => {
     })
 
     it('should use default message for unknown errors', () => {
-      const error = {}
-      const message = getErrorMessage(error, 'Custom default')
+      getErrorMessage({}, 'Custom default')
       expect(extractErrorMessage).toHaveBeenCalled()
     })
   })

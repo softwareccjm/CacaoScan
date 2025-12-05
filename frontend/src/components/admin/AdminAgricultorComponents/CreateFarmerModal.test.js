@@ -111,7 +111,9 @@ describe('CreateFarmerModal', () => {
 
   beforeEach(() => {
     // Clear errors object
-    Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+    for (const key of Object.keys(mockErrors)) {
+      delete mockErrors[key]
+    }
     // Clear all mocks before each test
     vi.clearAllMocks()
     
@@ -129,7 +131,9 @@ describe('CreateFarmerModal', () => {
     mockIsValidBirthdate.mockReturnValue(true)
     // Configure clearErrors to clear the mockErrors object
     mockClearErrors.mockImplementation(() => {
-      Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+      for (const key of Object.keys(mockErrors)) {
+        delete mockErrors[key]
+      }
     })
   })
 
@@ -647,7 +651,7 @@ describe('CreateFarmerModal', () => {
   })
 
   it('should handle submit with error without message', async () => {
-    const errorWithoutMessage = new Error()
+    const errorWithoutMessage = new Error('Unknown error')
     // Ensure response and message are not defined at all
     delete errorWithoutMessage.response
     delete errorWithoutMessage.message

@@ -56,7 +56,7 @@ def clean_python_cache(root_dir: str = '.') -> None:
         try:
             shutil.rmtree(pytest_cache)
             removed_dirs += 1
-            print(f"[OK] Eliminado: .pytest_cache")
+            print("[OK] Eliminado: .pytest_cache")
         except Exception as e:
             print(f"[ERROR] Error eliminando .pytest_cache: {e}")
     

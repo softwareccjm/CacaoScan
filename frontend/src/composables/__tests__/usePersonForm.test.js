@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { usePersonForm } from '../usePersonForm.js'
 import { useCatalogos } from '../useCatalogos'
-import { useFormValidation } from '../useFormValidation'
 
 // Mock dependencies
 vi.mock('../useCatalogos', () => ({

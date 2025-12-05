@@ -150,7 +150,7 @@ describe('DetalleAnalisis', () => {
     expect(Chart).toHaveBeenCalled()
     const chartCall = Chart.mock.calls.find(call => {
       const config = call[1]
-      return config && config.type === 'pie'
+      return config?.type === 'pie'
     })
     expect(chartCall).toBeDefined()
   })
@@ -164,7 +164,7 @@ describe('DetalleAnalisis', () => {
 
     const chartCall = Chart.mock.calls.find(call => {
       const config = call[1]
-      return config && config.type === 'bar'
+      return config?.type === 'bar'
     })
     expect(chartCall).toBeDefined()
   })

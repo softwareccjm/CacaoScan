@@ -43,11 +43,6 @@ class Command(BaseCommand):
             default='User',
             help='Apellido del administrador (default: User)'
         )
-        parser.add_argument(
-            '--no-input',
-            action='store_true',
-            help='No solicitar confirmación interactiva'
-        )
 
     def handle(self, *args, **options):
         username = options['username']
@@ -55,7 +50,6 @@ class Command(BaseCommand):
         password = options['password']
         first_name = options['first_name']
         last_name = options['last_name']
-        no_input = options['no_input']
         
         logger.info(f"Creating/updating admin user: {username}")
         

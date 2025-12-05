@@ -462,10 +462,7 @@ class ImprovedCacaoDataset(Dataset):
                 else:
                     pixel_feat_values = [float(pixel_feat_array)]
                 # Asegurar que tenga 10 elementos
-                if len(pixel_feat_values) == 10:
-                    pixel_feat = torch.tensor(pixel_feat_values, dtype=torch.float32)
-                    return image_tensor, targets_tensor, pixel_feat
-                elif len(pixel_feat_values) == 5:
+                if len(pixel_feat_values) == 10 or len(pixel_feat_values) == 5:
                     pixel_feat = torch.tensor(pixel_feat_values, dtype=torch.float32)
                     return image_tensor, targets_tensor, pixel_feat
                 else:

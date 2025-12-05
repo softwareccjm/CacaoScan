@@ -395,8 +395,7 @@ describe('useAdminView', () => {
         pagination: {
           currentPage: 2,
           totalPages: 5,
-          totalItems: 100,
-          totalPages: 5
+          totalItems: 100
         }
       }
       
@@ -450,7 +449,7 @@ describe('useAdminView', () => {
       
       usePagination.mockReturnValueOnce(mockPagination)
       
-      const view = useAdminView({
+      useAdminView({
         store: { stats: {} },
         initialItemsPerPage: 50
       })

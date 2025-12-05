@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useQuickActions } from '../useQuickActions.js'
-import { useRouter } from 'vue-router'
 
 // Mock router
 const mockRouter = {

@@ -477,7 +477,7 @@ describe('API Service', () => {
 
       try {
         await predictImage(formData)
-      } catch (error) {
+      } catch {
         // Expected to throw
       }
 

@@ -631,7 +631,7 @@ describe('NotificationBell', () => {
       } finally {
         // Cleanup
         if (document.body.contains(outsideElement)) {
-          document.body.removeChild(outsideElement)
+          outsideElement.remove()
         }
       }
     })

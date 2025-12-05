@@ -43,7 +43,7 @@ describe('logger', () => {
       process.env.NODE_ENV = 'development'
       
       // Mock the logger to be enabled
-      const context = { code: 500 }
+      { code: 500 }
       
       // In test environment, logger is disabled, so we just verify it exists
       expect(typeof logger.error).toBe('function')

@@ -506,7 +506,7 @@ describe('AuditoriaView', () => {
     it('should handle period change', async () => {
       // Get the ref from the composable mock and set its value
       const adminViewResult = mockUseAdminView.mock.results[0]?.value
-      if (adminViewResult && adminViewResult.selectedPeriod) {
+      if (adminViewResult?.selectedPeriod) {
         adminViewResult.selectedPeriod.value = 'month'
       }
       await wrapper.vm.handlePeriodChange()
@@ -628,7 +628,7 @@ describe('AuditoriaView', () => {
     it('should handle page change', async () => {
       // Get the paginationComposable from the composable instance
       const composableInstance = mockUseAdminView.mock.results[0]?.value
-      if (!composableInstance || !composableInstance.paginationComposable) {
+      if (!composableInstance?.paginationComposable) {
         // If not available, create a spy on the mock
         const goToPageSpy = vi.fn()
         composableInstance.paginationComposable = { goToPage: goToPageSpy }

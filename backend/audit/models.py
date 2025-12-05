@@ -79,8 +79,8 @@ class LoginHistory(models.Model):
     )
     failure_reason = models.CharField(
         max_length=200,
-        null=True,
         blank=True,
+        default="",
         help_text="Razón del fallo si no fue exitoso"
     )
     

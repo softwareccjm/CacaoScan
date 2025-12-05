@@ -690,7 +690,7 @@ describe('useFormValidation', () => {
         field2: null
       }))
       
-      const result = validation.validateCrossFields(
+      validation.validateCrossFields(
         { field1: 'value1', field2: 'value2' },
         validatorFn
       )

@@ -134,10 +134,9 @@ def fix_encoding(file_path: Path) -> Tuple[bool, str]:
             'Ã±': 'ñ',
             'Ã': 'Á',
             'Ã‰': 'É',
-            'Ã': 'Í',
             'Ã"': 'Ó',
             'Ãš': 'Ú',
-            "Ã'": 'Ñ',  # Use double quotes for string containing single quote
+            "Ã'": 'Ñ',
             'Â¿': '¿',
             'Â¡': '¡',
         }
@@ -235,7 +234,7 @@ def scan_and_fix_migrations(base_dir: Path) -> dict:
                 print(f"   - {issue}")
             
             # Preguntar si corregir (en modo automático, siempre corregir)
-            print(f"   Corrigiendo...")
+            print("   Corrigiendo...")
             success, message = fix_encoding(file_path)
             
             if success:

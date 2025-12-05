@@ -4,9 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { usePrediction } from '../usePrediction.js'
-import { usePredictionStore } from '@/stores/prediction'
 import { predictImage, predictImageYolo, predictImageSmart } from '@/services/predictionApi'
-import { handleApiError } from '@/services/apiErrorHandler'
 
 // Mock dependencies
 const mockStore = {
@@ -361,6 +359,7 @@ describe('usePrediction', () => {
       const formData = new FormData()
       const result = await prediction.executePredictionApi(formData, {})
 
+      expect(result).toBeDefined()
       expect(result.success).toBe(true)
     })
   })
@@ -381,7 +380,7 @@ describe('usePrediction', () => {
         }
       })
 
-      const result = await prediction.executePrediction()
+      await prediction.executePrediction()
 
       expect(prediction.isLoading.value).toBe(false)
       expect(prediction.resultRef.value).toBeTruthy()

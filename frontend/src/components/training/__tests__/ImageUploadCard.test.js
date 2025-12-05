@@ -311,7 +311,7 @@ describe('ImageUploadCard', () => {
         btn.classes().includes('bg-red-500')
       )
 
-      if (removeButton && removeButton.exists()) {
+      if (removeButton?.exists()) {
         await removeButton.trigger('click')
         expect(wrapper.emitted('remove')).toBeTruthy()
       }
@@ -325,7 +325,7 @@ describe('ImageUploadCard', () => {
       })
 
       const clearButton = wrapper.find('button')
-      if (clearButton && clearButton.text().includes('Limpiar Todo')) {
+      if (clearButton?.text().includes('Limpiar Todo')) {
         await clearButton.trigger('click')
         expect(wrapper.emitted('clear-all')).toBeTruthy()
       }

@@ -102,7 +102,7 @@ describe('GlobalLoader', () => {
     }
     if (container) {
       try {
-        document.body.removeChild(container)
+        container.remove()
       } catch (e) {
         // Container may have already been removed
       }

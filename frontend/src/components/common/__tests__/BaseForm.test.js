@@ -173,7 +173,7 @@ describe('BaseForm', () => {
       // Also verify that clicking the button works
       const buttons = wrapper.findAll('button')
       const cancelButton = buttons.find(btn => btn.text().includes('Cancelar'))
-      if (cancelButton && cancelButton.exists()) {
+      if (cancelButton?.exists()) {
         await cancelButton.trigger('click')
         await wrapper.vm.$nextTick()
         // Should have been called twice now (once directly, once from button click)

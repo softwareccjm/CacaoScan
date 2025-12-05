@@ -448,7 +448,7 @@ describe('AuditDetailsModal', () => {
       global.Blob = class extends OriginalBlob {
         constructor(parts, options) {
           super(parts, options)
-          if (parts && parts[0]) {
+          if (parts?.[0]) {
             capturedBlobData = parts[0]
           }
         }

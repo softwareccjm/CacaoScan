@@ -122,9 +122,9 @@ describe('LegalTermsView', () => {
         'Legislación aplicable'
       ]
 
-      indexLinks.forEach((link) => {
+      for (const link of indexLinks) {
         expect(wrapper.text()).toContain(link)
-      })
+      }
     })
   })
 
@@ -330,9 +330,9 @@ describe('LegalTermsView', () => {
       ]
 
       const html = wrapper.html()
-      anchors.forEach((anchor) => {
+      for (const anchor of anchors) {
         expect(html).toContain(`id="${anchor}"`)
-      })
+      }
     })
   })
 
@@ -362,7 +362,7 @@ describe('LegalTermsView', () => {
 
       const html = wrapper.html()
       const hrElements = html.match(/<hr/g)
-      expect(hrElements && hrElements.length).toBeGreaterThan(0)
+      expect(hrElements?.length).toBeGreaterThan(0)
     })
   })
 

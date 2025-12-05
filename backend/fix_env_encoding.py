@@ -20,7 +20,7 @@ with open(env_path, 'rb') as f:
     raw_content = f.read()
 
 print(f"📊 Tamaño del archivo: {len(raw_content)} bytes")
-print(f"🔍 Buscando byte problemático 0xf3...")
+print("🔍 Buscando byte problemático 0xf3...")
 
 # Buscar el byte 0xf3
 if b'\xf3' in raw_content:
@@ -61,11 +61,11 @@ if decoded_content is None:
     used_encoding = 'utf-8 (con errores reemplazados)'
 
 # Reescribir el archivo como UTF-8 limpio
-print(f"\n💾 Reescribiendo archivo .env como UTF-8...")
+print("\n💾 Reescribiendo archivo .env como UTF-8...")
 try:
     with open(env_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(decoded_content)
-    print(f"✅ Archivo .env reescrito exitosamente como UTF-8")
+    print("✅ Archivo .env reescrito exitosamente como UTF-8")
     print(f"   Tamaño original: {len(raw_content)} bytes")
     print(f"   Tamaño nuevo: {len(decoded_content.encode('utf-8'))} bytes")
 except Exception as e:
@@ -73,15 +73,15 @@ except Exception as e:
     exit(1)
 
 # Verificar que el archivo se puede leer correctamente ahora
-print(f"\n🔍 Verificando que el archivo se puede leer correctamente...")
+print("\n🔍 Verificando que el archivo se puede leer correctamente...")
 try:
     with open(env_path, 'r', encoding='utf-8') as f:
         test_content = f.read()
-    print(f"✅ Archivo se puede leer correctamente como UTF-8")
+    print("✅ Archivo se puede leer correctamente como UTF-8")
     print(f"   Longitud: {len(test_content)} caracteres")
 except Exception as e:
     print(f"❌ Error verificando archivo: {e}")
     exit(1)
 
-print(f"\n✨ ¡Proceso completado! El archivo .env ahora está en UTF-8.")
+print("\n✨ ¡Proceso completado! El archivo .env ahora está en UTF-8.")
 

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest'
-import { createRouter, createMemoryHistory } from 'vue-router'
 
 // Mock dependencies
 const mockAuthStore = {
@@ -96,7 +95,7 @@ vi.mock('../views/LoteAnalisisView.vue', () => ({ default: {} }))
 // Mock the router module to prevent guards from executing
 vi.mock('../index.js', async () => {
   const { createRouter, createMemoryHistory } = await import('vue-router')
-  const { createRouteMeta, createGuestRoute, createAuthRoute, createPublicRoute } = await import('@/utils/routeHelpers')
+  const { createRouteMeta, createGuestRoute, createAuthRoute } = await import('@/utils/routeHelpers')
   
   // Create a test router with routes but without guards
   const testRouter = createRouter({
@@ -348,7 +347,7 @@ describe('Router Index', () => {
     const routes = router.getRoutes()
     const adminRoute = routes.find(r => r.path === '/admin')
     
-    if (adminRoute && adminRoute.children) {
+    if (adminRoute?.children) {
       expect(Array.isArray(adminRoute.children)).toBe(true)
       expect(adminRoute.children.length).toBeGreaterThan(0)
     }
@@ -377,7 +376,7 @@ describe('Router Index', () => {
 
   it('should handle route with requiresVerification', () => {
     const routes = router.getRoutes()
-    const verifiedRoute = routes.find(r => r.meta?.requiresVerification)
+    routes.find(r => r.meta?.requiresVerification)
     
     // Some routes may have requiresVerification
     expect(router).toBeDefined()

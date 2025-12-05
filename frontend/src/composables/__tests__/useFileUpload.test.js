@@ -10,6 +10,35 @@ vi.mock('@/utils/imageValidationUtils', () => ({
   getImageValidationError: vi.fn(() => null)
 }))
 
+// Helper functions for FileReader mocks
+function createSuccessFileReader() {
+  return class {
+    onload = null
+    onerror = null
+    readAsDataURL() {
+      setTimeout(() => {
+        if (this.onload) {
+          this.onload({ target: { result: 'data:image/jpeg;base64,test' } })
+        }
+      }, 0)
+    }
+  }
+}
+
+function createErrorFileReader() {
+  return class {
+    onload = null
+    onerror = null
+    readAsDataURL() {
+      setTimeout(() => {
+        if (this.onerror) {
+          this.onerror({ target: { error: { message: 'Read error' } } })
+        }
+      }, 0)
+    }
+  }
+}
+
 describe('useFileUpload', () => {
   let upload
 
@@ -265,17 +294,7 @@ describe('useFileUpload', () => {
 
     it('should create preview when enabled', async () => {
       const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
-      global.FileReader = class {
-        onload = null
-        onerror = null
-        readAsDataURL() {
-          setTimeout(() => {
-            if (this.onload) {
-              this.onload({ target: { result: 'data:image/jpeg;base64,test' } })
-            }
-          }, 0)
-        }
-      }
+      global.FileReader = createSuccessFileReader()
       
       const result = await upload.processFile(file)
       
@@ -285,17 +304,7 @@ describe('useFileUpload', () => {
 
     it('should handle preview error gracefully', async () => {
       const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
-      global.FileReader = class {
-        onload = null
-        onerror = null
-        readAsDataURL() {
-          setTimeout(() => {
-            if (this.onerror) {
-              this.onerror({ target: { error: { message: 'Read error' } } })
-            }
-          }, 0)
-        }
-      }
+      global.FileReader = createErrorFileReader()
       
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const result = await upload.processFile(file)
@@ -361,17 +370,7 @@ describe('useFileUpload', () => {
   describe('createPreview', () => {
     it('should create preview for image file', async () => {
       const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
-      global.FileReader = class {
-        onload = null
-        onerror = null
-        readAsDataURL() {
-          setTimeout(() => {
-            if (this.onload) {
-              this.onload({ target: { result: 'data:image/jpeg;base64,test' } })
-            }
-          }, 0)
-        }
-      }
+      global.FileReader = createSuccessFileReader()
       
       const preview = await upload.processFile(file)
       expect(preview).toBe(true)
@@ -379,17 +378,7 @@ describe('useFileUpload', () => {
 
     it('should reject preview on FileReader error', async () => {
       const file = new File(['content'], 'test.jpg', { type: 'image/jpeg' })
-      global.FileReader = class {
-        onload = null
-        onerror = null
-        readAsDataURL() {
-          setTimeout(() => {
-            if (this.onerror) {
-              this.onerror({ target: { error: { message: 'Read error' } } })
-            }
-          }, 0)
-        }
-      }
+      global.FileReader = createErrorFileReader()
       
       const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       await upload.processFile(file)

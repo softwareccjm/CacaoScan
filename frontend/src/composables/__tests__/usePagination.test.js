@@ -510,7 +510,7 @@ describe('usePagination', () => {
       }
 
       const pagination = usePagination()
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
 
       expect(pagination.currentPage.value).toBe(3)
       expect(pagination.itemsPerPage.value).toBe(25)
@@ -559,7 +559,7 @@ describe('usePagination', () => {
       }
 
       const pagination = usePagination()
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
 
       expect(typeof updateQuery).toBe('function')
       
@@ -598,7 +598,7 @@ describe('usePagination', () => {
 
       const pagination = usePagination()
       pagination.currentPage.value = 1
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
       updateQuery()
 
       const replaceCall = mockRouter.replace.mock.calls[0][0]
@@ -615,7 +615,7 @@ describe('usePagination', () => {
 
       const pagination = usePagination({ initialItemsPerPage: 10 })
       pagination.itemsPerPage.value = 10
-      const updateQuery = pagination.syncWithQuery(mockRoute, mockRouter)
+      pagination.syncWithQuery(mockRoute, mockRouter)
       updateQuery()
 
       const replaceCall = mockRouter.replace.mock.calls[0][0]

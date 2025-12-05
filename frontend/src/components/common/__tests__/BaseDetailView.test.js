@@ -7,7 +7,7 @@ import { mount } from '@vue/test-utils'
 import BaseDetailView from '../BaseDetailView.vue'
 
 vi.mock('@/utils/security', () => ({
-  escapeHTML: vi.fn((str) => str ? str.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '')
+  escapeHTML: vi.fn((str) => str ? str.replaceAll('<', '&lt;').replaceAll('>', '&gt;') : '')
 }))
 
 // Mock vue-router to avoid $route redefinition errors

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
 import { reactive } from 'vue'
 
 vi.mock('@/components/common/BaseModal.vue', () => ({
@@ -41,7 +40,9 @@ const mockSetError = vi.fn((field, message) => {
   mockErrors[field] = message
 })
 const mockClearErrors = vi.fn(() => {
-  Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+  for (const key of Object.keys(mockErrors)) {
+    delete mockErrors[key]
+  }
 })
 
 vi.mock('@/composables/useFormValidation', () => ({
@@ -69,7 +70,9 @@ describe('UserFormModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    Object.keys(mockErrors).forEach(key => delete mockErrors[key])
+    for (const key of Object.keys(mockErrors)) {
+      delete mockErrors[key]
+    }
     mockIsValidEmail.mockReturnValue(true)
     mockIsValidPhone.mockReturnValue(true)
     mockValidatePassword.mockReturnValue(true)

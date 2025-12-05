@@ -88,7 +88,7 @@ class CacaoImageSerializer(serializers.ModelSerializer):
     def validate_fecha_cosecha(self, value):
         """Validate harvest date."""
         if value is None:
-            return value
+            return None
         if value.year < 1900:
             raise serializers.ValidationError("La fecha de cosecha debe ser posterior a 1900.")
         # Validate date is not in the future
@@ -96,6 +96,7 @@ class CacaoImageSerializer(serializers.ModelSerializer):
         today = timezone.now().date()
         if value > today:
             raise serializers.ValidationError("La fecha de cosecha no puede ser futura.")
+        # Return validated date (already a date object, no transformation needed)
         return value
 
 

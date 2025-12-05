@@ -278,7 +278,7 @@ export function useFormValidation() {
       
       if (onSuccess) {
         const successResult = onSuccess(result)
-        return successResult !== undefined ? successResult : result
+        return successResult === undefined ? result : successResult
       }
       
       return result

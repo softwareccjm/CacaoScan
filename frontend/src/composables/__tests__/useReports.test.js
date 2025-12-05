@@ -15,7 +15,6 @@ import {
 } from '../useReports.js'
 import reportsService from '@/services/reportsService'
 import { useNotificationStore } from '@/stores/notifications'
-import { useDateFormatting } from '../useDateFormatting'
 
 // Mock dependencies
 vi.mock('@/services/reportsService', () => ({
@@ -337,7 +336,7 @@ describe('useReports composable', () => {
     })
 
     it('should handle validation errors', async () => {
-      const { generateReport, formData, generating, error } = useReports()
+      const { generateReport, formData, generating } = useReports()
       
       formData.tipo_reporte = ''
       formData.formato = 'pdf'
@@ -504,7 +503,7 @@ describe('useReports composable', () => {
       vi.useFakeTimers()
       unhandledRejections = []
       // Capture unhandled rejections
-      const originalHandler = process.listeners('unhandledRejection')
+      process.listeners('unhandledRejection')
       process.on('unhandledRejection', (reason) => {
         unhandledRejections.push(reason)
       })

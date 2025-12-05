@@ -5,15 +5,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
-  startAdvancedTraining,
   startMLTraining,
   getTrainingHistory,
   getMultipleJobStatus,
   cancelTrainingJob,
   getModelMetrics,
   compareModels,
-  createExperiment,
-  getExperiments,
   validateTrainingConfig,
   estimateTrainingTime,
   formatAdvancedTrainingMetrics,
@@ -22,12 +19,6 @@ import {
   ADMIN_TRAINING_CONFIG
 } from '../adminApi.js'
 import { fetchGet, fetchPost } from '../apiClient.js'
-import {
-  trainRegressionModel as baseTrainRegression,
-  trainVisionModel as baseTrainVision,
-  getTrainingJobStatus as baseGetJobStatus,
-  getTrainingJobs as baseGetJobs
-} from '../datasetApi.js'
 
 // Mock dependencies
 vi.mock('../apiClient.js', () => ({

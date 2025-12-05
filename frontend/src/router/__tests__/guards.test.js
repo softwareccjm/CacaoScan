@@ -5,20 +5,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
-  requireAuth,
   requireGuest,
   requireRole,
-  requireVerified,
-  requirePermission,
   requireFarmer,
-  requireAnalyst,
-  requireAdmin,
   requireCanUpload,
   updateActivity,
   checkTokenValidity,
-  requireFarmerVerified,
-  requireAnalystAuth,
-  requireAdminAuth,
   ROUTE_GUARDS
 } from '../guards.js'
 

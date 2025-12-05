@@ -451,7 +451,7 @@ describe('PredictionResults', () => {
     })
 
     it('should format NaN as N/A', () => {
-      const data = { ...mockPredictionData, width: NaN }
+      const data = { ...mockPredictionData, width: Number.NaN }
       const wrapper = mount(PredictionResults, {
         props: {
           predictionData: data

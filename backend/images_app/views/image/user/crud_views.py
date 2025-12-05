@@ -250,35 +250,6 @@ class ImageDeleteView(APIView, ImagePermissionMixin):
                     'status': 'error'
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            # Guardar información de la imagen antes de eliminarla
-            image_data = {
-                'id': image.id,
-                'file_name': image.file_name,
-                'file_size_mb': image.file_size_mb,
-                'finca': image.finca,
-                'region': image.region,
-                'lote_id': image.lote_id,
-                'variedad': image.variedad,
-                'fecha_cosecha': image.fecha_cosecha.isoformat() if image.fecha_cosecha else None,
-                'processed': image.processed,
-                'created_at': image.created_at.isoformat(),
-                'user': image.user.username
-            }
-            
-            # Información de la predicción si existe
-            prediction_data = None
-            if hasattr(image, 'prediction') and image.prediction:
-                prediction_data = {
-                    'id': image.prediction.id,
-                    'alto_mm': float(image.prediction.alto_mm),
-                    'ancho_mm': float(image.prediction.ancho_mm),
-                    'grosor_mm': float(image.prediction.grosor_mm),
-                    'peso_g': float(image.prediction.peso_g),
-                    'average_confidence': float(image.prediction.average_confidence),
-                    'model_version': image.prediction.model_version,
-                    'created_at': image.prediction.created_at.isoformat()
-                }
-            
             # Eliminar imagen (esto también eliminará la predicción por CASCADE)
             image.delete()
             

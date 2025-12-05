@@ -32,6 +32,7 @@ vi.mock('@/services/lotesApi', () => ({
   createLote: vi.fn(),
   updateLote: vi.fn(),
   deleteLote: vi.fn(),
+  getLoteStats: vi.fn(),
   getVariedadesCacao: vi.fn(),
   getEstadosLote: vi.fn(),
   validateLoteData: vi.fn(),
@@ -102,7 +103,7 @@ describe('useLotes', () => {
       const mockData = [{ id: 1, name: 'Lote 1' }]
       lotesApi.getLotes.mockResolvedValue(mockData)
 
-      const result = await lotes.loadLotes()
+      await lotes.loadLotes()
 
       expect(lotesApi.getLotes).toHaveBeenCalled()
       expect(lotes.lotes.value).toEqual(mockData)
@@ -125,7 +126,7 @@ describe('useLotes', () => {
       const mockLote = { id: 1, name: 'Lote 1' }
       lotesApi.getLoteById.mockResolvedValue(mockLote)
 
-      const result = await lotes.loadLote(1)
+      await lotes.loadLote(1)
 
       expect(lotesApi.getLoteById).toHaveBeenCalledWith(1)
       expect(lotes.lote.value).toEqual(mockLote)
@@ -233,7 +234,7 @@ describe('useLotes', () => {
       lotesApi.updateLote.mockResolvedValue(mockResult)
       lotes.lote.value = { id: 1 }
 
-      const result = await lotes.updateLote(1, loteData)
+      await lotes.updateLote(1, loteData)
 
       expect(lotesApi.updateLote).toHaveBeenCalledWith(1, loteData)
       expect(lotes.lote.value).toEqual(mockResult)
@@ -279,7 +280,7 @@ describe('useLotes', () => {
   describe('loadStats', () => {
     it('should load stats successfully', async () => {
       const mockStats = { total: 10, promedio: 5 }
-      lotesApi.getLoteStats = vi.fn().mockResolvedValue(mockStats)
+      vi.spyOn(lotesApi, 'getLoteStats').mockResolvedValue(mockStats)
 
       const result = await lotes.loadStats(1)
 
@@ -288,7 +289,7 @@ describe('useLotes', () => {
 
     it('should handle stats error', async () => {
       const error = new Error('Stats error')
-      lotesApi.getLoteStats = vi.fn().mockRejectedValue(error)
+      vi.spyOn(lotesApi, 'getLoteStats').mockRejectedValue(error)
 
       await expect(lotes.loadStats(1)).rejects.toThrow()
     })
@@ -302,7 +303,7 @@ describe('useLotes', () => {
     })
 
     it('should handle analisis error', async () => {
-      const error = new Error('Analisis error')
+      new Error('Analisis error')
       // Mock the analisis loading to throw
       await expect(lotes.loadAnalisis(1)).resolves.toEqual([])
     })

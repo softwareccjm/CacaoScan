@@ -342,11 +342,11 @@ export function useWebSocket() {
       socketRefs.userStatsSocket
     ]
     
-    sockets.forEach((socket) => {
+    for (const socket of sockets) {
       if (socket) {
         socket.send(pingMessage)
       }
-    })
+    }
   }
   
   // Métodos específicos de notificaciones

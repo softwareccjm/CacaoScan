@@ -48,7 +48,7 @@ describe('useFincas', () => {
       }
       getFincas.mockResolvedValue(mockResponse)
 
-      const result = await fincas.loadFincas()
+      await fincas.loadFincas()
 
       expect(getFincas).toHaveBeenCalled()
       expect(fincas.fincas.value).toEqual([{ id: 1, name: 'Finca 1' }])
@@ -106,7 +106,7 @@ describe('useFincas', () => {
       const onFincaCreate = vi.fn()
 
       const fincasWithCallback = useFincas({ onFincaCreate })
-      const result = await fincasWithCallback.createFinca(fincaData)
+      await fincasWithCallback.createFinca(fincaData)
 
       expect(createFinca).toHaveBeenCalledWith(fincaData)
       expect(onFincaCreate).toHaveBeenCalled()
@@ -120,7 +120,7 @@ describe('useFincas', () => {
       const onFincaUpdate = vi.fn()
 
       const fincasWithCallback = useFincas({ onFincaUpdate })
-      const result = await fincasWithCallback.updateFinca(1, fincaData)
+      await fincasWithCallback.updateFinca(1, fincaData)
 
       expect(updateFinca).toHaveBeenCalledWith(1, fincaData)
       expect(onFincaUpdate).toHaveBeenCalled()

@@ -52,7 +52,7 @@ describe('useAnalysis', () => {
       predictImage.mockResolvedValue(mockResult)
       
       const imageFile = new File([''], 'test.jpg')
-      const result = await analysis.analyzeImage(imageFile, 'traditional')
+      await analysis.analyzeImage(imageFile, 'traditional')
 
       expect(predictImage).toHaveBeenCalledWith(imageFile)
       expect(mockStore.setCurrentPrediction).toHaveBeenCalled()
