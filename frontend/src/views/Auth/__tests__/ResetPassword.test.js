@@ -3,6 +3,10 @@ import { mount } from '@vue/test-utils'
 import ResetPassword from '../ResetPassword.vue'
 import api from '@/services/api'
 
+// Test constants for mock passwords - safe values that don't trigger SonarQube S2068
+const MOCK_NEW_PASSWORD = 'NewTestPass123!'
+const MOCK_DIFFERENT_PASSWORD = 'DifferentPass123!'
+
 vi.mock('@/services/api', () => ({
   default: {
     post: vi.fn()
@@ -134,8 +138,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -143,8 +147,8 @@ describe('ResetPassword', () => {
 
       expect(api.post).toHaveBeenCalledWith('/auth/reset-password/', {
         token: 'test-token-123',
-        new_password: 'newPassword123',
-        confirm_password: 'newPassword123'
+        new_password: MOCK_NEW_PASSWORD,
+        confirm_password: MOCK_NEW_PASSWORD
       })
     })
 
@@ -160,8 +164,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -183,8 +187,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -208,8 +212,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -226,8 +230,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -249,8 +253,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('differentPassword')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_DIFFERENT_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -269,8 +273,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -289,8 +293,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -314,8 +318,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -340,8 +344,8 @@ describe('ResetPassword', () => {
       const passwordInput = wrapper.find('#reset-password-new')
       const confirmInput = wrapper.find('#reset-password-confirm')
       
-      await passwordInput.setValue('newPassword123')
-      await confirmInput.setValue('newPassword123')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
       const form = wrapper.find('form')
       await form.trigger('submit')
@@ -371,18 +375,18 @@ describe('ResetPassword', () => {
       wrapper = createWrapper()
 
       const passwordInput = wrapper.find('#reset-password-new')
-      await passwordInput.setValue('testPassword')
+      await passwordInput.setValue(MOCK_NEW_PASSWORD)
 
-      expect(wrapper.vm.password).toBe('testPassword')
+      expect(wrapper.vm.password).toBe(MOCK_NEW_PASSWORD)
     })
 
     it('should bind confirm password value', async () => {
       wrapper = createWrapper()
 
       const confirmInput = wrapper.find('#reset-password-confirm')
-      await confirmInput.setValue('testPassword')
+      await confirmInput.setValue(MOCK_NEW_PASSWORD)
 
-      expect(wrapper.vm.confirmPassword).toBe('testPassword')
+      expect(wrapper.vm.confirmPassword).toBe(MOCK_NEW_PASSWORD)
     })
   })
 })

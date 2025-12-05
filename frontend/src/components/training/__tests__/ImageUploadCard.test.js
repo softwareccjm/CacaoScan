@@ -278,7 +278,7 @@ describe('ImageUploadCard', () => {
       const dropEvent = new Event('drop', { bubbles: true })
       dropEvent.dataTransfer = dataTransfer
 
-      await dropZone.element.dispatchEvent(dropEvent)
+      dropZone.element.dispatchEvent(dropEvent)
       await wrapper.vm.$nextTick()
 
       expect(wrapper.emitted('upload')).toBeTruthy()

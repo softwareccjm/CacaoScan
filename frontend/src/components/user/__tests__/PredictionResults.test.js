@@ -37,7 +37,7 @@ describe('PredictionResults', () => {
     }
     
     // Mock Blob if needed (already in setup.js but ensure it exists)
-    if (typeof globalThis.Blob === 'undefined') {
+    if (globalThis.Blob === undefined) {
       globalThis.Blob = class Blob {
         constructor(data) {
           this.data = data

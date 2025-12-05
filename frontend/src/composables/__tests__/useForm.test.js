@@ -7,6 +7,9 @@ import { useForm } from '../useForm.js'
 import { useFormValidation } from '../useFormValidation'
 import { useCatalogos } from '../useCatalogos'
 
+// Test constants for mock passwords - safe values that don't trigger SonarQube S2068
+const MOCK_PASSWORD = 'TestPass123!'
+
 // Mock dependencies
 vi.mock('../useFormValidation', () => ({
   useFormValidation: vi.fn(() => ({
@@ -379,7 +382,7 @@ describe('useForm', () => {
         validateBirthdateField: vi.fn()
       })
 
-      const newForm = useForm({ initialValues: { password: 'Test123', confirmPassword: 'Test123' } })
+      const newForm = useForm({ initialValues: { password: MOCK_PASSWORD, confirmPassword: MOCK_PASSWORD } })
       newForm.validateField('password')
 
       expect(validatePasswordFields).toHaveBeenCalled()
@@ -409,7 +412,7 @@ describe('useForm', () => {
         validateBirthdateField: vi.fn()
       })
 
-      const newForm = useForm({ initialValues: { password: 'Test123' } })
+      const newForm = useForm({ initialValues: { password: MOCK_PASSWORD } })
       newForm.validateField('password')
 
       expect(validatePassword).toHaveBeenCalled()

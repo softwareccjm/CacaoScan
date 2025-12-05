@@ -344,7 +344,7 @@ describe('FincaLotesView', () => {
   })
 
   it('should filter lotes by search term', async () => {
-    wrapper = await createWrapper()
+    wrapper = createWrapper()
 
     await wrapper.vm.$nextTick()
     // Set lotes directly

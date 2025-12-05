@@ -235,11 +235,11 @@ describe('UserActivityModal', () => {
     const originalCreateElement = document.createElement
     const originalAppendChild = document.body.appendChild
     const originalRemoveChild = document.body.removeChild
-    const originalCreateObjectURL = global.URL.createObjectURL
-    const originalRevokeObjectURL = global.URL.revokeObjectURL
+    const originalCreateObjectURL = globalThis.URL.createObjectURL
+    const originalRevokeObjectURL = globalThis.URL.revokeObjectURL
     
-    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
-    global.URL.revokeObjectURL = vi.fn()
+    globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
+    globalThis.URL.revokeObjectURL = vi.fn()
     document.createElement = vi.fn().mockImplementation((tagName) => {
       if (tagName === 'a') {
         return {

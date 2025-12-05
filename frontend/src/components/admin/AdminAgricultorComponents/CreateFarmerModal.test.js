@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref, reactive } from 'vue'
 
+// Test constants for mock passwords - safe values that don't trigger SonarQube S2068
+const MOCK_VALID_PASSWORD = 'TestPass123!'
+const MOCK_WEAK_PASSWORD = 'weak'
+const MOCK_DIFFERENT_PASSWORD = 'Different123!'
+
 const { mockRegister, mockShowSuccess, mockShowError, mockCargarMunicipios, mockLimpiarMunicipios, mockIsValidEmail, mockIsValidPhone, mockIsValidDocument, mockIsValidBirthdate, mockValidatePassword, mockClearErrors } = vi.hoisted(() => ({
   mockRegister: vi.fn(),
   mockShowSuccess: vi.fn(),
@@ -190,8 +195,8 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.email = 'juan@test.com'
     wrapper.vm.form.numeroDocumento = '1234567890'
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_VALID_PASSWORD
     wrapper.vm.form.departamento = '05'
     wrapper.vm.form.municipio = '1'
 
@@ -226,7 +231,7 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.numeroDocumento = '123'
     wrapper.vm.form.phoneNumber = '123'
     wrapper.vm.form.fechaNacimiento = '2020-01-01'
-    wrapper.vm.form.password = 'weak'
+    wrapper.vm.form.password = MOCK_WEAK_PASSWORD
     wrapper.vm.form.confirmPassword = 'different'
 
     const isValid = wrapper.vm.validateForm()
@@ -299,8 +304,8 @@ describe('CreateFarmerModal', () => {
     await wrapper.vm.openModal()
     await wrapper.vm.$nextTick()
 
-    wrapper.vm.form.password = 'weak'
-    wrapper.vm.form.confirmPassword = 'weak'
+    wrapper.vm.form.password = MOCK_WEAK_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_WEAK_PASSWORD
     await wrapper.vm.$nextTick() // Wait for computed to update
 
     wrapper.vm.validateForm()
@@ -314,8 +319,8 @@ describe('CreateFarmerModal', () => {
     await wrapper.vm.openModal()
     await wrapper.vm.$nextTick()
 
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Different123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_DIFFERENT_PASSWORD
     wrapper.vm.isPasswordValid = { value: true }
 
     wrapper.vm.validateForm()
@@ -333,7 +338,7 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.segundoApellido = 'García'
     wrapper.vm.form.email = 'juan@test.com'
-    wrapper.vm.form.password = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
     wrapper.vm.form.numeroDocumento = '1234567890'
     wrapper.vm.form.phoneNumber = '3001234567'
     wrapper.vm.form.direccion = 'Calle 123'
@@ -527,8 +532,8 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.email = 'juan@test.com'
     wrapper.vm.form.numeroDocumento = '1234567890'
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_VALID_PASSWORD
     wrapper.vm.form.departamento = '05'
     wrapper.vm.form.municipio = '1'
     wrapper.vm.form.tipoDocumento = 'CC'
@@ -566,8 +571,8 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.email = 'juan@test.com'
     wrapper.vm.form.numeroDocumento = '1234567890'
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_VALID_PASSWORD
     wrapper.vm.isPasswordValid = { value: true }
 
     await wrapper.vm.handleSubmit()
@@ -603,8 +608,8 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.email = 'juan@test.com'
     wrapper.vm.form.numeroDocumento = '1234567890'
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_VALID_PASSWORD
     wrapper.vm.form.departamento = '05'
     wrapper.vm.form.municipio = '1'
     wrapper.vm.form.tipoDocumento = 'CC'
@@ -640,8 +645,8 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.email = 'juan@test.com'
     wrapper.vm.form.numeroDocumento = '1234567890'
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_VALID_PASSWORD
     wrapper.vm.isPasswordValid = { value: true }
 
     await wrapper.vm.handleSubmit()
@@ -674,8 +679,8 @@ describe('CreateFarmerModal', () => {
     wrapper.vm.form.lastName = 'Pérez'
     wrapper.vm.form.email = 'juan@test.com'
     wrapper.vm.form.numeroDocumento = '1234567890'
-    wrapper.vm.form.password = 'Password123!'
-    wrapper.vm.form.confirmPassword = 'Password123!'
+    wrapper.vm.form.password = MOCK_VALID_PASSWORD
+    wrapper.vm.form.confirmPassword = MOCK_VALID_PASSWORD
     wrapper.vm.isPasswordValid = { value: true }
 
     await wrapper.vm.handleSubmit()

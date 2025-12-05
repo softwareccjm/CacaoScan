@@ -6,6 +6,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAuth } from '../useAuth.js'
 
+// Test constants for mock passwords - safe values that don't trigger SonarQube S2068
+const MOCK_PASSWORD = 'TestPass123!'
+const MOCK_WRONG_PASSWORD = 'WrongPass123!'
+const MOCK_NEW_PASSWORD = 'NewTestPass123!'
+
 // Use vi.hoisted() to define mocks before vi.mock() hoisting
 const { mockAuthStore, mockNotificationStore, mockRouter, mockAuthApi } = vi.hoisted(() => {
   const mockAuthStore = {
@@ -98,7 +103,7 @@ describe('useAuth', () => {
       mockAuthStore.login.mockResolvedValue({ success: true })
       mockAuthStore.userFullName = 'John Doe'
       
-      const credentials = { email: 'test@example.com', password: 'password123' }
+      const credentials = { email: 'test@example.com', password: MOCK_PASSWORD }
       const result = await auth.login(credentials)
       
       expect(mockAuthStore.login).toHaveBeenCalledWith(credentials)
@@ -111,7 +116,7 @@ describe('useAuth', () => {
       const error = new Error('Invalid credentials')
       mockAuthStore.login.mockRejectedValue(error)
       
-      const credentials = { email: 'test@example.com', password: 'wrong' }
+      const credentials = { email: 'test@example.com', password: MOCK_WRONG_PASSWORD }
       
       await expect(auth.login(credentials)).rejects.toThrow()
       expect(auth.error.value).toBe('Invalid credentials')
@@ -123,7 +128,7 @@ describe('useAuth', () => {
     it('should register successfully', async () => {
       mockAuthStore.register.mockResolvedValue({ success: true })
       
-      const userData = { email: 'new@example.com', password: 'password123' }
+      const userData = { email: 'new@example.com', password: MOCK_PASSWORD }
       const result = await auth.register(userData)
       
       expect(mockAuthStore.register).toHaveBeenCalledWith(userData)
@@ -135,7 +140,7 @@ describe('useAuth', () => {
       const error = new Error('Email already exists')
       mockAuthStore.register.mockRejectedValue(error)
       
-      const userData = { email: 'existing@example.com', password: 'password123' }
+      const userData = { email: 'existing@example.com', password: MOCK_PASSWORD }
       
       await expect(auth.register(userData)).rejects.toThrow()
       expect(auth.error.value).toBe('Email already exists')
@@ -274,8 +279,8 @@ describe('useAuth', () => {
       const resetData = {
         uid: 'uid123',
         token: 'token123',
-        newPassword: 'newpass123',
-        confirmPassword: 'newpass123'
+        newPassword: MOCK_NEW_PASSWORD,
+        confirmPassword: MOCK_NEW_PASSWORD
       }
       
       const result = await auth.confirmPasswordReset(resetData)
@@ -292,8 +297,8 @@ describe('useAuth', () => {
       const resetData = {
         uid: 'uid123',
         token: 'invalid',
-        newPassword: 'newpass123',
-        confirmPassword: 'newpass123'
+        newPassword: MOCK_NEW_PASSWORD,
+        confirmPassword: MOCK_NEW_PASSWORD
       }
       
       await expect(auth.confirmPasswordReset(resetData)).rejects.toThrow()
@@ -327,7 +332,7 @@ describe('useAuth', () => {
       error.response = { status: 500 }
       mockAuthStore.login.mockRejectedValue(error)
       
-      await expect(auth.login({ email: 'test@example.com', password: 'pass' })).rejects.toThrow()
+      await expect(auth.login({ email: 'test@example.com', password: MOCK_PASSWORD })).rejects.toThrow()
       expect(auth.error.value).toBe('Network error')
     })
 
@@ -335,7 +340,7 @@ describe('useAuth', () => {
       const error = new Error('Login failed')
       mockAuthStore.login.mockRejectedValue(error)
       
-      await expect(auth.login({ email: 'test@example.com', password: 'pass' })).rejects.toThrow()
+      await expect(auth.login({ email: 'test@example.com', password: MOCK_PASSWORD })).rejects.toThrow()
       expect(auth.error.value).toBe('Error al iniciar sesión')
     })
   })

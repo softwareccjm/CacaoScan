@@ -29,9 +29,9 @@ describe('SamplesTable', () => {
     {
       id: 2,
       grain_id: 'G002',
-      height: 22.0,
-      width: 16.0,
-      thickness: 9.0,
+      height: 22,
+      width: 16,
+      thickness: 9,
       weight: 1.8,
       image_url: 'https://example.com/image2.jpg',
       created_at: '2024-01-14T10:00:00Z'

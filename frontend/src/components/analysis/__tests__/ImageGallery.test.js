@@ -165,7 +165,7 @@ describe('ImageGallery', () => {
         }
       })
 
-      const overlay = wrapper.find('.group-hover\\:opacity-100')
+      const overlay = wrapper.find(String.raw`.group-hover\:opacity-100`)
       expect(overlay.exists()).toBe(true)
     })
 
@@ -204,7 +204,7 @@ describe('ImageGallery', () => {
       })
 
       const images = wrapper.findAll('img')
-      images.forEach((img) => {
+      for (const img of images) {
         expect(img.classes()).toContain('w-full')
         expect(img.classes()).toContain('h-32')
         expect(img.classes()).toContain('object-cover')

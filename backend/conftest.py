@@ -9,6 +9,12 @@ import tempfile
 import os
 from pathlib import Path
 
+# Test passwords from environment variables with safe defaults for testing
+# These are test-only credentials and not used in production
+TEST_USER_PASSWORD: str = os.getenv('TEST_USER_PASSWORD', 'testpass123')
+TEST_ADMIN_PASSWORD: str = os.getenv('TEST_ADMIN_PASSWORD', 'adminpass123')
+TEST_STAFF_PASSWORD: str = os.getenv('TEST_STAFF_PASSWORD', 'staffpass123')
+
 
 @pytest.fixture
 def user():
@@ -16,7 +22,7 @@ def user():
     return User.objects.create_user(
         username='testuser',
         email='test@example.com',
-        password='testpass123',
+        password=TEST_USER_PASSWORD,
         first_name='Test',
         last_name='User'
     )
@@ -28,7 +34,7 @@ def admin_user():
     return User.objects.create_superuser(
         username='admin',
         email='admin@example.com',
-        password='adminpass123',
+        password=TEST_ADMIN_PASSWORD,
         first_name='Admin',
         last_name='User'
     )
@@ -40,7 +46,7 @@ def staff_user():
     user = User.objects.create_user(
         username='staff',
         email='staff@example.com',
-        password='staffpass123',
+        password=TEST_STAFF_PASSWORD,
         first_name='Staff',
         last_name='User'
     )
@@ -126,4 +132,3 @@ def mock_service_result():
 def enable_db_access_for_all_tests(db):
     """Enable database access for all tests."""
     pass
-

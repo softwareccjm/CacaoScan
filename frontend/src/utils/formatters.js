@@ -211,7 +211,8 @@ export function parseChange(change) {
   }
   
   const trimmed = change.trim()
-  const regex = /^([+-]?)(\d+\.?\d*)/
+  // Use non-capturing group with specific pattern to avoid backtracking (ReDoS prevention)
+  const regex = /^([+-]?)(\d+(?:\.\d+)?)/
   const match = regex.exec(trimmed)
   if (!match) {
     return 0

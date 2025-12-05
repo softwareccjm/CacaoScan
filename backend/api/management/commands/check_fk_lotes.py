@@ -231,6 +231,28 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"✅ Creada FK correcta: {new_constraint_name}"))
             logger.info(f"FK created: {new_constraint_name}")
     
+    def _process_incorrect_fk(self, cursor, constraint_name: str, foreign_table: str, fix: bool) -> bool:
+        """Process an incorrect foreign key constraint."""
+        self.stdout.write(
+            self.style.WARNING(
+                f"\n⚠️  PROBLEMA: FK apunta a '{foreign_table}' pero debería apuntar a 'api_finca'"
+            )
+        )
+        
+        if not fix:
+            self.stdout.write("   Usa --fix para corregir automáticamente")
+            return True
+        
+        try:
+            self._fix_incorrect_foreign_key(cursor, constraint_name, foreign_table)
+        except CommandError:
+            raise
+        except Exception as e:
+            logger.error(f"Error fixing FK: {e}", exc_info=True)
+            raise CommandError(f'Error al corregir foreign key: {str(e)}')
+        
+        return True
+
     def _check_foreign_keys(self, fix: bool) -> bool:
         """Check and optionally fix foreign key constraints."""
         issues_found = False
@@ -247,23 +269,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"  - {constraint_name}: {table_name}.{column_name} -> {foreign_table}.{foreign_column}")
                 
                 if foreign_table != 'api_finca':
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"\n⚠️  PROBLEMA: FK apunta a '{foreign_table}' pero debería apuntar a 'api_finca'"
-                        )
-                    )
-                    issues_found = True
-                    
-                    if fix:
-                        try:
-                            self._fix_incorrect_foreign_key(cursor, constraint_name, foreign_table)
-                        except CommandError:
-                            raise
-                        except Exception as e:
-                            logger.error(f"Error fixing FK: {e}", exc_info=True)
-                            raise CommandError(f'Error al corregir foreign key: {str(e)}')
-                    else:
-                        self.stdout.write("   Usa --fix para corregir automáticamente")
+                    issues_found = self._process_incorrect_fk(cursor, constraint_name, foreign_table, fix)
                 else:
                     self.stdout.write(self.style.SUCCESS(f"   ✅ FK correcta: apunta a {foreign_table}"))
         

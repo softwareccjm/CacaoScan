@@ -312,7 +312,7 @@ describe('ReportDownloadButton', () => {
       await new Promise(resolve => setTimeout(resolve, 100))
 
       expect(createElementSpy).toHaveBeenCalledWith('a')
-      const linkElement = createdLinks[createdLinks.length - 1]
+      const linkElement = createdLinks.at(-1)
       if (linkElement) {
         expect(linkElement.download).toContain('reporte_456')
         expect(linkElement.download).toContain('excel')
