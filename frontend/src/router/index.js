@@ -236,7 +236,17 @@ const handleAuthRequired = async (to, authStore) => {
       : String(requiredRole).toLowerCase().trim()
     const normalizedUserRole = normalizeRole(userRole)
 
-    if (normalizedUserRole !== normalizedRequiredRole) {
+    // Define allowed roles for each required role
+    // Admins can access farmer and analyst routes
+    const rolePermissions = {
+      'farmer': ['farmer', 'admin'],
+      'analyst': ['analyst', 'admin'],
+      'admin': ['admin']
+    }
+
+    const allowedRoles = rolePermissions[normalizedRequiredRole] || [normalizedRequiredRole]
+    
+    if (!allowedRoles.includes(normalizedUserRole)) {
       return {
         path: '/acceso-denegado',
         replace: true,

@@ -70,6 +70,8 @@ export const useAdminStore = defineStore('admin', () => {
       loading.value = true
       error.value = null
       
+      console.log('🔄 [admin store] Obteniendo actividades recientes, limit:', limit)
+      
       // El backend usa page_size, no limit
       const response = await api.get('/audit/activity-logs/', {
         params: {
@@ -79,12 +81,20 @@ export const useAdminStore = defineStore('admin', () => {
         }
       })
       
+      console.log('📊 [admin store] Activities response completa:', response)
+      console.log('📊 [admin store] Activities response.data:', response.data)
+      console.log('📊 [admin store] Activities response.data.results:', response.data?.results)
+      
       activities.value = response.data.results || []
-      console.log('📊 [admin store] Activities response:', response.data)
       console.log('📊 [admin store] Activities count:', activities.value.length)
+      console.log('📊 [admin store] Activities array:', activities.value)
       
       return response
     } catch (err) {
+      console.error('❌ [admin store] Error obteniendo actividades:', err)
+      console.error('❌ [admin store] Error response:', err.response)
+      console.error('❌ [admin store] Error status:', err.response?.status)
+      
       const errorInfo = handleApiError(err, { logError: false })
       
       // Si es error 500 o el endpoint no está disponible, retornar vacío silenciosamente

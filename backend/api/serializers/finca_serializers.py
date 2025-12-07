@@ -68,7 +68,13 @@ class FincaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El nombre de la finca debe tener al menos 3 caracteres.")
         
         # Check uniqueness per agricultor
-        agricultor = self.context.get('request').user if self.context.get('request') else None
+        # Priority: context.agricultor > instance.agricultor > request.user
+        agricultor = self.context.get('agricultor')
+        if not agricultor and self.instance and hasattr(self.instance, 'agricultor'):
+            agricultor = self.instance.agricultor
+        if not agricultor and self.context.get('request'):
+            agricultor = self.context.get('request').user
+        
         if agricultor and self.instance:
             # Update: exclude current instance
             if Finca.objects.filter(

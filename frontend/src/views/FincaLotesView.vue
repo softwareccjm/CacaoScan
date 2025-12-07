@@ -272,6 +272,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { usePagination } from '@/composables/usePagination'
+import { getLotesByFinca, getFincaById } from '@/services/fincasApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -375,18 +376,11 @@ const displayedLotes = computed(() => {
 // Methods
 const loadFinca = async () => {
   try {
-    const response = await fetch(`/api/fincas/${fincaId.value}/`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    
-    if (response.ok) {
-      finca.value = await response.json()
-    }
+    const data = await getFincaById(fincaId.value)
+    finca.value = data
   } catch (err) {
     console.error('Error cargando finca:', err)
+    // No establecer error aquí para no bloquear la carga de lotes
   }
 }
 
@@ -395,26 +389,33 @@ const loadLotes = async () => {
     loading.value = true
     error.value = null
     
-    const response = await fetch(`/api/fincas/${fincaId.value}/lotes/`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const data = await getLotesByFinca(fincaId.value)
     
-    if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${response.statusText}`)
+    // El backend devuelve { finca: {...}, lotes: [...], total: ... }
+    if (data && data.lotes) {
+      lotes.value = Array.isArray(data.lotes) ? data.lotes : []
+    } else if (Array.isArray(data)) {
+      // Si devuelve un array directamente
+      lotes.value = data
+    } else if (data && data.results) {
+      // Si devuelve formato paginado
+      lotes.value = Array.isArray(data.results) ? data.results : []
+    } else {
+      lotes.value = []
     }
     
-    const data = await response.json()
-    lotes.value = data.results || []
-    
     // Extraer variedades únicas
-    variedades.value = [...new Set(lotes.value.map(l => l.variedad))].sort()
+    variedades.value = [...new Set(lotes.value.map(l => l.variedad).filter(Boolean))].sort()
     
   } catch (err) {
-    error.value = err.message
+    const errorMessage = err.response?.data?.error || err.message || 'Error al cargar los lotes'
+    error.value = errorMessage
     console.error('Error cargando lotes:', err)
+    
+    // Si es un error de permisos, mostrar mensaje más claro
+    if (err.response?.status === 403 || err.response?.status === 404) {
+      error.value = 'No tienes permisos para ver los lotes de esta finca o la finca no existe'
+    }
   } finally {
     loading.value = false
   }

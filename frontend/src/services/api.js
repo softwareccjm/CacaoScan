@@ -127,7 +127,8 @@ const isStatsEndpoint = (url) => url?.includes('/stats/')
 const isNonCriticalEndpoint = (url) => isConfigEndpoint(url) || isStatsEndpoint(url)
 
 const handleSilent500Error = (originalRequest, error) => {
-  if (error.response?.status === 500 && isNonCriticalEndpoint(originalRequest.url)) {
+  // Don't silently handle errors for stats endpoint - we need to see the actual error
+  if (error.response?.status === 500 && isNonCriticalEndpoint(originalRequest.url) && !isStatsEndpoint(originalRequest.url)) {
     return {
       data: {},
       status: 200,

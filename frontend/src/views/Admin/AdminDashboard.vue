@@ -203,6 +203,7 @@ const kpiCards = computed(() => {
     ]
   }
   
+  // Extract data from backend response structure
   const usersTotal = Number(stats.value?.users?.total) || Number(stats.value?.total_users) || 0
   const usersThisWeek = Number(stats.value?.users?.this_week) || 0
   const fincasTotal = Number(stats.value?.fincas?.total) || 0
@@ -210,16 +211,32 @@ const kpiCards = computed(() => {
   const imagesTotal = Number(stats.value?.images?.total) || Number(stats.value?.total_images) || 0
   const imagesThisWeek = Number(stats.value?.images?.this_week) || 0
   
+  // Debug logging
+  if (usersTotal === 0 && stats.value?.users) {
+    console.warn('⚠️ [Dashboard] Users total is 0 but users object exists:', stats.value.users)
+  }
+  
+  // Calculate average quality from predictions
   let avgQuality = 0
   const confidence = stats.value?.predictions?.average_confidence
-  // Only use confidence if it's a valid positive number, otherwise use avg_quality fallback
-  if (confidence !== undefined && confidence !== null && Number(confidence) > 0) {
+  if (confidence !== undefined && confidence !== null && Number(confidence) >= 0) {
     avgQuality = Math.round(Number(confidence) * 100)
   } else if (stats.value?.avg_quality !== undefined && stats.value?.avg_quality !== null) {
     avgQuality = Number(stats.value.avg_quality)
   }
   
   const qualityChange = 0
+  
+  console.log('📊 [Dashboard] KPI Cards computed:', {
+    usersTotal,
+    usersThisWeek,
+    fincasTotal,
+    fincasThisWeek,
+    imagesTotal,
+    imagesThisWeek,
+    avgQuality,
+    stats: stats.value
+  })
   
   return [
     {
@@ -381,6 +398,11 @@ const loadStats = async () => {
     const response = await adminStore.getGeneralStats()
     const data = response.data || {}
     
+    console.log('📊 [Dashboard] Raw response data:', data)
+    console.log('📊 [Dashboard] Users data:', data.users)
+    console.log('📊 [Dashboard] Fincas data:', data.fincas)
+    console.log('📊 [Dashboard] Images data:', data.images)
+    
     // Merge data with defaults to ensure all expected properties exist
     const statsData = {
       users: data.users || { total: 0, this_week: 0, this_month: 0 },
@@ -393,14 +415,22 @@ const loadStats = async () => {
       ...data  // Spread data last to allow custom properties like avg_quality to override
     }
     
+    console.log('📊 [Dashboard] Processed statsData:', statsData)
+    console.log('📊 [Dashboard] Users total:', statsData.users?.total)
+    console.log('📊 [Dashboard] Fincas total:', statsData.fincas?.total)
+    console.log('📊 [Dashboard] Images total:', statsData.images?.total)
+    
     // Reassign to ensure reactivity - completely replace to trigger computed updates
     stats.value = statsData
     lastUpdateTime.value = new Date()
     
+    console.log('📊 [Dashboard] stats.value after assignment:', stats.value)
+    
     updateActivityChartFromStats()
     updateQualityChartFromStats()
   } catch (error) {
-    console.error('Error loading stats:', error)
+    console.error('❌ [Dashboard] Error loading stats:', error)
+    console.error('❌ [Dashboard] Error details:', error.response?.data || error.message)
     // Set default values but still throw to let loadDashboardData handle the error
     stats.value = {
       users: { total: 0 },
@@ -415,12 +445,19 @@ const loadStats = async () => {
 }
 
 const processUserData = (user) => {
+  // Extract name from first_name and last_name, fallback to username or email
+  const firstName = user.first_name || ''
+  const lastName = user.last_name || ''
+  const fullName = `${firstName} ${lastName}`.trim()
+  const displayName = fullName || user.username || user.email?.split('@')[0] || 'Usuario'
+  
   return {
     id: user.id,
     username: user.username || user.email?.split('@')[0] || 'Usuario',
     email: user.email || '',
-    first_name: user.first_name || '',
-    last_name: user.last_name || '',
+    first_name: firstName,
+    last_name: lastName,
+    full_name: displayName,
     role: user.role || 'farmer',
     is_active: user.is_active !== false,
     date_joined: user.date_joined || user.created_at
@@ -433,6 +470,8 @@ const loadRecentUsers = async () => {
     const response = await adminStore.getRecentUsers(5)
     const data = response.data
     
+    console.log('👥 [Dashboard] Users response:', data)
+    
     let usersArray = []
     if (Array.isArray(data)) {
       usersArray = data
@@ -442,7 +481,12 @@ const loadRecentUsers = async () => {
       usersArray = data.data
     }
     
+    console.log('👥 [Dashboard] Users array:', usersArray)
+    
     recentUsers.value = usersArray.map(processUserData)
+    
+    console.log('👥 [Dashboard] Processed users:', recentUsers.value)
+    
     lastUpdateTime.value = new Date()
   } catch (error) {
     console.error('Error loading recent users:', error)
@@ -489,22 +533,34 @@ const processActivityData = (activity) => {
 const loadRecentActivities = async () => {
   try {
     isRefreshing.value = true
+    console.log('🔄 [Dashboard] Cargando actividades recientes...')
     const response = await adminStore.getRecentActivities(20)
+    console.log('📋 [Dashboard] Response completa de actividades:', response)
     const data = response.data || {}
+    console.log('📋 [Dashboard] Data de actividades:', data)
     
     let activitiesArray = []
     if (Array.isArray(data)) {
       activitiesArray = data
+      console.log('✅ [Dashboard] Data es un array directo, length:', activitiesArray.length)
     } else if (data?.results && Array.isArray(data.results)) {
       activitiesArray = data.results
+      console.log('✅ [Dashboard] Data tiene results, length:', activitiesArray.length)
     } else if (data?.data && Array.isArray(data.data)) {
       activitiesArray = data.data
+      console.log('✅ [Dashboard] Data tiene data, length:', activitiesArray.length)
+    } else {
+      console.warn('⚠️ [Dashboard] Formato de data no reconocido:', data)
     }
     
+    console.log('📋 [Dashboard] Activities array antes de procesar:', activitiesArray)
     recentActivities.value = activitiesArray.map(processActivityData)
+    console.log('✅ [Dashboard] Actividades procesadas:', recentActivities.value.length)
+    console.log('📋 [Dashboard] Actividades procesadas:', recentActivities.value)
     lastUpdateTime.value = new Date()
   } catch (error) {
-    console.error('Error loading recent activities:', error)
+    console.error('❌ [Dashboard] Error loading recent activities:', error)
+    console.error('❌ [Dashboard] Error details:', error.response?.data || error.message)
     recentActivities.value = []
   } finally {
     isRefreshing.value = false
@@ -586,15 +642,20 @@ const loadReportStats = async () => {
 const updateQualityChartFromStats = () => {
   const quality = stats.value?.quality_distribution || { excelente: 0, buena: 0, regular: 0, baja: 0 }
   
+  // Ensure we always have valid data for the chart
+  const excelente = Number(quality.excelente) || 0
+  const buena = Number(quality.buena) || 0
+  const regular = Number(quality.regular) || 0
+  const baja = Number(quality.baja) || 0
+  
+  // If all values are zero, set a default value to show the chart
+  const total = excelente + buena + regular + baja
+  const defaultData = total === 0 ? [1, 0, 0, 0] : [excelente, buena, regular, baja]
+  
   qualityData.value = {
     labels: ['Excelente', 'Buena', 'Regular', 'Baja'],
     datasets: [{
-      data: [
-        quality.excelente || 0,
-        quality.buena || 0,
-        quality.regular || 0,
-        quality.baja || 0
-      ],
+      data: defaultData,
       backgroundColor: [
         '#22c55e',
         '#3b82f6',
@@ -617,25 +678,15 @@ const loadQualityData = async () => {
     const response = await adminStore.getQualityDistribution()
     const quality = response.data || { excelente: 0, buena: 0, regular: 0, baja: 0 }
     
-    qualityData.value = {
-      labels: ['Excelente', 'Buena', 'Regular', 'Baja'],
-      datasets: [{
-        data: [
-          quality.excelente || 0,
-          quality.buena || 0,
-          quality.regular || 0,
-          quality.baja || 0
-        ],
-        backgroundColor: [
-          '#22c55e',
-          '#3b82f6',
-          '#f59e0b',
-          '#ef4444'
-        ],
-        borderWidth: 2,
-        borderColor: '#ffffff'
-      }]
+    // Update stats with quality distribution if available
+    if (quality && (quality.excelente !== undefined || quality.buena !== undefined)) {
+      stats.value = {
+        ...stats.value,
+        quality_distribution: quality
+      }
     }
+    
+    updateQualityChartFromStats()
   } catch (error) {
     console.error('Error loading quality data:', error)
     updateQualityChartFromStats()
@@ -645,11 +696,20 @@ const loadQualityData = async () => {
 const updateActivityChartFromStats = () => {
   const activity = stats.value?.activity_by_day || { labels: [], data: [] }
   
+  // Ensure we always have valid data for the chart
+  const labels = activity.labels && activity.labels.length > 0 
+    ? activity.labels 
+    : ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+  
+  const data = activity.data && activity.data.length > 0 
+    ? activity.data 
+    : [0, 0, 0, 0, 0, 0, 0]
+  
   activityData.value = {
-    labels: activity.labels || [],
+    labels,
     datasets: [{
       label: 'Actividad del Sistema',
-      data: activity.data || [],
+      data,
       borderColor: '#22c55e',
       backgroundColor: 'rgba(34, 197, 94, 0.1)',
       fill: true,
@@ -665,15 +725,45 @@ const updateActivityChartFromStats = () => {
 
 const updateActivityChart = async () => {
   try {
-    if (stats.value?.activity_by_day) {
+    if (stats.value?.activity_by_day && stats.value.activity_by_day.labels && stats.value.activity_by_day.labels.length > 0) {
       updateActivityChartFromStats()
       return
     }
     
     const response = await adminStore.getActivityData(selectedPeriod.value)
-    if (!response.data || !response.data.results) {
-      updateActivityChartFromStats()
-      return
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      // Process activity logs to create chart data
+      const activities = response.data.results
+      const last7Days = []
+      const today = new Date()
+      
+      // Generate labels for last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today)
+        date.setDate(date.getDate() - i)
+        last7Days.push(date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }))
+      }
+      
+      // Count activities per day
+      const activityCounts = new Array(7).fill(0)
+      activities.forEach(activity => {
+        if (activity.timestamp || activity.created_at) {
+          const activityDate = new Date(activity.timestamp || activity.created_at)
+          const daysDiff = Math.floor((today - activityDate) / (1000 * 60 * 60 * 24))
+          if (daysDiff >= 0 && daysDiff < 7) {
+            activityCounts[6 - daysDiff]++
+          }
+        }
+      })
+      
+      // Update stats with processed activity data
+      stats.value = {
+        ...stats.value,
+        activity_by_day: {
+          labels: last7Days,
+          data: activityCounts
+        }
+      }
     }
     
     updateActivityChartFromStats()
