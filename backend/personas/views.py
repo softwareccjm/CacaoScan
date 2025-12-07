@@ -128,6 +128,7 @@ class PersonaRegistroView(APIView):
 
 class PersonaListaView(APIView):
     """Vista para listar todas las personas."""
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Listar todas las personas."""
@@ -143,6 +144,7 @@ class PersonaListaView(APIView):
 
 class PersonaDetalleView(APIView):
     """Vista para obtener, actualizar o eliminar una persona específica."""
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, persona_id):
         """Obtener una persona específica."""
@@ -186,81 +188,6 @@ class PersonaPerfilView(APIView):
                 {'error': 'No se encontró información de perfil para este usuario'},
                 status=status.HTTP_404_NOT_FOUND
             )
-    
-
-class AdminPersonaByUserView(APIView):
-    """Permite a un administrador obtener/crear/actualizar la persona de un usuario específico."""
-    permission_classes = [IsAuthenticated]
-
-    def _is_admin(self, user):
-        return user.is_superuser or user.is_staff
-
-    def get(self, request, user_id):
-        if not self._is_admin(request.user):
-            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
-
-        persona = Persona.objects.select_related(
-            'tipo_documento__tema', 'genero__tema', 'departamento', 'municipio', 'user'
-        ).filter(user_id=user_id).first()
-        if not persona:
-            return Response({'error': 'Persona no encontrada'}, status=status.HTTP_404_NOT_FOUND)
-        return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
-
-    def patch(self, request, user_id):
-        if not self._is_admin(request.user):
-            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
-
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-        persona = Persona.objects.filter(user=user).first()
-
-        serializer = PersonaActualizacionSerializer(
-            instance=persona,
-            data=request.data,
-            partial=True,
-            context={'persona': persona}
-        )
-
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        if persona is None:
-            # Crear persona si no existe
-            persona = Persona(user=user)
-        serializer.instance = persona
-        serializer.save()
-
-        return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
-
-    def _create_persona_from_validated_data(self, user, validated_data):
-        """Create Persona instance from validated data."""
-        persona = Persona(user=user)
-        
-        # Asignar catálogos
-        if 'tipo_documento_obj' in validated_data:
-            persona.tipo_documento = validated_data['tipo_documento_obj']
-        if 'genero_obj' in validated_data:
-            persona.genero = validated_data['genero_obj']
-        if 'departamento_obj' in validated_data:
-            persona.departamento = validated_data['departamento_obj']
-        if 'municipio_obj' in validated_data:
-            persona.municipio = validated_data['municipio_obj']
-        
-        # Asignar campos simples
-        simple_fields = [
-            'numero_documento', 'primer_nombre', 'segundo_nombre',
-            'primer_apellido', 'segundo_apellido', 'telefono',
-            'direccion', 'fecha_nacimiento'
-        ]
-        
-        for field in simple_fields:
-            if field in validated_data:
-                setattr(persona, field, validated_data[field])
-        
-        return persona
     
     def post(self, request):
         """
@@ -366,4 +293,79 @@ class AdminPersonaByUserView(APIView):
                 {'error': 'No se encontró información de perfil para este usuario. Usa POST para crear uno.'},
                 status=status.HTTP_404_NOT_FOUND
             )
+    
+    def _create_persona_from_validated_data(self, user, validated_data):
+        """Create Persona instance from validated data."""
+        persona = Persona(user=user)
+        
+        # Asignar catálogos
+        if 'tipo_documento_obj' in validated_data:
+            persona.tipo_documento = validated_data['tipo_documento_obj']
+        if 'genero_obj' in validated_data:
+            persona.genero = validated_data['genero_obj']
+        if 'departamento_obj' in validated_data:
+            persona.departamento = validated_data['departamento_obj']
+        if 'municipio_obj' in validated_data:
+            persona.municipio = validated_data['municipio_obj']
+        
+        # Asignar campos simples
+        simple_fields = [
+            'numero_documento', 'primer_nombre', 'segundo_nombre',
+            'primer_apellido', 'segundo_apellido', 'telefono',
+            'direccion', 'fecha_nacimiento'
+        ]
+        
+        for field in simple_fields:
+            if field in validated_data:
+                setattr(persona, field, validated_data[field])
+        
+        return persona
+
+
+class AdminPersonaByUserView(APIView):
+    """Permite a un administrador obtener/crear/actualizar la persona de un usuario específico."""
+    permission_classes = [IsAuthenticated]
+
+    def _is_admin(self, user):
+        return user.is_superuser or user.is_staff
+
+    def get(self, request, user_id):
+        if not self._is_admin(request.user):
+            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+
+        persona = Persona.objects.select_related(
+            'tipo_documento__tema', 'genero__tema', 'departamento', 'municipio', 'user'
+        ).filter(user_id=user_id).first()
+        if not persona:
+            return Response({'error': 'Persona no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
+
+    def patch(self, request, user_id):
+        if not self._is_admin(request.user):
+            return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        persona = Persona.objects.filter(user=user).first()
+
+        serializer = PersonaActualizacionSerializer(
+            instance=persona,
+            data=request.data,
+            partial=True,
+            context={'persona': persona}
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        if persona is None:
+            # Crear persona si no existe
+            persona = Persona(user=user)
+        serializer.instance = persona
+        serializer.save()
+
+        return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
 

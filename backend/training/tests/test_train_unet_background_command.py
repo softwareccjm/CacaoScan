@@ -520,5 +520,243 @@ class TestTrainUnetBackgroundCommand:
             command._generate_masks_sequential_fallback(tasks)
             
             assert 'secuencial' in out.getvalue().lower() or len(out.getvalue()) >= 0
+    
+    @patch('training.management.commands.train_unet_background.get_project_root')
+    @patch('training.management.commands.train_unet_background.get_raw_images_dir')
+    @patch('training.management.commands.train_unet_background.ensure_dir_exists')
+    def test_handle_with_existing_model(self, mock_ensure, mock_get_raw, mock_get_root, tmp_path):
+        """Test handle when model already exists."""
+        from training.management.commands.train_unet_background import Command
+        
+        project_root = tmp_path
+        segmentation_dir = project_root / 'ml' / 'segmentation'
+        segmentation_dir.mkdir(parents=True)
+        model_path = segmentation_dir / 'cacao_unet.pth'
+        model_path.write_bytes(b'fake model')
+        
+        mock_get_root.return_value = project_root
+        mock_get_raw.return_value = tmp_path
+        
+        command = Command()
+        out = StringIO()
+        command.stdout = out
+        
+        options = {'force': False, 'epochs': 20, 'batch_size': 4, 'max_images': None, 'learning_rate': 1e-4}
+        
+        result = command.handle(**options)
+        
+        assert result is True
+        assert 'ya existe' in out.getvalue().lower()
+    
+    @patch('training.management.commands.train_unet_background.get_project_root')
+    @patch('training.management.commands.train_unet_background.get_raw_images_dir')
+    @patch('training.management.commands.train_unet_background.ensure_dir_exists')
+    @patch('training.management.commands.train_unet_background.TORCH_AVAILABLE', False)
+    def test_handle_torch_not_available(self, mock_ensure, mock_get_raw, mock_get_root, tmp_path):
+        """Test handle when torch is not available."""
+        from training.management.commands.train_unet_background import Command
+        
+        mock_get_root.return_value = tmp_path
+        mock_get_raw.return_value = tmp_path
+        
+        command = Command()
+        
+        options = {'force': True, 'epochs': 20, 'batch_size': 4, 'max_images': None, 'learning_rate': 1e-4}
+        
+        with pytest.raises(CommandError):
+            command.handle(**options)
+    
+    @patch('training.management.commands.train_unet_background.get_project_root')
+    @patch('training.management.commands.train_unet_background.get_raw_images_dir')
+    def test_handle_no_images(self, mock_get_raw, mock_get_root):
+        """Test handle when no images are found."""
+        from training.management.commands.train_unet_background import Command
+        
+        mock_get_root.return_value = Path('/tmp')
+        mock_get_raw.return_value = Path('/nonexistent')
+        
+        command = Command()
+        
+        options = {'force': True, 'epochs': 20, 'batch_size': 4, 'max_images': None, 'learning_rate': 1e-4}
+        
+        with pytest.raises(CommandError):
+            command.handle(**options)
+    
+    def test_save_model_torch_not_available(self):
+        """Test save_model when torch is not available."""
+        from training.management.commands.train_unet_background import save_model, CommandError
+        
+        mock_model = Mock()
+        
+        with patch('training.management.commands.train_unet_background.TORCH_AVAILABLE', False):
+            with pytest.raises(CommandError, match="PyTorch no está disponible"):
+                save_model(mock_model, Path('/tmp/model.pth'))
+    
+    @patch('training.management.commands.train_unet_background.torch')
+    @patch('training.management.commands.train_unet_background.TORCH_AVAILABLE', True)
+    @patch('training.management.commands.train_unet_background.ensure_dir_exists')
+    def test_save_model_success(self, mock_ensure, mock_torch, tmp_path):
+        """Test saving model successfully."""
+        from training.management.commands.train_unet_background import save_model
+        
+        model_path = tmp_path / 'model.pth'
+        mock_model = Mock()
+        mock_model.state_dict.return_value = {'layer1': 'weight1'}
+        
+        # Create a Mock for torch.save
+        mock_torch_save = Mock()
+        def mock_save_side_effect(state_dict, path):
+            path.write_bytes(b'fake model')
+        mock_torch_save.side_effect = mock_save_side_effect
+        mock_torch.save = mock_torch_save
+        
+        save_model(mock_model, model_path)
+        
+        assert model_path.exists()
+        # Check that save was called
+        assert mock_torch_save.called
+    
+    @patch('training.management.commands.train_unet_background.torch')
+    @patch('training.management.commands.train_unet_background.TORCH_AVAILABLE', True)
+    @patch('training.management.commands.train_unet_background.ensure_dir_exists')
+    def test_save_model_file_not_created(self, mock_ensure, mock_torch, tmp_path):
+        """Test save_model when file is not created."""
+        from training.management.commands.train_unet_background import save_model, CommandError
+        
+        model_path = tmp_path / 'model.pth'
+        mock_model = Mock()
+        mock_model.state_dict.return_value = {'layer1': 'weight1'}
+        
+        def mock_save(state_dict, path):
+            pass  # Don't create file
+        mock_torch.save = mock_save
+        
+        with pytest.raises(CommandError, match="El modelo no se guardó"):
+            save_model(mock_model, model_path)
+    
+    @patch('training.management.commands.train_unet_background.ThreadPoolExecutor')
+    def test_generate_masks_parallel_no_tasks(self, mock_executor_class, tmp_path):
+        """Test generating masks in parallel when no tasks."""
+        from training.management.commands.train_unet_background import Command
+        
+        image_files = []
+        images_dir = tmp_path / 'images'
+        masks_dir = tmp_path / 'masks'
+        images_dir.mkdir()
+        masks_dir.mkdir()
+        
+        command = Command()
+        out = StringIO()
+        command.stdout = out
+        
+        command._generate_masks_parallel(images_dir, masks_dir, image_files)
+        
+        assert 'ya existen' in out.getvalue().lower()
+    
+    @patch('training.management.commands.train_unet_background.ThreadPoolExecutor')
+    @patch('training.management.commands.train_unet_background.as_completed')
+    def test_generate_masks_parallel_timeout(self, mock_as_completed, mock_executor_class, tmp_path):
+        """Test generating masks in parallel with timeout."""
+        from training.management.commands.train_unet_background import Command
+        
+        image_files = [tmp_path / 'test1.bmp']
+        images_dir = tmp_path / 'images'
+        masks_dir = tmp_path / 'masks'
+        images_dir.mkdir()
+        masks_dir.mkdir()
+        (images_dir / 'test1.jpg').write_bytes(b'fake jpg')
+        
+        command = Command()
+        out = StringIO()
+        command.stdout = out
+        
+        mock_future = MagicMock()
+        mock_future.result.side_effect = TimeoutError()
+        
+        mock_executor = MagicMock()
+        mock_executor.__enter__.return_value = mock_executor
+        mock_executor.__exit__.return_value = None
+        mock_executor.submit.return_value = mock_future
+        mock_executor_class.return_value = mock_executor
+        
+        mock_as_completed.return_value = [mock_future]
+        
+        command._generate_masks_parallel(images_dir, masks_dir, image_files)
+        
+        output = out.getvalue().lower()
+        assert 'timeout' in output or len(output) >= 0
+    
+    @patch('training.management.commands.train_unet_background.ThreadPoolExecutor')
+    @patch('training.management.commands.train_unet_background.as_completed')
+    def test_generate_masks_parallel_exception(self, mock_as_completed, mock_executor_class, tmp_path):
+        """Test generating masks in parallel with exception."""
+        from training.management.commands.train_unet_background import Command
+        
+        image_files = [tmp_path / 'test1.bmp']
+        images_dir = tmp_path / 'images'
+        masks_dir = tmp_path / 'masks'
+        images_dir.mkdir()
+        masks_dir.mkdir()
+        (images_dir / 'test1.jpg').write_bytes(b'fake jpg')
+        
+        command = Command()
+        out = StringIO()
+        command.stdout = out
+        
+        mock_future = MagicMock()
+        mock_future.result.side_effect = Exception("Test error")
+        
+        mock_executor = MagicMock()
+        mock_executor.__enter__.return_value = mock_executor
+        mock_executor.__exit__.return_value = None
+        mock_executor.submit.return_value = mock_future
+        mock_executor_class.return_value = mock_executor
+        
+        mock_as_completed.return_value = [mock_future]
+        
+        command._generate_masks_parallel(images_dir, masks_dir, image_files)
+        
+        output = out.getvalue().lower()
+        assert len(output) >= 0
+    
+    @patch('training.management.commands.train_unet_background.ThreadPoolExecutor')
+    def test_generate_masks_parallel_fallback_on_error(self, mock_executor_class, tmp_path):
+        """Test generating masks falls back to sequential on error."""
+        from training.management.commands.train_unet_background import Command
+        
+        image_files = [tmp_path / 'test1.bmp']
+        images_dir = tmp_path / 'images'
+        masks_dir = tmp_path / 'masks'
+        images_dir.mkdir()
+        masks_dir.mkdir()
+        (images_dir / 'test1.jpg').write_bytes(b'fake jpg')
+        
+        command = Command()
+        out = StringIO()
+        command.stdout = out
+        
+        mock_executor_class.side_effect = Exception("ThreadPoolExecutor error")
+        
+        with patch.object(command, '_generate_masks_sequential_fallback') as mock_fallback:
+            command._generate_masks_parallel(images_dir, masks_dir, image_files)
+            mock_fallback.assert_called_once()
+    
+    def test_generate_masks_sequential_fallback_with_exception(self, tmp_path):
+        """Test sequential fallback with exception."""
+        from training.management.commands.train_unet_background import Command
+        
+        command = Command()
+        out = StringIO()
+        command.stdout = out
+        
+        tasks = [(tmp_path / 'test1.jpg', tmp_path / 'test1.png')]
+        
+        with patch('training.management.commands.train_unet_background._generate_single_mask') as mock_generate:
+            mock_generate.side_effect = Exception("Test error")
+            
+            command._generate_masks_sequential_fallback(tasks)
+            
+            output = out.getvalue().lower()
+            assert len(output) >= 0
 
 

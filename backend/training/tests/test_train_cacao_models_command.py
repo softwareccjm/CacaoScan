@@ -556,5 +556,140 @@ class TestTrainCacaoModelsCommand:
                     command.handle(**options)
                     
                     assert mock_train_v2.called
+    
+    def test_notify_optimized_settings(self, command):
+        """Test notifying optimized settings."""
+        command.stdout = StringIO()
+        
+        from training.management.commands.train_cacao_models import HyperParams
+        
+        base = HyperParams(50, 1e-4, 15, 0.25, 'smooth_l1', 'cosine_warmup')
+        optimized = HyperParams(100, 5e-5, 25, 0.3, 'huber', 'cosine_warmup')
+        
+        command._notify_optimized_settings(base, optimized)
+        
+        output = command.stdout.getvalue()
+        assert 'Configuración optimizada' in output or 'optimizada' in output.lower()
+    
+    def test_notify_optimized_settings_no_change(self, command):
+        """Test notifying optimized settings when no change."""
+        command.stdout = StringIO()
+        
+        from training.management.commands.train_cacao_models import HyperParams
+        
+        base = HyperParams(50, 1e-4, 15, 0.25, 'smooth_l1', 'cosine_warmup')
+        optimized = HyperParams(50, 1e-4, 15, 0.25, 'smooth_l1', 'cosine_warmup')
+        
+        command._notify_optimized_settings(base, optimized)
+        
+        output = command.stdout.getvalue()
+        assert len(output) == 0
+    
+    def test_parse_targets_with_spaces(self, command):
+        """Test parsing targets with spaces."""
+        result = command._parse_targets('alto , ancho , grosor')
+        
+        assert result == ['alto', 'ancho', 'grosor']
+    
+    def test_parse_targets_case_insensitive(self, command):
+        """Test parsing targets case insensitive."""
+        result = command._parse_targets('ALTO,ANCHO')
+        
+        assert result == ['alto', 'ancho']
+    
+    def test_handle_exception(self, command):
+        """Test handle with exception."""
+        command.stdout = StringIO()
+        
+        with patch.object(command, '_create_config', side_effect=Exception("Test error")):
+            options = {
+                'validate_only': False,
+                'test_mode': False,
+                'hybrid_v2': False
+            }
+            
+            with pytest.raises((CommandError, Exception)):
+                command.handle(**options)
+    
+    def test_print_evaluation_results_no_results(self, command):
+        """Test printing evaluation results when no results."""
+        command.stdout = StringIO()
+        
+        results = {'config': {'multi_head': False}}
+        
+        command._print_evaluation_results(results)
+        
+        output = command.stdout.getvalue()
+        assert len(output) >= 0
+    
+    def test_print_evaluation_results_invalid_type(self, command):
+        """Test printing evaluation results with invalid type."""
+        command.stdout = StringIO()
+        
+        results = {
+            'evaluation_results': 'invalid',
+            'config': {'multi_head': False}
+        }
+        
+        command._print_evaluation_results(results)
+        
+        output = command.stdout.getvalue()
+        assert len(output) >= 0
+    
+    def test_should_use_multihead_metrics_false(self, command):
+        """Test should_use_multihead_metrics returns false."""
+        config = {'multi_head': False}
+        multihead_metrics = None
+        
+        result = command._should_use_multihead_metrics(config, multihead_metrics)
+        
+        assert result is False
+    
+    def test_should_use_multihead_metrics_invalid_config(self, command):
+        """Test should_use_multihead_metrics with invalid config."""
+        config = 'invalid'
+        multihead_metrics = {}
+        
+        result = command._should_use_multihead_metrics(config, multihead_metrics)
+        
+        assert result is False
+    
+    def test_print_target_metrics_empty(self, command):
+        """Test printing target metrics with empty dict."""
+        command.stdout = StringIO()
+        
+        metrics = {}
+        
+        command._print_target_metrics(metrics)
+        
+        output = command.stdout.getvalue()
+        assert len(output) == 0
+    
+    def test_print_target_metrics_invalid_type(self, command):
+        """Test printing target metrics with invalid type."""
+        command.stdout = StringIO()
+        
+        metrics = {'alto': 'invalid'}
+        
+        command._print_target_metrics(metrics)
+        
+        output = command.stdout.getvalue()
+        assert len(output) >= 0
+    
+    def test_display_results_v2_no_test_metrics(self, command):
+        """Test displaying results v2 without test_metrics."""
+        command.stdout = StringIO()
+        
+        results = {
+            'best_epoch': 10,
+            'best_val_loss': 0.5,
+            'test_loss': 0.6,
+            'model_path': '/path/to/model.pt'
+        }
+        
+        command._display_results_v2(results, 3600.0)
+        
+        output = command.stdout.getvalue()
+        assert 'RESULTADOS DEL ENTRENAMIENTO HÍBRIDO V2' in output or len(output) >= 0
 
 

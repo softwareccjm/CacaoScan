@@ -136,3 +136,20 @@ class Notification(models.Model):
             int: Count of unread notifications
         """
         return cls.objects.filter(user=user, leida=False).count()
+    
+    @classmethod
+    def mark_all_as_read(cls, user):
+        """
+        Mark all notifications as read for a user.
+        
+        Args:
+            user: User instance
+            
+        Returns:
+            int: Number of notifications marked as read
+        """
+        updated = cls.objects.filter(user=user, leida=False).update(
+            leida=True,
+            fecha_lectura=timezone.now()
+        )
+        return updated
