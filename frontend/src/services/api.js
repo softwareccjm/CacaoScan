@@ -138,10 +138,20 @@ const handleSilent500Error = (originalRequest, error) => {
 }
 
 const handleAuthEndpointError = (originalRequest) => {
-  const authEndpoints = ['/auth/login/', '/auth/register/', '/auth/refresh/']
-  const isAuthEndpoint = authEndpoints.some(endpoint => originalRequest.url.includes(endpoint))
+  const authEndpoints = [
+    '/auth/login/', 
+    '/auth/register/', 
+    '/auth/refresh/', 
+    '/auth/verify-email/', 
+    '/auth/resend-verification/', 
+    '/auth/forgot-password/', 
+    '/auth/reset-password/', 
+    '/auth/send-otp/', 
+    '/auth/verify-otp/'
+  ]
+  const isAuthEndpoint = authEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))
   
-  if (isAuthEndpoint && originalRequest.url.includes('/auth/refresh/')) {
+  if (isAuthEndpoint && originalRequest.url?.includes('/auth/refresh/')) {
     console.error('🚫 Refresh token inválido o expirado, cerrando sesión.')
     showSessionExpiredModal()
     throw new Error('Refresh token expired')
@@ -371,11 +381,19 @@ api.interceptors.request.use(
       config.baseURL = 'https://cacaoscan-backend.onrender.com/api/v1'
     }
     
-    // Obtener token de localStorage
-    const token = localStorage.getItem('access_token')
+    // Endpoints de autenticación que NO deben incluir token de autorización
+    const authEndpoints = ['/auth/login/', '/auth/register/', '/auth/refresh/', '/auth/verify-email/', '/auth/resend-verification/', '/auth/forgot-password/', '/auth/reset-password/', '/auth/send-otp/', '/auth/verify-otp/']
+    const isAuthEndpoint = authEndpoints.some(endpoint => config.url?.includes(endpoint))
     
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // Solo agregar token si NO es un endpoint de autenticación
+    if (!isAuthEndpoint) {
+      const token = localStorage.getItem('access_token')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } else {
+      // Para endpoints de autenticación, asegurar que NO haya token
+      delete config.headers.Authorization
     }
 
     // Agregar timestamp para debugging

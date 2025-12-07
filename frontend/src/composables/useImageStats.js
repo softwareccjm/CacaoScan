@@ -24,7 +24,7 @@ export function useImageStats() {
     error.value = null
     
     try {
-      const response = await axios.get('/api/v1/images/stats/')
+      const response = await axios.get('/images/stats/')
       
       stats.value = response.data
     } catch (err) {
@@ -74,7 +74,7 @@ export function useImageStats() {
         }
       }
       
-      const response = await axios.get(`/api/v1/images/?${params}`)
+      const response = await axios.get(`/images/?${params}`)
       
       return response.data
     } catch (err) {

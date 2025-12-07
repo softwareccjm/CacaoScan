@@ -105,8 +105,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const setUser = (userData) => {
+    // Ensure role is set (default to 'farmer' if missing)
+    if (userData && !userData.role) {
+      userData.role = 'farmer'
+    }
     user.value = userData
     localStorage.setItem('user', JSON.stringify(userData))
+    console.log('👤 [Auth Store] Usuario actualizado:', { 
+      id: userData?.id, 
+      email: userData?.email, 
+      role: userData?.role 
+    })
   }
 
   const clearUser = () => {
@@ -198,8 +207,17 @@ export const useAuthStore = defineStore('auth', () => {
       }
     } catch (err) {
       console.error('Error en login:', err)
-      setError(err.response?.data?.message || err.message || 'Error al iniciar sesión')
-      return { success: false, error: error.value }
+      // Extract error message from normalized error or response
+      const errorMessage = err.message || 
+                          err.response?.data?.error ||
+                          err.response?.data?.message || 
+                          err.response?.data?.detail ||
+                          'Error al iniciar sesión'
+      setError(errorMessage)
+      // Throw error so it can be caught by the component
+      const loginError = new Error(errorMessage)
+      loginError.originalError = err
+      throw loginError
     } finally {
       isLoading.value = false
     }
@@ -213,6 +231,38 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.register(userData)
       
+      // Si el backend devuelve tokens (registro sin verificación de email)
+      if (response.access && response.refresh) {
+        // Guardar tokens y hacer login automático
+        const userData = response.user || {}
+        
+        // Asegurar que el usuario tenga el rol (normalizar a 'farmer' si no viene)
+        if (!userData.role) {
+          userData.role = 'farmer'
+        }
+        
+        setTokens({
+          access: response.access,
+          refresh: response.refresh,
+          user: userData
+        })
+        
+        // Obtener usuario completo desde el backend para asegurar que tenga todos los datos
+        try {
+          await getCurrentUser()
+        } catch (err) {
+          // Si falla getCurrentUser, usar el usuario del registro
+          console.warn('No se pudo obtener usuario completo, usando datos del registro:', err)
+        }
+        
+        updateLastActivity()
+        
+        // Redirigir automáticamente al dashboard de agricultor
+        await router.push({ name: 'AgricultorDashboard' })
+        
+        return { success: true }
+      }
+      
       // Verificar si se requiere verificación de email
       if (response.verification_required || response.data?.verification_required) {
         // No hacer login automático, retornar datos para que el componente maneje la redirección
@@ -225,9 +275,8 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
       
-      // El nuevo backend devuelve token directamente en el registro (caso legacy)
+      // Fallback para formato anterior con token
       if (response.success && response.token && response.user) {
-        // Guardar tokens (access y refresh si están disponibles)
         setTokens({
           access: response.token,
           refresh: response.refresh,
@@ -235,29 +284,18 @@ export const useAuthStore = defineStore('auth', () => {
         })
         
         updateLastActivity()
-        
-        // Redirigir automáticamente al dashboard de agricultor
         await router.push({ name: 'AgricultorDashboard' })
         
         return { success: true }
-      } else {
-        // Fallback para formato anterior
-        if (response.access && response.refresh) {
-          setTokens(response)
-          await getCurrentUser()
-          updateLastActivity()
-          await router.push({ name: 'AgricultorDashboard' })
-          return { success: true }
-        }
-        
-        if (response.success) {
-          // Si no hay tokens, asumir que necesita verificación
-          return {
-            success: true,
-            data: {
-              email: response.email || userData.email,
-              verification_required: true
-            }
+      }
+      
+      // Si no hay tokens, asumir que necesita verificación
+      if (response.success) {
+        return {
+          success: true,
+          data: {
+            email: response.email || userData.email,
+            verification_required: true
           }
         }
       }
@@ -310,6 +348,19 @@ export const useAuthStore = defineStore('auth', () => {
       // 2. {...userData} (directo)
       
       const userData = response.data || response
+      
+      // Ensure role is present (UserSerializer should return it, but ensure it)
+      if (!userData.role) {
+        // Default to 'farmer' if role is missing
+        userData.role = 'farmer'
+        console.warn('⚠️ [Auth Store] Usuario sin rol, asignando "farmer" por defecto')
+      }
+      
+      console.log('👤 [Auth Store] Usuario obtenido desde API:', { 
+        id: userData?.id, 
+        email: userData?.email, 
+        role: userData?.role 
+      })
       
       setUser(userData)
       updateLastActivity()

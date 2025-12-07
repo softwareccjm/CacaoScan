@@ -4,7 +4,7 @@
     <Sidebar
       :brand-name="'CacaoScan'"
       :user-name="farmerName"
-      :user-role="'agricultor'"
+      :user-role="computedUserRole"
       :current-route="route.path"
       :active-section="activeSection"
       :collapsed="isSidebarCollapsed"
@@ -97,6 +97,16 @@ const imagesLoading = ref(false)
 
 // Computed
 const farmerName = computed(() => authStore.userFullName || 'Usuario')
+
+// Normalize user role for sidebar (convert 'farmer' to 'agricultor')
+const computedUserRole = computed(() => {
+  const role = authStore.userRole || 'farmer'
+  // Convert 'farmer' to 'agricultor' for sidebar compatibility
+  if (role === 'farmer') {
+    return 'agricultor'
+  }
+  return role === 'admin' ? 'admin' : 'agricultor'
+})
 
 // Función helper para calcular cambio porcentual
 const calculatePercentageChange = (current, previous) => {
