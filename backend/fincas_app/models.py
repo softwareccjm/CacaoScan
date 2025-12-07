@@ -309,11 +309,13 @@ class Lote(TimeStampedModel):
         """Calcular calidad promedio del lote basada en análisis."""
         from django.db.models import Avg
         try:
+            if not hasattr(self, 'cacao_images') or not self.cacao_images.exists():
+                return 0.0
             avg_confidence = self.cacao_images.aggregate(
                 avg_quality=Avg('prediction__average_confidence')
             )['avg_quality']
             return round(float(avg_confidence or 0) * 100, 2)
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError, AttributeError, Exception):
             return 0.0
     
     @property

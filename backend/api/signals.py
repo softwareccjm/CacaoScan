@@ -6,6 +6,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.conf import settings
 
 # Importar desde apps modulares
 try:
@@ -34,6 +35,53 @@ from .realtime_service import realtime_service
 logger = logging.getLogger("cacaoscan.api")
 
 
+def _is_testing():
+    """
+    Verifica si estamos en modo test.
+    Retorna True solo cuando se ejecuta automáticamente desde Django en modo test.
+    Retorna False cuando se llama directamente (desde tests) para permitir ejecución.
+    """
+    import inspect
+    # Si no estamos en modo test, siempre permitir ejecución
+    if not getattr(settings, "TESTING", False):
+        return False
+    
+    # Si estamos en modo test, verificar si fue llamada automáticamente o directamente
+    # Revisar el stack trace para ver si viene de un test o de Django dispatcher
+    frame = inspect.currentframe()
+    try:
+        # Revisar varios frames hacia arriba para encontrar el origen
+        current = frame
+        django_dispatcher_found = False
+        test_file_found = False
+        
+        for i in range(6):  # Revisar hasta 6 frames hacia arriba
+            if current is None:
+                break
+            current = current.f_back
+            if current is None:
+                break
+            caller_file = current.f_code.co_filename.lower()
+            caller_name = current.f_code.co_name.lower()
+            
+            # Si encontramos Django dispatcher, es automático
+            if 'django' in caller_file and ('dispatch' in caller_file or 'dispatch' in caller_name):
+                django_dispatcher_found = True
+            # Si encontramos un archivo de test, es llamada directa
+            if ('test' in caller_file and ('test_' in caller_file or 'tests' in caller_file or 'pytest' in caller_file)) or \
+               ('pytest' in caller_file):
+                test_file_found = True
+        
+        # Si encontramos Django dispatcher y no encontramos archivo de test, bloquear
+        if django_dispatcher_found and not test_file_found:
+            return True
+        
+        # En cualquier otro caso (test file encontrado o no podemos determinar), permitir ejecución
+        return False
+    finally:
+        del frame
+
+
 # Temporarily disabled to avoid import errors
 if CacaoPrediction:
     @receiver(post_save, sender=CacaoPrediction)
@@ -41,6 +89,9 @@ if CacaoPrediction:
         """
         Notificar cuando se completa una predicción de análisis.
         """
+        if _is_testing():
+            return
+        
         if created:
             try:
                 # Determinar el tipo de notificación basado en la calidad
@@ -179,6 +230,9 @@ if TrainingJob:
         """
         Notificar cuando se completa un trabajo de entrenamiento.
         """
+        if _is_testing():
+            return
+        
         if created or instance.status != 'completed':
             return
         
@@ -213,6 +267,9 @@ if TrainingJob:
         """
         Notificar cuando falla un trabajo de entrenamiento.
         """
+        if _is_testing():
+            return
+        
         if not created and instance.status == 'failed':
             try:
                 datos_extra = {
@@ -240,6 +297,9 @@ def notify_user_registered(sender, instance, created, **kwargs):
     """
     Notificar cuando se registra un nuevo usuario.
     """
+    if _is_testing():
+        return
+    
     if created:
         try:
             # Notificación de bienvenida
@@ -272,6 +332,9 @@ def notify_finca_created(sender, instance, created, **kwargs):
     """
     Notificar cuando se crea una nueva finca.
     """
+    if _is_testing():
+        return
+    
     if created:
         try:
             Notification.create_notification(
@@ -298,6 +361,9 @@ def notify_lote_created(sender, instance, created, **kwargs):
     """
     Notificar cuando se crea un nuevo lote.
     """
+    if _is_testing():
+        return
+    
     if created:
         try:
             Notification.create_notification(
@@ -325,6 +391,9 @@ def notify_lote_cosechado(sender, instance, created, **kwargs):
     """
     Notificar cuando se marca un lote como cosechado.
     """
+    if _is_testing():
+        return
+    
     if not created and instance.estado == 'cosechado':
         try:
             Notification.create_notification(

@@ -125,14 +125,13 @@ class Command(BaseCommand):
         if not identifier:
             raise ValueError(self.IDENTIFIER_ERROR_MSG)
         
-        # Solo permitir caracteres alfanuméricos, guiones bajos y guiones
-        # No permitir guiones (solo guiones bajos)
+        # Solo permitir caracteres alfanuméricos y guiones bajos
+        # No permitir guiones, comillas u otros caracteres especiales
         if not identifier.replace('_', '').isalnum():
             raise ValueError(f"Invalid identifier: {identifier} contains invalid characters")
         
-        # Escapar comillas dobles en el identificador (PostgreSQL escape)
-        escaped = identifier.replace('"', '""')
-        return escaped
+        # Return the validated identifier (no escaping needed since we've validated it)
+        return identifier
     
     def _build_drop_constraint_query(self, table_name: str, constraint_name: str) -> str:
         """

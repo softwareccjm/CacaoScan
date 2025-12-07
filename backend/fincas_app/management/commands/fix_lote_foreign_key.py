@@ -24,19 +24,29 @@ class Command(BaseCommand):
         Raises:
             ValueError: Si el identificador contiene caracteres no permitidos
         """
-        if not identifier:
-            raise ValueError('El identificador SQL no puede estar vacío')
+        # Handle None explicitly
+        if identifier is None:
+            raise ValueError('El identificador SQL debe ser una cadena')
         
         if not isinstance(identifier, str):
-            raise ValueError('El identificador SQL debe ser una cadena de texto')
+            raise ValueError('El identificador SQL debe ser una cadena')
+        
+        if not identifier:
+            raise ValueError('El identificador SQL no puede estar vacío')
         
         # Limitar longitud para prevenir ataques (PostgreSQL limita a 63 caracteres)
         if len(identifier) > 63:
             raise ValueError(f'Identificador SQL demasiado largo (máximo 63 caracteres): {identifier}')
         
-        # Solo permitir letras, números, guiones bajos y guiones
-        # Debe comenzar con letra o guion bajo
-        if not re.match(r'^[a-zA-Z_]\w*$', identifier):
+        # Solo permitir letras, números y guiones bajos
+        # Debe comenzar con letra o guion bajo (no puede comenzar con número)
+        # Usar patrón explícito [a-zA-Z0-9_] en lugar de \w para evitar caracteres Unicode
+        # Patrón: ^[a-zA-Z_][a-zA-Z0-9_]*$
+        # - ^: inicio de cadena
+        # - [a-zA-Z_]: primer carácter debe ser letra (a-z, A-Z) o guion bajo (_)
+        # - [a-zA-Z0-9_]*: seguido de cero o más caracteres que sean letras, números o guiones bajos
+        # - $: fin de cadena
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier):
             raise ValueError(f'Identificador SQL inválido: {identifier}. Solo se permiten letras, números y guiones bajos, y debe comenzar con letra o guion bajo.')
         
         return identifier

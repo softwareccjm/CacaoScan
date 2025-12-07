@@ -259,6 +259,14 @@ except Exception:
 
 try:
     urlpatterns += [
+        # API de reportes (debe ir antes de api.urls para evitar conflictos)
+        path(API_V1_PREFIX, include('reports.urls')),
+    ]
+except Exception:
+    pass
+
+try:
+    urlpatterns += [
         # API principal de CacaoScan (debe ir después de rutas específicas)
         path(API_V1_PREFIX, include('api.urls')),
     ]

@@ -172,7 +172,12 @@ class ModelMetricsSerializer(serializers.ModelSerializer):
     
     def get_comparison_with_previous(self, obj):
         """Get comparison with previous version."""
-        return obj.get_comparison_with_previous()
+        try:
+            comparison = obj.get_comparison_with_previous()
+            return comparison if comparison is not None else {}
+        except AttributeError:
+            # If method doesn't exist, return empty dict
+            return {}
 
 
 class ModelMetricsListSerializer(serializers.ModelSerializer):

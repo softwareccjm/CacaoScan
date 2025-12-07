@@ -47,7 +47,9 @@ class TestValidationFunctions:
         """Test validating duplicate documento number."""
         from rest_framework import serializers
         
-        user = User.objects.create_user(username='test', email='test@test.com')
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        user = User.objects.create_user(username=f'test_{unique_id}', email=f'test_{unique_id}@test.com')
         Persona.objects.create(
             user=user,
             tipo_documento=Parametro.objects.create(
@@ -153,9 +155,11 @@ class TestPersonaSerializer:
             nombre='Bogotá'
         )
         
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com'
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com'
         )
         
         persona = Persona.objects.create(
@@ -221,13 +225,16 @@ class TestPersonaRegistroSerializer:
     
     def test_validate_email_duplicate(self, setup_catalogos):
         """Test validating duplicate email."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        duplicate_email = f'existing_{unique_id}@example.com'
         User.objects.create_user(
-            username='existing',
-            email='existing@example.com'
+            username=f'existing_{unique_id}',
+            email=duplicate_email
         )
         
         serializer = PersonaRegistroSerializer(data={
-            'email': 'existing@example.com',
+            'email': duplicate_email,
             'password': 'TestPass123!',
             'tipo_documento': 'CC',
             'numero_documento': '1234567890',
@@ -310,9 +317,11 @@ class TestPersonaActualizacionSerializer:
             activo=True
         )
         
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com'
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com'
         )
         
         persona = Persona.objects.create(
@@ -351,7 +360,9 @@ class TestPersonaActualizacionSerializer:
         persona = setup_persona
         
         # Create another persona
-        user2 = User.objects.create_user(username='test2', email='test2@test.com')
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        user2 = User.objects.create_user(username=f'test2_{unique_id}', email=f'test2_{unique_id}@test.com')
         Persona.objects.create(
             user=user2,
             tipo_documento=persona.tipo_documento,

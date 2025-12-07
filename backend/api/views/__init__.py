@@ -46,16 +46,9 @@ from fincas_app.views import (
     LotesPorFincaView,
 )
 
-from reports.views import (
-    ReporteListCreateView,
-    ReporteDetailView,
-    ReporteDownloadView,
-    ReporteDeleteView,
-    ReporteStatsView,
-    ReporteCleanupView,
-    ReporteAgricultoresView,
-    ReporteUsuariosView,
-)
+# Reports views imported lazily to avoid circular dependency
+# They are available in __all__ but imported on demand via __getattr__
+_reports_views = None
 
 # Import views that remain in api/views
 from .notifications import (
@@ -251,10 +244,42 @@ def _lazy_import_images_views():
     return _images_views
 
 
+def _lazy_import_reports_views():
+    """Lazy import of reports app views to avoid circular dependency."""
+    global _reports_views
+    if _reports_views is None:
+        from reports.views import (
+            ReporteListCreateView,
+            ReporteDetailView,
+            ReporteDownloadView,
+            ReporteDeleteView,
+            ReporteStatsView,
+            ReporteCleanupView,
+            ReporteAgricultoresView,
+            ReporteUsuariosView,
+        )
+        _reports_views = {
+            'ReporteListCreateView': ReporteListCreateView,
+            'ReporteDetailView': ReporteDetailView,
+            'ReporteDownloadView': ReporteDownloadView,
+            'ReporteDeleteView': ReporteDeleteView,
+            'ReporteStatsView': ReporteStatsView,
+            'ReporteCleanupView': ReporteCleanupView,
+            'ReporteAgricultoresView': ReporteAgricultoresView,
+            'ReporteUsuariosView': ReporteUsuariosView,
+        }
+    return _reports_views
+
+
 def __getattr__(name: str):
-    """Lazy import for images app views to avoid circular dependency."""
+    """Lazy import for images and reports app views to avoid circular dependency."""
     images_views = _lazy_import_images_views()
     if name in images_views:
         return images_views[name]
+    
+    reports_views = _lazy_import_reports_views()
+    if name in reports_views:
+        return reports_views[name]
+    
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 

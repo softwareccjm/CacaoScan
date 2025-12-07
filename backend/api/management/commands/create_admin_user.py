@@ -55,6 +55,14 @@ class Command(BaseCommand):
         
         try:
             with transaction.atomic():
+                # Verificar si el email ya está en uso por otro usuario
+                email_exists = User.objects.filter(email=email).exists()
+                if email_exists:
+                    existing_user = User.objects.get(email=email)
+                    # Si el email pertenece a otro usuario (diferente username), lanzar error
+                    if existing_user.username != username:
+                        raise CommandError("El email ya está en uso")
+                
                 # Verificar si el usuario ya existe
                 if User.objects.filter(username=username).exists():
                     user = User.objects.get(username=username)
@@ -74,11 +82,6 @@ class Command(BaseCommand):
                     )
                     logger.info(f"User {username} updated successfully")
                 else:
-                    # Verificar si el email ya está en uso
-                    if User.objects.filter(email=email).exists():
-                        existing_user = User.objects.get(email=email)
-                        raise CommandError(f'Email {email} already in use by user {existing_user.username}')
-                    
                     # Crear nuevo usuario
                     user = User.objects.create_user(
                         username=username,

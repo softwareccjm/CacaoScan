@@ -19,10 +19,12 @@ def request_factory():
 
 @pytest.fixture
 def user(db):
-    """Create test user."""
+    """Create test user with unique username and email."""
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
     return User.objects.create_user(
-        username='testuser',
-        email='test@example.com',
+        username=f'testuser_{unique_id}',
+        email=f'test_{unique_id}@example.com',
         password='testpass123'
     )
 
@@ -50,7 +52,9 @@ def test_validate_image_file_success(view, request_factory, image_file):
     from django.contrib.auth.models import User
     
     api_factory = APIRequestFactory()
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     request = api_factory.post('/api/scan/', {'image': image_file}, format='multipart')
     force_authenticate(request, user=user)
     
@@ -69,7 +73,9 @@ def test_validate_image_file_missing(view, request_factory):
     from django.contrib.auth.models import User
     
     api_factory = APIRequestFactory()
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     request = api_factory.post('/api/scan/', {}, format='multipart')
     force_authenticate(request, user=user)
     

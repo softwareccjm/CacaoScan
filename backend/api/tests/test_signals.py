@@ -269,9 +269,11 @@ class TestUserSignals:
     def test_notify_user_registered(self, mock_realtime_service):
         """Test notification when new user is registered."""
         with patch('api.signals.realtime_service', mock_realtime_service):
+            import uuid
+            unique_id = str(uuid.uuid4())[:8]
             user = User.objects.create_user(
-                username='newuser',
-                email='newuser@example.com',
+                username=f'newuser_{unique_id}',
+                email=f'newuser_{unique_id}@example.com',
                 password='testpass123'
             )
             
@@ -385,9 +387,11 @@ class TestHelperFunctions:
             mock_notification = Mock()
             mock_notification_class.create_notification = Mock(return_value=mock_notification)
             
+            import uuid
+            unique_id = str(uuid.uuid4())[:8]
             user = User.objects.create_user(
-                username='testuser',
-                email='test@example.com',
+                username=f'testuser_{unique_id}',
+                email=f'test_{unique_id}@example.com',
                 password='testpass123'
             )
             

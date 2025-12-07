@@ -63,9 +63,11 @@ class TestUserSignals:
         # Ensure farmer group exists
         farmer_group, _ = Group.objects.get_or_create(name='farmer')
         
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com',
             password='testpass123',
             is_staff=False,
             is_superuser=False
@@ -78,9 +80,11 @@ class TestUserSignals:
         """Test that staff users are not assigned farmer role."""
         farmer_group, _ = Group.objects.get_or_create(name='farmer')
         
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='staffuser',
-            email='staff@example.com',
+            username=f'staffuser_{unique_id}',
+            email=f'staff_{unique_id}@example.com',
             password='testpass123',
             is_staff=True,
             is_superuser=False
@@ -93,9 +97,11 @@ class TestUserSignals:
         """Test that superusers are not assigned farmer role."""
         farmer_group, _ = Group.objects.get_or_create(name='farmer')
         
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_superuser(
-            username='superuser',
-            email='super@example.com',
+            username=f'superuser_{unique_id}',
+            email=f'super_{unique_id}@example.com',
             password='testpass123'
         )
         
@@ -106,9 +112,11 @@ class TestUserSignals:
         """Test that existing users are not assigned farmer role."""
         farmer_group, _ = Group.objects.get_or_create(name='farmer')
         
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='existinguser',
-            email='existing@example.com',
+            username=f'existinguser_{unique_id}',
+            email=f'existing_{unique_id}@example.com',
             password='testpass123',
             is_staff=False,
             is_superuser=False
@@ -129,9 +137,11 @@ class TestUserSignals:
         with patch('users.signals.Group.objects.get_or_create', side_effect=Exception("Database error")):
             # Should not raise exception
             try:
+                import uuid
+                unique_id = str(uuid.uuid4())[:8]
                 user = User.objects.create_user(
-                    username='erroruser',
-                    email='error@example.com',
+                    username=f'erroruser_{unique_id}',
+                    email=f'error_{unique_id}@example.com',
                     password='testpass123',
                     is_staff=False,
                     is_superuser=False

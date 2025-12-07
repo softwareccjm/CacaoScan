@@ -42,7 +42,8 @@ def get_pagination_params(request: HttpRequest, default_page_size: int = 20, max
         
         return page, page_size
     except (ValueError, TypeError):
-        return default_page_size, default_page_size
+        # Return default page (1) and default page size on error
+        return 1, default_page_size
 
 
 def _is_mock_queryset(queryset) -> bool:

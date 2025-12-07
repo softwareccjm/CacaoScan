@@ -365,6 +365,9 @@ IS_TESTING = (
     'PYTEST_CURRENT_TEST' in os.environ
 )
 
+# TESTING flag for apps to check if running in test mode
+TESTING = IS_TESTING
+
 # Database configuration - Force PostgreSQL for ALL environments including tests
 # This ensures tests run in the same environment as production
 # Clean all database values to ensure UTF-8 encoding

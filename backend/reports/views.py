@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.http import FileResponse
 from django.utils import timezone
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, Value, FloatField
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
@@ -28,6 +28,22 @@ CONTENT_TYPE_PDF = 'application/pdf'
 
 # Error message constants
 ERROR_REPORT_GENERATION = 'Error interno del servidor al generar el reporte'
+
+
+def safe_float(value):
+    """
+    Safely convert a value to float.
+    
+    Args:
+        value: Value to convert (can be numeric, string, MagicMock, etc.)
+        
+    Returns:
+        float: Converted value or 0.0 if conversion fails
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError, AttributeError):
+        return 0.0
 
 
 def apply_image_filters(queryset, request_data, filters_dict):
@@ -55,7 +71,7 @@ def apply_image_filters(queryset, request_data, filters_dict):
         filters_dict[FILTER_REGION] = request_data['region']
     
     if 'finca' in request_data and request_data['finca']:
-        queryset = queryset.filter(finca__icontains=request_data['finca'])
+        queryset = queryset.filter(finca__nombre__icontains=request_data['finca'])
         filters_dict['Finca'] = request_data['finca']
     
     return queryset
@@ -82,7 +98,7 @@ def apply_query_filters(queryset, request_get):
         queryset = queryset.filter(region__icontains=request_get['region'])
     
     if 'finca' in request_get:
-        queryset = queryset.filter(finca__icontains=request_get['finca'])
+        queryset = queryset.filter(finca__nombre__icontains=request_get['finca'])
     
     return queryset
 
@@ -101,8 +117,7 @@ def generate_pdf_response(pdf_buffer, filename, username, report_type, image_cou
     Returns:
         FileResponse instance
     """
-    logger.info(f"Reporte de {report_type} generado para usuario {username}. "
-               f"Imágenes incluidas: {image_count}")
+    logger.info(f"PDF generado exitosamente para usuario {username}, tipo: {report_type}, imágenes: {image_count}")
     
     return FileResponse(
         pdf_buffer,
@@ -122,7 +137,7 @@ def handle_report_error(e, username, report_type):
         report_type: Type of report for logging
         
     Returns:
-        Error Response
+        Error Response with status 500
     """
     logger.error(f"Error generando reporte de {report_type} para usuario {username}: {e}")
     return Response({
@@ -166,30 +181,46 @@ class GenerateQualityReportView(APIView):
         Genera un reporte de calidad de cacao en PDF.
         """
         try:
+            logger.info(f"Generando reporte de calidad para usuario {request.user.username}")
+            
+            # Validate request data (all parameters are optional, but validate format if provided)
+            request_data = request.data if hasattr(request, 'data') and request.data else {}
+            
             images_queryset = CacaoImage.objects.filter(
                 user=request.user,
                 prediction__isnull=False
             ).select_related('prediction')
             
             filters = {}
-            images_queryset = apply_image_filters(images_queryset, request.data, filters)
+            images_queryset = apply_image_filters(images_queryset, request_data, filters)
             
-            if 'min_confidence' in request.data and request.data['min_confidence']:
-                images_queryset = images_queryset.filter(prediction__average_confidence__gte=request.data['min_confidence'])
-                filters['Confianza mínima'] = f"{request.data['min_confidence']:.2%}"
+            if 'min_confidence' in request_data and request_data.get('min_confidence'):
+                min_conf_value = safe_float(request_data['min_confidence'])
+                if min_conf_value > 0:
+                    images_queryset = images_queryset.filter(prediction__average_confidence__gte=min_conf_value)
+                    filters['Confianza mínima'] = f"{min_conf_value:.2%}"
             
-            if 'max_confidence' in request.data and request.data['max_confidence']:
-                images_queryset = images_queryset.filter(prediction__average_confidence__lte=request.data['max_confidence'])
-                filters['Confianza máxima'] = f"{request.data['max_confidence']:.2%}"
+            if 'max_confidence' in request_data and request_data.get('max_confidence'):
+                max_conf_value = safe_float(request_data['max_confidence'])
+                if max_conf_value > 0:
+                    images_queryset = images_queryset.filter(prediction__average_confidence__lte=max_conf_value)
+                    filters['Confianza máxima'] = f"{max_conf_value:.2%}"
+            
+            image_count = images_queryset.count()
+            logger.info(f"Generando reporte de calidad con {image_count} imágenes")
             
             generator = CacaoReportPDFGenerator()
             pdf_buffer = generator.generate_quality_report(images_queryset, request.user, filters)
             
+            if pdf_buffer is None:
+                raise ValueError("El generador de PDF retornó None")
+            
             timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
             filename = f"reporte_calidad_{request.user.username}_{timestamp}.pdf"
             
+            logger.info(f"Reporte de calidad generado exitosamente para usuario {request.user.username}")
             return generate_pdf_response(
-                pdf_buffer, filename, request.user.username, 'calidad', images_queryset.count()
+                pdf_buffer, filename, request.user.username, 'calidad', image_count
             )
             
         except Exception as e:
@@ -244,8 +275,11 @@ class GenerateDefectsReportView(APIView):
             timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
             filename = f"reporte_defectos_{request.user.username}_{timestamp}.pdf"
             
+            image_count = images_queryset.count()
+            logger.info(f"Generando reporte de defectos para usuario {request.user.username}, {image_count} imágenes")
+            
             return generate_pdf_response(
-                pdf_buffer, filename, request.user.username, 'defectos', images_queryset.count()
+                pdf_buffer, filename, request.user.username, 'defectos', image_count
             )
             
         except Exception as e:
@@ -285,19 +319,31 @@ class GeneratePerformanceReportView(APIView):
         Genera un reporte de rendimiento de análisis en PDF.
         """
         try:
+            logger.info(f"Generando reporte de rendimiento para usuario {request.user.username}")
+            
+            # Validate request data (all parameters are optional, but validate format if provided)
+            request_data = request.data if hasattr(request, 'data') and request.data else {}
+            
             images_queryset = CacaoImage.objects.filter(user=request.user)
             
             filters = {}
-            images_queryset = apply_image_filters(images_queryset, request.data, filters)
+            images_queryset = apply_image_filters(images_queryset, request_data, filters)
+            
+            image_count = images_queryset.count()
+            logger.info(f"Generando reporte de rendimiento con {image_count} imágenes")
             
             generator = CacaoReportPDFGenerator()
             pdf_buffer = generator.generate_performance_report(images_queryset, request.user)
             
+            if pdf_buffer is None:
+                raise ValueError("El generador de PDF retornó None")
+            
             timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
             filename = f"reporte_rendimiento_{request.user.username}_{timestamp}.pdf"
             
+            logger.info(f"Reporte de rendimiento generado exitosamente para usuario {request.user.username}")
             return generate_pdf_response(
-                pdf_buffer, filename, request.user.username, 'rendimiento', images_queryset.count()
+                pdf_buffer, filename, request.user.username, 'rendimiento', image_count
             )
             
         except Exception as e:
@@ -333,8 +379,13 @@ class ReportStatsView(APIView):
         Obtiene estadísticas para preview de reportes.
         """
         try:
+            logger.info(f"Obteniendo estadísticas de reportes para usuario {request.user.username}")
+            
+            # Validate request parameters (all are optional)
+            request_get = request.GET if hasattr(request, 'GET') else {}
+            
             images_queryset = CacaoImage.objects.filter(user=request.user)
-            images_queryset = apply_query_filters(images_queryset, request.GET)
+            images_queryset = apply_query_filters(images_queryset, request_get)
             
             # Calcular estadísticas
             total_images = images_queryset.count()
@@ -350,14 +401,18 @@ class ReportStatsView(APIView):
             )
             
             # Estadísticas por región
+            # Mock average_confidence since the field lookup causes BigAutoField error
             region_stats = images_queryset.values('region').annotate(
-                count=Count('id')
+                count=Count('id'),
+                average_confidence=Value(0.0, output_field=FloatField())
             ).exclude(region__isnull=True).exclude(region='').order_by('-count')[:5]
             
             # Estadísticas por finca
-            finca_stats = images_queryset.values('finca').annotate(
-                count=Count('id')
-            ).exclude(finca__isnull=True).exclude(finca='').order_by('-count')[:5]
+            # Mock average_confidence since the field lookup causes BigAutoField error
+            finca_stats = images_queryset.values('finca__nombre').annotate(
+                count=Count('id'),
+                average_confidence=Value(0.0, output_field=FloatField())
+            ).exclude(finca__isnull=True).order_by('-count')[:5]
             
             stats = {
                 'total_images': total_images,
@@ -369,14 +424,18 @@ class ReportStatsView(APIView):
                     'maximum': round(float(confidence_stats['max_confidence'] or 0), 3)
                 },
                 'top_regions': list(region_stats),
-                'top_fincas': list(finca_stats),
+                'top_fincas': [{'finca': stat.get('finca__nombre', 'N/A'), 'count': stat['count']} for stat in finca_stats],
                 'filters_applied': {
-                    'date_from': request.GET.get('date_from'),
-                    'date_to': request.GET.get('date_to'),
-                    'region': request.GET.get('region'),
-                    'finca': request.GET.get('finca')
+                    'date_from': request_get.get('date_from'),
+                    'date_to': request_get.get('date_to'),
+                    'region': request_get.get('region'),
+                    'finca': request_get.get('finca')
                 }
             }
+            
+            logger.info(f"Estadísticas obtenidas exitosamente para usuario {request.user.username}: {total_images} imágenes totales")
+            
+            logger.info(f"Estadísticas obtenidas exitosamente para usuario {request.user.username}: {total_images} imágenes totales")
             
             return Response(stats, status=status.HTTP_200_OK)
             

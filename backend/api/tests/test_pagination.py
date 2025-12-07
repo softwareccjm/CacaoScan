@@ -60,19 +60,27 @@ def test_get_pagination_params_invalid_values(request_factory):
     request = request_factory.get('/api/test/', {'page': 'invalid', 'page_size': 'invalid'})
     page, page_size = get_pagination_params(request, default_page_size=20)
     
-    # Should return defaults on error
-    assert page == 20
+    # Should return defaults on error: page=1, page_size=default_page_size
+    assert page == 1
     assert page_size == 20
 
 
 def test_paginate_queryset_real_queryset(request_factory, db):
     """Test paginating a real queryset."""
-    # Create some test users
-    User.objects.create_user(username='user1', email='user1@test.com')
-    User.objects.create_user(username='user2', email='user2@test.com')
-    User.objects.create_user(username='user3', email='user3@test.com')
+    # Create some test users with unique usernames
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user1 = User.objects.create_user(username=f'user1_{unique_id}', email=f'user1_{unique_id}@test.com')
+    user2 = User.objects.create_user(username=f'user2_{unique_id}', email=f'user2_{unique_id}@test.com')
+    user3 = User.objects.create_user(username=f'user3_{unique_id}', email=f'user3_{unique_id}@test.com')
     
-    queryset = User.objects.all()
+    # Filter to only our test users using exact usernames to avoid conflicts
+    from django.db.models import Q
+    queryset = User.objects.filter(
+        Q(username=f'user1_{unique_id}') | 
+        Q(username=f'user2_{unique_id}') | 
+        Q(username=f'user3_{unique_id}')
+    )
     page_obj, paginator = paginate_queryset(queryset, page=1, page_size=2)
     
     assert paginator.count == 3

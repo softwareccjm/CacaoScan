@@ -125,13 +125,20 @@ class CacaoImageListView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    def get_queryset(self):
+        """
+        Get queryset ordered by created_at descending.
+        """
+        return CacaoImage.objects.order_by("-created_at")
+    
     def get(self, request):
         """
         Lista todas las imágenes de cacao del usuario autenticado.
+        Ordenadas por created_at descendente (más recientes primero).
         """
-        images = CacaoImage.objects.filter(user=request.user).order_by('-created_at')
-        serializer = CacaoImageSerializer(images, many=True, context={'request': request})
+        queryset = self.get_queryset().filter(user=request.user)
+        serializer = CacaoImageSerializer(queryset, many=True, context={'request': request})
         return Response({
-            'count': images.count(),
+            'count': queryset.count(),
             'results': serializer.data
         }, status=status.HTTP_200_OK)

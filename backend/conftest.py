@@ -14,6 +14,7 @@ from django.test import RequestFactory
 from unittest.mock import Mock, MagicMock
 import tempfile
 from pathlib import Path
+import uuid
 
 # Test passwords from environment variables with safe defaults for testing
 # These are test-only credentials and not used in production
@@ -22,36 +23,139 @@ TEST_ADMIN_PASSWORD: str = os.getenv('TEST_ADMIN_PASSWORD', 'adminpass123')
 TEST_STAFF_PASSWORD: str = os.getenv('TEST_STAFF_PASSWORD', 'staffpass123')
 
 
-@pytest.fixture
-def user():
-    """Create a regular user for testing."""
+def _generate_unique_username(prefix: str = 'testuser') -> str:
+    """Generate a unique username using UUID."""
+    unique_id = str(uuid.uuid4())[:8]
+    return f"{prefix}_{unique_id}"
+
+
+def _generate_unique_email(prefix: str = 'test') -> str:
+    """Generate a unique email using UUID."""
+    unique_id = str(uuid.uuid4())[:8]
+    return f"{prefix}_{unique_id}@example.com"
+
+
+def create_test_user(username_prefix: str = 'testuser', **kwargs):
+    """
+    Helper function to create a test user with unique username and email.
+    
+    Args:
+        username_prefix: Prefix for username (default: 'testuser')
+        **kwargs: Additional arguments to pass to create_user
+    
+    Returns:
+        User instance with unique username and email
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    username = kwargs.pop('username', f"{username_prefix}_{unique_id}")
+    email = kwargs.pop('email', f"test_{unique_id}@example.com")
+    password = kwargs.pop('password', TEST_USER_PASSWORD)
+    
     return User.objects.create_user(
-        username='testuser',
-        email='test@example.com',
+        username=username,
+        email=email,
+        password=password,
+        **kwargs
+    )
+
+
+def create_test_admin_user(username_prefix: str = 'admin', **kwargs):
+    """
+    Helper function to create a test admin user with unique username and email.
+    
+    Args:
+        username_prefix: Prefix for username (default: 'admin')
+        **kwargs: Additional arguments to pass to create_superuser
+    
+    Returns:
+        User instance with unique username and email
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    username = kwargs.pop('username', f"{username_prefix}_{unique_id}")
+    email = kwargs.pop('email', f"admin_{unique_id}@example.com")
+    password = kwargs.pop('password', TEST_ADMIN_PASSWORD)
+    
+    return User.objects.create_superuser(
+        username=username,
+        email=email,
+        password=password,
+        **kwargs
+    )
+
+
+def create_test_staff_user(username_prefix: str = 'staff', **kwargs):
+    """
+    Helper function to create a test staff user with unique username and email.
+    
+    Args:
+        username_prefix: Prefix for username (default: 'staff')
+        **kwargs: Additional arguments to pass to create_user
+    
+    Returns:
+        User instance with unique username and email
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    username = kwargs.pop('username', f"{username_prefix}_{unique_id}")
+    email = kwargs.pop('email', f"staff_{unique_id}@example.com")
+    password = kwargs.pop('password', TEST_STAFF_PASSWORD)
+    
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password=password,
+        **kwargs
+    )
+    user.is_staff = True
+    user.save()
+    return user
+
+
+@pytest.fixture(scope='function')
+def user(db):
+    """Create a regular user for testing with unique username and email."""
+    return User.objects.create_user(
+        username=_generate_unique_username('testuser'),
+        email=_generate_unique_email('test'),
         password=TEST_USER_PASSWORD,
         first_name='Test',
         last_name='User'
     )
 
 
-@pytest.fixture
-def admin_user():
-    """Create an admin user for testing."""
+@pytest.fixture(scope='function')
+def login_user(db):
+    """Create a user for login tests with unique username and email."""
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(
+        username=f'testuser_{unique_id}',
+        email=f'test_{unique_id}@example.com',
+        password=TEST_USER_PASSWORD,
+        first_name='Test',
+        last_name='User'
+    )
+    # Store original username pattern for backward compatibility in tests
+    user._test_username = f'testuser_{unique_id}'
+    return user
+
+
+@pytest.fixture(scope='function')
+def admin_user(db):
+    """Create an admin user for testing with unique username and email."""
     return User.objects.create_superuser(
-        username='admin',
-        email='admin@example.com',
+        username=_generate_unique_username('admin'),
+        email=_generate_unique_email('admin'),
         password=TEST_ADMIN_PASSWORD,
         first_name='Admin',
         last_name='User'
     )
 
 
-@pytest.fixture
-def staff_user():
-    """Create a staff user for testing."""
+@pytest.fixture(scope='function')
+def staff_user(db):
+    """Create a staff user for testing with unique username and email."""
     user = User.objects.create_user(
-        username='staff',
-        email='staff@example.com',
+        username=_generate_unique_username('staff'),
+        email=_generate_unique_email('staff'),
         password=TEST_STAFF_PASSWORD,
         first_name='Staff',
         last_name='User'
@@ -138,3 +242,15 @@ def mock_service_result():
 def enable_db_access_for_all_tests(db):
     """Enable database access for all tests."""
     pass
+
+
+@pytest.fixture(autouse=True)
+def clean_db(db):
+    """
+    Ensure database is clean between tests.
+    This fixture runs automatically for all tests.
+    """
+    # The db fixture already handles transaction rollback
+    # This is just for explicit documentation
+    yield
+    # Cleanup happens automatically via transaction rollback

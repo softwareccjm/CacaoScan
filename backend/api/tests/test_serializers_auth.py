@@ -23,23 +23,23 @@ from api.serializers.auth_serializers import (
 class TestLoginSerializer:
     """Test cases for LoginSerializer."""
     
-    def test_login_with_username(self, user):
+    def test_login_with_username(self, login_user):
         """Test login with username."""
         serializer = LoginSerializer(data={
-            'username': 'testuser',
+            'username': login_user.username,
             'password': 'testpass123'
         })
         assert serializer.is_valid()
-        assert serializer.validated_data['user'] == user
+        assert serializer.validated_data['user'] == login_user
     
-    def test_login_with_email(self, user):
+    def test_login_with_email(self, login_user):
         """Test login with email."""
         serializer = LoginSerializer(data={
-            'email': 'test@example.com',
+            'email': login_user.email,
             'password': 'testpass123'
         })
         assert serializer.is_valid()
-        assert serializer.validated_data['user'] == user
+        assert serializer.validated_data['user'] == login_user
     
     def test_login_without_username_or_email(self):
         """Test login without username or email."""
@@ -51,16 +51,20 @@ class TestLoginSerializer:
     
     def test_login_without_password(self):
         """Test login without password."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = LoginSerializer(data={
-            'username': 'testuser'
+            'username': f'testuser_{unique_id}'
         })
         assert not serializer.is_valid()
         assert 'password' in serializer.errors
     
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = LoginSerializer(data={
-            'username': 'invalid',
+            'username': f'invalid_{unique_id}',
             'password': 'wrongpass'
         })
         assert not serializer.is_valid()
@@ -68,13 +72,16 @@ class TestLoginSerializer:
     
     def test_login_normalize_email_as_username(self):
         """Test that email is normalized as username."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
         user = User.objects.create_user(
-            username='test@example.com',
-            email='test@example.com',
+            username=email,
+            email=email,
             password='testpass123'
         )
         serializer = LoginSerializer(data={
-            'email': 'test@example.com',
+            'email': email,
             'password': 'testpass123'
         })
         assert serializer.is_valid()
@@ -87,9 +94,12 @@ class TestRegisterSerializer:
     
     def test_register_valid_data(self):
         """Test registration with valid data."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'newuser_{unique_id}@example.com'
         serializer = RegisterSerializer(data={
-            'username': 'newuser',
-            'email': 'newuser@example.com',
+            'username': f'newuser_{unique_id}',
+            'email': email,
             'first_name': 'New',
             'last_name': 'User',
             'password': 'SecurePass123!',
@@ -97,15 +107,17 @@ class TestRegisterSerializer:
         })
         assert serializer.is_valid()
         user = serializer.save()
-        assert user.username == 'newuser@example.com'  # Username equals email
-        assert user.email == 'newuser@example.com'
+        assert user.username == email  # Username equals email
+        assert user.email == email
         assert user.is_active is False  # Inactive until verification
     
-    def test_register_duplicate_username(self, user):
+    def test_register_duplicate_username(self, login_user):
         """Test registration with duplicate username."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'testuser',
-            'email': 'different@example.com',
+            'username': login_user.username,
+            'email': f'different_{unique_id}@example.com',
             'first_name': 'Test',
             'last_name': 'User',
             'password': 'SecurePass123!',
@@ -114,11 +126,13 @@ class TestRegisterSerializer:
         assert not serializer.is_valid()
         assert 'username' in serializer.errors
     
-    def test_register_duplicate_email(self, user):
+    def test_register_duplicate_email(self, login_user):
         """Test registration with duplicate email."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'differentuser',
-            'email': 'test@example.com',
+            'username': f'differentuser_{unique_id}',
+            'email': login_user.email,
             'first_name': 'Test',
             'last_name': 'User',
             'password': 'SecurePass123!',
@@ -129,9 +143,11 @@ class TestRegisterSerializer:
     
     def test_register_password_mismatch(self):
         """Test registration with mismatched passwords."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'newuser',
-            'email': 'newuser@example.com',
+            'username': f'newuser_{unique_id}',
+            'email': f'newuser_{unique_id}@example.com',
             'first_name': 'New',
             'last_name': 'User',
             'password': 'SecurePass123!',
@@ -142,9 +158,11 @@ class TestRegisterSerializer:
     
     def test_register_short_password(self):
         """Test registration with short password."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'newuser',
-            'email': 'newuser@example.com',
+            'username': f'newuser_{unique_id}',
+            'email': f'newuser_{unique_id}@example.com',
             'first_name': 'New',
             'last_name': 'User',
             'password': 'Short1!',
@@ -155,8 +173,10 @@ class TestRegisterSerializer:
     
     def test_register_invalid_email_format(self):
         """Test registration with invalid email format."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'newuser',
+            'username': f'newuser_{unique_id}',
             'email': 'invalid-email',
             'first_name': 'New',
             'last_name': 'User',
@@ -168,9 +188,11 @@ class TestRegisterSerializer:
     
     def test_register_missing_first_name(self):
         """Test registration without first name."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'newuser',
-            'email': 'newuser@example.com',
+            'username': f'newuser_{unique_id}',
+            'email': f'newuser_{unique_id}@example.com',
             'last_name': 'User',
             'password': 'SecurePass123!',
             'password_confirm': 'SecurePass123!'
@@ -180,9 +202,11 @@ class TestRegisterSerializer:
     
     def test_register_missing_last_name(self):
         """Test registration without last name."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         serializer = RegisterSerializer(data={
-            'username': 'newuser',
-            'email': 'newuser@example.com',
+            'username': f'newuser_{unique_id}',
+            'email': f'newuser_{unique_id}@example.com',
             'first_name': 'New',
             'password': 'SecurePass123!',
             'password_confirm': 'SecurePass123!'
@@ -242,9 +266,12 @@ class TestEmailVerificationSerializer:
     def test_email_verification_valid_token(self):
         """Test email verification with valid token."""
         from api.models import EmailVerificationToken
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
         user = User.objects.create_user(
-            username='test@example.com',
-            email='test@example.com',
+            username=email,
+            email=email,
             password='testpass123',
             is_active=False
         )
@@ -266,9 +293,12 @@ class TestEmailVerificationSerializer:
         from api.models import EmailVerificationToken
         from datetime import timedelta
         from django.utils import timezone
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
         user = User.objects.create_user(
-            username='test@example.com',
-            email='test@example.com',
+            username=email,
+            email=email,
             password='testpass123',
             is_active=False
         )
@@ -285,24 +315,26 @@ class TestEmailVerificationSerializer:
 class TestResendVerificationSerializer:
     """Test cases for ResendVerificationSerializer."""
     
-    def test_resend_verification_valid_email(self, user):
+    def test_resend_verification_valid_email(self, login_user):
         """Test resend verification with valid email."""
-        user.is_active = False
-        user.save()
-        serializer = ResendVerificationSerializer(data={'email': 'test@example.com'})
+        login_user.is_active = False
+        login_user.save()
+        serializer = ResendVerificationSerializer(data={'email': login_user.email})
         assert serializer.is_valid()
     
     def test_resend_verification_invalid_email(self):
         """Test resend verification with non-existent email."""
-        serializer = ResendVerificationSerializer(data={'email': 'nonexistent@example.com'})
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        serializer = ResendVerificationSerializer(data={'email': f'nonexistent_{unique_id}@example.com'})
         assert not serializer.is_valid()
         assert 'email' in serializer.errors
     
-    def test_resend_verification_already_verified(self, user):
+    def test_resend_verification_already_verified(self, login_user):
         """Test resend verification for already verified user."""
-        user.is_active = True
-        user.save()
-        serializer = ResendVerificationSerializer(data={'email': 'test@example.com'})
+        login_user.is_active = True
+        login_user.save()
+        serializer = ResendVerificationSerializer(data={'email': login_user.email})
         # May or may not be valid depending on implementation
         # This test depends on the actual behavior
 
@@ -338,9 +370,12 @@ class TestUserProfileSerializer:
     
     def test_user_profile_serializer_valid_data(self):
         """Test UserProfileSerializer with valid data."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
         user = User.objects.create_user(
-            username='test@example.com',
-            email='test@example.com',
+            username=email,
+            email=email,
             password='testpass123'
         )
         serializer = UserProfileSerializer(data={
@@ -375,7 +410,10 @@ class TestSendOtpSerializer:
     
     def test_send_otp_valid_email(self):
         """Test SendOtpSerializer with valid email."""
-        serializer = SendOtpSerializer(data={'email': 'test@example.com'})
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
+        serializer = SendOtpSerializer(data={'email': email})
         assert serializer.is_valid()
     
     def test_send_otp_invalid_email(self):
@@ -390,16 +428,22 @@ class TestVerifyOtpSerializer:
     
     def test_verify_otp_valid_data(self):
         """Test VerifyOtpSerializer with valid data."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
         serializer = VerifyOtpSerializer(data={
-            'email': 'test@example.com',
+            'email': email,
             'code': '123456'
         })
         assert serializer.is_valid()
     
     def test_verify_otp_invalid_code_length(self):
         """Test VerifyOtpSerializer with invalid code length."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        email = f'test_{unique_id}@example.com'
         serializer = VerifyOtpSerializer(data={
-            'email': 'test@example.com',
+            'email': email,
             'code': '123'
         })
         assert not serializer.is_valid()

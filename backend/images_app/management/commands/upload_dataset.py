@@ -4,6 +4,7 @@ Comando de gestión para subir imágenes locales al bucket S3.
 from typing import Optional
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
+from django.core.files import File
 from pathlib import Path
 from images_app.models import CacaoImage
 import mimetypes
@@ -91,9 +92,16 @@ class Command(BaseCommand):
     def _find_image_files(self, folder_path: Path, extensions: list) -> list:
         """Busca archivos de imagen en la carpeta."""
         image_files = []
+        seen_paths = set()
         for ext in extensions:
-            image_files.extend(folder_path.glob(f'*{ext}'))
-            image_files.extend(folder_path.glob(f'*{ext.upper()}'))
+            # Search for lowercase and uppercase extensions
+            for pattern in [f'*{ext}', f'*{ext.upper()}']:
+                for file_path in folder_path.glob(pattern):
+                    # Use absolute resolved path to avoid duplicates on case-insensitive filesystems
+                    abs_path = file_path.resolve()
+                    if abs_path not in seen_paths:
+                        seen_paths.add(abs_path)
+                        image_files.append(file_path)
         return image_files
     
     def _get_content_type(self, img_path: Path) -> str:
@@ -107,9 +115,10 @@ class Command(BaseCommand):
             content_type = self._get_content_type(img_path)
             
             with open(img_path, 'rb') as f:
+                django_file = File(f, name=img_path.name)
                 cacao_image = CacaoImage(
                     user=user,
-                    image=f,
+                    image=django_file,
                     file_name=img_path.name,
                     file_size=img_path.stat().st_size,
                     file_type=content_type,

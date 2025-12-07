@@ -19,14 +19,22 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
     password = serializers.CharField(write_only=True)
     
+    def validate_email(self, value):
+        """Normalize email to lowercase."""
+        if value:
+            return value.lower().strip()
+        return value
+    
+    def validate_username(self, value):
+        """Normalize username to lowercase."""
+        if value:
+            return value.lower().strip()
+        return value
+    
     def _normalize_username_email(self, attrs):
-        """Normaliza username y email, usando email como username si es necesario."""
+        """Obtiene username y email normalizados (ya normalizados en validate_email/validate_username)."""
         username = attrs.get('username')
         email = attrs.get('email')
-        
-        if email and not username:
-            username = email
-            attrs['username'] = email
         
         if not username and not email:
             raise serializers.ValidationError('Debe incluir username o email.')
@@ -34,19 +42,23 @@ class LoginSerializer(serializers.Serializer):
         return username, email
     
     def _authenticate_user(self, username: str, email: str, password: str):
-        """Intenta autenticar al usuario con username o email."""
-        user = authenticate(username=username, password=password)
+        """Intenta autenticar al usuario con username o email usando valores normalizados."""
+        # Try authentication with username if provided
+        if username:
+            user = authenticate(username=username, password=password)
+            if user:
+                return user
         
-        if user:
-            return user
-        
+        # If username auth failed or not provided, try with email
         if email:
-            try:
-                user_obj = User.objects.filter(email=email).first()
-                if user_obj:
-                    return authenticate(username=user_obj.username, password=password)
-            except Exception:
-                pass
+            # Use case-insensitive search for email
+            user_obj = User.objects.filter(email__iexact=email).first()
+            if user_obj:
+                # Authenticate using the user's actual username
+                # This works whether username equals email or not
+                authenticated_user = authenticate(username=user_obj.username, password=password)
+                if authenticated_user:
+                    return authenticated_user
         
         return None
     
@@ -64,8 +76,11 @@ class LoginSerializer(serializers.Serializer):
         username, email = self._normalize_username_email(attrs)
         password = attrs.get('password')
         
-        if not username or not password:
-            raise serializers.ValidationError('Debe incluir username/email y password.')
+        if not password:
+            raise serializers.ValidationError('Debe incluir password.')
+        
+        if not username and not email:
+            raise serializers.ValidationError('Debe incluir username o email.')
         
         user = self._authenticate_user(username, email, password)
         if not user:

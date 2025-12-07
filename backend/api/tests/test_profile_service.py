@@ -18,18 +18,36 @@ class TestProfileService:
         return ProfileService()
     
     @pytest.fixture
-    def user(self):
-        """Create test user."""
+    def fixed_user(self, db):
+        """Create test user with unique username."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        user = User.objects.create_user(
+            username=f"testuser_{unique_id}",
+            email=f"testuser_{unique_id}@example.com",
+            password="pass123",
+            first_name='Test',
+            last_name='User'
+        )
+        # Store original username for assertions that need it
+        user._test_username = f"testuser_{unique_id}"
+        return user
+    
+    @pytest.fixture
+    def user(self, db):
+        """Create test user with unique username and email."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         return User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com',
             password='testpass123',
             first_name='Test',
             last_name='User'
         )
     
     @patch('api.utils.model_imports.get_models_safely')
-    def test_get_user_profile_success(self, mock_models, service, user):
+    def test_get_user_profile_success(self, mock_models, service, fixed_user):
         """Test getting user profile successfully."""
         mock_profile = Mock()
         mock_profile.phone_number = '1234567890'
@@ -42,18 +60,18 @@ class TestProfileService:
         mock_profile.email_notifications = True
         mock_profile.role = 'farmer'
         
-        user.profile = mock_profile
+        fixed_user.profile = mock_profile
         
         mock_models.return_value = {'UserProfile': Mock()}
         
-        result = service.get_user_profile(user)
+        result = service.get_user_profile(fixed_user)
         
         assert result.success
-        assert result.data['username'] == 'testuser'
-        assert result.data['email'] == 'test@example.com'
+        assert result.data['username'] == fixed_user.username
+        assert result.data['email'] == fixed_user.email
     
     @patch('api.utils.model_imports.get_models_safely')
-    def test_get_user_profile_no_profile(self, mock_models, service, user):
+    def test_get_user_profile_no_profile(self, mock_models, service, fixed_user):
         """Test getting user profile when no profile exists."""
         # Create proper DoesNotExist exception
         class MockDoesNotExist(Exception):
@@ -75,36 +93,36 @@ class TestProfileService:
         mock_profile_model.objects.create.return_value = mock_profile
         mock_models.return_value = {'UserProfile': mock_profile_model}
         
-        # Simulate DoesNotExist exception when accessing user.profile
+        # Simulate DoesNotExist exception when accessing fixed_user.profile
         def get_profile():
             raise MockDoesNotExist()
         
-        # Mock user.profile to raise DoesNotExist
+        # Mock fixed_user.profile to raise DoesNotExist
         # The service will catch this and create a new profile using user_profile_model.objects.create
         # We need to mock the property descriptor on the User class
-        original_profile_descriptor = getattr(type(user), 'profile', None)
+        original_profile_descriptor = getattr(type(fixed_user), 'profile', None)
         
         # Create a property that raises DoesNotExist
         def profile_getter(self):
             raise MockDoesNotExist()
         
         # Replace the profile descriptor temporarily
-        type(user).profile = property(profile_getter)
+        type(fixed_user).profile = property(profile_getter)
         
         try:
-            result = service.get_user_profile(user)
+            result = service.get_user_profile(fixed_user)
         finally:
             # Restore original descriptor
             if original_profile_descriptor:
-                type(user).profile = original_profile_descriptor
-            elif hasattr(type(user), 'profile'):
-                delattr(type(user), 'profile')
+                type(fixed_user).profile = original_profile_descriptor
+            elif hasattr(type(fixed_user), 'profile'):
+                delattr(type(fixed_user), 'profile')
         
         assert result.success
-        assert result.data['username'] == 'testuser'
+        assert result.data['username'] == fixed_user.username
     
     @patch('api.utils.model_imports.get_models_safely')
-    def test_update_user_profile_success(self, mock_models, service, user):
+    def test_update_user_profile_success(self, mock_models, service, fixed_user):
         """Test updating user profile successfully."""
         mock_profile_model = Mock()
         mock_profile = Mock()
@@ -118,49 +136,53 @@ class TestProfileService:
         }
         
         with patch.object(service, 'get_user_profile', return_value=ServiceResult.success(data={})):
-            result = service.update_user_profile(user, profile_data)
+            result = service.update_user_profile(fixed_user, profile_data)
             
             assert result.success
-            user.refresh_from_db()
-            assert user.first_name == 'Updated'
+            fixed_user.refresh_from_db()
+            assert fixed_user.first_name == 'Updated'
     
-    def test_update_user_profile_duplicate_email(self, service, user):
+    def test_update_user_profile_duplicate_email(self, service, fixed_user):
         """Test updating profile with duplicate email."""
-        User.objects.create_user(
-            username='other',
-            email='other@example.com',
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        other_user = User.objects.create_user(
+            username=f'other_{unique_id}',
+            email=f'other_{unique_id}@example.com',
             password='testpass123'
         )
         
-        profile_data = {'email': 'other@example.com'}
+        profile_data = {'email': other_user.email}
         
-        result = service.update_user_profile(user, profile_data)
+        result = service.update_user_profile(fixed_user, profile_data)
         
         assert not result.success
+        fixed_user.refresh_from_db()
     
-    def test_update_user_profile_invalid_field(self, service, user):
+    def test_update_user_profile_invalid_field(self, service, fixed_user):
         """Test updating profile with invalid field."""
         profile_data = {'invalid_field': 'value'}
         
-        result = service.update_user_profile(user, profile_data)
+        result = service.update_user_profile(fixed_user, profile_data)
         
         assert not result.success
+        fixed_user.refresh_from_db()
     
-    def test_check_email_verified_active_user(self, service, user):
+    def test_check_email_verified_active_user(self, service, fixed_user):
         """Test checking email verification for active user."""
-        user.is_active = True
-        user.save()
+        fixed_user.is_active = True
+        fixed_user.save()
         
-        result = service._check_email_verified(user)
+        result = service._check_email_verified(fixed_user)
         
         assert result is True
     
-    def test_check_email_verified_inactive_user(self, service, user):
+    def test_check_email_verified_inactive_user(self, service, fixed_user):
         """Test checking email verification for inactive user."""
-        user.is_active = False
-        user.save()
+        fixed_user.is_active = False
+        fixed_user.save()
         
-        result = service._check_email_verified(user)
+        result = service._check_email_verified(fixed_user)
         
         assert result is False
 

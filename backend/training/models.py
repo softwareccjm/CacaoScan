@@ -246,3 +246,139 @@ class ModelMetrics(models.Model):
             })
         
         return trend_data
+    
+    @property
+    def accuracy_percentage(self):
+        """Calculate accuracy percentage from r2_score."""
+        return round(float(self.r2_score) * 100, 2) if self.r2_score else 0.0
+    
+    @property
+    def training_time_formatted(self):
+        """Format training time in human-readable format."""
+        if not self.training_time_seconds:
+            return "N/A"
+        
+        hours = self.training_time_seconds // 3600
+        minutes = (self.training_time_seconds % 3600) // 60
+        seconds = self.training_time_seconds % 60
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{seconds}s"
+    
+    @property
+    def performance_summary(self):
+        """Get performance summary."""
+        return {
+            'r2_score': round(float(self.r2_score), 4),
+            'mae': round(float(self.mae), 4),
+            'rmse': round(float(self.rmse), 4),
+            'accuracy_percentage': self.accuracy_percentage
+        }
+    
+    @property
+    def dataset_summary(self):
+        """Get dataset summary."""
+        return {
+            'total_size': self.dataset_size,
+            'train_size': self.train_size,
+            'validation_size': self.validation_size,
+            'test_size': self.test_size,
+            'train_percentage': round((self.train_size / self.dataset_size * 100), 2) if self.dataset_size > 0 else 0,
+            'validation_percentage': round((self.validation_size / self.dataset_size * 100), 2) if self.dataset_size > 0 else 0,
+            'test_percentage': round((self.test_size / self.dataset_size * 100), 2) if self.dataset_size > 0 else 0
+        }
+    
+    @property
+    def model_summary(self):
+        """Get model summary."""
+        return {
+            'model_name': self.model_name,
+            'model_type': self.get_model_type_display(),
+            'target': self.get_target_display(),
+            'version': self.version,
+            'epochs': self.epochs,
+            'batch_size': self.batch_size,
+            'learning_rate': self.learning_rate
+        }
+    
+    def get_comparison_with_previous(self):
+        """
+        Get comparison with previous version of the same model.
+        
+        Returns:
+            Dictionary with comparison metrics or None if no previous version exists
+        """
+        try:
+            # Find previous version of the same model
+            previous = ModelMetrics.objects.filter(
+                model_name=self.model_name,
+                target=self.target,
+                metric_type=self.metric_type,
+                created_at__lt=self.created_at
+            ).order_by('-created_at').first()
+            
+            if not previous:
+                return None
+            
+            # Calculate improvements
+            mae_improvement = ((previous.mae - self.mae) / previous.mae * 100) if previous.mae > 0 else 0
+            rmse_improvement = ((previous.rmse - self.rmse) / previous.rmse * 100) if previous.rmse > 0 else 0
+            r2_improvement = ((self.r2_score - previous.r2_score) / abs(previous.r2_score) * 100) if previous.r2_score != 0 else 0
+            
+            return {
+                'previous_version': previous.version,
+                'previous_r2_score': float(previous.r2_score),
+                'current_r2_score': float(self.r2_score),
+                'r2_improvement': round(r2_improvement, 2),
+                'mae_improvement': round(mae_improvement, 2),
+                'rmse_improvement': round(rmse_improvement, 2),
+                'improvement': round(r2_improvement, 2),
+                'is_better': self.r2_score > previous.r2_score
+            }
+        except Exception:
+            return None
+    
+    def get_comparison_with_previous(self):
+        """
+        Get comparison with previous version of the same model.
+        
+        Returns:
+            Dictionary with comparison data or empty dict if no previous version exists.
+        """
+        try:
+            previous = ModelMetrics.objects.filter(
+                model_name=self.model_name,
+                target=self.target,
+                metric_type=self.metric_type,
+                created_at__lt=self.created_at
+            ).order_by('-created_at').first()
+            
+            if not previous:
+                return {
+                    'has_previous': False,
+                    'message': 'No previous version found'
+                }
+            
+            return {
+                'has_previous': True,
+                'previous_version': previous.version,
+                'previous_r2_score': float(previous.r2_score),
+                'current_r2_score': float(self.r2_score),
+                'r2_improvement': float(self.r2_score - previous.r2_score),
+                'previous_mae': float(previous.mae),
+                'current_mae': float(self.mae),
+                'mae_improvement': float(previous.mae - self.mae),
+                'previous_rmse': float(previous.rmse),
+                'current_rmse': float(self.rmse),
+                'rmse_improvement': float(previous.rmse - self.rmse),
+                'is_better': self.r2_score > previous.r2_score
+            }
+        except Exception:
+            return {
+                'has_previous': False,
+                'message': 'Error comparing with previous version'
+            }

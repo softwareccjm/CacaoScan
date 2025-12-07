@@ -47,9 +47,11 @@ class TestNotificationConsumer:
     
     async def test_connect_success(self):
         """Test successful connection."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com',
             password='testpass123'
         )
         
@@ -77,9 +79,11 @@ class TestNotificationConsumer:
     
     async def test_receive_ping(self):
         """Test receiving ping message."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com'
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com'
         )
         
         communicator = WebsocketCommunicator(
@@ -103,9 +107,11 @@ class TestNotificationConsumer:
     
     async def test_receive_invalid_json(self):
         """Test receiving invalid JSON."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com'
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com'
         )
         
         communicator = WebsocketCommunicator(
@@ -175,9 +181,11 @@ class TestAuditConsumer:
     
     async def test_connect_success_admin(self):
         """Test successful connection as admin."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='admin',
-            email='admin@example.com',
+            username=f'admin_{unique_id}',
+            email=f'admin_{unique_id}@example.com',
             is_superuser=True,
             is_staff=True
         )
@@ -213,9 +221,11 @@ class TestAuditConsumer:
     
     async def test_receive_get_audit_stats(self):
         """Test receiving get_audit_stats message."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         user = User.objects.create_user(
-            username='admin',
-            email='admin@example.com',
+            username=f'admin_{unique_id}',
+            email=f'admin_{unique_id}@example.com',
             is_superuser=True,
             is_staff=True
         )
@@ -278,6 +288,54 @@ class TestUserStatsConsumer:
         response = await communicator.receive_json_from()
         assert response['type'] == 'user_stats'
         assert 'data' in response
+        
+        await communicator.disconnect()
+    
+    async def test_notification_mark_read(self):
+        """Test mark_read functionality."""
+        user = User.objects.create_user(
+            username='testuser2',
+            email='test2@example.com'
+        )
+        
+        communicator = WebsocketCommunicator(
+            NotificationConsumer.as_asgi(),
+            f'/ws/notifications/{user.id}/'
+        )
+        
+        connected, _ = await communicator.connect()
+        assert connected
+        
+        await communicator.send_json_to({
+            'type': 'mark_read',
+            'notification_id': 999
+        })
+        
+        response = await communicator.receive_json_from()
+        assert 'type' in response
+        
+        await communicator.disconnect()
+    
+    async def test_system_status_update(self):
+        """Test system_status_update event."""
+        communicator = WebsocketCommunicator(
+            SystemStatusConsumer.as_asgi(),
+            '/ws/system/status/'
+        )
+        
+        connected, _ = await communicator.connect()
+        assert connected
+        
+        await communicator.channel_layer.group_send(
+            'system_status',
+            {
+                'type': 'system_status_update',
+                'data': {'status': 'online'}
+            }
+        )
+        
+        response = await communicator.receive_json_from(timeout=1.0)
+        assert response['type'] == 'system_status'
         
         await communicator.disconnect()
 

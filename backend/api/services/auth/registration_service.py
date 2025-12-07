@@ -288,6 +288,99 @@ class RegistrationService(BaseService):
                 ValidationServiceError("Error interno durante el pre-registro", details={"original_error": str(e)})
             )
     
+    def verify_pre_registration_and_create_user_with_persona_data(self, token: str) -> Dict[str, Any]:
+        """
+        Verifies pre-registration token and creates final user with persona data.
+        Returns dict instead of ServiceResult for compatibility with tests.
+        
+        Args:
+            token: Verification token
+            
+        Returns:
+            Dict with success, user, and persona (or error on failure)
+        """
+        try:
+            from personas.models import PendingRegistration
+            from personas.serializers import PersonaRegistroSerializer
+            import uuid
+            
+            # Validate token format
+            try:
+                token_uuid = uuid.UUID(str(token))
+            except (ValueError, TypeError):
+                return {"success": False, "error": "Invalid token format"}
+            
+            # Get pending registration
+            try:
+                pending_reg = PendingRegistration.objects.get(verification_token=token_uuid)
+            except PendingRegistration.DoesNotExist:
+                return {"success": False, "error": "Invalid or expired token"}
+            
+            # Check if already verified
+            if pending_reg.is_verified:
+                return {"success": False, "error": "Token already used"}
+            
+            # Check if expired
+            if pending_reg.is_expired():
+                pending_reg.delete()
+                return {"success": False, "error": "Token expired"}
+            
+            # Create final user with saved data
+            with transaction.atomic():
+                user_data = pending_reg.data.copy()
+                password = user_data.pop('password')
+                
+                user_obj = self._create_user_from_data(user_data, use_email_as_username=True)
+                
+                persona_obj = None
+                
+                # If there's persona data, create persona record
+                if 'tipo_documento' in user_data or 'numero_documento' in user_data:
+                    try:
+                        persona_data = {k: v for k, v in user_data.items() if k not in ['email', 'password', 'first_name', 'last_name']}
+                        persona_data['email'] = user_obj.email
+                        persona_data['password'] = password
+                        persona_serializer = PersonaRegistroSerializer(data=persona_data)
+                        if persona_serializer.is_valid():
+                            persona_obj = persona_serializer.save()
+                            self.log_info(f"Persona creada exitosamente para usuario {user_obj.email}")
+                        else:
+                            self.log_warning(f"Error creando persona para usuario {user_obj.email}: {persona_serializer.errors}")
+                            return {"success": False, "error": "Persona data invalid"}
+                    except Exception as e:
+                        self.log_error(f"Error creando persona: {e}")
+                        return {"success": False, "error": "Persona data invalid"}
+                
+                # Mark pending registration as verified
+                pending_reg.verify()
+                
+                # Invalidate cache when new users are created
+                try:
+                    from core.utils import invalidate_system_stats_cache
+                    invalidate_system_stats_cache()
+                except Exception as e:
+                    self.log_warning(f"Error invalidating cache after user creation: {e}")
+                
+                # Create audit log
+                self.create_audit_log(
+                    user=user_obj,
+                    action="user_created_from_preregistration",
+                    resource_type="user",
+                    resource_id=user_obj.id
+                )
+                
+                self.log_info(f"Usuario {user_obj.email} creado exitosamente después de verificación")
+                
+                return {
+                    "success": True,
+                    "user": user_obj,
+                    "persona": persona_obj
+                }
+            
+        except Exception as e:
+            self.log_error(f"Error verificando pre-registro: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
     def verify_pre_registration_and_create_user(self, token: str) -> ServiceResult:
         """
         Verifies pre-registration token and creates final user.
@@ -403,19 +496,21 @@ class RegistrationService(BaseService):
     def _log_user_registration(self, user: User, request=None):
         """Logs user registration in history."""
         try:
-            ip_address = None
-            user_agent = None
-            
-            if request:
+            if request is None:
+                # When request is None, use None for IP and empty string for user_agent
+                ip_address = None
+                user_agent = ''
+            else:
+                # Read IP and user-agent only when request exists
                 ip_address = self._get_client_ip(request)
                 user_agent = request.META.get('HTTP_USER_AGENT', '')
             
             LoginHistory.objects.create(
-                usuario=user,
+                user=user,
                 ip_address=ip_address,
                 user_agent=user_agent,
                 login_time=timezone.now(),
-                success=True
+                login_successful=True
             )
         except Exception as e:
             self.log_warning(f"Error registrando registro: {str(e)}")
@@ -433,7 +528,7 @@ class RegistrationService(BaseService):
         """
         try:
             from django.conf import settings
-            from ...email import send_custom_email
+            from ...services.email import send_custom_email
             
             verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification_token.token}"
             
@@ -494,7 +589,7 @@ Si no creaste esta cuenta, puedes ignorar este correo.
         """
         try:
             from django.template.loader import render_to_string
-            from ...email import send_custom_email
+            from ...services.email import send_custom_email
             from django.conf import settings
             
             verification_url = f"{settings.FRONTEND_URL}/auth/verificar/{pending_reg.verification_token}"

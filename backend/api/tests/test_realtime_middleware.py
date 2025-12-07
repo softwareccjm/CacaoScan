@@ -12,11 +12,13 @@ from api.realtime_middleware import (
 
 
 @pytest.fixture
-def user():
-    """Create test user."""
+def user(db):
+    """Create test user with unique username and email."""
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
     return User.objects.create_user(
-        username='testuser',
-        email='test@example.com',
+        username=f'testuser_{unique_id}',
+        email=f'test_{unique_id}@example.com',
         password='testpass123'
     )
 

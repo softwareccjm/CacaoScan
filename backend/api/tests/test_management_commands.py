@@ -28,9 +28,11 @@ class TestCreateAdminUserCommand:
     
     def test_update_existing_user(self):
         """Test updating an existing user."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         User.objects.create_user(
-            username='existing',
-            email='existing@test.com',
+            username=f'existing_{unique_id}',
+            email=f'existing_{unique_id}@test.com',
             password='oldpass'
         )
         
@@ -53,13 +55,16 @@ class TestCreateAdminUserCommand:
     
     def test_create_with_duplicate_email(self):
         """Test creating admin with duplicate email."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
+        duplicate_email = f'duplicate_{unique_id}@test.com'
         User.objects.create_user(
-            username='existing',
-            email='duplicate@test.com'
+            username=f'existing_{unique_id}',
+            email=duplicate_email
         )
         
-        with pytest.raises(CommandError, match="already in use"):
-            call_command('create_admin_user', '--username', 'newuser', '--email', 'duplicate@test.com')
+        with pytest.raises(CommandError, match="ya está en uso"):
+            call_command('create_admin_user', '--username', 'newuser', '--email', duplicate_email)
 
 
 @pytest.mark.django_db
@@ -88,9 +93,11 @@ class TestCleanOrphanedLotesCommand:
         from django.contrib.auth.models import User
         
         # Create a test user and finca first
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         test_user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
+            username=f'testuser_{unique_id}',
+            email=f'test_{unique_id}@example.com',
             password='testpass'
         )
         test_finca = Finca.objects.create(

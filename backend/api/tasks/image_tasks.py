@@ -114,13 +114,21 @@ def process_batch_analysis_task(
     Returns:
         Dictionary with processing results
     """
+    def safe_update_state(state: str, meta: Dict[str, Any]) -> None:
+        """Safely update task state, only if task_id exists (not in test mode)."""
+        if not hasattr(self, 'request') or not getattr(self.request, 'id', None):
+            # We are in test mode, return without using backend
+            return
+        if hasattr(self, 'update_state'):
+            self.update_state(state=state, meta=meta)
+    
     try:
         start_time = time.time()
         import os
         
-        self.update_state(
-            state='PROGRESS',
-            meta={
+        safe_update_state(
+            'PROGRESS',
+            {
                 'current': 0,
                 'total': len(images_data),
                 'status': 'Loading models...'
@@ -140,9 +148,9 @@ def process_batch_analysis_task(
         
         for idx, image_data in enumerate(images_data):
             try:
-                self.update_state(
-                    state='PROGRESS',
-                    meta={
+                safe_update_state(
+                    'PROGRESS',
+                    {
                         'current': idx + 1,
                         'total': total_images,
                         'status': f'Processing image {idx + 1}/{total_images}...'

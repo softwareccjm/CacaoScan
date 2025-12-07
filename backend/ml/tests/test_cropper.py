@@ -254,4 +254,244 @@ class TestCreateCacaoCropper:
         
         assert cropper.enable_yolo is False
         assert cropper.yolo_inference is None
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_get_yolo_prediction_with_fallback_success(self, mock_crops_dir, cropper, tmp_path):
+        """Test getting YOLO prediction with successful prediction."""
+        mock_crops_dir.return_value = tmp_path
+        
+        mock_yolo = Mock()
+        mock_prediction = {
+            'confidence': 0.8,
+            'area': 1000,
+            'mask': np.ones((100, 100), dtype=np.float32),
+            'bbox': [10, 10, 50, 50]
+        }
+        mock_yolo.get_best_prediction.return_value = mock_prediction
+        
+        cropper.yolo_inference = mock_yolo
+        cropper.enable_yolo = True
+        
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        result = cropper._get_yolo_prediction_with_fallback(image_path)
+        
+        assert result == mock_prediction
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_get_yolo_prediction_with_fallback_lower_threshold(self, mock_crops_dir, cropper, tmp_path):
+        """Test getting YOLO prediction with lower threshold fallback."""
+        mock_crops_dir.return_value = tmp_path
+        
+        mock_yolo = Mock()
+        mock_yolo.get_best_prediction.return_value = None
+        mock_prediction = {
+            'confidence': 0.15,
+            'area': 1000,
+            'mask': np.ones((100, 100), dtype=np.float32),
+            'bbox': [10, 10, 50, 50]
+        }
+        mock_yolo.predict.return_value = [mock_prediction]
+        
+        cropper.yolo_inference = mock_yolo
+        cropper.enable_yolo = True
+        
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        result = cropper._get_yolo_prediction_with_fallback(image_path)
+        
+        assert result is not None
+    
+    def test_validate_prediction_quality_high_confidence(self, cropper, tmp_path):
+        """Test validating prediction quality with high confidence."""
+        prediction = {
+            'confidence': 0.9,
+            'area': 1000,
+            'mask': np.ones((100, 100), dtype=np.float32)
+        }
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        cropper._validate_prediction_quality(prediction, image_path)
+        
+        # Should not raise exception
+    
+    def test_validate_prediction_quality_low_confidence(self, cropper, tmp_path):
+        """Test validating prediction quality with low confidence."""
+        prediction = {
+            'confidence': 0.3,
+            'area': 1000,
+            'mask': np.ones((100, 100), dtype=np.float32)
+        }
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        cropper._validate_prediction_quality(prediction, image_path)
+        
+        # Should log warning but not raise exception
+    
+    def test_validate_prediction_quality_small_area(self, cropper, tmp_path):
+        """Test validating prediction quality with small area."""
+        prediction = {
+            'confidence': 0.8,
+            'area': 50,
+            'mask': np.ones((10, 10), dtype=np.float32)
+        }
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        cropper._validate_prediction_quality(prediction, image_path)
+        
+        # Should log warning but not raise exception
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    @patch('ml.segmentation.cropper.get_masks_dir')
+    @patch('ml.segmentation.cropper.cv2.imread')
+    def test_process_image_with_yolo(self, mock_imread, mock_masks_dir, mock_crops_dir, tmp_path):
+        """Test processing image with YOLO enabled."""
+        mock_crops_dir.return_value = tmp_path
+        mock_masks_dir.return_value = tmp_path
+        mock_imread.return_value = np.zeros((100, 100, 3), dtype=np.uint8)
+        
+        mock_yolo = Mock()
+        mock_prediction = {
+            'confidence': 0.8,
+            'area': 1000,
+            'mask': np.ones((100, 100), dtype=np.float32),
+            'bbox': [10, 10, 50, 50]
+        }
+        mock_yolo.get_best_prediction.return_value = mock_prediction
+        
+        cropper = CacaoCropper(
+            yolo_inference=mock_yolo,
+            enable_yolo=True
+        )
+        
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        with patch.object(cropper, '_should_skip_processing', return_value=False):
+            with patch.object(cropper, '_prepare_mask', return_value=np.ones((100, 100), dtype=np.uint8) * 255):
+                with patch.object(cropper, '_create_and_save_crop'):
+                    result = cropper.process_image(image_path, 1)
+                    
+                    assert result['success']
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_process_image_yolo_no_detections(self, mock_crops_dir, tmp_path):
+        """Test processing image when YOLO finds no detections."""
+        mock_crops_dir.return_value = tmp_path
+        
+        mock_yolo = Mock()
+        mock_yolo.get_best_prediction.return_value = None
+        mock_yolo.predict.return_value = []
+        
+        cropper = CacaoCropper(
+            yolo_inference=mock_yolo,
+            enable_yolo=True
+        )
+        
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        with patch.object(cropper, '_should_skip_processing', return_value=False):
+            result = cropper.process_image(image_path, 1)
+            
+            assert result['success'] is False
+            assert 'error' in result
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_process_image_yolo_error_fallback(self, mock_crops_dir, tmp_path):
+        """Test processing image when YOLO errors and falls back to OpenCV."""
+        mock_crops_dir.return_value = tmp_path
+        
+        mock_yolo = Mock()
+        mock_yolo.get_best_prediction.side_effect = Exception("YOLO error")
+        
+        cropper = CacaoCropper(
+            yolo_inference=mock_yolo,
+            enable_yolo=True
+        )
+        
+        image_path = tmp_path / "image.jpg"
+        image_path.write_bytes(b"test")
+        
+        with patch.object(cropper, '_should_skip_processing', return_value=False):
+            with patch.object(cropper, '_process_with_opencv_fallback') as mock_fallback:
+                mock_fallback.return_value = {'success': True, 'skipped': False}
+                
+                result = cropper.process_image(image_path, 1)
+                
+                assert result['success']
+                mock_fallback.assert_called_once()
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_process_batch_with_limit(self, mock_crops_dir, cropper, tmp_path):
+        """Test processing batch with limit."""
+        mock_crops_dir.return_value = tmp_path
+        
+        image_records = [
+            {'id': 1, 'raw_image_path': tmp_path / "image1.jpg"},
+            {'id': 2, 'raw_image_path': tmp_path / "image2.jpg"},
+            {'id': 3, 'raw_image_path': tmp_path / "image3.jpg"}
+        ]
+        
+        for record in image_records:
+            record['raw_image_path'].write_bytes(b"test")
+        
+        with patch.object(cropper, 'process_image') as mock_process:
+            mock_process.return_value = {'success': True, 'skipped': False}
+            
+            result = cropper.process_batch(image_records, limit=2)
+            
+            assert result['total'] == 2
+            assert mock_process.call_count == 2
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_process_batch_with_progress_callback(self, mock_crops_dir, cropper, tmp_path):
+        """Test processing batch with progress callback."""
+        mock_crops_dir.return_value = tmp_path
+        
+        image_records = [
+            {'id': 1, 'raw_image_path': tmp_path / "image1.jpg"},
+            {'id': 2, 'raw_image_path': tmp_path / "image2.jpg"}
+        ]
+        
+        for record in image_records:
+            record['raw_image_path'].write_bytes(b"test")
+        
+        callback_calls = []
+        
+        def progress_callback(current, total, result):
+            callback_calls.append((current, total, result))
+        
+        with patch.object(cropper, 'process_image') as mock_process:
+            mock_process.return_value = {'success': True, 'skipped': False}
+            
+            cropper.process_batch(image_records, progress_callback=progress_callback)
+            
+            assert len(callback_calls) == 2
+    
+    @patch('ml.segmentation.cropper.get_crops_dir')
+    def test_process_batch_with_errors(self, mock_crops_dir, cropper, tmp_path):
+        """Test processing batch with errors."""
+        mock_crops_dir.return_value = tmp_path
+        
+        image_records = [
+            {'id': 1, 'raw_image_path': tmp_path / "image1.jpg"},
+            {'id': 2, 'raw_image_path': tmp_path / "image2.jpg"}
+        ]
+        
+        for record in image_records:
+            record['raw_image_path'].write_bytes(b"test")
+        
+        with patch.object(cropper, 'process_image') as mock_process:
+            mock_process.side_effect = Exception("Processing error")
+            
+            result = cropper.process_batch(image_records)
+            
+            assert result['failed'] == 2
+            assert len(result['errors']) == 2
 

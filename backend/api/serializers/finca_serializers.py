@@ -16,7 +16,13 @@ CacaoImage = models['CacaoImage']
 
 
 class FincaSerializer(serializers.ModelSerializer):
-    """Serializer for fincas with complete validations."""
+    """
+    Serializer for fincas with complete validations.
+    
+    NOTA DE OPTIMIZACIÓN:
+    Para evitar consultas N+1, las vistas deben usar select_related al obtener Finca:
+    Finca.objects.select_related('agricultor').prefetch_related('lotes')
+    """
     agricultor_name = serializers.CharField(source='agricultor.get_full_name', read_only=True)
     agricultor_email = serializers.CharField(source='agricultor.email', read_only=True)
     ubicacion_completa = serializers.ReadOnlyField()
@@ -344,13 +350,25 @@ class LoteSerializer(serializers.ModelSerializer):
         from core.utils import validate_longitude
         return validate_longitude(value)
     
+    def _handle_coordinate_validation_error(self, e, errors):
+        """Handle coordinate validation errors."""
+        error_str = str(e)
+        if 'coordenadas_lat' in error_str or 'coordenadas_lng' in error_str:
+            errors.setdefault('non_field_errors', []).append(error_str)
+        else:
+            if 'coordenadas_lat' not in errors:
+                errors['coordenadas_lat'] = []
+            if 'coordenadas_lng' not in errors:
+                errors['coordenadas_lng'] = []
+            errors.setdefault('non_field_errors', []).append(error_str)
+    
     def _handle_area_alias(self, attrs):
         """Handle area alias mapping to area_hectareas."""
         if 'area' in attrs and 'area_hectareas' not in attrs:
             attrs['area_hectareas'] = attrs.pop('area')
         elif 'area' in attrs and 'area_hectareas' in attrs:
             attrs.pop('area')
-
+    
     def validate(self, attrs):
         """General validations and handle area alias mapping."""
         from core.utils import validate_coordinates
@@ -378,7 +396,7 @@ class LoteListSerializer(serializers.ModelSerializer):
     """Optimized serializer for lote listings."""
     finca_nombre = serializers.CharField(source='finca.nombre', read_only=True)
     agricultor_nombre = serializers.CharField(source='finca.agricultor.get_full_name', read_only=True)
-    ubicacion_completa = serializers.ReadOnlyField()
+    ubicacion_completa = serializers.SerializerMethodField()
     total_analisis = serializers.ReadOnlyField()
     analisis_procesados = serializers.ReadOnlyField()
     edad_meses = serializers.ReadOnlyField()
@@ -388,8 +406,12 @@ class LoteListSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'identificador', 'variedad', 'finca_nombre', 'agricultor_nombre',
             'area_hectareas', 'estado', 'total_analisis', 'analisis_procesados',
-            'edad_meses', 'activo', 'fecha_plantacion', 'fecha_cosecha'
+            'edad_meses', 'activo', 'fecha_plantacion', 'fecha_cosecha', 'ubicacion_completa'
         )
+    
+    def get_ubicacion_completa(self, obj):
+        """Get complete location."""
+        return obj.ubicacion_completa if hasattr(obj, 'ubicacion_completa') else f"{obj.finca.ubicacion}, {obj.finca.municipio}, {obj.finca.departamento}"
 
 
 class LoteDetailSerializer(LoteSerializer):

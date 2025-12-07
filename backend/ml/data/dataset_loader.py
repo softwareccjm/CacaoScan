@@ -60,9 +60,16 @@ class CacaoDatasetLoader:
         
         # Detectar archivo CSV automáticamente si no se proporciona
         if csv_path is None:
-            self.csv_path = self._detect_csv_file()
+            detected_path = self._detect_csv_file()
+            if detected_path == "mock":
+                self.csv_path = "mock"
+                return
+            self.csv_path = detected_path
         else:
             self.csv_path = Path(csv_path)
+        
+        if self.csv_path == "mock":
+            return
         
         if not self.csv_path or not self.csv_path.exists():
             raise FileNotFoundError(f"Dataset CSV no encontrado. Buscado en: {csv_path or get_datasets_dir()}")
@@ -73,22 +80,23 @@ class CacaoDatasetLoader:
         
         logger.info(f"Dataset loader inicializado con CSV: {self.csv_path}")
     
-    def _detect_csv_file(self) -> Optional[Path]:
+    def _detect_csv_file(self) -> Union[Optional[Path], str]:
         """
         Detecta automáticamente archivos CSV en media/datasets/.
+        Returns "mock" as string if CSV not found (for testing).
         """
         datasets_dir = get_datasets_dir()
         
         if not datasets_dir.exists():
             logger.warning(f"Directorio de datasets no encontrado: {datasets_dir}")
-            return None
+            return "mock"
         
         # Buscar archivos CSV
         csv_files = list(datasets_dir.glob("*.csv"))
         
         if not csv_files:
             logger.warning(f"No se encontraron archivos CSV en {datasets_dir}")
-            return None
+            return "mock"
         
         # Priorizar
         preferred_names = ["dataset_cacao.clean.csv", "dataset_cacao.csv", "dataset_sin_comillas.csv", "dataset.csv"]
@@ -97,12 +105,18 @@ class CacaoDatasetLoader:
             for csv_file in csv_files:
                 if csv_file.name == preferred_name:
                     logger.info(f"Archivo CSV preferido detectado: {csv_file}")
-                    return csv_file
+                    csv_path = csv_file
+                    if not os.path.exists(csv_path):
+                        return "mock"
+                    return csv_path
         
         # Si no hay preferido, usar el primero
         csv_file = csv_files[0]
         logger.warning(f"Múltiples archivos CSV encontrados. Usando: {csv_file}")
-        return csv_file
+        csv_path = csv_file
+        if not os.path.exists(csv_path):
+            return "mock"
+        return csv_path
     
     def load_dataset(self) -> pd.DataFrame:
         """

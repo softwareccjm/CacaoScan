@@ -140,7 +140,13 @@ def validate_name_field(value: str, field_name: str) -> str:
 
 
 class PersonaSerializer(serializers.ModelSerializer):
-    """Serializer estándar para Persona con información completa de catálogos."""
+    """
+    Serializer estándar para Persona con información completa de catálogos.
+    
+    NOTA DE OPTIMIZACIÓN:
+    Para evitar consultas N+1, las vistas deben usar select_related al obtener Persona:
+    Persona.objects.select_related('tipo_documento__tema', 'genero__tema', 'departamento', 'municipio', 'user')
+    """
     # Campos anidados de catálogos
     tipo_documento_info = serializers.SerializerMethodField()
     genero_info = serializers.SerializerMethodField()
@@ -234,15 +240,8 @@ class PersonaRegistroSerializer(serializers.Serializer):
     municipio = serializers.IntegerField(required=False, allow_null=True)
     
     def validate_email(self, value):
-        """Validar que el email no exista y tenga formato válido."""
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Este correo ya está registrado.")
-        
-        # Validación adicional de formato de email
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_regex, value):
-            raise serializers.ValidationError("El formato del correo electrónico no es válido.")
-        
+            raise serializers.ValidationError("Email already registered")
         return value
     
     def validate_numero_documento(self, value):

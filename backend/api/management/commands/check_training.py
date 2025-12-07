@@ -33,7 +33,7 @@ class Command(BaseCommand):
             logger.error("TrainingJob model not available")
             raise CommandError('TrainingJob no está disponible. Verifica que la app training esté instalada.')
 
-        status_filter = options['status']
+        status_filter = options.get('status', 'all')
         job_id = options.get('job_id')
 
         logger.info(f"Checking training jobs status (filter: {status_filter})")

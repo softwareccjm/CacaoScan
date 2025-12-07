@@ -195,4 +195,208 @@ class TestCacaoScalers:
         
         from sklearn.preprocessing import RobustScaler
         assert isinstance(scaler, RobustScaler)
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    @patch('ml.regression.scalers.joblib')
+    def test_save(self, mock_joblib, mock_get_dir, sample_data_dict, tmp_path):
+        """Test saving scalers."""
+        mock_get_dir.return_value = tmp_path
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        scalers.fit(sample_data_dict)
+        
+        scalers.save()
+        
+        assert mock_joblib.dump.called
+        assert scalers.is_fitted
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    def test_save_without_fit(self, mock_get_dir, tmp_path):
+        """Test save without fitting."""
+        mock_get_dir.return_value = tmp_path
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        
+        with pytest.raises(ValueError, match="deben estar ajustados"):
+            scalers.save()
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    @patch('ml.regression.scalers.joblib')
+    def test_load(self, mock_joblib, mock_get_dir, tmp_path):
+        """Test loading scalers."""
+        from sklearn.preprocessing import StandardScaler
+        
+        mock_get_dir.return_value = tmp_path
+        
+        # Create mock scaler files
+        from ml.regression.models import TARGETS
+        for target in TARGETS:
+            file_path = tmp_path / f"{target}_scaler.pkl"
+            file_path.touch()
+        
+        mock_scaler = StandardScaler()
+        mock_scaler.fit(np.array([1.0, 2.0, 3.0]).reshape(-1, 1))
+        mock_joblib.load.return_value = mock_scaler
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        scalers.load()
+        
+        assert scalers.is_fitted
+        assert len(scalers.scalers) == len(TARGETS)
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    def test_load_missing_file(self, mock_get_dir, tmp_path):
+        """Test load with missing file."""
+        mock_get_dir.return_value = tmp_path
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        
+        with pytest.raises(FileNotFoundError):
+            scalers.load()
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    def test_get_scaler_stats(self, mock_get_dir, sample_data_dict, tmp_path):
+        """Test getting scaler statistics."""
+        mock_get_dir.return_value = tmp_path
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        scalers.fit(sample_data_dict)
+        
+        stats = scalers.get_scaler_stats()
+        
+        assert isinstance(stats, dict)
+        assert all(target in stats for target in ['alto', 'ancho', 'grosor', 'peso'])
+        assert all('mean' in stats[target] for target in stats)
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    def test_get_scaler_stats_not_fitted(self, mock_get_dir, tmp_path):
+        """Test getting scaler stats without fitting."""
+        mock_get_dir.return_value = tmp_path
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        
+        with pytest.raises(ValueError, match="deben estar ajustados"):
+            scalers.get_scaler_stats()
+    
+    def test_inverse_transform_log_targets(self, sample_data_dict):
+        """Test inverse transform for log targets."""
+        scalers = CacaoScalers(scaler_type='standard')
+        scalers.fit(sample_data_dict)
+        
+        transformed = scalers.transform(sample_data_dict)
+        denormalized = scalers.inverse_transform(transformed)
+        
+        # Log targets should be properly transformed back
+        assert isinstance(denormalized, dict)
+        assert all(target in denormalized for target in ['alto', 'ancho', 'grosor', 'peso'])
+
+
+class TestHelperFunctions:
+    """Tests for helper functions."""
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    @patch('ml.regression.scalers.joblib')
+    def test_load_scalers(self, mock_joblib, mock_get_dir, tmp_path):
+        """Test load_scalers helper function."""
+        from sklearn.preprocessing import StandardScaler
+        
+        mock_get_dir.return_value = tmp_path
+        
+        from ml.regression.models import TARGETS
+        for target in TARGETS:
+            file_path = tmp_path / f"{target}_scaler.pkl"
+            file_path.touch()
+        
+        mock_scaler = StandardScaler()
+        mock_scaler.fit(np.array([1.0, 2.0, 3.0]).reshape(-1, 1))
+        mock_joblib.load.return_value = mock_scaler
+        
+        from ml.regression.scalers import load_scalers
+        scalers = load_scalers()
+        
+        assert isinstance(scalers, CacaoScalers)
+        assert scalers.is_fitted
+    
+    @patch('ml.regression.scalers.get_regressors_artifacts_dir')
+    @patch('ml.regression.scalers.joblib')
+    def test_save_scalers(self, mock_joblib, mock_get_dir, sample_data_dict, tmp_path):
+        """Test save_scalers helper function."""
+        mock_get_dir.return_value = tmp_path
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        scalers.fit(sample_data_dict)
+        
+        from ml.regression.scalers import save_scalers
+        save_scalers(scalers)
+        
+        assert mock_joblib.dump.called
+    
+    def test_create_scalers_from_data_dict(self, sample_data_dict):
+        """Test create_scalers_from_data with dictionary."""
+        from ml.regression.scalers import create_scalers_from_data
+        
+        scalers = create_scalers_from_data(sample_data_dict, scaler_type='standard')
+        
+        assert isinstance(scalers, CacaoScalers)
+        assert scalers.is_fitted
+    
+    def test_create_scalers_from_data_dataframe(self):
+        """Test create_scalers_from_data with DataFrame."""
+        import pandas as pd
+        from ml.regression.scalers import create_scalers_from_data
+        
+        df = pd.DataFrame({
+            'alto': [10.0, 20.0, 30.0],
+            'ancho': [15.0, 25.0, 35.0],
+            'grosor': [1.0, 2.0, 3.0],
+            'peso': [100.0, 200.0, 300.0]
+        })
+        
+        scalers = create_scalers_from_data(df, scaler_type='standard')
+        
+        assert isinstance(scalers, CacaoScalers)
+        assert scalers.is_fitted
+    
+    def test_validate_scalers_valid(self, sample_data_dict):
+        """Test validate_scalers with valid scalers."""
+        from ml.regression.scalers import validate_scalers
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        scalers.fit(sample_data_dict)
+        
+        result = validate_scalers(scalers)
+        
+        assert result is True
+    
+    def test_validate_scalers_not_fitted(self):
+        """Test validate_scalers with unfitted scalers."""
+        from ml.regression.scalers import validate_scalers
+        
+        scalers = CacaoScalers(scaler_type='standard')
+        
+        result = validate_scalers(scalers)
+        
+        assert result is False
+    
+    def test_convert_dict_1d_to_2d(self):
+        """Test converting 1D arrays to 2D."""
+        scalers = CacaoScalers(scaler_type='standard')
+        data = {
+            'alto': np.array([10.0, 20.0, 30.0]),
+            'ancho': np.array([15.0, 25.0, 35.0])
+        }
+        
+        result = scalers._convert_dict_to_2d_arrays(data)
+        
+        assert all(arr.ndim == 2 for arr in result.values())
+    
+    def test_convert_dict_invalid_dimension(self):
+        """Test converting array with invalid dimension."""
+        scalers = CacaoScalers(scaler_type='standard')
+        data = {
+            'alto': np.array([[[10.0]]]),  # 3D array
+        }
+        
+        with pytest.raises(ValueError, match="dimensión inválida"):
+            scalers._convert_dict_to_2d_arrays(data)
 

@@ -59,14 +59,38 @@ class ExcelAgricultoresGenerator(ExcelBaseGenerator):
     def _get_farmer_name(self, farmer):
         """Get farmer name safely."""
         try:
-            name = ''
-            if farmer.first_name or farmer.last_name:
-                name = f"{farmer.first_name or ''} {farmer.last_name or ''}".strip()
-            if not name:
-                name = str(farmer.username) if farmer.username else f'Usuario {farmer.id}'
-            return name
+            # Get nombres and apellidos (first_name and last_name)
+            nombres = getattr(farmer, 'first_name', None) or ''
+            apellidos = getattr(farmer, 'last_name', None) or ''
+            
+            # If both nombres and apellidos are empty, return username or Usuario {id}
+            if not nombres and not apellidos:
+                username = getattr(farmer, 'username', None) or ''
+                if username:
+                    return username
+                else:
+                    farmer_id = getattr(farmer, 'id', None) or 0
+                    return f'Usuario {farmer_id}'
+            
+            # Build name from nombres and apellidos
+            name = f"{nombres} {apellidos}".strip()
+            if name:
+                return name
+            else:
+                username = getattr(farmer, 'username', None) or ''
+                if username:
+                    return username
+                else:
+                    farmer_id = getattr(farmer, 'id', None) or 0
+                    return f'Usuario {farmer_id}'
         except Exception:
-            return f'Usuario {farmer.id}'
+            # On exception, return username or Usuario {id} as fallback
+            username = getattr(farmer, 'username', None) or ''
+            if username:
+                return username
+            else:
+                farmer_id = getattr(farmer, 'id', None) or 0
+                return f'Usuario {farmer_id}'
     
     def _get_farmer_phone(self, farmer):
         """Get farmer phone safely."""

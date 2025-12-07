@@ -30,25 +30,64 @@ def mock_models():
     }
 
 
+@pytest.fixture
+def test_users_with_groups(db):
+    """Create test users with groups for stats testing."""
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    
+    user1 = User.objects.create_user(
+        username=f'user1_{unique_id}',
+        email=f'user1_{unique_id}@test.com',
+        password='pass'
+    )
+    user2 = User.objects.create_user(
+        username=f'user2_{unique_id}',
+        email=f'user2_{unique_id}@test.com',
+        password='pass'
+    )
+    inactive_user = User.objects.create_user(
+        username=f'inactive_{unique_id}',
+        email=f'inactive_{unique_id}@test.com',
+        password='pass',
+        is_active=False
+    )
+    staff = User.objects.create_user(
+        username=f'staff_{unique_id}',
+        email=f'staff_{unique_id}@test.com',
+        password='pass'
+    )
+    staff.is_staff = True
+    staff.save()
+    
+    admin_user = User.objects.create_superuser(
+        username=f'admin_{unique_id}',
+        email=f'admin_{unique_id}@test.com',
+        password='pass'
+    )
+    
+    # Create farmer group and assign to user1
+    farmer_group, _ = Group.objects.get_or_create(name='farmer')
+    user1.groups.add(farmer_group)
+    
+    return {
+        'user1': user1,
+        'user2': user2,
+        'inactive_user': inactive_user,
+        'staff': staff,
+        'admin_user': admin_user,
+        'farmer_group': farmer_group,
+        'unique_id': unique_id
+    }
+
+
 @pytest.mark.django_db
 class TestStatsService:
     """Tests for StatsService."""
     
-    def test_get_user_stats(self, stats_service):
+    def test_get_user_stats(self, stats_service, test_users_with_groups):
         """Test getting user statistics."""
-        # Create test users
-        User.objects.create_user(username='user1', email='user1@test.com', password='pass')
-        User.objects.create_user(username='user2', email='user2@test.com', password='pass')
-        User.objects.create_user(username='inactive', email='inactive@test.com', password='pass', is_active=False)
-        staff = User.objects.create_user(username='staff', email='staff@test.com', password='pass')
-        staff.is_staff = True
-        staff.save()
-        User.objects.create_superuser(username='admin', email='admin@test.com', password='pass')
-        
-        # Create farmer group
-        farmer_group, _ = Group.objects.get_or_create(name='farmer')
-        user1 = User.objects.get(username='user1')
-        user1.groups.add(farmer_group)
+        # Users are already created in the fixture
         
         stats = stats_service.get_user_stats()
         

@@ -20,11 +20,13 @@ class TestBatchAnalysisView:
         return APIClient()
     
     @pytest.fixture
-    def admin_user(self):
-        """Create admin user."""
+    def admin_user(self, db):
+        """Create admin user with unique username and email."""
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         return User.objects.create_user(
-            username='admin',
-            email='admin@example.com',
+            username=f'admin_{unique_id}',
+            email=f'admin_{unique_id}@example.com',
             password='testpass123',
             is_staff=True,
             is_superuser=True

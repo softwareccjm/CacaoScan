@@ -68,7 +68,9 @@ def test_handle_api_errors_success(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     request = request_factory.get('/api/test/')
     force_authenticate(request, user=user)
     response = view(request)
@@ -81,7 +83,9 @@ def test_handle_api_errors_custom_message(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     request = request_factory.post('/api/test/')
     force_authenticate(request, user=user)
     response = view(request)
@@ -94,7 +98,9 @@ def test_handle_api_errors_log_message(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     with patch('api.utils.decorators.logger') as mock_logger:
         request = request_factory.put('/api/test/')
         force_authenticate(request, user=user)
@@ -108,7 +114,9 @@ def test_handle_api_errors_exception_types_caught(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     request = request_factory.patch('/api/test/')
     force_authenticate(request, user=user)
     response = view(request)
@@ -120,7 +128,9 @@ def test_handle_api_errors_exception_types_not_caught(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     request = request_factory.delete('/api/test/')
     force_authenticate(request, user=user)
     # The decorator should NOT catch TypeError when exception_types=(ValueError,)
@@ -143,7 +153,9 @@ def test_handle_api_errors_api_exception(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     class TestViewWithAPIException(APIView):
         @handle_api_errors()
         def get(self, request):
@@ -161,7 +173,9 @@ def test_handle_api_errors_exc_info_true(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     with patch('api.utils.decorators.logger') as mock_logger:
         request = request_factory.post('/api/test/')
         force_authenticate(request, user=user)
@@ -175,7 +189,9 @@ def test_handle_api_errors_exc_info_false(view, request_factory):
     from rest_framework.test import force_authenticate
     from django.contrib.auth.models import User
     
-    user = User.objects.create_user(username='testuser', password='testpass')
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    user = User.objects.create_user(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com', password='testpass')
     with patch('api.utils.decorators.logger') as mock_logger:
         request = request_factory.put('/api/test/')
         force_authenticate(request, user=user)
