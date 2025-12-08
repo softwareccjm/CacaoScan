@@ -184,13 +184,11 @@ const hasActivityData = computed(() => {
   try {
     // Si no hay chartData, no hay datos
     if (!props.activityChartData) {
-      console.log('❌ [DashboardCharts] No activityChartData')
       return false
     }
     
     // Si no hay datasets o está vacío, no hay datos
     if (!props.activityChartData.datasets || !Array.isArray(props.activityChartData.datasets) || props.activityChartData.datasets.length === 0) {
-      console.log('❌ [DashboardCharts] No datasets or empty array')
       return false
     }
     
@@ -214,10 +212,8 @@ const hasActivityData = computed(() => {
       if (hasNonZeroData) break
     }
     
-    console.log('📊 [DashboardCharts] hasActivityData:', hasNonZeroData, 'data:', props.activityChartData)
     return hasNonZeroData
   } catch (error) {
-    console.error('❌ [DashboardCharts] Error checking hasActivityData:', error)
     return false
   }
 })

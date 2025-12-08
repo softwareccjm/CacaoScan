@@ -513,8 +513,7 @@ const loadFinca = async () => {
     const data = await getFincaById(fincaId.value)
     finca.value = data
   } catch (err) {
-    console.error('Error cargando finca:', err)
-  }
+    }
 }
 
 const loadLotes = async () => {
@@ -548,7 +547,6 @@ const loadLotes = async () => {
   } catch (err) {
     const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Error al cargar los lotes'
     error.value = errorMessage
-    console.error('Error cargando lotes:', err)
     
     if (err.response?.status === 403) {
       error.value = 'No tienes permisos para ver los lotes de esta finca'

@@ -327,7 +327,6 @@ const loadFinca = async () => {
     const data = await getFincaById(fincaId.value)
     finca.value = data
   } catch (err) {
-    console.error('Error cargando finca:', err)
     showError('No se pudo cargar la información de la finca')
   }
 }
@@ -393,13 +392,10 @@ const handleSubmit = async () => {
       activa: formData.activa
     }
 
-    console.log('📤 Enviando datos del lote:', loteData)
     await createLote(loteData)
     showSuccess('El lote ha sido creado exitosamente')
     router.push(`/fincas/${fincaId.value}/lotes`)
   } catch (error) {
-    console.error('Error creando lote:', error)
-    console.error('Error response data:', error.response?.data)
     
     // Limpiar errores previos
     errors.value = {}

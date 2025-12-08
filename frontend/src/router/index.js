@@ -211,7 +211,6 @@ const handleAuthRequired = async (to, authStore) => {
     try {
       await authStore.getCurrentUser()
     } catch (error) {
-      console.error('Error obteniendo usuario en guard:', error)
       authStore.clearAll()
       return {
         name: 'Login',
@@ -304,12 +303,6 @@ router.beforeEach(async (to, from) => {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorStack = error instanceof Error ? error.stack : undefined
     
-    console.error('Navigation guard error:', {
-      message: errorMessage,
-      stack: errorStack,
-      route: to.path,
-      error
-    })
     
     // Redirect to access denied page with error context
     return { 

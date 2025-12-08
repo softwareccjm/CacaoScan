@@ -143,7 +143,6 @@ export function useLotes(options = {}) {
       finca.value = await getFincaById(fincaId)
       return finca.value
     } catch (err) {
-      console.error('Error loading finca for lote:', err)
       throw err
     }
   }
@@ -268,7 +267,6 @@ export function useLotes(options = {}) {
     try {
       return await lotesApi.getLoteStats(loteId)
     } catch (err) {
-      console.error('Error loading lote stats:', err)
       throw err
     }
   }

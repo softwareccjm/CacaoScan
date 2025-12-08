@@ -197,7 +197,6 @@ const startCamera = async () => {
       isCameraReady.value = true
     }
   } catch (err) {
-    console.error('Error accessing camera:', err)
     error.value = 'No se pudo acceder a la cámara. Asegúrate de otorgar los permisos necesarios.'
     hasError.value = true
   } finally {

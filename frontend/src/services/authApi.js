@@ -112,7 +112,6 @@ const authApi = {
       return await apiPost('/auth/logout/')
     } catch (error) {
       // Don't throw on logout errors - always allow logout
-      console.error('Logout error:', error)
       return { success: true }
     }
   },

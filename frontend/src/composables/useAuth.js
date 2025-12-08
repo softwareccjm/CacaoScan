@@ -100,7 +100,6 @@ export function useAuth(options = {}) {
       
       await authStore.logout(redirectToLogin)
     } catch (err) {
-      console.error('Error en logout:', err)
       // Still clear local state even if API call fails
       authStore.clearAll()
       if (redirectToLogin) {
@@ -356,7 +355,6 @@ export function useAuth(options = {}) {
     try {
       return await authStore.refreshAccessToken()
     } catch (err) {
-      console.error('Error refreshing token:', err)
       return false
     }
   }

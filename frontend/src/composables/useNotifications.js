@@ -27,8 +27,7 @@ export function useNotifications() {
         duration: duration
       })
     } else {
-      console.log('✅ Success:', message)
-    }
+      }
   }
 
   /**
@@ -46,8 +45,7 @@ export function useNotifications() {
         duration: duration
       })
     } else {
-      console.error('❌ Error:', message)
-    }
+      }
   }
 
   /**
@@ -65,8 +63,7 @@ export function useNotifications() {
         duration: duration
       })
     } else {
-      console.warn('⚠️ Warning:', message)
-    }
+      }
   }
 
   /**
@@ -84,8 +81,7 @@ export function useNotifications() {
         duration: duration
       })
     } else {
-      console.info('ℹ️ Info:', message)
-    }
+      }
   }
 
   /**

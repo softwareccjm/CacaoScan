@@ -550,8 +550,7 @@ const submitAnalysis = async () => {
       resetForm()
     }
   } catch (error) {
-    console.error('Error submitting analysis:', error)
-  } finally {
+    } finally {
     isSubmitting.value = false
   }
 }

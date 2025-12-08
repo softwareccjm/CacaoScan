@@ -155,8 +155,7 @@ let websocket = null
 try {
   websocket = useWebSocket()
 } catch (e) {
-  console.warn('⚠️ WebSocket no disponible, usando solo polling:', e.message)
-}
+  }
 
 // Reactive data
 const loading = ref(false)
@@ -214,8 +213,7 @@ const kpiCards = computed(() => {
   
   // Debug logging
   if (usersTotal === 0 && stats.value?.users) {
-    console.warn('⚠️ [Dashboard] Users total is 0 but users object exists:', stats.value.users)
-  }
+    }
   
   // Calculate average quality from predictions
   let avgQuality = 0
@@ -227,17 +225,6 @@ const kpiCards = computed(() => {
   }
   
   const qualityChange = 0
-  
-  console.log('📊 [Dashboard] KPI Cards computed:', {
-    usersTotal,
-    usersThisWeek,
-    fincasTotal,
-    fincasThisWeek,
-    imagesTotal,
-    imagesThisWeek,
-    avgQuality,
-    stats: stats.value
-  })
   
   return [
     {
@@ -333,8 +320,7 @@ const qualityChartOptions = computed(() => ({
 
 // Watch stats for debugging
 watch(() => stats.value, (newStats) => {
-  console.log('🔄 Stats cambiaron:', newStats)
-}, { deep: true })
+  }, { deep: true })
 
 // Properties
 const navbarTitle = ref('Dashboard de Administración')
@@ -382,7 +368,6 @@ const loadDashboardData = async () => {
       updateActivityChart()
     ])
   } catch (error) {
-    console.error('Error loading dashboard data:', error)
     Swal.fire({
       icon: 'error',
       title: 'Error',
@@ -399,11 +384,6 @@ const loadStats = async () => {
     const response = await adminStore.getGeneralStats()
     const data = response.data || {}
     
-    console.log('📊 [Dashboard] Raw response data:', data)
-    console.log('📊 [Dashboard] Users data:', data.users)
-    console.log('📊 [Dashboard] Fincas data:', data.fincas)
-    console.log('📊 [Dashboard] Images data:', data.images)
-    
     // Merge data with defaults to ensure all expected properties exist
     const statsData = {
       users: data.users || { total: 0, this_week: 0, this_month: 0 },
@@ -416,22 +396,13 @@ const loadStats = async () => {
       ...data  // Spread data last to allow custom properties like avg_quality to override
     }
     
-    console.log('📊 [Dashboard] Processed statsData:', statsData)
-    console.log('📊 [Dashboard] Users total:', statsData.users?.total)
-    console.log('📊 [Dashboard] Fincas total:', statsData.fincas?.total)
-    console.log('📊 [Dashboard] Images total:', statsData.images?.total)
-    
     // Reassign to ensure reactivity - completely replace to trigger computed updates
     stats.value = statsData
     lastUpdateTime.value = new Date()
     
-    console.log('📊 [Dashboard] stats.value after assignment:', stats.value)
-    
     updateActivityChartFromStats()
     updateQualityChartFromStats()
   } catch (error) {
-    console.error('❌ [Dashboard] Error loading stats:', error)
-    console.error('❌ [Dashboard] Error details:', error.response?.data || error.message)
     // Set default values but still throw to let loadDashboardData handle the error
     stats.value = {
       users: { total: 0 },
@@ -471,8 +442,6 @@ const loadRecentUsers = async () => {
     const response = await adminStore.getRecentUsers(5)
     const data = response.data
     
-    console.log('👥 [Dashboard] Users response:', data)
-    
     let usersArray = []
     if (Array.isArray(data)) {
       usersArray = data
@@ -482,15 +451,10 @@ const loadRecentUsers = async () => {
       usersArray = data.data
     }
     
-    console.log('👥 [Dashboard] Users array:', usersArray)
-    
     recentUsers.value = usersArray.map(processUserData)
-    
-    console.log('👥 [Dashboard] Processed users:', recentUsers.value)
     
     lastUpdateTime.value = new Date()
   } catch (error) {
-    console.error('Error loading recent users:', error)
     recentUsers.value = []
   } finally {
     isRefreshing.value = false
@@ -534,34 +498,21 @@ const processActivityData = (activity) => {
 const loadRecentActivities = async () => {
   try {
     isRefreshing.value = true
-    console.log('🔄 [Dashboard] Cargando actividades recientes...')
     const response = await adminStore.getRecentActivities(20)
-    console.log('📋 [Dashboard] Response completa de actividades:', response)
     const data = response.data || {}
-    console.log('📋 [Dashboard] Data de actividades:', data)
-    
     let activitiesArray = []
     if (Array.isArray(data)) {
       activitiesArray = data
-      console.log('✅ [Dashboard] Data es un array directo, length:', activitiesArray.length)
-    } else if (data?.results && Array.isArray(data.results)) {
+      } else if (data?.results && Array.isArray(data.results)) {
       activitiesArray = data.results
-      console.log('✅ [Dashboard] Data tiene results, length:', activitiesArray.length)
-    } else if (data?.data && Array.isArray(data.data)) {
+      } else if (data?.data && Array.isArray(data.data)) {
       activitiesArray = data.data
-      console.log('✅ [Dashboard] Data tiene data, length:', activitiesArray.length)
-    } else {
-      console.warn('⚠️ [Dashboard] Formato de data no reconocido:', data)
-    }
+      } else {
+      }
     
-    console.log('📋 [Dashboard] Activities array antes de procesar:', activitiesArray)
     recentActivities.value = activitiesArray.map(processActivityData)
-    console.log('✅ [Dashboard] Actividades procesadas:', recentActivities.value.length)
-    console.log('📋 [Dashboard] Actividades procesadas:', recentActivities.value)
     lastUpdateTime.value = new Date()
   } catch (error) {
-    console.error('❌ [Dashboard] Error loading recent activities:', error)
-    console.error('❌ [Dashboard] Error details:', error.response?.data || error.message)
     recentActivities.value = []
   } finally {
     isRefreshing.value = false
@@ -605,7 +556,6 @@ const loadAlerts = async () => {
     alerts.value = notificationsArray.map(processAlertData)
     lastUpdateTime.value = new Date()
   } catch (error) {
-    console.error('Error loading alerts:', error)
     alerts.value = []
   } finally {
     isRefreshing.value = false
@@ -628,7 +578,6 @@ const loadReportStats = async () => {
     
     lastUpdateTime.value = new Date()
   } catch (error) {
-    console.error('Error loading report stats:', error)
     reportStats.value = {
       total_reportes: 0,
       reportes_completados: 0,
@@ -689,19 +638,12 @@ const loadQualityData = async () => {
     
     updateQualityChartFromStats()
   } catch (error) {
-    console.error('Error loading quality data:', error)
     updateQualityChartFromStats()
   }
 }
 
 const updateActivityChartFromStats = () => {
-  console.log('🔄 [Dashboard] updateActivityChartFromStats llamado')
-  console.log('📊 [Dashboard] stats.value:', stats.value)
-  console.log('📊 [Dashboard] stats.value?.activity_by_day:', stats.value?.activity_by_day)
-  
   const activity = stats.value?.activity_by_day || { labels: [], data: [] }
-  console.log('📊 [Dashboard] activity object:', activity)
-  
   // Ensure we always have valid data for the chart
   const labels = activity.labels && activity.labels.length > 0 
     ? activity.labels 
@@ -710,9 +652,6 @@ const updateActivityChartFromStats = () => {
   const data = activity.data && activity.data.length > 0 
     ? activity.data 
     : [0, 0, 0, 0, 0, 0, 0]
-  
-  console.log('📊 [Dashboard] Chart labels:', labels)
-  console.log('📊 [Dashboard] Chart data:', data)
   
   activityData.value = {
     labels,
@@ -731,9 +670,7 @@ const updateActivityChartFromStats = () => {
     }]
   }
   
-  console.log('✅ [Dashboard] activityData.value actualizado:', activityData.value)
-  console.log('✅ [Dashboard] activityData.value.datasets:', activityData.value.datasets)
-}
+  }
 
 const updateActivityChart = async () => {
   try {
@@ -780,7 +717,6 @@ const updateActivityChart = async () => {
     
     updateActivityChartFromStats()
   } catch (error) {
-    console.debug('Error updating activity chart:', error)
     updateActivityChartFromStats()
   }
 }
@@ -827,7 +763,6 @@ const handleLogout = async () => {
   try {
     await authStore.logout()
   } catch (error) {
-    console.error('Error during logout:', error)
     Swal.fire({
       icon: 'error',
       title: 'Error',
@@ -850,12 +785,10 @@ const handleQualityRefresh = () => {
 }
 
 const handleActivityClick = (event) => {
-  console.log('Activity chart clicked:', event)
-}
+  }
 
 const handleQualityClick = (event) => {
-  console.log('Quality chart clicked:', event)
-}
+  }
 
 const handleViewUser = (userId) => {
   router.push(`/admin/users/${userId}`)
@@ -877,7 +810,6 @@ const handleDismissAlert = (alertId) => {
     cancelButtonText: 'Cancelar'
   }).then((result) => {
     if (result.isConfirmed) {
-      console.log('Alert dismissed:', alertId)
       Swal.fire('Descartada', 'La alerta ha sido descartada', 'success')
     }
   })
@@ -928,8 +860,7 @@ const startPollingUpdates = () => {
       loadAlerts(),
       loadRecentActivities()
     ]).catch(err => {
-      console.error('Error en quick refresh:', err)
-    })
+      })
   }, QUICK_REFRESH_INTERVAL)
 
   refreshInterval = setInterval(() => {
@@ -937,8 +868,7 @@ const startPollingUpdates = () => {
       loadRecentUsers(),
       loadReportStats()
     ]).catch(err => {
-      console.error('Error en refresh normal:', err)
-    })
+      })
   }, REFRESH_INTERVAL)
 
   statsInterval = setInterval(() => {
@@ -947,8 +877,7 @@ const startPollingUpdates = () => {
       loadQualityData(),
       updateActivityChart()
     ]).catch(err => {
-      console.error('Error en refresh de stats:', err)
-    })
+      })
   }, STATS_INTERVAL)
 }
 
@@ -986,20 +915,17 @@ const stopAutoRefresh = () => {
 // Función para inicializar el dashboard
 const initializeDashboard = async () => {
   if (!authStore.isAdmin) {
-    console.warn('🚫 Usuario sin permisos de admin')
     router.push('/acceso-denegado')
     return
   }
 
-  console.log('🔄 [Dashboard] Inicializando dashboard...')
   await loadDashboardData()
   
   if (websocket && authStore.user?.id) {
     try {
       await websocket.connect()
     } catch (error) {
-      console.warn('⚠️ No se pudo conectar WebSocket, usando polling:', error)
-    }
+      }
   }
   
   setupRealtimeUpdates()
@@ -1012,7 +938,6 @@ onMounted(async () => {
 
 // Si el componente está dentro de keep-alive, se ejecuta cuando se activa
 onActivated(async () => {
-  console.log('🔄 [Dashboard] Componente activado, recargando datos...')
   // Recargar datos cuando se vuelve a la vista
   await initializeDashboard()
 })
@@ -1021,7 +946,6 @@ onActivated(async () => {
 watch(() => route.path, async (newPath, oldPath) => {
   // Si volvemos al dashboard desde otra ruta, recargar datos
   if (newPath === '/admin/dashboard' && oldPath !== newPath) {
-    console.log('🔄 [Dashboard] Ruta cambiada a dashboard, recargando datos...')
     await initializeDashboard()
   }
 })

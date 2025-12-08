@@ -797,8 +797,7 @@ const handleRegistrationSuccess = async (result) => {
     try {
       await authApi.sendOtp(email)
     } catch (error) {
-      console.error('Error enviando código OTP:', error)
-    }
+      }
     
     router.push({ 
       name: 'VerifyEmailOTP', 
@@ -848,7 +847,6 @@ const mapFieldErrors = (responseData) => {
 }
 
 const handleRegistrationError = (error) => {
-  console.error('Error en registro:', error)
   clearErrors()
   
   if (!error.response?.data) {
