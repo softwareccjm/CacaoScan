@@ -207,6 +207,25 @@
                   <p v-if="errors.descripcion" class="text-red-500 text-xs mt-1">{{ errors.descripcion }}</p>
                 </div>
 
+                <!-- Errores generales -->
+                <div v-if="errors._general && errors._general.length > 0" class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-red-800">Errores de validación</h3>
+                      <div class="mt-2 text-sm text-red-700">
+                        <ul class="list-disc list-inside space-y-1">
+                          <li v-for="(error, index) in errors._general" :key="index">{{ error }}</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Estado activo -->
                 <div>
                   <label class="flex items-center">
@@ -277,7 +296,10 @@ const { showSuccess, showError } = useNotifications()
 
 // Reactive data
 const finca = ref(null)
-const fincaId = computed(() => route.params.id)
+const fincaId = computed(() => {
+  const id = route.params.id
+  return id ? parseInt(id, 10) : null
+})
 const localLoading = ref(false)
 const errors = ref({})
 
@@ -343,15 +365,22 @@ const validateForm = () => {
 }
 
 const handleSubmit = async () => {
+  // Validar que tenemos fincaId
+  if (!fincaId.value || isNaN(fincaId.value)) {
+    showError('No se pudo identificar la finca. Por favor, regresa e intenta nuevamente.')
+    return
+  }
+
   if (!validateForm()) {
     return
   }
 
   localLoading.value = true
+  errors.value = {} // Limpiar errores previos
 
   try {
     const loteData = {
-      finca: fincaId.value,
+      finca: Number(fincaId.value),
       identificador: formData.identificador.trim(),
       variedad: formData.variedad,
       fecha_plantacion: formData.fecha_plantacion,
@@ -364,39 +393,112 @@ const handleSubmit = async () => {
       activa: formData.activa
     }
 
+    console.log('📤 Enviando datos del lote:', loteData)
     await createLote(loteData)
     showSuccess('El lote ha sido creado exitosamente')
     router.push(`/fincas/${fincaId.value}/lotes`)
   } catch (error) {
     console.error('Error creando lote:', error)
+    console.error('Error response data:', error.response?.data)
     
-    if (error.response?.data) {
-      const serverErrors = error.response.data
-      
-      // Mapear errores del servidor
-      if (serverErrors.identificador) {
-        errors.value.identificador = Array.isArray(serverErrors.identificador) 
-          ? serverErrors.identificador[0] 
-          : serverErrors.identificador
-      }
-      if (serverErrors.variedad) {
-        errors.value.variedad = Array.isArray(serverErrors.variedad) 
-          ? serverErrors.variedad[0] 
-          : serverErrors.variedad
-      }
-      if (serverErrors.area_hectareas) {
-        errors.value.area_hectareas = Array.isArray(serverErrors.area_hectareas) 
-          ? serverErrors.area_hectareas[0] 
-          : serverErrors.area_hectareas
-      }
-      if (serverErrors.fecha_plantacion) {
-        errors.value.fecha_plantacion = Array.isArray(serverErrors.fecha_plantacion) 
-          ? serverErrors.fecha_plantacion[0] 
-          : serverErrors.fecha_plantacion
-      }
-      
-      const errorMessage = serverErrors.error || serverErrors.detail || 'No se pudo crear el lote'
+    // Limpiar errores previos
+    errors.value = {}
+    
+    // Manejar errores de validación del composable (errores lanzados con throw new Error)
+    if (error.message && !error.response) {
+      const errorMessage = error.message
       showError(errorMessage)
+      
+      // Mapear errores a campos específicos si es posible
+      if (errorMessage.includes('finca') || errorMessage.includes('Finca')) {
+        errors.value.finca = 'La finca es requerida'
+      }
+      if (errorMessage.includes('identificador') || errorMessage.includes('Identificador')) {
+        errors.value.identificador = 'El identificador es requerido'
+      }
+      if (errorMessage.includes('variedad') || errorMessage.includes('Variedad')) {
+        errors.value.variedad = 'La variedad es requerida'
+      }
+      if (errorMessage.includes('plantación') || errorMessage.includes('Plantación')) {
+        errors.value.fecha_plantacion = 'La fecha de plantación es requerida'
+      }
+      if (errorMessage.includes('área') || errorMessage.includes('Área') || errorMessage.includes('hectáreas')) {
+        errors.value.area_hectareas = 'El área es requerida'
+      }
+      return
+    }
+    
+    // Manejar errores del servidor (400, 403, etc.)
+    if (error.response?.data) {
+      const responseData = error.response.data
+      
+      // El backend puede devolver errores en 'details' o directamente en el objeto
+      const serverErrors = responseData.details || responseData
+      
+      // Mapear errores del servidor a campos específicos
+      const errorFields = [
+        'finca', 'identificador', 'variedad', 'area_hectareas', 
+        'fecha_plantacion', 'fecha_cosecha', 'estado', 
+        'coordenadas_lat', 'coordenadas_lng', 'descripcion'
+      ]
+      
+      errorFields.forEach(field => {
+        if (serverErrors[field]) {
+          errors.value[field] = Array.isArray(serverErrors[field]) 
+            ? serverErrors[field][0] 
+            : String(serverErrors[field])
+        }
+      })
+      
+      // Manejar errores no asociados a campos específicos
+      if (serverErrors.non_field_errors) {
+        const nonFieldErrors = Array.isArray(serverErrors.non_field_errors) 
+          ? serverErrors.non_field_errors 
+          : [serverErrors.non_field_errors]
+        errors.value._general = nonFieldErrors
+      }
+      
+      // Construir mensaje de error para mostrar en la notificación
+      let errorMessage = 'No se pudo crear el lote'
+      const errorMessages = []
+      
+      // Priorizar mensajes específicos
+      if (responseData.error && typeof responseData.error === 'string') {
+        errorMessages.push(responseData.error)
+      } else if (responseData.detail && typeof responseData.detail === 'string') {
+        errorMessages.push(responseData.detail)
+      }
+      
+      // Agregar errores de campos
+      const fieldErrorMessages = Object.entries(serverErrors)
+        .filter(([key]) => !['error', 'detail', 'status'].includes(key))
+        .map(([key, value]) => {
+          const fieldName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+          const errorText = Array.isArray(value) ? value[0] : String(value)
+          return `${fieldName}: ${errorText}`
+        })
+      
+      if (fieldErrorMessages.length > 0) {
+        errorMessages.push(...fieldErrorMessages)
+      }
+      
+      // Si hay errores no asociados a campos
+      if (serverErrors.non_field_errors) {
+        const nonFieldErrors = Array.isArray(serverErrors.non_field_errors) 
+          ? serverErrors.non_field_errors 
+          : [serverErrors.non_field_errors]
+        errorMessages.push(...nonFieldErrors)
+      }
+      
+      // Mostrar el mensaje de error
+      if (errorMessages.length > 0) {
+        errorMessage = errorMessages.join('. ')
+      }
+      
+      showError(errorMessage)
+    } else if (error.message) {
+      // Mostrar el mensaje de error del error lanzado
+      showError(error.message)
     } else {
       showError('No se pudo crear el lote. Intenta nuevamente.')
     }

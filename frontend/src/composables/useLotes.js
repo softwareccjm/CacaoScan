@@ -173,11 +173,11 @@ export function useLotes(options = {}) {
       
       return result
     } catch (err) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Error al crear el lote'
-      error.value = errorMessage
+      // No mostrar el error aquí, dejar que el componente lo maneje
+      // para poder mostrar mensajes más específicos
+      error.value = err.response?.data?.detail || err.message || 'Error al crear el lote'
       
-      showError(errorMessage)
-      
+      // Re-lanzar el error para que el componente pueda manejarlo
       throw err
     } finally {
       loading.value = false

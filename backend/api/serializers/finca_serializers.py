@@ -235,6 +235,8 @@ class LoteSerializer(serializers.ModelSerializer):
     edad_meses = serializers.ReadOnlyField()
     # Alias field for compatibility with tests (accept both input and output)
     area = serializers.DecimalField(source='area_hectareas', max_digits=8, decimal_places=2, required=False, allow_null=True)
+    # Make nombre optional in input, will be generated from identificador if not provided
+    nombre = serializers.CharField(max_length=200, required=False, allow_blank=True)
     
     class Meta:
         model = Lote
@@ -380,6 +382,14 @@ class LoteSerializer(serializers.ModelSerializer):
         variedad = attrs.get('variedad', '')
         if not variedad or (isinstance(variedad, str) and not variedad.strip()):
             errors['variedad'] = ["La variedad es requerida."]
+        
+        # Generate nombre from identificador if not provided
+        if 'nombre' not in attrs or not attrs.get('nombre'):
+            identificador = attrs.get('identificador', '')
+            if identificador:
+                attrs['nombre'] = identificador.strip()
+            else:
+                errors['nombre'] = ["El nombre del lote es requerido."]
         
         try:
             validate_coordinates(attrs)
