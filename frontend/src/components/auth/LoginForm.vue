@@ -250,15 +250,11 @@ const authForm = useAuthForm({
       
       return result
     } catch (err) {
-      console.error('[LoginForm] Error capturado:', err)
-      console.error('[LoginForm] Error message:', err.message)
-      console.error('[LoginForm] Error response:', err.response)
       const errorMessage = err.message || 
                           err.response?.data?.error ||
                           err.response?.data?.message || 
                           err.response?.data?.detail ||
                           'Error inesperado al iniciar sesión'
-      console.log('[LoginForm] Mostrando mensaje:', errorMessage)
       authForm.setStatusMessage(errorMessage, 'error')
       throw err
     } finally {
@@ -282,7 +278,6 @@ const handleSubmit = async () => {
   try {
     await authForm.handleAuthSubmit()
   } catch (err) {
-    console.error('Error en login:', err)
     // Error is already handled by useAuthForm
   }
 }

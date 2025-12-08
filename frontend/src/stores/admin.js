@@ -26,11 +26,7 @@ export const useAdminStore = defineStore('admin', () => {
       error.value = null
       
       const response = await api.get('/auth/admin/stats/')
-      console.log('🔍 [admin store] Respuesta completa:', response)
-      console.log('📊 [admin store] response.data:', response.data)
       stats.value = response.data
-      console.log('✅ [admin store] stats.value actualizado:', stats.value)
-      
       return response
     } catch (err) {
       const errorInfo = handleApiError(err, { logError: true })
@@ -70,8 +66,6 @@ export const useAdminStore = defineStore('admin', () => {
       loading.value = true
       error.value = null
       
-      console.log('🔄 [admin store] Obteniendo actividades recientes, limit:', limit)
-      
       // El backend usa page_size, no limit
       const response = await api.get('/audit/activity-logs/', {
         params: {
@@ -81,25 +75,13 @@ export const useAdminStore = defineStore('admin', () => {
         }
       })
       
-      console.log('📊 [admin store] Activities response completa:', response)
-      console.log('📊 [admin store] Activities response.data:', response.data)
-      console.log('📊 [admin store] Activities response.data.results:', response.data?.results)
-      
       activities.value = response.data.results || []
-      console.log('📊 [admin store] Activities count:', activities.value.length)
-      console.log('📊 [admin store] Activities array:', activities.value)
-      
       return response
     } catch (err) {
-      console.error('❌ [admin store] Error obteniendo actividades:', err)
-      console.error('❌ [admin store] Error response:', err.response)
-      console.error('❌ [admin store] Error status:', err.response?.status)
-      
       const errorInfo = handleApiError(err, { logError: false })
       
       // Si es error 500 o el endpoint no está disponible, retornar vacío silenciosamente
       if (err.response?.status === 500) {
-        console.warn('⚠️ [admin store] Activity logs endpoint returned 500, returning empty array')
         activities.value = []
         return { data: { results: [] } }
       }
@@ -132,9 +114,6 @@ export const useAdminStore = defineStore('admin', () => {
       const data = response.data || {}
       const notificationsArray = data.results || data.data || (Array.isArray(data) ? data : [])
       
-      console.log('🚨 [admin store] Notifications response:', data)
-      console.log('🚨 [admin store] Notifications count:', notificationsArray.length)
-      
       alerts.value = notificationsArray
       
       return response
@@ -143,7 +122,6 @@ export const useAdminStore = defineStore('admin', () => {
       
       // Si es error 500 o el endpoint no está disponible, retornar vacío silenciosamente
       if (err.response?.status === 500) {
-        console.warn('⚠️ [admin store] Notifications endpoint returned 500, returning empty array')
         alerts.value = []
         return { data: { results: [] } }
       }
@@ -180,7 +158,13 @@ export const useAdminStore = defineStore('admin', () => {
       loading.value = true
       error.value = null
       
-      const response = await api.get('/audit/activity-logs/')
+      const response = await api.get('/audit/activity-logs/', {
+        params: {
+          page_size: 100, // Get more activities to process
+          page: 1,
+          ordering: '-timestamp'
+        }
+      })
       
       return response
     } catch (err) {
@@ -227,8 +211,6 @@ export const useAdminStore = defineStore('admin', () => {
       
       // Remove alert from local state
       alerts.value = alerts.value.filter(alert => alert.id !== alertId)
-      
-      console.log('✅ [admin store] Alert dismissed:', alertId)
       
       return response
     } catch (err) {

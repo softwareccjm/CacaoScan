@@ -130,13 +130,18 @@ const hasValidData = computed(() => {
   }
   
   // Check if at least one dataset has data
-  return props.chartData.datasets.some(dataset => {
+  const hasData = props.chartData.datasets.some(dataset => {
     if (!dataset.data || !Array.isArray(dataset.data)) {
       return false
     }
-    // Check if there's at least one non-zero value
-    return dataset.data.some(value => value !== 0 && value !== null && value !== undefined)
+    // Check if there's at least one non-zero value OR if we have labels (show chart even with zeros)
+    const hasNonZero = dataset.data.some(value => value !== 0 && value !== null && value !== undefined)
+    const hasLabels = props.chartData.labels && props.chartData.labels.length > 0
+    // Show chart if we have labels, even if all values are zero (for empty state visualization)
+    return hasLabels && dataset.data.length > 0
   })
+  
+  return hasData
 })
 
 // Chart ref for template

@@ -111,12 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     user.value = userData
     localStorage.setItem('user', JSON.stringify(userData))
-    console.log('👤 [Auth Store] Usuario actualizado:', { 
-      id: userData?.id, 
-      email: userData?.email, 
-      role: userData?.role 
-    })
-  }
+    }
 
   const clearUser = () => {
     user.value = null
@@ -148,7 +143,6 @@ export const useAuthStore = defineStore('auth', () => {
         accessToken.value = storedToken
       }
     } catch (error) {
-      console.error('Error inicializando desde localStorage:', error)
       clearAll()
     }
   }
@@ -161,18 +155,10 @@ export const useAuthStore = defineStore('auth', () => {
       
       // Si hay token pero no hay usuario, intentar obtener el usuario actual
       if (accessToken.value && !user.value) {
-        console.log('🔄 Restaurando sesión desde token...')
         await getCurrentUser()
       }
       
-      console.log('✅ Autenticación inicializada:', {
-        hasToken: !!accessToken.value,
-        hasUser: !!user.value,
-        isAuthenticated: isAuthenticated.value
-      })
-      
-    } catch (error) {
-      console.error('❌ Error inicializando autenticación:', error)
+      } catch (error) {
       // Si hay error durante la inicialización, limpiar el estado completo
       // para evitar datos inconsistentes o tokens inválidos en el store
       clearAll()
@@ -206,7 +192,6 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error('Respuesta de login inválida')
       }
     } catch (err) {
-      console.error('Error en login:', err)
       // Extract error message from normalized error or response
       const errorMessage = err.message || 
                           err.response?.data?.error ||
@@ -252,8 +237,7 @@ export const useAuthStore = defineStore('auth', () => {
           await getCurrentUser()
         } catch (err) {
           // Si falla getCurrentUser, usar el usuario del registro
-          console.warn('No se pudo obtener usuario completo, usando datos del registro:', err)
-        }
+          }
         
         updateLastActivity()
         
@@ -302,7 +286,6 @@ export const useAuthStore = defineStore('auth', () => {
 
       return response
     } catch (err) {
-      console.error('Error en registro:', err)
       setError(err.response?.data?.message || err.message || 'Error en el registro')
       return { success: false, error: error.value }
     } finally {
@@ -320,7 +303,6 @@ export const useAuthStore = defineStore('auth', () => {
         await authApi.logout()
       }
     } catch (err) {
-      console.error('Error en logout del servidor:', err)
       // Continuar con logout local aunque falle el servidor
     } finally {
       // Limpiar estado local
@@ -353,21 +335,12 @@ export const useAuthStore = defineStore('auth', () => {
       if (!userData.role) {
         // Default to 'farmer' if role is missing
         userData.role = 'farmer'
-        console.warn('⚠️ [Auth Store] Usuario sin rol, asignando "farmer" por defecto')
-      }
-      
-      console.log('👤 [Auth Store] Usuario obtenido desde API:', { 
-        id: userData?.id, 
-        email: userData?.email, 
-        role: userData?.role 
-      })
+        }
       
       setUser(userData)
       updateLastActivity()
       return userData
     } catch (err) {
-      console.error('Error obteniendo usuario actual:', err)
-      
       // Si el token no es válido, hacer logout
       if (err.response?.status === 401) {
         await logout(false)
@@ -402,7 +375,6 @@ export const useAuthStore = defineStore('auth', () => {
       
       throw new Error('Respuesta inválida del servidor')
     } catch (err) {
-      console.error('❌ Error refrescando token:', err)
       // Si el refresh token expiró o fue rechazado, limpiar el estado completo
       // y forzar logout para que el usuario se autentique nuevamente
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -421,7 +393,6 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.changePassword(passwordData)
       return { success: true }
     } catch (err) {
-      console.error('Error cambiando contraseña:', err)
       setError(err.response?.data?.detail || 'Error al cambiar contraseña')
       return { success: false, error: error.value }
     } finally {
@@ -438,7 +409,6 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.requestPasswordReset(email)
       return { success: true }
     } catch (err) {
-      console.error('Error solicitando reset de contraseña:', err)
       setError(err.response?.data?.detail || 'Error al solicitar restablecimiento')
       return { success: false, error: error.value }
     } finally {
@@ -461,7 +431,6 @@ export const useAuthStore = defineStore('auth', () => {
       
       return { success: true }
     } catch (err) {
-      console.error('Error verificando email:', err)
       setError(err.response?.data?.message || err.response?.data?.detail || 'Error al verificar email')
       return { success: false, error: error.value }
     } finally {
@@ -490,7 +459,6 @@ export const useAuthStore = defineStore('auth', () => {
         message: response.message || 'Email verificado exitosamente' 
       }
     } catch (err) {
-      console.error('Error verificando email desde token:', err)
       const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Error al verificar email'
       setError(errorMessage)
       return { success: false, error: errorMessage }
@@ -517,7 +485,6 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error('Email requerido para reenviar verificación')
       }
     } catch (err) {
-      console.error('Error reenviando verificación:', err)
       const errorMessage = err.response?.data?.message || err.response?.data?.detail || 'Error al reenviar verificación'
       setError(errorMessage)
       return { success: false, error: errorMessage }
@@ -550,7 +517,6 @@ export const useAuthStore = defineStore('auth', () => {
       
       return { success: true }
     } catch (err) {
-      console.error('Error actualizando perfil:', err)
       setError(err.response?.data?.message || err.message || 'Error al actualizar perfil')
       return { success: false, error: error.value }
     } finally {
@@ -651,7 +617,6 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: error.value }
       }
     } catch (err) {
-      console.error('Error enviando código OTP:', err)
       setError(err.response?.data?.message || err.message || 'Error al enviar código OTP')
       return { success: false, error: error.value }
     } finally {
@@ -674,7 +639,6 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: error.value }
       }
     } catch (err) {
-      console.error('Error verificando código OTP:', err)
       const errorMessage = err.response?.data?.message || err.message || 'Código OTP inválido o expirado'
       setError(errorMessage)
       return { success: false, error: errorMessage }

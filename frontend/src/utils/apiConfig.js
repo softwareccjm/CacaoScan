@@ -31,20 +31,15 @@ export const getApiBaseUrl = () => {
   // Prioridad 1: Runtime injection (mejor para producción, permite cambios sin rebuild)
   if (isGlobalThisAvailable() && globalThis.__API_BASE_URL__) {
     let url = globalThis.__API_BASE_URL__
-    console.log('🌐 [API Config] Runtime API URL encontrada:', url)
-    
     // Validar y corregir si es relativa
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      console.log('✅ [API Config] Using runtime API URL:', url)
       return url
     }
     
-    console.error('❌ [API Config] Runtime URL es relativa, corrigiendo...')
     // Si es relativa, construir URL absoluta
     if (url.startsWith('/')) {
       // Es una ruta absoluta relativa al dominio actual
       url = `https://${globalThis.location.hostname}${url}`
-      console.warn('⚠️ [API Config] Construida URL desde ruta relativa:', url)
       return url
     }
     
@@ -54,7 +49,6 @@ export const getApiBaseUrl = () => {
                         (globalThis.location.hostname.includes('localhost') || 
                          globalThis.location.hostname === '127.0.0.1')
     const fallbackUrl = isLocalhost ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL
-    console.warn('⚠️ [API Config] Usando fallback:', fallbackUrl)
     return fallbackUrl
   }
   
@@ -62,15 +56,11 @@ export const getApiBaseUrl = () => {
   const buildTimeUrl = import.meta.env.VITE_API_BASE_URL
   if (buildTimeUrl && buildTimeUrl.trim() !== '') {
     let url = buildTimeUrl.trim()
-    console.log('🔧 [API Config] Build-time API URL encontrada:', url)
-    
     // Validar y corregir si es relativa
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      console.log('✅ [API Config] Using build-time API URL:', url)
       return url
     }
     
-    console.error('❌ [API Config] Build-time URL es relativa, usando detección automática')
     // Continuar con detección automática
   }
   
@@ -80,16 +70,13 @@ export const getApiBaseUrl = () => {
                         globalThis.location.hostname === '127.0.0.1'
     if (isLocalhost) {
       // En localhost, usar backend local
-      console.log('🏠 [API Config] Detectado localhost, usando backend local:', LOCAL_BACKEND_URL)
       return LOCAL_BACKEND_URL
     }
     // En producción, usar URL absoluta
-    console.log('🌍 [API Config] Detectado entorno de producción, usando URL absoluta del backend')
     return PRODUCTION_BACKEND_URL
   }
 
   // Fallback: si no se puede detectar, usar producción
-  console.warn('⚠️ [API Config] No se pudo detectar el entorno, usando fallback de producción')
   return PRODUCTION_BACKEND_URL
 }
 
@@ -172,6 +159,5 @@ export const API_CONFIG = {
 
 // Log de configuración en desarrollo
 if (isDevelopment()) {
-  console.log('📋 API Configuration:', API_CONFIG)
-}
+  }
 

@@ -208,9 +208,6 @@ export function normalizeAuthError(error) {
                   (status ? getStatusMessage(status) : 'Error de autenticación')
   const fieldErrors = extractFieldErrors(errorData)
   
-  console.log('[normalizeAuthError] Error data:', errorData)
-  console.log('[normalizeAuthError] Extracted message:', message)
-  
   return {
     message,
     type: status === 401 ? 'authentication' : 'validation',
