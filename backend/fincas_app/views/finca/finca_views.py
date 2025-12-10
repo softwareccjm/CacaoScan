@@ -38,10 +38,10 @@ class FincaPermissionMixin(FincaErrorMixin, FincaSerializerMixin, AdminPermissio
     """
     
     def get_queryset(self):
-        """Obtener queryset filtrado por permisos (optimizado con select_related)."""
+        """Obtener queryset filtrado por permisos (optimizado con select_related y prefetch_related)."""
         user = self.request.user
         
-        base_queryset = Finca.objects.select_related('agricultor', 'municipio', 'municipio__departamento')
+        base_queryset = Finca.objects.select_related('agricultor', 'municipio', 'municipio__departamento').prefetch_related('lotes')
         
         if self.is_admin_user(user):
             # Admin puede ver todas las fincas (activas e inactivas)

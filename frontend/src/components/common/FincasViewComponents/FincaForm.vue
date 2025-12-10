@@ -476,11 +476,17 @@ const resetForm = () => {
 
 const loadFincaData = async () => {
   if (props.finca) {
+    // Obtener IDs del municipio y departamento
+    const municipioId = props.finca.municipio?.id || props.finca.municipio || null
+    const departamentoId = props.finca.departamento?.id || props.finca.departamento || null
+    // Obtener nombres si están disponibles (nuevos campos del serializer)
+    const municipioNombre = props.finca.municipio_nombre || null
+    const departamentoNombre = props.finca.departamento_nombre || null
+    
     Object.assign(formData, {
       nombre: props.finca.nombre || '',
       ubicacion: props.finca.ubicacion || '',
-      municipio: props.finca.municipio?.id || props.finca.municipio || '',
-      departamento: props.finca.departamento?.codigo || props.finca.departamento || '',
+      municipio: municipioId ? String(municipioId) : '',
       hectareas: props.finca.hectareas || '',
       descripcion: props.finca.descripcion || '',
       coordenadas_lat: props.finca.coordenadas_lat || '',
@@ -488,16 +494,77 @@ const loadFincaData = async () => {
       activa: props.finca.activa ?? true
     })
     
-    // Cargar municipios si hay departamento
-    if (formData.departamento) {
-      await onDepartamentoChange()
+    // Cargar departamentos si aún no están cargados
+    if (departamentosList.value.length === 0) {
+      await loadDepartamentos()
+    }
+    
+    // Si tenemos el nombre del departamento directamente, usarlo
+    if (departamentoNombre) {
+      formData.departamento = departamentoNombre
+      await loadMunicipiosByDepartamento(departamentoNombre, true)
+      if (municipioId) {
+        formData.municipio = String(municipioId)
+      }
+    } else if (departamentoId) {
+      // Si solo tenemos el ID del departamento, buscar su nombre
+      const departamentoObj = departamentosList.value.find(d => {
+        if (typeof d === 'object' && d.id) {
+          return d.id === Number(departamentoId)
+        }
+        return false
+      })
+      
+      if (departamentoObj && departamentoObj.nombre) {
+        formData.departamento = departamentoObj.nombre
+        await loadMunicipiosByDepartamento(departamentoObj.nombre, true)
+        if (municipioId) {
+          formData.municipio = String(municipioId)
+        }
+      }
+    } else if (municipioId) {
+      // Si solo tenemos el ID del municipio, buscar su departamento
+      // Buscar en todos los departamentos (fallback)
+      let municipioEncontrado = null
+      let departamentoEncontrado = null
+      
+      for (const dept of departamentosList.value) {
+        if (typeof dept === 'object' && dept.id) {
+          try {
+            const response = await catalogosApi.getMunicipiosByDepartamento(dept.id)
+            const municipiosData = response.data || response
+            const municipiosList = Array.isArray(municipiosData?.results) 
+              ? municipiosData.results 
+              : Array.isArray(municipiosData) 
+                ? municipiosData 
+                : []
+            
+            municipioEncontrado = municipiosList.find(m => m.id === Number(municipioId))
+            if (municipioEncontrado) {
+              departamentoEncontrado = dept
+              break
+            }
+          } catch (error) {
+            // Continuar con el siguiente departamento
+            continue
+          }
+        }
+      }
+      
+      if (departamentoEncontrado && departamentoEncontrado.nombre) {
+        formData.departamento = departamentoEncontrado.nombre
+        await loadMunicipiosByDepartamento(departamentoEncontrado.nombre, true)
+        formData.municipio = String(municipioId)
+      }
     }
   }
 }
 
-const onDepartamentoChange = async () => {
-  formData.municipio = ''
-  if (!formData.departamento) {
+const loadMunicipiosByDepartamento = async (departamentoNombre, preserveMunicipio = false) => {
+  if (!departamentoNombre) {
+    if (!preserveMunicipio) {
+      formData.municipio = ''
+    }
     municipios.value = []
     return
   }
@@ -519,10 +586,10 @@ const onDepartamentoChange = async () => {
     // Buscar departamento por nombre (puede variar el formato)
     const departamentoObj = deptsList.find(d => {
       if (typeof d === 'string') {
-        return d.toLowerCase().trim() === formData.departamento.toLowerCase().trim()
+        return d.toLowerCase().trim() === departamentoNombre.toLowerCase().trim()
       }
-      const nombreMatch = d.nombre && d.nombre.toLowerCase().trim() === formData.departamento.toLowerCase().trim()
-      const codigoMatch = d.codigo && d.codigo.toString() === formData.departamento.toString()
+      const nombreMatch = d.nombre && d.nombre.toLowerCase().trim() === departamentoNombre.toLowerCase().trim()
+      const codigoMatch = d.codigo && d.codigo.toString() === departamentoNombre.toString()
       return nombreMatch || codigoMatch
     })
     
@@ -546,6 +613,12 @@ const onDepartamentoChange = async () => {
   } catch (error) {
     municipios.value = []
   }
+}
+
+const onDepartamentoChange = async () => {
+  const currentMunicipio = formData.municipio
+  formData.municipio = ''
+  await loadMunicipiosByDepartamento(formData.departamento, false)
 }
 
 const mapValidationErrorToField = (error) => {
@@ -750,11 +823,44 @@ const handleServerError = (error) => {
     const responseData = error.response.data
     const serverErrors = responseData.details || responseData
     
+    // Si details es un string con formato "campo: mensaje", extraerlo
+    if (responseData.details && typeof responseData.details === 'string') {
+      const detailsStr = responseData.details.trim()
+      // Formato: "nombre: Ya tienes una finca con este nombre."
+      const fieldErrorMatch = detailsStr.match(/^(\w+):\s*(.+)$/)
+      if (fieldErrorMatch) {
+        const [, fieldName, errorMessage] = fieldErrorMatch
+        errors[fieldName] = errorMessage.trim()
+        // Mensaje más claro para el usuario
+        const fieldLabel = fieldName === 'nombre' ? 'el nombre de la finca' : 
+                          fieldName === 'municipio' ? 'el municipio' :
+                          fieldName === 'departamento' ? 'el departamento' : fieldName
+        generalError.value = `Error en ${fieldLabel}: ${errorMessage.trim()}`
+        showError(generalError.value)
+        scrollToFirstError('finca-form')
+        return
+      }
+    }
+    
     // Extraer mensaje de error general (autenticación, permisos, etc.)
     const generalErrorMessage = responseData.error || responseData.detail || responseData.message
-    if (generalErrorMessage) {
-      generalError.value = String(generalErrorMessage)
-      showError(generalErrorMessage)
+    if (generalErrorMessage && typeof generalErrorMessage === 'string') {
+      // Si el mensaje general contiene información de un campo específico, extraerlo
+      const fieldErrorMatch = generalErrorMessage.match(/^(\w+):\s*(.+)$/)
+      if (fieldErrorMatch) {
+        const [, fieldName, errorMessage] = fieldErrorMatch
+        errors[fieldName] = errorMessage.trim()
+        const fieldLabel = fieldName === 'nombre' ? 'el nombre de la finca' : 
+                          fieldName === 'municipio' ? 'el municipio' :
+                          fieldName === 'departamento' ? 'el departamento' : fieldName
+        generalError.value = `Error en ${fieldLabel}: ${errorMessage.trim()}`
+        showError(generalError.value)
+        scrollToFirstError('finca-form')
+        return
+      } else {
+        generalError.value = String(generalErrorMessage)
+        showError(generalErrorMessage)
+      }
     }
     
     // Procesar errores de campos específicos
@@ -763,7 +869,14 @@ const handleServerError = (error) => {
       generalError.value = errorMessage
       showValidationErrorNotification(errorMessage)
     } else if (!generalError.value && Object.keys(errors).length > 0) {
-      generalError.value = 'Por favor, corrige los errores en el formulario'
+      // Si hay errores de campos pero no mensaje general, crear uno
+      const firstErrorField = Object.keys(errors)[0]
+      const firstErrorMessage = errors[firstErrorField]
+      const fieldLabel = firstErrorField === 'nombre' ? 'el nombre de la finca' : 
+                        firstErrorField === 'municipio' ? 'el municipio' :
+                        firstErrorField === 'departamento' ? 'el departamento' : firstErrorField
+      generalError.value = `Error en ${fieldLabel}: ${firstErrorMessage}`
+      showError(generalError.value)
     } else if (!generalError.value) {
       generalError.value = 'No se pudo guardar la finca. Por favor, intenta nuevamente.'
       showError(generalError.value)

@@ -29,6 +29,8 @@ class FincaSerializer(serializers.ModelSerializer):
     estadisticas = serializers.SerializerMethodField()
     # Departamento is now read-only, obtained from municipio.departamento
     departamento = serializers.SerializerMethodField()
+    municipio_nombre = serializers.SerializerMethodField()
+    departamento_nombre = serializers.SerializerMethodField()
     # Alias fields for compatibility with tests
     area_total = serializers.DecimalField(source='hectareas', max_digits=10, decimal_places=2, read_only=True)
     propietario = serializers.PrimaryKeyRelatedField(source='agricultor', read_only=True)
@@ -37,6 +39,7 @@ class FincaSerializer(serializers.ModelSerializer):
         model = Finca
         fields = (
             'id', 'nombre', 'ubicacion', 'municipio', 'departamento', 
+            'municipio_nombre', 'departamento_nombre',
             'hectareas', 'area_total', 'agricultor', 'propietario', 'agricultor_name', 'agricultor_email',
             'descripcion', 'coordenadas_lat', 'coordenadas_lng', 
             'fecha_registro', 'activa', 'ubicacion_completa', 'estadisticas',
@@ -45,7 +48,8 @@ class FincaSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             'id', 'fecha_registro', 'created_at', 'updated_at', 
-            'ubicacion_completa', 'estadisticas', 'agricultor', 'area_total', 'propietario', 'departamento'
+            'ubicacion_completa', 'estadisticas', 'agricultor', 'area_total', 'propietario', 'departamento',
+            'municipio_nombre', 'departamento_nombre'
         )
     
     def get_departamento(self, obj):
@@ -54,14 +58,41 @@ class FincaSerializer(serializers.ModelSerializer):
             return obj.municipio.departamento.id
         return None
     
+    def get_municipio_nombre(self, obj):
+        """Get municipio name for frontend convenience."""
+        if obj.municipio:
+            return obj.municipio.nombre
+        return None
+    
+    def get_departamento_nombre(self, obj):
+        """Get departamento name for frontend convenience."""
+        if obj.municipio and hasattr(obj.municipio, 'departamento'):
+            return obj.municipio.departamento.nombre
+        return None
+    
     def get_estadisticas(self, obj):
         """Get finca statistics."""
         try:
-            return obj.get_estadisticas()
-        except Exception:
-            # Return empty statistics if there's an error
+            stats = obj.get_estadisticas()
+            # Ensure total_lotes is included
+            if 'total_lotes' not in stats:
+                # Fallback: count lotes directly
+                stats['total_lotes'] = obj.lotes.count() if hasattr(obj, 'lotes') else 0
+            return stats
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger("cacaoscan.api")
+            logger.error(f"Error obteniendo estadísticas de finca {obj.id}: {e}", exc_info=True)
+            # Return empty statistics if there's an error, but try to get total_lotes directly
+            total_lotes = 0
+            try:
+                if hasattr(obj, 'lotes'):
+                    total_lotes = obj.lotes.count()
+            except Exception:
+                pass
             return {
-                'total_lotes': 0,
+                'total_lotes': total_lotes,
                 'lotes_activos': 0,
                 'total_analisis': 0,
                 'calidad_promedio': 0.0,
@@ -169,16 +200,18 @@ class FincaSerializer(serializers.ModelSerializer):
 
 
 class FincaListSerializer(serializers.ModelSerializer):
-    """Optimized serializer for finca listings (without heavy statistics)."""
+    """Optimized serializer for finca listings with basic statistics."""
     ubicacion_completa = serializers.SerializerMethodField()
     departamento = serializers.SerializerMethodField()
+    total_lotes = serializers.SerializerMethodField()
+    total_analisis = serializers.SerializerMethodField()
     
     class Meta:
         model = Finca
         fields = (
             'id', 'nombre', 'municipio', 'departamento', 'ubicacion', 
             'ubicacion_completa', 'hectareas', 'activa', 'fecha_registro', 'agricultor_id',
-            'coordenadas_lat', 'coordenadas_lng'
+            'coordenadas_lat', 'coordenadas_lng', 'total_lotes', 'total_analisis'
         )
     
     def get_departamento(self, obj):
@@ -194,6 +227,30 @@ class FincaListSerializer(serializers.ModelSerializer):
         elif obj.municipio:
             return obj.municipio.nombre
         return obj.ubicacion
+    
+    def get_total_lotes(self, obj):
+        """Get total number of lotes for this finca."""
+        try:
+            if hasattr(obj, 'lotes'):
+                return obj.lotes.count()
+            return 0
+        except Exception:
+            return 0
+    
+    def get_total_analisis(self, obj):
+        """Get total number of analyses for this finca."""
+        try:
+            if hasattr(obj, 'total_analisis'):
+                return obj.total_analisis
+            # Fallback: count from lotes
+            if hasattr(obj, 'lotes'):
+                from django.db.models import Count
+                return obj.lotes.aggregate(
+                    total=Count('cacao_images__prediction', distinct=True)
+                )['total'] or 0
+            return 0
+        except Exception:
+            return 0
 
 
 class FincaDetailSerializer(FincaSerializer):
