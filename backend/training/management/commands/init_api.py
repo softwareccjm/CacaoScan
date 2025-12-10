@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from pathlib import Path
 
-from ml.prediction.predict import load_artifacts
+from ml.prediction import load_artifacts
 from ml.utils.logs import get_ml_logger
 
 

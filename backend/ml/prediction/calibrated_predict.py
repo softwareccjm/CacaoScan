@@ -7,7 +7,7 @@ import time
 import uuid
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any, List
 import numpy as np
 import torch
 import cv2
@@ -21,18 +21,25 @@ from ..segmentation.cropper import create_cacao_cropper
 from ..regression.models import create_model, TARGETS
 from ..regression.scalers import load_scalers
 from ..data.transforms import resize_crop_to_square
-from ..measurement.calibration import (
+from ..measurement import (
     get_calibration_manager,
     CalibrationMethod,
-    ReferenceObject,
     convert_pixels_to_mm
 )
+from .base_predictor import PredictorBase
 
 logger = get_ml_logger("cacaoscan.ml.prediction")
 
 
-class CalibratedCacaoPredictor:
-    """Predictor unificado con calibración para granos de cacao."""
+class PredictorCacaoCalibrado(PredictorBase):
+    """
+    Predictor unificado con calibración para granos de cacao.
+    
+    Hereda de BasePredictor y añade funcionalidad específica para:
+    - Modelos individuales por target
+    - Calibración OpenCV
+    - Segmentación YOLO
+    """
     
     def __init__(self, confidence_threshold: float = 0.5, use_calibration: bool = True):
         """
@@ -42,13 +49,13 @@ class CalibratedCacaoPredictor:
             confidence_threshold: Umbral de confianza para YOLO
             use_calibration: Si usar calibración para convertir a medidas reales
         """
-        self.confidence_threshold = confidence_threshold
+        # Initialize base predictor
+        super().__init__(confidence_threshold=confidence_threshold)
+        
+        # Specific to calibrated predictor
         self.use_calibration = use_calibration
         self.yolo_cropper = None
-        self.regression_models = {}
-        self.scalers = None
-        self.device = self._get_device()
-        self.models_loaded = False
+        self.regression_models = {}  # Dictionary of individual models per target
         
         # Gestor de calibración
         self.calibration_manager = get_calibration_manager() if use_calibration else None
@@ -57,18 +64,9 @@ class CalibratedCacaoPredictor:
         self.runtime_crops_dir = Path("media/cacao_images/crops_runtime")
         ensure_dir_exists(self.runtime_crops_dir)
         
-        logger.info(f"CalibratedCacaoPredictor inicializado con threshold {confidence_threshold}, calibración: {use_calibration}")
+        logger.info(f"PredictorCacaoCalibrado initialized with threshold {confidence_threshold}, calibration: {use_calibration}")
     
-    def _get_device(self) -> torch.device:
-        """Obtiene el dispositivo disponible."""
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            logger.info(f"Usando GPU: {torch.cuda.get_device_name(0)}")
-        else:
-            device = torch.device('cpu')
-            logger.info("Usando CPU")
-        
-        return device
+    # _get_device() is now inherited from BasePredictor
     
     def load_artifacts(self) -> bool:
         """
@@ -197,27 +195,7 @@ class CalibratedCacaoPredictor:
         except Exception as exc:
             logger.warning(f"Error cargando calibración: {exc}")
     
-    def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
-        """Preprocesa la imagen para el modelo de regresión."""
-        # Convertir a RGB si es necesario
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        
-        # Redimensionar a 224x224 (tamaño esperado por ResNet)
-        image = image.resize((224, 224), Image.Resampling.LANCZOS)
-        
-        # Convertir a tensor y normalizar
-        image_array = np.array(image).astype(np.float32) / 255.0
-        
-        # Aplicar normalización estándar de ImageNet
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        image_array = (image_array - mean) / std
-        
-        # Convertir a tensor y agregar dimensión de batch
-        image_tensor = torch.from_numpy(image_array).permute(2, 0, 1).unsqueeze(0)
-        
-        return image_tensor.to(self.device)
+    # _preprocess_image() is now inherited from BasePredictor
     
     def _predict_single_target(self, image_tensor: torch.Tensor, target: str) -> Tuple[float, float]:
         """Predice un target específico."""
@@ -236,8 +214,8 @@ class CalibratedCacaoPredictor:
     def calibrate_image(
         self,
         image: Image.Image,
-        method: CalibrationMethod = CalibrationMethod.COIN_DETECTION,
-        reference_object: Optional[ReferenceObject] = None
+        method: CalibrationMethod = CalibrationMethod.DATASET_CALIBRATION,
+        manual_points: Optional[List[Tuple[int, int]]] = None
     ) -> Dict[str, Any]:
         """
         Calibra una imagen para obtener la escala de píxeles a milímetros.
@@ -245,7 +223,7 @@ class CalibratedCacaoPredictor:
         Args:
             image: Imagen PIL
             method: Método de calibración
-            reference_object: Objeto de referencia específico
+            manual_points: Puntos manuales para calibración (solo para MANUAL_POINTS)
             
         Returns:
             Diccionario con resultado de calibración
@@ -262,7 +240,7 @@ class CalibratedCacaoPredictor:
             
             # Realizar calibración
             calibration_result = self.calibration_manager.calibrate_image(
-                image_cv, method, reference_object
+                image_cv, method, manual_points
             )
             
             if calibration_result.success:
@@ -274,7 +252,6 @@ class CalibratedCacaoPredictor:
                     'pixels_per_mm': calibration_result.pixels_per_mm,
                     'confidence': calibration_result.confidence,
                     'method': calibration_result.method.value,
-                    'reference_object': calibration_result.reference_object.value['name'] if calibration_result.reference_object else None,
                     'calibration_image_path': calibration_result.calibration_image_path
                 }
             else:
@@ -300,8 +277,7 @@ class CalibratedCacaoPredictor:
         Returns:
             Diccionario con predicciones y metadatos
         """
-        if not self.models_loaded:
-            raise ValueError("Modelos no cargados. Ejecutar load_artifacts() primero.")
+        self._validate_models_loaded()
         
         logger.info("Iniciando predicción con calibración...")
         
@@ -459,7 +435,7 @@ class CalibratedCacaoPredictor:
 
 
 # Función de conveniencia para obtener el predictor calibrado
-def get_calibrated_predictor(confidence_threshold: float = 0.5, use_calibration: bool = True) -> CalibratedCacaoPredictor:
+def obtener_predictor_calibrado(confidence_threshold: float = 0.5, use_calibration: bool = True) -> PredictorCacaoCalibrado:
     """
     Obtiene una instancia del predictor calibrado.
     
@@ -470,6 +446,10 @@ def get_calibrated_predictor(confidence_threshold: float = 0.5, use_calibration:
     Returns:
         Instancia del predictor calibrado
     """
-    return CalibratedCacaoPredictor(confidence_threshold=confidence_threshold, use_calibration=use_calibration)
+    return PredictorCacaoCalibrado(confidence_threshold=confidence_threshold, use_calibration=use_calibration)
+
+# Compatibilidad hacia atrás
+CalibratedCacaoPredictor = PredictorCacaoCalibrado
+get_calibrated_predictor = obtener_predictor_calibrado
 
 

@@ -69,13 +69,13 @@ class MLService(BaseService):
     def _import_predictor_modules(self):
         """Import predictor modules, returning error result if import fails."""
         try:
-            from ml.prediction.predict import get_predictor as _get_predictor, load_artifacts
+            from ml.prediction import get_predictor as _get_predictor, load_artifacts
             return _get_predictor, load_artifacts, None
         except ImportError:
             error = ServiceResult.error(
                 ValidationServiceError(
                     "ML prediction module not available",
-                    details={"module": "ml.prediction.predict"}
+                    details={"module": "ml.prediction"}
                 )
             )
             return None, None, error
@@ -256,12 +256,12 @@ class MLService(BaseService):
         """
         try:
             try:
-                from ml.prediction.predict import get_predictor as _get_predictor
+                from ml.prediction import get_predictor as _get_predictor
             except ImportError:
                 return ServiceResult.error(
                     ValidationServiceError(
                         "ML prediction module not available",
-                        details={"module": "ml.prediction.predict"}
+                        details={"module": "ml.prediction"}
                     )
                 )
             

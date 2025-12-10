@@ -133,30 +133,38 @@ class ScanMeasureView(APIView):
         Response:
             - JSON con predicciones de dimensiones y peso
         """
-        image_file, error_response = self._validate_image_file(request)
-        if error_response:
-            return error_response
-        
-        analysis_service = AnalysisService()
-        result = analysis_service.process_image_with_segmentation(image_file, request.user)
-        
-        if result.success:
-            serializer = ScanMeasureResponseSerializer(data=result.data)
-            if serializer.is_valid():
-                self._send_analysis_email(request.user, result.data)
-                return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        try:
+            image_file, error_response = self._validate_image_file(request)
+            if error_response:
+                return error_response
             
-            logger.error(f"Error de serialización: {serializer.errors}")
+            analysis_service = AnalysisService()
+            result = analysis_service.process_image_with_segmentation(image_file, request.user)
+            
+            if result.success:
+                serializer = ScanMeasureResponseSerializer(data=result.data)
+                if serializer.is_valid():
+                    self._send_analysis_email(request.user, result.data)
+                    return Response(serializer.validated_data, status=status.HTTP_200_OK)
+                
+                logger.error(f"Error de serialización: {serializer.errors}")
+                return Response({
+                    'error': 'Error interno de serialización',
+                    'status': 'error',
+                    'details': serializer.errors
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            status_code = self._map_error_to_status_code(result)
             return Response({
-                'error': 'Error interno de serialización',
+                'error': result.error.message,
                 'status': 'error',
-                'details': serializer.errors
+                'details': result.error.details
+            }, status=status_code)
+        except Exception as e:
+            logger.error(f"Error inesperado en análisis de imagen: {e}", exc_info=True)
+            return Response({
+                'error': 'Error interno del servidor',
+                'status': 'error',
+                'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        status_code = self._map_error_to_status_code(result)
-        return Response({
-            'error': result.error.message,
-            'status': 'error',
-            'details': result.error.details
-        }, status=status_code)
 

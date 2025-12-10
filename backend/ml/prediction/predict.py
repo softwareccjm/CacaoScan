@@ -29,6 +29,7 @@ from ..utils.io import ensure_dir_exists, load_json
 from ..segmentation.processor import segment_and_crop_cacao_bean, SegmentationError
 from ..regression.models import create_model, TARGETS, get_model_info
 from ..regression.scalers import load_scalers, CacaoScalers
+from .base_predictor import PredictorBase
 
 # Configuración de Django (necesaria para que el worker de Gunicorn encuentre MEDIA_ROOT)
 try:
@@ -100,38 +101,35 @@ class InvalidImageError(PredictionError):
 # CLASE PRINCIPAL
 # ============================================================================
 
-class CacaoPredictor:
+class PredictorCacao(PredictorBase):
     """
     Predictor unificado para granos de cacao (Versión Híbrida).
+    
+    Hereda de BasePredictor y añade funcionalidad específica para modelos híbridos
+    que combinan ResNet18, ConvNeXt y features de píxeles.
     """
     
     def __init__(self, confidence_threshold: float = 0.5, config: Optional[PredictionConfig] = None):
         """
-        Inicializa el predictor.
+        Inicializa el predictor híbrido.
         """
-        self.confidence_threshold = confidence_threshold
         self.config = config or CONFIG
         
-        # --- CORRECCIÓN: YOLO Cropper no se usa en este flujo ---
-        # self.yolo_cropper: Optional[Any] = None
-        self.regression_model: Optional[torch.nn.Module] = None
-        self.scalers: Optional[CacaoScalers] = None
+        # Initialize base predictor with config values
+        super().__init__(
+            confidence_threshold=confidence_threshold,
+            image_size=self.config.IMAGE_SIZE,
+            imagenet_mean=self.config.IMAGENET_MEAN,
+            imagenet_std=self.config.IMAGENET_STD
+        )
         
-        self.device = self._get_device()
-        self.models_loaded = False
-        
+        # Specific to hybrid predictor
         self.pixel_calibration: Optional[Dict[str, Any]] = None
         self._load_pixel_calibration()
         
         self._setup_directories()
         
-        self._image_transform = transforms.Compose([
-            transforms.Resize(self.config.IMAGE_SIZE),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=self.config.IMAGENET_MEAN, std=self.config.IMAGENET_STD)
-        ])
-        
-        logger.info(f"Predictor Híbrido inicializado (device={self.device})")
+        logger.info(f"PredictorCacao initialized (device={self.device})")
 
     def _load_pixel_calibration(self) -> None:
         """Carga el archivo de calibración de píxeles del dataset si existe."""
@@ -155,15 +153,7 @@ class CacaoPredictor:
         # El 'processor' guarda aquí, así que solo necesitamos saber la ruta
         self.processed_crops_dir_base = MEDIA_ROOT / "cacao_images" / "processed"
     
-    def _get_device(self) -> torch.device:
-        """Obtiene el dispositivo disponible (GPU/CPU)."""
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            logger.info(f"GPU detectada: {torch.cuda.get_device_name(0)}")
-        else:
-            device = torch.device('cpu')
-            logger.info("Usando CPU")
-        return device
+    # _get_device() is now inherited from BasePredictor
     
     def load_artifacts(self) -> bool:
         """
@@ -328,38 +318,9 @@ class CacaoPredictor:
         logger.info(f"✅ Usando PIXEL_FEATURE_KEYS por defecto: {len(default_keys)} características")
         return default_keys
     
-    def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
-        """
-        Preprocesa una imagen para los modelos de regresión.
-        """
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        
-        tensor = self._image_transform(image)
-        tensor = tensor.unsqueeze(0)
-        tensor = tensor.to(self.device)
-        return tensor
+    # _preprocess_image() is now inherited from BasePredictor
     
-    def _denormalize_predictions(
-        self,
-        normalized_values: Dict[str, float]
-    ) -> Dict[str, float]:
-        """
-        Desnormaliza un diccionario de valores predichos.
-        """
-        if not self.scalers:
-            raise ValueError("No hay escaladores disponibles para desnormalizar")
-        
-        # Convertir a arrays de numpy (requerido por inverse_transform)
-        temp_data = {
-            target: np.array([normalized_values[target]], dtype=np.float32) 
-            for target in TARGETS
-        }
-        denorm_data = self.scalers.inverse_transform(temp_data)
-        denormalized_predictions = {
-            target: float(denorm_data[target][0]) for target in TARGETS
-        }
-        return denormalized_predictions
+    # _denormalize_predictions() is now inherited from BasePredictor
 
     def _segment_and_crop(self, image: Image.Image) -> Tuple[Image.Image, str, float]:
         """
@@ -612,8 +573,7 @@ class CacaoPredictor:
         """
         Predice dimensiones y peso de un grano de cacao (Modo Híbrido).
         """
-        if not self.models_loaded:
-            raise ModelNotLoadedError("Artefactos no cargados. Llamar load_artifacts() primero.")
+        self._validate_models_loaded()
         
         start_time = time.time()
         
@@ -679,16 +639,7 @@ class CacaoPredictor:
                 raise
             raise PredictionError(f"Error procesando imagen: {e}") from e
     
-    def predict_from_bytes(self, image_bytes: bytes) -> Dict[str, Any]:
-        """ Predice desde bytes de imagen. """
-        try:
-            image = Image.open(io.BytesIO(image_bytes))
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            return self.predict(image)
-        except Exception as e:
-            logger.error(f"Error procesando imagen desde bytes: {e}", exc_info=True)
-            raise InvalidImageError(f"Error procesando imagen: {e}") from e
+    # predict_from_bytes() is now inherited from BasePredictor
     
     def get_model_info(self) -> Dict[str, Any]:
         """ Obtiene información sobre los modelos cargados. """
@@ -710,16 +661,16 @@ class CacaoPredictor:
 # INSTANCIA GLOBAL Y FUNCIONES DE CONVENIENCIA
 # ============================================================================
 
-_predictor_instance: Optional[CacaoPredictor] = None
+_predictor_instance: Optional[PredictorCacao] = None
 
-def get_predictor() -> CacaoPredictor:
+def obtener_predictor() -> PredictorCacao:
     """
     Obtiene la instancia global del predictor Híbrido.
     """
     global _predictor_instance
     
     if _predictor_instance is None:
-        _predictor_instance = CacaoPredictor()
+        _predictor_instance = PredictorCacao()
         
         if not _predictor_instance.load_artifacts():
             logger.warning("No se pudieron cargar todos los artefactos automáticament (Híbrido)")
@@ -728,15 +679,20 @@ def get_predictor() -> CacaoPredictor:
 
 def load_artifacts() -> bool:
     """ Función de conveniencia para cargar artefactos Híbridos. """
-    predictor = get_predictor()
+    predictor = obtener_predictor()
     return predictor.load_artifacts()
 
 def predict_image(image: Image.Image) -> Dict[str, Any]:
     """ Función de conveniencia para predecir una imagen (Híbrido). """
-    predictor = get_predictor()
+    predictor = obtener_predictor()
     return predictor.predict(image)
 
 def predict_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
     """ Función de conveniencia para predecir desde bytes (Híbrido). """
-    predictor = get_predictor()
+    predictor = obtener_predictor()
     return predictor.predict_from_bytes(image_bytes)
+
+# Compatibilidad hacia atrás
+BasePredictor = PredictorBase
+CacaoPredictor = PredictorCacao
+get_predictor = obtener_predictor

@@ -3,7 +3,7 @@ Tests for metrics utilities.
 """
 import pytest
 import numpy as np
-from ml.utils.metrics import (
+from ml.regression.metrics import (
     calculate_metrics,
     calculate_metrics_per_target,
     print_metrics_summary
