@@ -357,7 +357,7 @@
                         !batchData.name || !batchData.name.trim() ? 'Nombre del lote' :
                         !batchData.collectionDate ? 'Fecha de recolección' :
                         !batchData.farm ? 'Finca' :
-                        !batchData.genetics || !batchData.genetics.trim() ? 'Genética' :
+                        !batchData.genetics || !String(batchData.genetics).trim() ? 'Genética' :
                         !images.length ? 'Al menos una imagen' : ''
                       }}
                     </p>
@@ -544,11 +544,12 @@ const updateImageUrls = async () => {
 
 // Computed properties
 const isFormValid = computed(() => {
+  const geneticsStr = batchData.value.genetics ? String(batchData.value.genetics).trim() : ''
   return (
     batchData.value.name && batchData.value.name.trim() !== '' &&
     batchData.value.collectionDate &&
     batchData.value.farm &&
-    batchData.value.genetics && batchData.value.genetics.trim() !== '' &&
+    geneticsStr !== '' &&
     images.value.length > 0
   )
 })
@@ -846,7 +847,8 @@ const validateForm = () => {
     errors.farm = 'La finca es requerida'
   }
 
-  if (!batchData.value.genetics || !batchData.value.genetics.trim()) {
+  const geneticsStr = batchData.value.genetics ? String(batchData.value.genetics).trim() : ''
+  if (!geneticsStr) {
     errors.genetics = 'La genética es requerida'
   }
 

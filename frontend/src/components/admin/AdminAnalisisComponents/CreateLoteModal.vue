@@ -1,7 +1,7 @@
 <template>
   <Transition name="modal">
-    <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-screen overflow-y-auto overflow-x-hidden backdrop-blur-sm bg-black bg-opacity-50" @click.self="$emit('close')">
-    <div class="bg-white rounded-xl shadow-2xl border border-gray-200 relative w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-screen overflow-y-auto overflow-x-hidden backdrop-blur-sm" @click.self="$emit('close')">
+    <div class="bg-white rounded-lg shadow-lg border border-gray-200 relative w-full max-w-3xl max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <div class="bg-gradient-to-r from-green-50 to-green-50 px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
         <div class="flex items-center justify-between">
@@ -13,7 +13,7 @@
             </div>
             <div>
               <h2 class="text-xl font-bold text-gray-900">Crear Nuevo Lote</h2>
-              <p class="text-sm text-gray-600">Para la finca: {{ fincaNombre }}</p>
+              <p class="text-sm text-gray-600">Bulto de granos para la finca: {{ fincaNombre }}</p>
             </div>
           </div>
           <button
@@ -31,16 +31,19 @@
       <form @submit.prevent="handleSubmit" class="p-6">
         <div class="space-y-6">
           <!-- Alerta de errores generales -->
-          <div v-if="Object.keys(errors).length > 0" class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+          <div v-if="generalError || Object.keys(errors).length > 0" class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
             <div class="flex items-start">
               <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
               <div class="ml-3 flex-1">
-                <h3 class="text-sm font-medium text-red-800">Por favor, corrige los siguientes errores:</h3>
-                <ul class="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
+                <h3 class="text-sm font-semibold text-red-800">
+                  <span v-if="generalError">{{ generalError }}</span>
+                  <span v-else-if="Object.keys(errors).length > 0">Por favor corrige los siguientes errores:</span>
+                </h3>
+                <ul v-if="Object.keys(errors).length > 0" class="mt-2 list-disc list-inside text-sm text-red-700">
                   <li v-for="(error, field) in errors" :key="field">{{ error }}</li>
                 </ul>
               </div>
@@ -49,20 +52,19 @@
 
           <!-- Información básica -->
           <div class="bg-gray-50 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Información Básica</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Información del Bulto</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label for="modal-identificador" class="block text-sm font-medium text-gray-700 mb-2">
-                  Identificador * <span class="text-xs text-gray-500">(único en la finca)</span>
+                  Identificador <span class="text-xs text-gray-500">(opcional, único en la finca)</span>
                 </label>
                 <input
                   id="modal-identificador"
                   v-model="formData.identificador"
                   type="text"
-                  required
                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   :class="{ 'border-red-500': errors.identificador }"
-                  placeholder="Ej: LOTE-001"
+                  placeholder="Ej: BULTO-001"
                   maxlength="50"
                 />
                 <p v-if="errors.identificador" class="text-red-500 text-xs mt-1 flex items-center gap-1">
@@ -72,6 +74,27 @@
                   {{ errors.identificador }}
                 </p>
                 <p class="text-xs text-gray-500 mt-1">{{ formData.identificador.length }}/50 caracteres</p>
+              </div>
+
+              <div>
+                <label for="modal-nombre" class="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre/Descripción <span class="text-xs text-gray-500">(opcional, se usa si no hay identificador)</span>
+                </label>
+                <input
+                  id="modal-nombre"
+                  v-model="formData.nombre"
+                  type="text"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  :class="{ 'border-red-500': errors.nombre }"
+                  placeholder="Ej: Bulto de cacao premium"
+                  maxlength="200"
+                />
+                <p v-if="errors.nombre" class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  {{ errors.nombre }}
+                </p>
               </div>
 
               <div>
@@ -86,8 +109,8 @@
                   :class="{ 'border-red-500': errors.variedad }"
                 >
                   <option value="">Seleccionar variedad</option>
-                  <option v-for="variedad in variedades" :key="variedad" :value="variedad">
-                    {{ variedad }}
+                  <option v-for="variedad in variedades" :key="variedad.id" :value="variedad.id">
+                    {{ variedad.nombre }}
                   </option>
                 </select>
                 <p v-if="errors.variedad" class="text-red-500 text-xs mt-1 flex items-center gap-1">
@@ -99,26 +122,26 @@
               </div>
 
               <div>
-                <label for="modal-area" class="block text-sm font-medium text-gray-700 mb-2">
-                  Área (hectáreas) * <span class="text-xs text-gray-500">(superficie del lote)</span>
+                <label for="modal-peso" class="block text-sm font-medium text-gray-700 mb-2">
+                  Peso (kg) * <span class="text-xs text-gray-500">(peso del bulto en kilogramos)</span>
                 </label>
                 <input
-                  id="modal-area"
-                  v-model="formData.area_hectareas"
+                  id="modal-peso"
+                  v-model="formData.peso_kg"
                   type="number"
                   step="0.01"
                   min="0.01"
-                  max="1000"
+                  max="100000"
                   required
                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  :class="{ 'border-red-500': errors.area_hectareas }"
+                  :class="{ 'border-red-500': errors.peso_kg }"
                   placeholder="0.00"
                 />
-                <p v-if="errors.area_hectareas" class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                <p v-if="errors.peso_kg" class="text-red-500 text-xs mt-1 flex items-center gap-1">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
-                  {{ errors.area_hectareas }}
+                  {{ errors.peso_kg }}
                 </p>
               </div>
 
@@ -134,8 +157,8 @@
                   :class="{ 'border-red-500': errors.estado }"
                 >
                   <option value="">Seleccionar estado</option>
-                  <option v-for="estado in estadosLote" :key="estado.value" :value="estado.value">
-                    {{ estado.label }}
+                  <option v-for="estado in estadosLote" :key="estado.id" :value="estado.id">
+                    {{ estado.nombre }}
                   </option>
                 </select>
                 <p v-if="errors.estado" class="text-red-500 text-xs mt-1 flex items-center gap-1">
@@ -150,17 +173,58 @@
 
           <!-- Fechas -->
           <div class="bg-blue-50 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Fechas</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Fechas del Bulto</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <label for="modal-fecha-recepcion" class="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Recepción * <span class="text-xs text-gray-500">(cuándo se recibió el bulto)</span>
+                </label>
+                <input
+                  id="modal-fecha-recepcion"
+                  v-model="formData.fecha_recepcion"
+                  type="date"
+                  required
+                  :max="maxDate"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  :class="{ 'border-red-500': errors.fecha_recepcion }"
+                />
+                <p v-if="errors.fecha_recepcion" class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  {{ errors.fecha_recepcion }}
+                </p>
+              </div>
+
+              <div>
+                <label for="modal-fecha-procesamiento" class="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Procesamiento <span class="text-xs text-gray-500">(opcional, fermentación/procesamiento)</span>
+                </label>
+                <input
+                  id="modal-fecha-procesamiento"
+                  v-model="formData.fecha_procesamiento"
+                  type="date"
+                  :min="formData.fecha_recepcion"
+                  :max="maxDate"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  :class="{ 'border-red-500': errors.fecha_procesamiento }"
+                />
+                <p v-if="errors.fecha_procesamiento" class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  {{ errors.fecha_procesamiento }}
+                </p>
+              </div>
+
+              <div>
                 <label for="modal-fecha-plantacion" class="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Plantación * <span class="text-xs text-gray-500">(cuando se sembró)</span>
+                  Fecha de Plantación <span class="text-xs text-gray-500">(opcional, cuando se sembró)</span>
                 </label>
                 <input
                   id="modal-fecha-plantacion"
                   v-model="formData.fecha_plantacion"
                   type="date"
-                  required
                   :max="maxDate"
                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   :class="{ 'border-red-500': errors.fecha_plantacion }"
@@ -175,7 +239,7 @@
 
               <div>
                 <label for="modal-fecha-cosecha" class="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Cosecha <span class="text-xs text-gray-500">(opcional, si ya se cosechó)</span>
+                  Fecha de Cosecha <span class="text-xs text-gray-500">(opcional, cuando se cosechó)</span>
                 </label>
                 <input
                   id="modal-fecha-cosecha"
@@ -191,58 +255,6 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   {{ errors.fecha_cosecha }}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Coordenadas GPS (opcional) -->
-          <div class="bg-purple-50 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Coordenadas GPS (Opcional)</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="modal-latitud" class="block text-sm font-medium text-gray-700 mb-2">
-                  Latitud <span class="text-xs text-gray-500">(-90 a 90)</span>
-                </label>
-                <input
-                  id="modal-latitud"
-                  v-model="formData.coordenadas_lat"
-                  type="number"
-                  step="any"
-                  min="-90"
-                  max="90"
-                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                  :class="{ 'border-red-500': errors.coordenadas_lat }"
-                  placeholder="Ej: 4.6097"
-                />
-                <p v-if="errors.coordenadas_lat" class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  {{ errors.coordenadas_lat }}
-                </p>
-              </div>
-
-              <div>
-                <label for="modal-longitud" class="block text-sm font-medium text-gray-700 mb-2">
-                  Longitud <span class="text-xs text-gray-500">(-180 a 180)</span>
-                </label>
-                <input
-                  id="modal-longitud"
-                  v-model="formData.coordenadas_lng"
-                  type="number"
-                  step="any"
-                  min="-180"
-                  max="180"
-                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                  :class="{ 'border-red-500': errors.coordenadas_lng }"
-                  placeholder="Ej: -74.0817"
-                />
-                <p v-if="errors.coordenadas_lng" class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  {{ errors.coordenadas_lng }}
                 </p>
               </div>
             </div>
@@ -269,6 +281,26 @@
               {{ errors.descripcion }}
             </p>
             <p class="text-xs text-gray-500 mt-1">{{ formData.descripcion.length }}/500 caracteres</p>
+          </div>
+        </div>
+
+        <!-- Alerta de errores encima de los botones -->
+        <div v-if="generalError || Object.keys(errors).length > 0" class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3 flex-1">
+              <h3 class="text-sm font-semibold text-red-800">
+                <span v-if="generalError">{{ generalError }}</span>
+                <span v-else-if="Object.keys(errors).length > 0">Por favor corrige los siguientes errores:</span>
+              </h3>
+              <ul v-if="Object.keys(errors).length > 0" class="mt-2 list-disc list-inside text-sm text-red-700">
+                <li v-for="(error, field) in errors" :key="field">{{ error }}</li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -300,10 +332,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useLotes } from '@/composables/useLotes'
 import { useNotifications } from '@/composables/useNotifications'
 import lotesApi from '@/services/lotesApi'
+import catalogosApi from '@/services/catalogosApi'
 
 const props = defineProps({
   fincaId: {
@@ -326,72 +359,156 @@ const { showSuccess, showError } = useNotifications()
 
 const localLoading = ref(false)
 const errors = ref({})
+const generalError = ref('')
 
 const formData = reactive({
   identificador: '',
+  nombre: '',
   variedad: '',
+  peso_kg: '',
+  fecha_recepcion: '',
+  fecha_procesamiento: '',
   fecha_plantacion: '',
   fecha_cosecha: '',
-  area_hectareas: '',
-  estado: 'activo',
+  estado: null,
   descripcion: '',
-  coordenadas_lat: '',
-  coordenadas_lng: '',
-  activa: true
+  activo: true
 })
 
-const loading = computed(() => isLotesLoading.value || localLoading.value)
-const variedades = computed(() => lotesApi.getVariedadesCacao())
-const estadosLote = computed(() => {
-  const estados = lotesApi.getEstadosLote()
-  return estados || [
-    { value: 'activo', label: 'Activo' },
-    { value: 'inactivo', label: 'Inactivo' },
-    { value: 'cosechado', label: 'Cosechado' }
-  ]
-})
+const loading = computed(() => isLotesLoading.value || localLoading.value || loadingParametros.value)
 const maxDate = computed(() => new Date().toISOString().split('T')[0])
+
+// Parámetros desde la API
+const variedades = ref([])
+const estadosLote = ref([])
+const loadingParametros = ref(false)
+
+// Cargar parámetros desde la API
+const loadParametros = async () => {
+  loadingParametros.value = true
+  try {
+    // Cargar variedades de cacao
+    const variedadesData = await catalogosApi.getParametrosPorTema('TEMA_VARIEDAD_CACAO')
+    const variedadesList = Array.isArray(variedadesData?.results) 
+      ? variedadesData.results 
+      : Array.isArray(variedadesData) 
+        ? variedadesData 
+        : []
+    variedades.value = variedadesList.map(p => ({
+      id: p.id,
+      nombre: p.nombre || p.codigo || String(p.id),
+      codigo: p.codigo
+    }))
+    
+    // Cargar estados de lote
+    const estadosData = await catalogosApi.getParametrosPorTema('TEMA_ESTADO_LOTE')
+    const estadosList = Array.isArray(estadosData?.results) 
+      ? estadosData.results 
+      : Array.isArray(estadosData) 
+        ? estadosData 
+        : []
+    estadosLote.value = estadosList.map(p => ({
+      id: p.id,
+      nombre: p.nombre || p.codigo || String(p.id),
+      codigo: p.codigo
+    }))
+  } catch (error) {
+    console.error('Error cargando parámetros:', error)
+    // Fallback a valores por defecto si falla la carga
+    variedades.value = []
+    estadosLote.value = []
+  } finally {
+    loadingParametros.value = false
+  }
+}
 
 const validateForm = () => {
   errors.value = {}
+  generalError.value = ''
   let isValid = true
 
-  // Validar identificador
-  if (!formData.identificador || formData.identificador.trim().length < 2) {
-    errors.value.identificador = 'El identificador debe tener al menos 2 caracteres'
-    isValid = false
-  } else if (formData.identificador.trim().length > 50) {
-    errors.value.identificador = 'El identificador no puede exceder 50 caracteres'
-    isValid = false
+  // Validar identificador (opcional, pero si se proporciona debe ser válido)
+  if (formData.identificador && formData.identificador.trim().length > 0) {
+    if (formData.identificador.trim().length < 2) {
+      errors.value.identificador = 'El identificador debe tener al menos 2 caracteres'
+      isValid = false
+    } else if (formData.identificador.trim().length > 50) {
+      errors.value.identificador = 'El identificador no puede exceder 50 caracteres'
+      isValid = false
+    }
   }
 
-  // Validar variedad
-  if (!formData.variedad || formData.variedad.trim().length === 0) {
+  // Validar variedad (debe ser un ID numérico)
+  if (!formData.variedad) {
     errors.value.variedad = 'Debes seleccionar una variedad'
     isValid = false
+  } else {
+    const variedadId = Number(formData.variedad)
+    if (isNaN(variedadId) || variedadId <= 0) {
+      errors.value.variedad = 'Debes seleccionar una variedad válida'
+      isValid = false
+    }
   }
 
-  // Validar área
-  const areaNum = parseFloat(formData.area_hectareas)
-  if (!formData.area_hectareas || formData.area_hectareas.toString().trim().length === 0) {
-    errors.value.area_hectareas = 'El área es requerida'
+  // Validar nombre (si no hay identificador, el nombre es requerido)
+  if (!formData.nombre || formData.nombre.trim().length === 0) {
+    if (!formData.identificador || formData.identificador.trim().length === 0) {
+      errors.value.nombre = 'El nombre o identificador es requerido'
+      isValid = false
+    }
+  }
+
+  // Validar peso
+  const pesoNum = parseFloat(formData.peso_kg)
+  if (!formData.peso_kg || formData.peso_kg.toString().trim().length === 0) {
+    errors.value.peso_kg = 'El peso es requerido'
     isValid = false
-  } else if (isNaN(areaNum)) {
-    errors.value.area_hectareas = 'El área debe ser un número válido'
+  } else if (isNaN(pesoNum)) {
+    errors.value.peso_kg = 'El peso debe ser un número válido'
     isValid = false
-  } else if (areaNum <= 0) {
-    errors.value.area_hectareas = 'El área debe ser mayor a 0'
+  } else if (pesoNum <= 0) {
+    errors.value.peso_kg = 'El peso debe ser mayor a 0'
     isValid = false
-  } else if (areaNum > 1000) {
-    errors.value.area_hectareas = 'El área no puede exceder 1,000 hectáreas'
+  } else if (pesoNum > 100000) {
+    errors.value.peso_kg = 'El peso no puede exceder 100,000 kg'
     isValid = false
   }
 
-  // Validar fecha de plantación
-  if (!formData.fecha_plantacion) {
-    errors.value.fecha_plantacion = 'Debes seleccionar una fecha de plantación'
+  // Validar fecha de recepción (requerida)
+  if (!formData.fecha_recepcion) {
+    errors.value.fecha_recepcion = 'Debes seleccionar una fecha de recepción'
     isValid = false
   } else {
+    const fechaRecepcion = new Date(formData.fecha_recepcion)
+    const hoy = new Date()
+    hoy.setHours(23, 59, 59, 999)
+    if (fechaRecepcion > hoy) {
+      errors.value.fecha_recepcion = 'La fecha de recepción no puede ser futura'
+      isValid = false
+    }
+  }
+
+  // Validar fecha de procesamiento (si se proporciona)
+  if (formData.fecha_procesamiento) {
+    if (formData.fecha_recepcion) {
+      const fechaRecepcion = new Date(formData.fecha_recepcion)
+      const fechaProcesamiento = new Date(formData.fecha_procesamiento)
+      if (fechaProcesamiento < fechaRecepcion) {
+        errors.value.fecha_procesamiento = 'La fecha de procesamiento no puede ser anterior a la fecha de recepción'
+        isValid = false
+      }
+    }
+    const fechaProcesamiento = new Date(formData.fecha_procesamiento)
+    const hoy = new Date()
+    hoy.setHours(23, 59, 59, 999)
+    if (fechaProcesamiento > hoy) {
+      errors.value.fecha_procesamiento = 'La fecha de procesamiento no puede ser futura'
+      isValid = false
+    }
+  }
+
+  // Validar fecha de plantación (opcional, pero si se proporciona debe ser válida)
+  if (formData.fecha_plantacion) {
     const fechaPlantacion = new Date(formData.fecha_plantacion)
     const hoy = new Date()
     hoy.setHours(23, 59, 59, 999)
@@ -420,31 +537,11 @@ const validateForm = () => {
     }
   }
 
-  // Validar estado
-  if (!formData.estado || formData.estado.trim().length === 0) {
-    errors.value.estado = 'Debes seleccionar un estado'
-    isValid = false
-  }
-
-  // Validar coordenadas (si se proporcionan)
-  if (formData.coordenadas_lat && formData.coordenadas_lat.toString().trim().length > 0) {
-    const lat = parseFloat(formData.coordenadas_lat)
-    if (isNaN(lat)) {
-      errors.value.coordenadas_lat = 'La latitud debe ser un número válido'
-      isValid = false
-    } else if (lat < -90 || lat > 90) {
-      errors.value.coordenadas_lat = 'La latitud debe estar entre -90 y 90'
-      isValid = false
-    }
-  }
-
-  if (formData.coordenadas_lng && formData.coordenadas_lng.toString().trim().length > 0) {
-    const lng = parseFloat(formData.coordenadas_lng)
-    if (isNaN(lng)) {
-      errors.value.coordenadas_lng = 'La longitud debe ser un número válido'
-      isValid = false
-    } else if (lng < -180 || lng > 180) {
-      errors.value.coordenadas_lng = 'La longitud debe estar entre -180 y 180'
+  // Validar estado (debe ser un ID numérico, pero es opcional)
+  if (formData.estado) {
+    const estadoId = Number(formData.estado)
+    if (isNaN(estadoId) || estadoId <= 0) {
+      errors.value.estado = 'Debes seleccionar un estado válido'
       isValid = false
     }
   }
@@ -466,20 +563,22 @@ const handleSubmit = async () => {
 
   localLoading.value = true
   errors.value = {}
+  generalError.value = ''
 
   try {
     const loteData = {
       finca: Number(props.fincaId),
-      identificador: formData.identificador.trim(),
-      variedad: formData.variedad,
-      fecha_plantacion: formData.fecha_plantacion,
+      identificador: formData.identificador.trim() || null,
+      nombre: formData.nombre.trim() || formData.identificador.trim() || 'Bulto de cacao',
+      variedad: Number(formData.variedad), // Asegurar que es un número
+      peso_kg: parseFloat(formData.peso_kg),
+      fecha_recepcion: formData.fecha_recepcion,
+      fecha_procesamiento: formData.fecha_procesamiento || null,
+      fecha_plantacion: formData.fecha_plantacion || null,
       fecha_cosecha: formData.fecha_cosecha || null,
-      area_hectareas: parseFloat(formData.area_hectareas),
-      estado: formData.estado,
-      descripcion: formData.descripcion || null,
-      coordenadas_lat: formData.coordenadas_lat ? parseFloat(formData.coordenadas_lat) : null,
-      coordenadas_lng: formData.coordenadas_lng ? parseFloat(formData.coordenadas_lng) : null,
-      activa: formData.activa
+      estado: formData.estado ? Number(formData.estado) : null, // Asegurar que es un número o null
+      descripcion: formData.descripcion.trim() || null,
+      activo: formData.activo
     }
 
     const result = await createLote(loteData)
@@ -507,29 +606,61 @@ const handleSubmit = async () => {
     showSuccess('El lote ha sido creado exitosamente')
     emit('lote-created', newLote)
   } catch (error) {
+    console.error('Error al crear lote:', error)
+    console.error('Error response:', error.response)
+    console.error('Error data:', error.response?.data)
+    
+    // Limpiar errores previos
+    errors.value = {}
+    generalError.value = ''
     
     // Manejar errores del servidor
     if (error.response?.data) {
       const responseData = error.response.data
+      
+      // Extraer mensaje de error general (autenticación, permisos, etc.)
+      const generalErrorMessage = responseData.error || responseData.detail || responseData.message
+      if (generalErrorMessage) {
+        generalError.value = String(generalErrorMessage)
+        showError(generalErrorMessage)
+      }
+      
+      // Mapear errores de campos específicos
       const serverErrors = responseData.details || responseData
+      if (typeof serverErrors === 'object' && serverErrors !== null) {
+        Object.keys(serverErrors).forEach(key => {
+          // Ignorar campos que son mensajes generales
+          if (key !== 'error' && key !== 'status' && key !== 'detail' && key !== 'message') {
+            const errorValue = serverErrors[key]
+            if (errorValue) {
+              errors.value[key] = Array.isArray(errorValue) ? errorValue[0] : String(errorValue)
+            }
+          }
+        })
+      }
       
-      // Mapear errores del servidor
-      Object.keys(serverErrors).forEach(key => {
-        if (key !== 'error' && key !== 'status') {
-          const errorValue = serverErrors[key]
-          errors.value[key] = Array.isArray(errorValue) ? errorValue[0] : String(errorValue)
-        }
-      })
-      
-      const errorMessage = responseData.error || responseData.detail || 'No se pudo crear el lote'
-      showError(errorMessage)
+      // Si no hay mensaje general pero hay errores de campos, mostrar mensaje genérico
+      if (!generalError.value && Object.keys(errors.value).length > 0) {
+        generalError.value = 'Por favor, corrige los errores en el formulario'
+      } else if (!generalError.value) {
+        generalError.value = 'No se pudo crear el lote. Por favor, intenta nuevamente.'
+        showError(generalError.value)
+      }
     } else {
-      showError(error.message || 'No se pudo crear el lote. Intenta nuevamente.')
+      // Error de red u otro error sin respuesta del servidor
+      const errorMessage = error.message || 'No se pudo crear el lote. Verifica tu conexión e intenta nuevamente.'
+      generalError.value = errorMessage
+      showError(errorMessage)
     }
   } finally {
     localLoading.value = false
   }
 }
+
+// Cargar parámetros al montar el componente
+onMounted(() => {
+  loadParametros()
+})
 </script>
 
 <style scoped>

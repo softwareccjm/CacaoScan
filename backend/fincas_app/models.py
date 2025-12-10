@@ -196,13 +196,15 @@ class Finca(TimeStampedModel):
 
 class Lote(TimeStampedModel):
     """
-    Modelo para gestionar lotes de cacao dentro de fincas.
+    Modelo para gestionar lotes de cacao como bultos de granos.
+    Un lote representa un bulto de granos de cacao que será escaneado por IA
+    para determinar sus características de calidad.
     """
     finca = models.ForeignKey(
         Finca, 
         on_delete=models.CASCADE, 
         related_name='lotes',
-        help_text="Finca a la que pertenece el lote"
+        help_text="Finca de origen del bulto de granos"
     )
     identificador = models.CharField(
         max_length=50, 
@@ -212,27 +214,37 @@ class Lote(TimeStampedModel):
     )
     nombre = models.CharField(
         max_length=200,
-        help_text="Nombre del lote"
+        help_text="Nombre o descripción del bulto"
     )
     variedad = models.ForeignKey(
         Parametro,
         on_delete=models.PROTECT,
         related_name='lotes_variedad',
         limit_choices_to={'tema__codigo': 'TEMA_VARIEDAD_CACAO'},
-        help_text="Variedad de cacao del lote"
+        help_text="Variedad de cacao del bulto"
+    )
+    peso_kg = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        help_text="Peso del bulto en kilogramos"
+    )
+    fecha_recepcion = models.DateField(
+        help_text="Fecha en que se recibió el bulto"
     )
     fecha_plantacion = models.DateField(
-        help_text="Fecha de plantación del lote"
+        null=True,
+        blank=True,
+        help_text="Fecha de plantación del cacao (opcional)"
     )
     fecha_cosecha = models.DateField(
         null=True, 
         blank=True,
-        help_text="Fecha de cosecha del lote"
+        help_text="Fecha de cosecha del cacao (opcional)"
     )
-    area_hectareas = models.DecimalField(
-        max_digits=8, 
-        decimal_places=2,
-        help_text="Área del lote en hectáreas"
+    fecha_procesamiento = models.DateField(
+        null=True, 
+        blank=True,
+        help_text="Fecha de procesamiento/fermentación del bulto (opcional)"
     )
     estado = models.ForeignKey(
         Parametro,
@@ -241,47 +253,17 @@ class Lote(TimeStampedModel):
         blank=True,
         related_name='lotes_estado',
         limit_choices_to={'tema__codigo': 'TEMA_ESTADO_LOTE'},
-        help_text="Estado actual del lote"
+        help_text="Estado del procesamiento del bulto (Recibido, En fermentación, Fermentado, Secado, Listo para análisis, Analizado)"
     )
     
     # Información adicional
-    descripcion = models.TextField(blank=True, default="", help_text="Descripción adicional del lote")
-    coordenadas_lat = models.DecimalField(
-        max_digits=10, 
-        decimal_places=7, 
-        blank=True, 
-        null=True,
-        help_text="Latitud GPS del lote"
-    )
-    coordenadas_lng = models.DecimalField(
-        max_digits=10, 
-        decimal_places=7, 
-        blank=True, 
-        null=True,
-        help_text="Longitud GPS del lote"
-    )
+    descripcion = models.TextField(blank=True, default="", help_text="Descripción adicional o notas sobre el bulto")
     fecha_registro = models.DateTimeField(auto_now_add=True, help_text="Fecha de registro del lote")
     activo = models.BooleanField(default=True, help_text="Indica si el lote está activo")
     
-    # Campos adicionales requeridos por tests
-    edad_plantas = models.PositiveIntegerField(
-        blank=True,
-        null=True,
-        help_text="Edad de las plantas en meses"
-    )
+    # Campos adicionales requeridos por tests (mantener para compatibilidad temporal)
     fecha_creacion = models.DateTimeField(auto_now_add=True, help_text="Fecha de creación del lote")
     fecha_actualizacion = models.DateTimeField(auto_now=True, help_text="Fecha de última actualización")
-    
-    # Alias para compatibilidad con tests
-    @property
-    def area(self):
-        """Alias para area_hectareas (compatibilidad con tests)."""
-        return self.area_hectareas
-    
-    @area.setter
-    def area(self, value):
-        """Setter para area (compatibilidad con tests)."""
-        self.area_hectareas = value
     
     class Meta:
         verbose_name = 'Lote'
@@ -295,11 +277,15 @@ class Lote(TimeStampedModel):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(area_hectareas__gt=0),
-                name='fincas_app_lote_area_positiva'
+                condition=models.Q(peso_kg__gt=0),
+                name='fincas_app_lote_peso_positivo'
             ),
             models.CheckConstraint(
-                condition=models.Q(fecha_cosecha__isnull=True) | models.Q(fecha_cosecha__gte=models.F('fecha_plantacion')),
+                condition=models.Q(fecha_procesamiento__isnull=True) | models.Q(fecha_procesamiento__gte=models.F('fecha_recepcion')),
+                name='fincas_app_lote_fecha_procesamiento_valida'
+            ),
+            models.CheckConstraint(
+                condition=models.Q(fecha_cosecha__isnull=True) | models.Q(fecha_plantacion__isnull=True) | models.Q(fecha_cosecha__gte=models.F('fecha_plantacion')),
                 name='fincas_app_lote_fecha_cosecha_valida'
             ),
             models.UniqueConstraint(
@@ -369,12 +355,14 @@ class Lote(TimeStampedModel):
             'total_analisis': self.total_analisis,
             'analisis_procesados': self.analisis_procesados,
             'calidad_promedio': self.calidad_promedio,
-            'area_hectareas': float(self.area_hectareas),
+            'peso_kg': float(self.peso_kg) if self.peso_kg else 0.0,
             'edad_meses': self.edad_meses,
             'estado': self.estado.nombre if self.estado else None,
             'activo': self.activo,
-            'fecha_plantacion': self.fecha_plantacion.strftime(DATE_FORMAT_DMY),
+            'fecha_plantacion': self.fecha_plantacion.strftime(DATE_FORMAT_DMY) if self.fecha_plantacion else None,
             'fecha_cosecha': self.fecha_cosecha.strftime(DATE_FORMAT_DMY) if self.fecha_cosecha else None,
+            'fecha_recepcion': self.fecha_recepcion.strftime(DATE_FORMAT_DMY) if self.fecha_recepcion else None,
+            'fecha_procesamiento': self.fecha_procesamiento.strftime(DATE_FORMAT_DMY) if self.fecha_procesamiento else None,
         }
 
 

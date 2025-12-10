@@ -18,3 +18,4 @@ class Migration(migrations.Migration):
         # - 0006_remove_notification_notificati_tipo_id_idx
     ]
 
+

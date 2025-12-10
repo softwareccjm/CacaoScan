@@ -145,7 +145,12 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
             
             variedad = request.GET.get('variedad', '').strip()
             if variedad:
-                queryset = queryset.filter(variedad__icontains=variedad)
+                # Variedad is now a ForeignKey to Parametro, filter by ID or nombre
+                try:
+                    variedad_id = int(variedad)
+                    queryset = queryset.filter(variedad_id=variedad_id)
+                except (ValueError, TypeError):
+                    queryset = queryset.filter(variedad__nombre__icontains=variedad)
             
             estado = request.GET.get('estado', '').strip()
             if estado:
@@ -160,7 +165,8 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
             if search:
                 queryset = queryset.filter(
                     Q(identificador__icontains=search) |
-                    Q(variedad__icontains=search) |
+                    Q(nombre__icontains=search) |
+                    Q(variedad__nombre__icontains=search) |
                     Q(finca__nombre__icontains=search)
                 )
             
@@ -181,17 +187,19 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
             type=openapi.TYPE_OBJECT,
             properties={
                 'finca': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID de la finca"),
-                'identificador': openapi.Schema(type=openapi.TYPE_STRING, description="Identificador del lote"),
-                'variedad': openapi.Schema(type=openapi.TYPE_STRING, description="Variedad de cacao"),
-                'fecha_plantacion': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de plantación"),
-                'fecha_cosecha': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de cosecha"),
-                'area_hectareas': openapi.Schema(type=openapi.TYPE_NUMBER, description="Área en hectáreas"),
-                'estado': openapi.Schema(type=openapi.TYPE_STRING, description="Estado del lote"),
-                'descripcion': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción adicional"),
-                'coordenadas_lat': openapi.Schema(type=openapi.TYPE_NUMBER, description="Latitud GPS"),
-                'coordenadas_lng': openapi.Schema(type=openapi.TYPE_NUMBER, description="Longitud GPS"),
+                'identificador': openapi.Schema(type=openapi.TYPE_STRING, description="Identificador del lote (opcional)"),
+                'nombre': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre o descripción del bulto (opcional)"),
+                'variedad': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID del parámetro de variedad de cacao"),
+                'peso_kg': openapi.Schema(type=openapi.TYPE_NUMBER, description="Peso del bulto en kilogramos"),
+                'fecha_recepcion': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de recepción del bulto"),
+                'fecha_procesamiento': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de procesamiento (opcional)"),
+                'fecha_plantacion': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de plantación (opcional)"),
+                'fecha_cosecha': openapi.Schema(type=openapi.TYPE_STRING, format='date', description="Fecha de cosecha (opcional)"),
+                'estado': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID del parámetro de estado del lote (opcional)"),
+                'descripcion': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción adicional (opcional)"),
+                'activa': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Estado activo (opcional, default: true)"),
             },
-            required=['finca', 'identificador', 'variedad', 'fecha_plantacion', 'area_hectareas']
+            required=['finca', 'variedad', 'peso_kg', 'fecha_recepcion']
         ),
         responses={
             201: openapi.Response(description="Lote creado exitosamente"),
@@ -203,8 +211,15 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
     def post(self, request):
         """Crear nuevo lote."""
         try:
+            import traceback
+            
+            # Preparar datos: mapear 'activa' a 'activo' si es necesario
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            if 'activa' in data and 'activo' not in data:
+                data['activo'] = data.pop('activa')
+            
             # Validar que la finca existe y pertenece al usuario
-            finca_id = request.data.get('finca')
+            finca_id = data.get('finca')
             if not finca_id:
                 return Response({
                     'error': 'La finca es requerida',
@@ -225,23 +240,35 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
                     'status': 'error'
                 }, status=status.HTTP_404_NOT_FOUND)
             
+            logger.info(f"Creando lote con datos: {data}")
+            
             serializer = LoteSerializer(
-                data=request.data, 
+                data=data, 
                 context={'request': request, 'finca': finca}
             )
             
             if serializer.is_valid():
-                lote = serializer.save()
-                
-                logger.info(f"Lote '{lote.identificador}' creado por usuario {request.user.username}")
-                
-                # Devolver datos completos con formato estándar
-                response_serializer = LoteSerializer(lote, context={'request': request})
-                return Response({
-                    'success': True,
-                    'lote': response_serializer.data
-                }, status=status.HTTP_201_CREATED)
+                try:
+                    lote = serializer.save()
+                    
+                    logger.info(f"Lote '{lote.identificador or lote.nombre}' creado por usuario {request.user.username}")
+                    
+                    # Devolver datos completos con formato estándar
+                    response_serializer = LoteSerializer(lote, context={'request': request})
+                    return Response({
+                        'success': True,
+                        'lote': response_serializer.data
+                    }, status=status.HTTP_201_CREATED)
+                except Exception as save_error:
+                    logger.error(f"Error guardando lote: {save_error}")
+                    logger.error(f"Traceback: {traceback.format_exc()}")
+                    return Response({
+                        'error': 'Error al guardar el lote',
+                        'details': str(save_error),
+                        'status': 'error'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
+                logger.error(f"Errores de validación: {serializer.errors}")
                 return Response({
                     'error': ERROR_INVALID_INPUT,
                     'details': serializer.errors,
@@ -249,6 +276,8 @@ class LoteListCreateView(PaginationMixin, LotePermissionMixin, APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
+            logger.error(f"Error creando lote: {e}")
+            logger.error(f"Traceback completo: {traceback.format_exc()}")
             return handle_exception(e, request.user.username, "creando")
 
 

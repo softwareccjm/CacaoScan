@@ -18,3 +18,4 @@ class Migration(migrations.Migration):
         # - 0009_migrate_report_catalogs_to_parametros
     ]
 
+

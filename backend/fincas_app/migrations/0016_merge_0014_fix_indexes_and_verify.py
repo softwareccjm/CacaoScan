@@ -16,3 +16,4 @@ class Migration(migrations.Migration):
         # It just merges the two branches of the migration graph
     ]
 
+
