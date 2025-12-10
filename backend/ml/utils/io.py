@@ -10,6 +10,33 @@ import pandas as pd
 from PIL import Image
 
 
+def _intentar_decodificar_con_multiples_encodings(raw_content: bytes) -> str:
+    """Intenta decodificar contenido con múltiples encodings."""
+    encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+    for encoding in encodings:
+        try:
+            return raw_content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    # Último recurso: usar utf-8 con errors='ignore'
+    return raw_content.decode('utf-8', errors='ignore')
+
+
+def _obtener_formato_imagen_desde_extension(file_path: Path) -> str:
+    """Obtiene el formato de imagen desde la extensión del archivo."""
+    ext = file_path.suffix[1:].upper()
+    format_map = {
+        'JPG': 'JPEG',
+        'JPEG': 'JPEG',
+        'PNG': 'PNG',
+        'GIF': 'GIF',
+        'BMP': 'BMP',
+        'TIFF': 'TIFF',
+        'TIF': 'TIFF',
+    }
+    return format_map.get(ext, ext)
+
+
 def save_json(data: Dict[str, Any], file_path: Path) -> None:
     """Guarda datos en formato JSON."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -21,18 +48,7 @@ def load_json(file_path: Path) -> Dict[str, Any]:
     """Carga datos desde un archivo JSON."""
     with open(file_path, 'rb') as f:
         raw_content = f.read()
-        # Try multiple encodings in order
-        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-        text_content = None
-        for encoding in encodings:
-            try:
-                text_content = raw_content.decode(encoding)
-                break
-            except UnicodeDecodeError:
-                continue
-        if text_content is None:
-            # Last resort: use utf-8 with errors='ignore'
-            text_content = raw_content.decode('utf-8', errors='ignore')
+        text_content = _intentar_decodificar_con_multiples_encodings(raw_content)
         return json.loads(text_content)
 
 
@@ -64,18 +80,7 @@ def save_image(image: Image.Image, file_path: Path, format: str = None) -> None:
     """Guarda una imagen."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
     if format is None:
-        # Map common extensions to PIL format names
-        ext = file_path.suffix[1:].upper()
-        format_map = {
-            'JPG': 'JPEG',
-            'JPEG': 'JPEG',
-            'PNG': 'PNG',
-            'GIF': 'GIF',
-            'BMP': 'BMP',
-            'TIFF': 'TIFF',
-            'TIF': 'TIFF',
-        }
-        image_format = format_map.get(ext, ext)
+        image_format = _obtener_formato_imagen_desde_extension(file_path)
     else:
         image_format = format
     image.save(file_path, format=image_format)
