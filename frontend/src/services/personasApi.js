@@ -9,7 +9,7 @@ export const personasApi = {
    * Obtener el perfil de la persona del usuario autenticado
    */
   async getPerfil() {
-    return await apiGet('/api/personas/perfil/')
+    return await apiGet('/personas/perfil/')
   },
 
   /**
@@ -17,7 +17,7 @@ export const personasApi = {
    * @param {Object} data - Datos de la persona
    */
   async crearPerfil(data) {
-    return await apiPost('/api/personas/perfil/', data)
+    return await apiPost('/personas/perfil/', data)
   },
 
   /**
@@ -25,7 +25,7 @@ export const personasApi = {
    * @param {Object} data - Datos a actualizar (excepto email)
    */
   async actualizarPerfil(data) {
-    return await apiPatch('/api/personas/perfil/', data)
+    return await apiPatch('/personas/perfil/', data)
   },
 
   // Admin: obtener persona por user_id

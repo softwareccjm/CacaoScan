@@ -169,21 +169,72 @@ class PersonaPerfilView(APIView):
     
     def get(self, request):
         """Obtener los datos de la persona del usuario autenticado."""
+        user = request.user
+        
+        # 🔥 FIX 1: Garantizar que UserProfile exista para evitar errores 500
+        from auth_app.models import UserProfile
+        profile, created = UserProfile.objects.get_or_create(
+            user=user,
+            defaults={'login_provider': 'local'}
+        )
+        
+        # 🔥 FIX 2: login_provider SIEMPRE debe venir del perfil
+        login_provider = getattr(profile, 'login_provider', 'local')
+        
+        # 🔥 FIX 3: password_allowed = false si es Google
+        password_allowed = (login_provider != 'google')
+        
         try:
+            # 🔥 FIX: departamento NO es una relación directa, es una propiedad
+            # Usar municipio__departamento para optimizar la consulta
             persona = Persona.objects.select_related(
                 'tipo_documento__tema',
                 'genero__tema',
-                'departamento',
-                'municipio',
+                'municipio__departamento',  # Corregido: departamento viene de municipio
                 'user'
-            ).get(user=request.user)
-            serializer = PersonaSerializer(persona)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            ).get(user=user)
+            
+            # Serializar persona con contexto para incluir login_provider
+            serializer = PersonaSerializer(persona, context={'user': user})
+            data = serializer.data
+            
+            # 🔥 FIX 4: SIEMPRE insertar flags en la respuesta (nivel superior)
+            data['login_provider'] = login_provider
+            data['password_allowed'] = password_allowed
+            
+            # También incluir has_password
+            data['has_password'] = user.has_usable_password()
+            
+            return Response(data, status=status.HTTP_200_OK)
         except Persona.DoesNotExist:
-            return Response(
-                {'error': 'No se encontró información de perfil para este usuario'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Si no existe Persona, devolver solo datos de usuario con flags
+            from api.serializers import UserSerializer
+            user_data = UserSerializer(user).data
+            
+            return Response({
+                'error': 'No se encontró información de perfil de persona para este usuario',
+                'login_provider': login_provider,
+                'password_allowed': password_allowed,
+                'has_password': user.has_usable_password(),
+                'user': user_data
+            }, status=status.HTTP_200_OK)  # Cambiado a 200 para que el frontend no entre en catch
+        except Exception as e:
+            # 🔥 FIX: Capturar cualquier otro error y devolver respuesta controlada
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en PersonaPerfilView.get(): {str(e)}", exc_info=True)
+            
+            # Devolver datos del usuario con flags aunque haya error
+            from api.serializers import UserSerializer
+            user_data = UserSerializer(user).data
+            
+            return Response({
+                'error': 'Error al obtener perfil de persona',
+                'login_provider': login_provider,
+                'password_allowed': password_allowed,
+                'has_password': user.has_usable_password(),
+                'user': user_data
+            }, status=status.HTTP_200_OK)  # 200 para que el frontend no entre en catch
     
     def post(self, request):
         """

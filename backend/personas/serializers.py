@@ -160,6 +160,11 @@ class PersonaSerializer(serializers.ModelSerializer):
     # Explicitly define telefono to avoid validation issues
     telefono = serializers.CharField(read_only=True)
     
+    # 🔥 Campos de autenticación - SIEMPRE incluir en la respuesta
+    login_provider = serializers.SerializerMethodField()
+    password_allowed = serializers.SerializerMethodField()
+    has_password = serializers.SerializerMethodField()
+    
     class Meta:
         model = Persona
         fields = [
@@ -168,9 +173,9 @@ class PersonaSerializer(serializers.ModelSerializer):
             'primer_apellido', 'segundo_apellido', 'telefono', 'direccion',
             'genero', 'genero_info', 'fecha_nacimiento',
             'departamento_info', 'municipio', 'municipio_info',
-            'fecha_creacion'
+            'fecha_creacion', 'login_provider', 'password_allowed', 'has_password'
         ]
-        read_only_fields = ['user', 'fecha_creacion', 'email', 'telefono']
+        read_only_fields = ['user', 'fecha_creacion', 'email', 'telefono', 'login_provider', 'password_allowed', 'has_password']
     
     def get_tipo_documento_info(self, obj):
         """Devuelve información del tipo de documento desde Parametro."""
@@ -212,6 +217,43 @@ class PersonaSerializer(serializers.ModelSerializer):
                 'nombre': obj.municipio.nombre
             }
         return None
+    
+    def get_login_provider(self, obj):
+        """Obtener login_provider desde UserProfile."""
+        try:
+            # Obtener usuario desde el objeto Persona o desde el contexto
+            user = getattr(obj, 'user', None)
+            if not user and hasattr(self, 'context') and 'user' in self.context:
+                user = self.context['user']
+            
+            if user:
+                from auth_app.models import UserProfile
+                profile, _ = UserProfile.objects.get_or_create(
+                    user=user,
+                    defaults={'login_provider': 'local'}
+                )
+                return getattr(profile, 'login_provider', 'local')
+        except Exception:
+            pass
+        return 'local'  # Default
+    
+    def get_password_allowed(self, obj):
+        """Calcula password_allowed basado en login_provider."""
+        login_provider = self.get_login_provider(obj)
+        return login_provider != 'google'
+    
+    def get_has_password(self, obj):
+        """Verifica si el usuario tiene contraseña usable."""
+        try:
+            user = getattr(obj, 'user', None)
+            if not user and hasattr(self, 'context') and 'user' in self.context:
+                user = self.context['user']
+            
+            if user:
+                return user.has_usable_password()
+        except Exception:
+            pass
+        return True  # Default
 
 
 class PersonaRegistroSerializer(serializers.Serializer):

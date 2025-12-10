@@ -129,9 +129,25 @@ class GoogleLoginView(APIView):
             if created:
                 logger.info(f"Usuario creado desde Google OAuth: {email}")
                 
-                # Marcar contraseña como no usable (solo puede entrar con Google por ahora)
+                # Marcar contraseña como no usable (solo puede entrar con Google)
                 user.set_unusable_password()
                 user.save()
+                
+                # 🔥 FIX: Crear o actualizar UserProfile con login_provider = "google"
+                from auth_app.models import UserProfile
+                profile, created = UserProfile.objects.get_or_create(
+                    user=user,
+                    defaults={'login_provider': 'google'}
+                )
+                # 🔥 SIEMPRE establecer login_provider = "google" para nuevos usuarios Google
+                if not created:
+                    profile.login_provider = 'google'
+                    profile.save()
+                
+                # Asegurar que user.auth_profile esté sincronizado
+                if hasattr(user, 'auth_profile'):
+                    user.auth_profile.login_provider = 'google'
+                    user.auth_profile.save()
                 
                 # Marcar como verificado automáticamente (viene de Google)
                 from auth_app.models import EmailVerification
@@ -153,6 +169,22 @@ class GoogleLoginView(APIView):
                 if updated:
                     user.save()
                 
+                # 🔥 FIX: Asegurar que el UserProfile tenga login_provider = "google"
+                from auth_app.models import UserProfile
+                profile, created = UserProfile.objects.get_or_create(
+                    user=user,
+                    defaults={'login_provider': 'google'}
+                )
+                # 🔥 SIEMPRE establecer login_provider = "google" para usuarios existentes que usan Google
+                if not created:
+                    profile.login_provider = 'google'
+                    profile.save()
+                
+                # Asegurar que user.auth_profile esté sincronizado
+                if hasattr(user, 'auth_profile'):
+                    user.auth_profile.login_provider = 'google'
+                    user.auth_profile.save()
+                
                 logger.info(f"Usuario autenticado desde Google OAuth: {email}")
             
             # Asegurar que el usuario esté activo
@@ -169,17 +201,22 @@ class GoogleLoginView(APIView):
             
             # Verificar si el usuario tiene contraseña usable
             has_password = user.has_usable_password()
+            user_data = UserSerializer(user).data
+            login_provider = user_data.get('login_provider', 'google')  # Google login siempre es 'google'
+            password_allowed = False  # Usuarios Google no pueden usar contraseñas
             
             return create_success_response(
                 message='Login exitoso con Google',
                 data={
                     'access': str(access_token),
                     'refresh': str(refresh),
-                    'user': UserSerializer(user).data,
+                    'user': user_data,
                     'email': email,
                     'name': name or f"{user.first_name} {user.last_name}".strip() or email,
                     'picture': picture,
                     'has_password': has_password,
+                    'login_provider': login_provider,
+                    'password_allowed': password_allowed,
                     'access_expires_at': access_token['exp'],
                     'refresh_expires_at': refresh['exp']
                 }

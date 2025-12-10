@@ -92,13 +92,32 @@
                     @save="saveProfile"
                   />
                   
-                  <!-- Cambio de contraseña - Solo mostrar si el usuario YA tiene contraseña -->
-                  <div v-if="hasPassword" class="mt-6 pt-6 border-t border-gray-200">
+                  <!-- Cambio de contraseña - Solo mostrar si password_allowed es true (usuarios Google nunca verán esto) -->
+                  <div v-if="passwordAllowed" class="mt-6 pt-6 border-t border-gray-200">
                     <PasswordSection 
                       ref="passwordSectionRef"
                       :is-loading="isChangingPassword"
                       @save="handlePasswordChange"
                     />
+                  </div>
+                  
+                  <!-- Mensaje informativo para usuarios Google -->
+                  <div v-if="!passwordAllowed" class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                      <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0">
+                          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div class="flex-1">
+                          <h3 class="text-lg font-semibold text-gray-900 mb-2">Autenticación con Google</h3>
+                          <p class="text-sm text-gray-700">
+                            Este usuario utiliza autenticación con Google. Las contraseñas locales no están disponibles.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Transition>
@@ -171,6 +190,39 @@ const hasPassword = computed(() => {
   return authStore.user ? true : false
 })
 
+// 🔥 FIX: Verificar si el usuario puede usar contraseñas (password_allowed)
+// PRIORIDAD: password_allowed > login_provider !== 'google'
+const passwordAllowed = computed(() => {
+  if (!authStore.user) {
+    console.log('🔐 passwordAllowed check: No user found, returning false')
+    return false
+  }
+  
+  const user = authStore.user
+  
+  // 🔥 PRIORIDAD 1: Si password_allowed está explícitamente definido, usar ese valor
+  if ('password_allowed' in user) {
+    const result = user.password_allowed === true
+    console.log('🔐 passwordAllowed check:', {
+      password_allowed: user.password_allowed,
+      login_provider: user.login_provider,
+      result: result,
+      willShowPasswordSection: result
+    })
+    return result
+  }
+  
+  // 🔥 PRIORIDAD 2: Calcular desde login_provider (fallback)
+  const loginProvider = user.login_provider || 'local'
+  const result = loginProvider !== 'google'
+  console.log('🔐 passwordAllowed check (fallback from login_provider):', {
+    login_provider: loginProvider,
+    result: result,
+    willShowPasswordSection: result
+  })
+  return result
+})
+
 // Datos de persona
 const personaData = ref({})
 
@@ -178,11 +230,25 @@ const personaData = ref({})
 const loadUserProfile = async () => {
   try {
     const perfilData = await personasApi.getPerfil()
+    // 🔥 FIX: Si el backend devuelve datos con login_provider, NO sobrescribir el usuario
+    // Solo actualizar personaData, no tocar authStore.user
     personaData.value = perfilData
+    
+    // Si el backend devuelve login_provider en la respuesta, actualizar el usuario
+    // pero SOLO si viene explícitamente del backend (no usar defaults)
+    if (perfilData.login_provider !== undefined && perfilData.password_allowed !== undefined) {
+      // El backend ya envió los valores correctos, no hacer nada más
+      // El usuario ya está actualizado desde getCurrentUser()
+    }
   } catch (error) {
-    // Si no hay datos de persona, mostrar mensaje
-    if (error.response?.status === 404) {
+    // 🔥 FIX: NO establecer valores por defecto que sobrescriban datos correctos
+    // Si hay error, solo inicializar personaData vacío, NO tocar authStore.user
+    console.warn('Error al cargar perfil de persona:', error)
+    
+    // Si no hay datos de persona (404 o 200 con error), inicializar solo personaData
+    if (error.response?.status === 404 || error.response?.status === 200) {
       // Inicializar con datos básicos del usuario para compatibilidad
+      // PERO NO sobrescribir login_provider, password_allowed, has_password
       personaData.value = {
         email: authStore.user?.email || '',
         primer_nombre: authStore.user?.first_name || '',
@@ -194,9 +260,15 @@ const loadUserProfile = async () => {
         fecha_nacimiento: '',
         direccion: '',
         departamento: null,
-        municipio: null
+        municipio: null,
+        // 🔥 PRESERVAR los valores del usuario actual (NO sobrescribir)
+        login_provider: authStore.user?.login_provider,
+        password_allowed: authStore.user?.password_allowed,
+        has_password: authStore.user?.has_password
       }
     }
+    // Para cualquier otro error (500, etc.), NO hacer nada
+    // El usuario ya tiene los datos correctos de /auth/me/
   }
 }
 
@@ -555,6 +627,13 @@ onMounted(async () => {
   if (authStore.isAuthenticated) {
     try {
       await authStore.getCurrentUser()
+      
+      // Si el usuario es Google-only y está intentando acceder a configuración de contraseña, redirigir
+      const loginProvider = authStore.user?.login_provider || 'local'
+      if (loginProvider === 'google') {
+        // No hacer nada especial aquí, las secciones ya están ocultas condicionalmente
+        // Pero podríamos mostrar un mensaje informativo si es necesario
+      }
     } catch (error) {
       console.warn('Error al actualizar usuario:', error)
     }

@@ -316,17 +316,49 @@ const handleGoogleCredential = async (credential) => {
         refresh: result.refresh
       })
       
-      // Guardar usuario (el backend puede retornar user completo o datos mínimos)
+      // Guardar usuario (el backend retorna user completo con todos los campos)
       const userData = result.user || {
         email: result.email,
         name: result.name,
         picture: result.picture
       }
       
+      // Asegurar que todos los campos críticos estén presentes
       // Incluir has_password si viene en la respuesta
       if (result.has_password !== undefined) {
         userData.has_password = result.has_password
       }
+      
+      // PRIORIDAD: login_provider y password_allowed desde result (ya normalizados)
+      // Estos valores tienen prioridad porque vienen directamente de la respuesta del backend
+      if (result.login_provider !== undefined) {
+        userData.login_provider = result.login_provider
+      }
+      if (result.password_allowed !== undefined) {
+        userData.password_allowed = result.password_allowed
+      }
+      
+      // Si no vienen en result, intentar desde userData
+      if (!userData.login_provider && result.user?.login_provider) {
+        userData.login_provider = result.user.login_provider
+      }
+      if (userData.password_allowed === undefined && result.user?.password_allowed !== undefined) {
+        userData.password_allowed = result.user.password_allowed
+      }
+      
+      // Si aún no están definidos, calcular desde login_provider
+      if (!userData.login_provider) {
+        userData.login_provider = 'local' // Default
+      }
+      if (userData.password_allowed === undefined) {
+        userData.password_allowed = userData.login_provider !== 'google'
+      }
+      
+      console.log('🔐 Google Login - User data being saved:', {
+        login_provider: userData.login_provider,
+        password_allowed: userData.password_allowed,
+        has_password: userData.has_password
+      })
       
       authStore.setUser(userData)
       

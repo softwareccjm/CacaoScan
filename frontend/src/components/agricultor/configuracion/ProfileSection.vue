@@ -24,8 +24,8 @@
       </div>
     </div>
 
-    <!-- Sección para crear contraseña si el usuario fue creado con Google -->
-    <div v-if="!hasPassword" class="mb-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+    <!-- 🔥 FIX: Sección para crear contraseña - Solo mostrar si password_allowed es true -->
+    <div v-if="!hasPassword && passwordAllowed" class="mb-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
       <div class="flex items-start gap-4">
         <div class="flex-shrink-0">
           <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,9 +38,9 @@
             Tu cuenta fue creada mediante Google. Si deseas también iniciar sesión con correo y contraseña, crea una contraseña aquí.
           </p>
           <button
-            @click="showPasswordModal = true"
+            @click="handleOpenPasswordModal"
             type="button"
-            :disabled="isLoading"
+            :disabled="isLoading || !passwordAllowed"
             class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -672,7 +672,33 @@ const hasPassword = computed(() => {
   return authStore.user ? true : false
 })
 
+// Verificar si el usuario puede usar contraseñas (password_allowed)
+const passwordAllowed = computed(() => {
+  // Prioridad 1: Si password_allowed está explícitamente definido, usar ese valor
+  if (authStore.user && 'password_allowed' in authStore.user) {
+    return authStore.user.password_allowed === true
+  }
+  // Prioridad 2: Calcular desde login_provider
+  const loginProvider = authStore.user?.login_provider || 'local'
+  return loginProvider !== 'google'
+})
+
+const handleOpenPasswordModal = () => {
+  if (!passwordAllowed.value) {
+    setStatusMessage('Esta cuenta solo permite inicio de sesión con Google.', 'error')
+    return
+  }
+  showPasswordModal.value = true
+}
+
 const handleCreatePassword = async () => {
+  // Verificar nuevamente que password_allowed sea true
+  if (!passwordAllowed.value) {
+    setStatusMessage('Esta cuenta solo permite inicio de sesión con Google.', 'error')
+    showPasswordModal.value = false
+    return
+  }
+  
   passwordErrors.value = {}
   
   // Validaciones básicas

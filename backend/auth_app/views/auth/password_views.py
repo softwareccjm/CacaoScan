@@ -48,6 +48,31 @@ class ChangePasswordView(APIView):
             old_password = serializer.validated_data['old_password']
             new_password = serializer.validated_data['new_password']
             
+            # Verificar si el usuario es Google-only (no permite contraseñas locales)
+            login_provider = 'local'
+            try:
+                if hasattr(user, 'auth_profile') and user.auth_profile:
+                    login_provider = user.auth_profile.login_provider
+            except Exception:
+                pass
+            
+            if login_provider == 'google':
+                return create_error_response(
+                    message='Tu cuenta solo permite inicio de sesión con Google.',
+                    error_type='google_account_no_password',
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    details={'old_password': ['Esta cuenta solo permite autenticación con Google.']}
+                )
+            
+            # Verificar que el usuario tenga una contraseña usable antes de validar la actual
+            if not user.has_usable_password():
+                return create_error_response(
+                    message='Esta cuenta fue creada mediante Google. Debes crear una contraseña antes de poder cambiarla.',
+                    error_type='no_usable_password',
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    details={'old_password': ['Esta cuenta no tiene contraseña local. Usa el endpoint de crear contraseña.']}
+                )
+            
             # Verificar que la contraseña actual sea correcta
             if not user.check_password(old_password):
                 return create_error_response(
@@ -360,6 +385,21 @@ class SetPasswordView(APIView):
         user = request.user
         password = request.data.get('password')
         confirm_password = request.data.get('confirm_password')
+        
+        # Verificar si el usuario es Google-only (no permite contraseñas locales)
+        login_provider = 'local'
+        try:
+            if hasattr(user, 'auth_profile') and user.auth_profile:
+                login_provider = user.auth_profile.login_provider
+        except Exception:
+            pass
+        
+        if login_provider == 'google':
+            return create_error_response(
+                message='Tu cuenta solo permite inicio de sesión con Google.',
+                error_type='google_account_no_password',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         
         # Verificar que el usuario no tenga contraseña usable
         if user.has_usable_password():

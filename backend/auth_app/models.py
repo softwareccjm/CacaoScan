@@ -256,6 +256,17 @@ class UserProfile(models.Model):
     ])
     email_notifications = models.BooleanField(default=True)
     
+    # Método de autenticación
+    login_provider = models.CharField(
+        max_length=20,
+        default='local',
+        choices=[
+            ('local', 'Local'),
+            ('google', 'Google'),
+        ],
+        help_text="Método de autenticación utilizado por el usuario"
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

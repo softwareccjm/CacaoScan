@@ -39,10 +39,10 @@ class TemaViewSet(viewsets.ModelViewSet):
         return TemaSerializer
 
     @action(detail=True, methods=['get'], url_path='parametros')
-    def parametros(self, request, id=None):
+    def parametros(self, request, codigo=None):
         """
         Obtiene todos los parámetros de un tema específico.
-        Endpoint: GET /api/temas/{id}/parametros/
+        Endpoint: GET /api/temas/{codigo}/parametros/
         """
         tema = self.get_object()
         parametros = tema.parametros.all()

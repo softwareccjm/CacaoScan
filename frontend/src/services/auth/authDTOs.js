@@ -20,12 +20,23 @@
  */
 export function normalizeLoginResponse(rawResponse) {
   const data = rawResponse.data || rawResponse
+  const userData = data.user || data.user_data
+  
+  // Extraer login_provider y password_allowed desde data o userData
+  const loginProvider = data.login_provider || userData?.login_provider || 'local'
+  const passwordAllowed = data.password_allowed !== undefined 
+    ? data.password_allowed 
+    : (userData?.password_allowed !== undefined 
+      ? userData.password_allowed 
+      : loginProvider !== 'google')
   
   return {
     token: data.access || data.token,
     refresh: data.refresh,
-    user: data.user || data.user_data,
-    has_password: data.has_password !== undefined ? data.has_password : true, // Por defecto true si no viene
+    user: userData,
+    has_password: data.has_password !== undefined ? data.has_password : (userData?.has_password ?? true),
+    login_provider: loginProvider,
+    password_allowed: passwordAllowed,
     access_expires_at: data.access_expires_at || null,
     refresh_expires_at: data.refresh_expires_at || null,
     message: data.message || 'Login exitoso'
@@ -90,6 +101,8 @@ export function normalizeUser(rawUser) {
     return email.split('@')[0]
   }
   
+  // 🔥 FIX CRÍTICO: Incluir login_provider, password_allowed y has_password si vienen del backend
+  // Estos campos son críticos para determinar si el usuario puede cambiar contraseña
   return {
     id: rawUser.id,
     email: rawUser.email,
@@ -99,7 +112,12 @@ export function normalizeUser(rawUser) {
     role: rawUser.role || rawUser.user_role || 'farmer',
     is_active: rawUser.is_active !== false,
     is_verified: rawUser.is_verified || rawUser.is_email_verified || false,
-    date_joined: rawUser.date_joined || rawUser.created_at || null
+    date_joined: rawUser.date_joined || rawUser.created_at || null,
+    // 🔥 Preservar campos de autenticación si vienen del backend
+    // NO establecer valores por defecto aquí - dejar que setUser() los maneje
+    ...(rawUser.login_provider !== undefined && { login_provider: rawUser.login_provider }),
+    ...(rawUser.password_allowed !== undefined && { password_allowed: rawUser.password_allowed }),
+    ...(rawUser.has_password !== undefined && { has_password: rawUser.has_password })
   }
 }
 

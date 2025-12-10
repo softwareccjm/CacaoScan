@@ -228,6 +228,14 @@ const handleAuthRequired = async (to, authStore) => {
     return false
   }
 
+  // Redirigir usuarios Google-only si intentan acceder a rutas de contraseña
+  const loginProvider = authStore.user?.login_provider || 'local'
+  const passwordAllowed = authStore.user?.password_allowed !== false && loginProvider !== 'google'
+  
+  // Si el usuario es Google-only y está intentando acceder a configuración, permitir
+  // pero las secciones de contraseña ya están ocultas en los componentes
+  // No necesitamos redirección aquí ya que los componentes manejan la visibilidad
+
   const requiredRole = to.meta.requiresRole
   if (requiredRole) {
     const userRole = authStore.userRole?.toLowerCase().trim()

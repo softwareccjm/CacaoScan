@@ -255,10 +255,12 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     is_verified = serializers.SerializerMethodField()
     has_password = serializers.SerializerMethodField()
+    login_provider = serializers.SerializerMethodField()
+    password_allowed = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'date_joined', 'role', 'is_verified', 'has_password')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'date_joined', 'role', 'is_verified', 'has_password', 'login_provider', 'password_allowed')
         read_only_fields = ('id', 'date_joined')
     
     def get_role(self, obj):
@@ -282,6 +284,28 @@ class UserSerializer(serializers.ModelSerializer):
     def get_has_password(self, obj):
         """Check if user has a usable password."""
         return obj.has_usable_password()
+    
+    def get_login_provider(self, obj):
+        """Get login provider from UserProfile, default to 'local'."""
+        try:
+            # Intentar acceder a auth_profile usando get_or_create para evitar errores
+            from auth_app.models import UserProfile
+            profile, created = UserProfile.objects.get_or_create(
+                user=obj,
+                defaults={'login_provider': 'local'}
+            )
+            return profile.login_provider
+        except Exception as e:
+            # Si hay algún error, retornar 'local' por defecto
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error obteniendo login_provider para usuario {obj.id}: {str(e)}")
+            return 'local'  # Default to local if no profile exists
+    
+    def get_password_allowed(self, obj):
+        """Check if user is allowed to use password authentication."""
+        login_provider = self.get_login_provider(obj)
+        return login_provider != 'google'
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

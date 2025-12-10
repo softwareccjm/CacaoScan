@@ -107,18 +107,29 @@ const authApi = {
         credential
       })
       
+      // Extraer datos de la respuesta (puede venir en data o directamente)
+      const responseData = response.data || response
+      const userData = responseData.user || null
+      
       // Normalizar respuesta similar a login tradicional
       return {
         success: true,
-        access: response.data?.access || response.access,
-        refresh: response.data?.refresh || response.refresh,
-        user: response.data?.user || null,
-        email: response.data?.email || response.email,
-        name: response.data?.name || response.name,
-        picture: response.data?.picture || response.picture,
-        has_password: response.data?.has_password ?? true, // Por defecto true si no viene
-        access_expires_at: response.data?.access_expires_at || response.access_expires_at,
-        refresh_expires_at: response.data?.refresh_expires_at || response.refresh_expires_at
+        access: responseData.access || response.access,
+        refresh: responseData.refresh || response.refresh,
+        user: userData,
+        email: responseData.email || response.email,
+        name: responseData.name || response.name,
+        picture: responseData.picture || response.picture,
+        has_password: responseData.has_password !== undefined ? responseData.has_password : (userData?.has_password ?? true),
+        // Incluir login_provider y password_allowed desde responseData o userData
+        login_provider: responseData.login_provider || userData?.login_provider || 'local',
+        password_allowed: responseData.password_allowed !== undefined 
+          ? responseData.password_allowed 
+          : (userData?.password_allowed !== undefined 
+            ? userData.password_allowed 
+            : (responseData.login_provider || userData?.login_provider || 'local') !== 'google'),
+        access_expires_at: responseData.access_expires_at || response.access_expires_at,
+        refresh_expires_at: responseData.refresh_expires_at || response.refresh_expires_at
       }
     } catch (error) {
       const normalizedError = normalizeAuthError(error)
