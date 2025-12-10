@@ -117,10 +117,12 @@
             >
               <option v-if="isLoadingCatalogos" value="">Cargando...</option>
               <option v-else-if="generos.length === 0" value="">No hay opciones disponibles</option>
+              <option v-else value="">Seleccionar género</option>
               <option v-for="genero in generos" :key="genero.codigo" :value="genero.codigo">
                 {{ genero.nombre }}
               </option>
             </select>
+            <p v-if="errors.genero" class="text-red-600 text-xs mt-1">{{ errors.genero }}</p>
           </div>
 
           <!-- Fecha de Nacimiento -->
@@ -503,7 +505,7 @@
 import { ref, computed, onMounted } from 'vue'
 
 // 2. Vue router
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 // 3. Stores
 import { useAuthStore } from '@/stores/auth'
@@ -529,6 +531,7 @@ import FormSection from '@/components/common/FormSection.vue'
 
 // Router y store
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 // Composables
@@ -766,11 +769,10 @@ const setStatusMessage = (message, type = 'info') => {
 }
 
 const buildRegistrationPayload = () => {
-  const departamentoSeleccionado = departamentos.value.find(d => d.codigo === form.value.departamento)
   const municipioSeleccionado = municipios.value.find(m => m.id == form.value.municipio)
   const pwdField = getPasswordFieldName()
   
-  return {
+  const payload = {
     email: form.value.email.trim(),
     password: form.value[pwdField],
     primer_nombre: form.value.firstName.trim(),
@@ -778,14 +780,22 @@ const buildRegistrationPayload = () => {
     primer_apellido: form.value.lastName.trim(),
     segundo_apellido: form.value.segundoApellido.trim() || '',
     tipo_documento: form.value.tipoDocumento,
-    numero_documento: form.value.numeroDocumento.trim() || '',
-    telefono: form.value.phoneNumber.trim() || '',
+    numero_documento: form.value.numeroDocumento.trim(),
+    telefono: form.value.phoneNumber.trim(),
     direccion: form.value.direccion.trim() || '',
-    genero: form.value.genero,
-    fecha_nacimiento: form.value.fechaNacimiento || '',
-    municipio: municipioSeleccionado?.id || null,
-    departamento: departamentoSeleccionado?.id || null
+    genero: form.value.genero
   }
+  
+  // Add optional fields only if they have values
+  if (form.value.fechaNacimiento) {
+    payload.fecha_nacimiento = form.value.fechaNacimiento
+  }
+  
+  if (municipioSeleccionado?.id) {
+    payload.municipio = municipioSeleccionado.id
+  }
+  
+  return payload
 }
 
 const handleRegistrationSuccess = async (result) => {
@@ -895,6 +905,13 @@ const handleSubmit = async () => {
 // Lifecycle
 onMounted(() => {
   cargarCatalogos()
+  
+  // Si viene desde términos y condiciones, marcar el checkbox automáticamente
+  if (route.query.acceptTerms === 'true') {
+    form.value.acceptTerms = true
+    // Limpiar el query param para que no aparezca en la URL
+    router.replace({ query: {} })
+  }
 })
 </script>
 

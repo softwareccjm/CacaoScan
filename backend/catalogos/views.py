@@ -30,7 +30,7 @@ class TemaViewSet(viewsets.ModelViewSet):
     queryset = Tema.objects.all()
     serializer_class = TemaSerializer
     permission_classes = [AllowAny]
-    lookup_field = 'id'
+    lookup_field = 'codigo'  # Cambiar a 'codigo' para permitir búsqueda por código
 
     def get_serializer_class(self):
         """Devuelve diferentes serializers según la acción"""
@@ -64,7 +64,7 @@ class ParametroViewSet(viewsets.ModelViewSet):
     retrieve: Obtiene un parámetro específico
     by_tema: Obtiene parámetros filtrados por tema (custom action)
     """
-    queryset = Parametro.objects.all().prefetch_related('temas')
+    queryset = Parametro.objects.all().select_related('tema')
     serializer_class = ParametroSerializer
     permission_classes = [AllowAny]
 
@@ -84,9 +84,9 @@ class ParametroViewSet(viewsets.ModelViewSet):
         if tema_param:
             # Si es numérico -> asumir ID; si no, filtrar por código
             if tema_param.isdigit():
-                queryset = queryset.filter(temas__id=int(tema_param))
+                queryset = queryset.filter(tema__id=int(tema_param))
             else:
-                queryset = queryset.filter(temas__codigo=tema_param)
+                queryset = queryset.filter(tema__codigo=tema_param)
 
         solo_activos = self.request.query_params.get('activos', 'false').lower() == 'true'
         if solo_activos:
@@ -102,7 +102,7 @@ class ParametroViewSet(viewsets.ModelViewSet):
         """
         try:
             tema = get_object_or_404(Tema, codigo=codigo_tema)
-            parametros = Parametro.objects.filter(temas=tema)
+            parametros = Parametro.objects.filter(tema=tema)
             
             # Filtrar por activos si se solicita
             solo_activos = request.query_params.get('activos', 'false').lower() == 'true'
@@ -119,7 +119,7 @@ class ParametroViewSet(viewsets.ModelViewSet):
             })
         except Tema.DoesNotExist:
             return Response(
-                    {'error': f'Tema con código "{codigo_tema}" no encontrado'},
+                {'error': f'Tema con código "{codigo_tema}" no encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
 

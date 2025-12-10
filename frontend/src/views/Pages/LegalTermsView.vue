@@ -277,7 +277,7 @@
     <template #actions>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <router-link
-          to="/registro"
+          :to="{ path: '/registro', query: { acceptTerms: 'true' } }"
           class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] focus:ring-4 focus:ring-green-300"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

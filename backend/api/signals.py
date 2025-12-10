@@ -11,10 +11,8 @@ from django.conf import settings
 # Importar desde apps modulares
 try:
     from notifications.models import Notification
-    from catalogos.models import TipoNotificacion
 except ImportError:
     Notification = None
-    TipoNotificacion = None
 
 try:
     from images_app.models import CacaoPrediction

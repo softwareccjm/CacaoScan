@@ -44,7 +44,7 @@ function buildLoginPayload(credentials) {
  * @returns {Object} Register payload
  */
 function buildRegisterPayload(userData) {
-  return {
+  const payload = {
     // Datos del usuario
     email: userData.email,
     password: userData.password,
@@ -58,11 +58,19 @@ function buildRegisterPayload(userData) {
     segundo_apellido: userData.segundo_apellido || userData.last_name_2 || '',
     telefono: userData.phone_number || userData.telefono || '',
     direccion: userData.direccion || userData.address || '',
-    genero: userData.genero || 'M',
-    fecha_nacimiento: userData.fecha_nacimiento || userData.birthdate || '',
-    municipio: userData.municipio || '',
-    departamento: userData.departamento || ''
+    genero: userData.genero || 'M'
   }
+  
+  // Add optional fields only if they have values
+  if (userData.fecha_nacimiento || userData.birthdate) {
+    payload.fecha_nacimiento = userData.fecha_nacimiento || userData.birthdate
+  }
+  
+  if (userData.municipio) {
+    payload.municipio = userData.municipio
+  }
+  
+  return payload
 }
 
 const authApi = {

@@ -834,48 +834,8 @@ const loadUserStats = async () => {
       // Conectar a WebSocket para estadísticas en tiempo real
       setupWebSocketConnection()
       
-      // Configurar polling para actualizaciones periódicas (fallback si WebSockets fallan)
-      // Aumentar intervalo a 60 segundos para reducir carga
-      let statsPollingInterval = null
-      
-      // Solo iniciar polling si no hay error activo
-      const startPolling = () => {
-        if (statsPollingInterval) return
-        
-        statsPollingInterval = setInterval(() => {
-          try {
-            loadUserStats().catch(err => {
-              // Detener polling si hay errores persistentes
-              stopPolling()
-            })
-            
-            // Solo recargar usuarios si están en la primera página
-            if (pagination.currentPage.value === 1) {
-              loadUsers().catch(err => {
-                })
-            }
-          } catch (error) {
-            stopPolling()
-          }
-        }, 60000) // Actualizar cada 60 segundos (reducido de 30)
-      }
-      
-      const stopPolling = () => {
-        if (statsPollingInterval) {
-          clearInterval(statsPollingInterval)
-          statsPollingInterval = null
-        }
-      }
-      
-      // Iniciar polling después de cargar datos iniciales
-      setTimeout(() => {
-        startPolling()
-      }, 5000)
-      
-      // Limpiar intervalo y listeners de WebSocket al desmontar
+      // Limpiar listeners de WebSocket al desmontar
       onUnmounted(() => {
-        stopPolling()
-        // Limpiar listeners de WebSocket si es necesario
         if (websocket && websocket.off) {
           websocket.off('user-stats-updated', handleStatsUpdate)
         }
@@ -895,6 +855,12 @@ const loadUserStats = async () => {
         active: data.active || 0,
         online: data.online || 0,
         new_today: data.new_today || 0
+      }
+      // Recargar usuarios cuando hay actualización de stats
+      if (pagination.currentPage.value === 1) {
+        loadUsers().catch(() => {
+          // Silently handle errors
+        })
       }
     }
 

@@ -816,14 +816,6 @@ const handleDismissAlert = (alertId) => {
 }
 
 // Real-time updates
-let refreshInterval = null
-let statsInterval = null
-let quickRefreshInterval = null
-
-const QUICK_REFRESH_INTERVAL = 3000
-const REFRESH_INTERVAL = 8000
-const STATS_INTERVAL = 25000
-
 const setupWebSocketListeners = () => {
   if (!websocket) return
 
@@ -840,6 +832,7 @@ const setupWebSocketListeners = () => {
   websocket.on?.('audit-activity', (data) => {
     const processed = processActivityData(data)
     recentActivities.value = [processed, ...recentActivities.value].slice(0, 20)
+    updateActivityChart()
   })
 
   websocket.on?.('notification-received', (data) => {
@@ -850,65 +843,28 @@ const setupWebSocketListeners = () => {
   websocket.on?.('user-stats-update', (data) => {
     if (data?.users) {
       stats.value.users = { ...stats.value.users, ...data.users }
+      loadRecentUsers()
     }
   })
-}
 
-const startPollingUpdates = () => {
-  quickRefreshInterval = setInterval(() => {
-    Promise.all([
-      loadAlerts(),
-      loadRecentActivities()
-    ]).catch(err => {
-      })
-  }, QUICK_REFRESH_INTERVAL)
-
-  refreshInterval = setInterval(() => {
-    Promise.all([
-      loadRecentUsers(),
-      loadReportStats()
-    ]).catch(err => {
-      })
-  }, REFRESH_INTERVAL)
-
-  statsInterval = setInterval(() => {
-    Promise.all([
-      loadStats(),
-      loadQualityData(),
-      updateActivityChart()
-    ]).catch(err => {
-      })
-  }, STATS_INTERVAL)
+  websocket.on?.('report-stats-update', () => {
+    loadReportStats()
+  })
 }
 
 const setupRealtimeUpdates = () => {
   if (websocket && websocket.hasAnyConnection?.value) {
     setupWebSocketListeners()
-    startPollingUpdates()
-  } else {
-    startPollingUpdates()
   }
 }
 
 const stopAutoRefresh = () => {
-  if (quickRefreshInterval) {
-    clearInterval(quickRefreshInterval)
-    quickRefreshInterval = null
-  }
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-    refreshInterval = null
-  }
-  if (statsInterval) {
-    clearInterval(statsInterval)
-    statsInterval = null
-  }
-
   if (websocket) {
     websocket.off?.('audit-stats-update')
     websocket.off?.('audit-activity')
     websocket.off?.('notification-received')
     websocket.off?.('user-stats-update')
+    websocket.off?.('report-stats-update')
   }
 }
 

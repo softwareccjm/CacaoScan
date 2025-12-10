@@ -187,11 +187,18 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         unread_count = Notification.get_unread_count(user)
         
         notifications_by_type = {}
-        # Use TipoNotificacion catalog instead of TIPO_CHOICES
-        from catalogos.models import TipoNotificacion
-        for tipo_notif in TipoNotificacion.objects.filter(activo=True):
-            count = Notification.objects.filter(user=user, tipo=tipo_notif).count()
-            notifications_by_type[tipo_notif.codigo] = count
+        # Use Parametro catalog with TEMA_TIPO_NOTIFICACION theme
+        from catalogos.models import Parametro
+        try:
+            tipo_notificaciones = Parametro.objects.filter(
+                tema__codigo='TEMA_TIPO_NOTIFICACION',
+                activo=True
+            )
+            for tipo_param in tipo_notificaciones:
+                count = Notification.objects.filter(user=user, tipo=tipo_param).count()
+                notifications_by_type[tipo_param.codigo] = count
+        except Exception as e:
+            logger.debug(f"No se pudieron obtener tipos de notificación: {e}")
         
         stats = {
             'total_notifications': total_notifications,

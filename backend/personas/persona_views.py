@@ -19,6 +19,13 @@ from .serializers import (
 )
 from .models import Persona
 
+# Import CRUD views
+from .views.crud_views import (
+    PersonaCreateView,
+    PersonaUpdateView,
+    PersonaDeleteView
+)
+
 
 class PersonaRegistroView(APIView):
     """

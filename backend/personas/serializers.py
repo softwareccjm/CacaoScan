@@ -2,7 +2,7 @@
 Serializers para la app personas.
 
 INTEGRACI"N CON M"DULOS:
-- Usa TemaParametro (tabla pivot de catálogos) para tipo_documento y genero
+- Usa Parametro (catálogos) para tipo_documento y genero
 - Usa Departamento y Municipio (ubicaciones) para ubicación
 """
 from rest_framework import serializers
@@ -11,7 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import date
 import re
-from catalogos.models import Parametro, Departamento, Municipio, TemaParametro
+from catalogos.models import Parametro, Departamento, Municipio
 from .models import Persona
 
 
@@ -173,24 +173,22 @@ class PersonaSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'fecha_creacion', 'email', 'telefono']
     
     def get_tipo_documento_info(self, obj):
-        """Devuelve información del tipo de documento desde TemaParametro."""
-        if obj.tipo_documento and obj.tipo_documento.parametro:
+        """Devuelve información del tipo de documento desde Parametro."""
+        if obj.tipo_documento:
             return {
-                'id': obj.tipo_documento.parametro.id,
-                'codigo': obj.tipo_documento.parametro.codigo,
-                'nombre': obj.tipo_documento.parametro.nombre,
-                'tema_parametro_id': obj.tipo_documento.id
+                'id': obj.tipo_documento.id,
+                'codigo': obj.tipo_documento.codigo,
+                'nombre': obj.tipo_documento.nombre
             }
         return None
     
     def get_genero_info(self, obj):
-        """Devuelve información del género desde TemaParametro."""
-        if obj.genero and obj.genero.parametro:
+        """Devuelve información del género desde Parametro."""
+        if obj.genero:
             return {
-                'id': obj.genero.parametro.id,
-                'codigo': obj.genero.parametro.codigo,
-                'nombre': obj.genero.parametro.nombre,
-                'tema_parametro_id': obj.genero.id
+                'id': obj.genero.id,
+                'codigo': obj.genero.codigo,
+                'nombre': obj.genero.nombre
             }
         return None
     
@@ -279,33 +277,33 @@ class PersonaRegistroSerializer(serializers.Serializer):
     
     def validate(self, data):
         """Validar referencias a catálogos y ubicaciones."""
-        # Validar tipo_documento (debe ser un TemaParametro con tema TIPO_DOC)
+        # Validar tipo_documento (debe ser un Parametro con tema TIPO_DOC)
         tipo_doc_codigo = data.get('tipo_documento')
-        tipo_doc_temaparametro = TemaParametro.objects.filter(
+        tipo_doc_parametro = Parametro.objects.filter(
             tema__codigo='TIPO_DOC',
-            parametro__codigo=tipo_doc_codigo,
-            parametro__activo=True
-        ).select_related('parametro', 'tema').first()
+            codigo=tipo_doc_codigo,
+            activo=True
+        ).select_related('tema').first()
         
-        if not tipo_doc_temaparametro:
+        if not tipo_doc_parametro:
             raise serializers.ValidationError({
                 'tipo_documento': f"Tipo de documento '{tipo_doc_codigo}' no existe o no está activo."
             })
-        data['tipo_documento_obj'] = tipo_doc_temaparametro
+        data['tipo_documento_obj'] = tipo_doc_parametro
         
-        # Validar genero (debe ser un TemaParametro con tema SEXO)
+        # Validar genero (debe ser un Parametro con tema SEXO)
         genero_codigo = data.get('genero')
-        genero_temaparametro = TemaParametro.objects.filter(
+        genero_parametro = Parametro.objects.filter(
             tema__codigo='SEXO',
-            parametro__codigo=genero_codigo,
-            parametro__activo=True
-        ).select_related('parametro', 'tema').first()
+            codigo=genero_codigo,
+            activo=True
+        ).select_related('tema').first()
         
-        if not genero_temaparametro:
+        if not genero_parametro:
             raise serializers.ValidationError({
                 'genero': f"Género '{genero_codigo}' no existe o no está activo."
             })
-        data['genero_obj'] = genero_temaparametro
+        data['genero_obj'] = genero_parametro
         
         # Validar municipio (debe existir) - OPCIONAL (3NF: departamento se obtiene de municipio)
         municipio_id = data.get('municipio')
@@ -505,17 +503,17 @@ class PersonaActualizacionSerializer(serializers.Serializer):
             return
         
         tipo_doc_codigo = data['tipo_documento']
-        tipo_doc_temaparametro = TemaParametro.objects.filter(
+        tipo_doc_parametro = Parametro.objects.filter(
             tema__codigo='TIPO_DOC',
-            parametro__codigo=tipo_doc_codigo,
-            parametro__activo=True
-        ).select_related('parametro', 'tema').first()
+            codigo=tipo_doc_codigo,
+            activo=True
+        ).select_related('tema').first()
         
-        if not tipo_doc_temaparametro:
+        if not tipo_doc_parametro:
             raise serializers.ValidationError({
                 'tipo_documento': f"Tipo de documento '{tipo_doc_codigo}' no existe o no está activo."
             })
-        data['tipo_documento_obj'] = tipo_doc_temaparametro
+        data['tipo_documento_obj'] = tipo_doc_parametro
     
     def _validate_genero(self, data):
         """Validate genero parameter."""
@@ -523,17 +521,17 @@ class PersonaActualizacionSerializer(serializers.Serializer):
             return
         
         genero_codigo = data['genero']
-        genero_temaparametro = TemaParametro.objects.filter(
+        genero_parametro = Parametro.objects.filter(
             tema__codigo='SEXO',
-            parametro__codigo=genero_codigo,
-            parametro__activo=True
-        ).select_related('parametro', 'tema').first()
+            codigo=genero_codigo,
+            activo=True
+        ).select_related('tema').first()
         
-        if not genero:
+        if not genero_parametro:
             raise serializers.ValidationError({
                 'genero': f"Género '{genero_codigo}' no existe o no está activo."
             })
-        data['genero_obj'] = genero
+        data['genero_obj'] = genero_parametro
     
     def _validate_ubicaciones(self, data):
         """Validate municipio (3NF: departamento se obtiene de municipio)."""

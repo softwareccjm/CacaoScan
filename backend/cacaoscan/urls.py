@@ -233,13 +233,34 @@ urlpatterns = [
 ]
 
 # Cargar URLs de apps de forma segura
+# IMPORTANTE: Rutas específicas deben ir ANTES de rutas generales
 try:
     urlpatterns += [
-        # API de personas (incluida en v1 con prefijo personas/)
+        # API de personas (debe ir ANTES de api.urls para evitar conflictos)
         path(f'{API_V1_PREFIX}personas/', include('personas.urls')),
     ]
-except Exception:
-    pass
+except Exception as e:
+    # Log error instead of silently failing
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"Error loading personas.urls: {e}", exc_info=True)
+    # Re-raise to see the error in development
+    if settings.DEBUG:
+        raise
+
+try:
+    urlpatterns += [
+        # API principal de CacaoScan (debe ir DESPUÉS de rutas específicas)
+        path(API_V1_PREFIX, include('api.urls')),
+    ]
+except Exception as e:
+    # Log error instead of silently failing
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"Error loading api.urls: {e}", exc_info=True)
+    # Re-raise to see the error in development
+    if settings.DEBUG:
+        raise
 
 try:
     urlpatterns += [
@@ -251,7 +272,7 @@ except Exception:
 
 try:
     urlpatterns += [
-        # API de imágenes (debe ir antes de api.urls para evitar conflictos)
+        # API de imágenes (debe ir después de api.urls para evitar conflictos)
         path(API_V1_PREFIX, include('images_app.urls')),
     ]
 except Exception:
@@ -259,16 +280,8 @@ except Exception:
 
 try:
     urlpatterns += [
-        # API de reportes (debe ir antes de api.urls para evitar conflictos)
+        # API de reportes (debe ir después de api.urls para evitar conflictos)
         path(API_V1_PREFIX, include('reports.urls')),
-    ]
-except Exception:
-    pass
-
-try:
-    urlpatterns += [
-        # API principal de CacaoScan (debe ir después de rutas específicas)
-        path(API_V1_PREFIX, include('api.urls')),
     ]
 except Exception:
     pass
