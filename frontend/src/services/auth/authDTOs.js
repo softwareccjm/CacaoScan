@@ -25,6 +25,7 @@ export function normalizeLoginResponse(rawResponse) {
     token: data.access || data.token,
     refresh: data.refresh,
     user: data.user || data.user_data,
+    has_password: data.has_password !== undefined ? data.has_password : true, // Por defecto true si no viene
     access_expires_at: data.access_expires_at || null,
     refresh_expires_at: data.refresh_expires_at || null,
     message: data.message || 'Login exitoso'

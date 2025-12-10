@@ -116,6 +116,7 @@ const authApi = {
         email: response.data?.email || response.email,
         name: response.data?.name || response.name,
         picture: response.data?.picture || response.picture,
+        has_password: response.data?.has_password ?? true, // Por defecto true si no viene
         access_expires_at: response.data?.access_expires_at || response.access_expires_at,
         refresh_expires_at: response.data?.refresh_expires_at || response.refresh_expires_at
       }
@@ -126,6 +127,23 @@ const authApi = {
       authError.status = normalizedError.status
       authError.response = error.response
       throw authError
+    }
+  },
+
+  /**
+   * Crear contraseña local para usuarios creados con Google
+   * @param {Object} passwordData - { password, confirm_password }
+   * @returns {Promise<Object>} Response
+   */
+  async setPassword({ password, confirm_password }) {
+    try {
+      const response = await apiPost('/auth/set-password/', {
+        password,
+        confirm_password
+      })
+      return response
+    } catch (error) {
+      throw normalizeAuthError(error)
     }
   },
 

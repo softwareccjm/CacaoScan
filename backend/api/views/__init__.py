@@ -17,6 +17,7 @@ from auth_app.views import (
     VerifyEmailPreRegistrationView,
     ForgotPasswordView,
     ResetPasswordView,
+    SetPasswordView,
     SendOtpView,
     VerifyOtpView,
     UserListView,

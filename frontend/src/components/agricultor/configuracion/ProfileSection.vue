@@ -24,6 +24,34 @@
       </div>
     </div>
 
+    <!-- Sección para crear contraseña si el usuario fue creado con Google -->
+    <div v-if="!hasPassword" class="mb-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+      <div class="flex items-start gap-4">
+        <div class="flex-shrink-0">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Crear Contraseña Local</h3>
+          <p class="text-sm text-gray-700 mb-4">
+            Tu cuenta fue creada mediante Google. Si deseas también iniciar sesión con correo y contraseña, crea una contraseña aquí.
+          </p>
+          <button
+            @click="showPasswordModal = true"
+            type="button"
+            :disabled="isLoading"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Crear contraseña
+          </button>
+        </div>
+      </div>
+    </div>
+
     <form class="space-y-6">
       <!-- Nombres -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -327,12 +355,99 @@
         </button>
       </div>
     </form>
+
+    <!-- Modal para crear contraseña -->
+    <Transition
+      enter-active-class="transform ease-out duration-300 transition"
+      enter-from-class="opacity-0 translate-y-2 sm:translate-y-0 sm:scale-95"
+      enter-to-class="opacity-100 translate-y-0 sm:scale-100"
+      leave-active-class="transition ease-in duration-200"
+      leave-from-class="opacity-100 translate-y-0 sm:scale-100"
+      leave-to-class="opacity-0 translate-y-2 sm:translate-y-0 sm:scale-95"
+    >
+      <div v-if="showPasswordModal" class="fixed inset-0 z-50 overflow-y-auto" @click.self="showPasswordModal = false">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <!-- Overlay -->
+          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showPasswordModal = false"></div>
+
+          <!-- Modal -->
+          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                  <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    Crear Contraseña Local
+                  </h3>
+                  
+                  <div class="space-y-4">
+                    <div>
+                      <label for="new-password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Nueva Contraseña
+                      </label>
+                      <input
+                        id="new-password"
+                        v-model="passwordForm.password"
+                        type="password"
+                        :disabled="isCreatingPassword"
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        :class="{'border-red-500': passwordErrors.password}"
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                      <p v-if="passwordErrors.password" class="mt-1 text-sm text-red-600">{{ passwordErrors.password }}</p>
+                    </div>
+                    
+                    <div>
+                      <label for="confirm-new-password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Confirmar Contraseña
+                      </label>
+                      <input
+                        id="confirm-new-password"
+                        v-model="passwordForm.confirm_password"
+                        type="password"
+                        :disabled="isCreatingPassword"
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        :class="{'border-red-500': passwordErrors.confirm_password}"
+                        placeholder="Repite la contraseña"
+                      />
+                      <p v-if="passwordErrors.confirm_password" class="mt-1 text-sm text-red-600">{{ passwordErrors.confirm_password }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button
+                @click="handleCreatePassword"
+                type="button"
+                :disabled="isCreatingPassword"
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ isCreatingPassword ? 'Creando...' : 'Crear Contraseña' }}
+              </button>
+              <button
+                @click="showPasswordModal = false"
+                type="button"
+                :disabled="isCreatingPassword"
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { catalogosApi } from '@/services'
+import { useAuthStore } from '@/stores/auth'
+import authApi from '@/services/authApi'
+
+const authStore = useAuthStore()
 
 const props = defineProps({
   personaData: {
@@ -532,6 +647,70 @@ const setStatusMessage = (message, type = 'success') => {
   setTimeout(() => {
     statusMessage.value = ''
   }, 5000)
+}
+
+// Gestión de contraseña para usuarios de Google
+const showPasswordModal = ref(false)
+const passwordForm = ref({
+  password: '',
+  confirm_password: ''
+})
+const passwordErrors = ref({})
+const isCreatingPassword = ref(false)
+
+const hasPassword = computed(() => {
+  return authStore.hasPassword !== false // Si es null, asumir true por compatibilidad
+})
+
+const handleCreatePassword = async () => {
+  passwordErrors.value = {}
+  
+  // Validaciones básicas
+  if (!passwordForm.value.password) {
+    passwordErrors.value.password = 'La contraseña es requerida'
+    return
+  }
+  
+  if (passwordForm.value.password.length < 8) {
+    passwordErrors.value.password = 'La contraseña debe tener al menos 8 caracteres'
+    return
+  }
+  
+  if (!passwordForm.value.confirm_password) {
+    passwordErrors.value.confirm_password = 'Confirma tu contraseña'
+    return
+  }
+  
+  if (passwordForm.value.password !== passwordForm.value.confirm_password) {
+    passwordErrors.value.confirm_password = 'Las contraseñas no coinciden'
+    return
+  }
+  
+  isCreatingPassword.value = true
+  
+  try {
+    await authApi.setPassword({
+      password: passwordForm.value.password,
+      confirm_password: passwordForm.value.confirm_password
+    })
+    
+    // Actualizar el estado del usuario
+    await authStore.getCurrentUser()
+    
+    setStatusMessage('Contraseña creada exitosamente. Ahora puedes iniciar sesión con tu correo y contraseña.', 'success')
+    showPasswordModal.value = false
+    passwordForm.value = { password: '', confirm_password: '' }
+  } catch (error) {
+    const errorMessage = error.message || error.response?.data?.message || 'Error al crear la contraseña'
+    setStatusMessage(errorMessage, 'error')
+    
+    // Mostrar errores específicos si vienen del backend
+    if (error.response?.data?.details) {
+      passwordErrors.value = error.response.data.details
+    }
+  } finally {
+    isCreatingPassword.value = false
+  }
 }
 
 // Cargar catálogos al montar

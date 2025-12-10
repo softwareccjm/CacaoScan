@@ -309,3 +309,118 @@ class ResetPasswordView(APIView):
             "message": "Contraseña restablecida correctamente."
         }, status=200)
 
+
+class SetPasswordView(APIView):
+    """
+    Endpoint para crear una contraseña local para usuarios creados con Google.
+    Solo usuarios autenticados pueden usarlo.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Crea una contraseña local para usuarios creados con Google OAuth",
+        operation_summary="Crear contraseña local",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'password': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Nueva contraseña (mínimo 8 caracteres)'
+                ),
+                'confirm_password': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Confirmación de la nueva contraseña'
+                )
+            },
+            required=['password', 'confirm_password']
+        ),
+        responses={
+            200: openapi.Response(
+                description="Contraseña creada exitosamente",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'has_password': openapi.Schema(type=openapi.TYPE_BOOLEAN)
+                    }
+                )
+            ),
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+        tags=['Autenticación']
+    )
+    def post(self, request):
+        """
+        Crea una contraseña local para el usuario autenticado.
+        
+        Solo funciona si el usuario NO tiene contraseña usable actualmente.
+        """
+        user = request.user
+        password = request.data.get('password')
+        confirm_password = request.data.get('confirm_password')
+        
+        # Verificar que el usuario no tenga contraseña usable
+        if user.has_usable_password():
+            return create_error_response(
+                message='Este usuario ya tiene una contraseña configurada. Use el endpoint de cambio de contraseña si desea actualizarla.',
+                error_type='password_already_set',
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Validar campos requeridos
+        if not password or not confirm_password:
+            return create_error_response(
+                message='Se requieren los campos password y confirm_password',
+                error_type='missing_fields',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar fortaleza de contraseña
+        try:
+            from core.utils import validate_password_strength, validate_passwords_match
+            validate_password_strength(password)
+            validate_passwords_match(password, confirm_password)
+        except serializers.ValidationError as e:
+            error_message = str(e)
+            if hasattr(e, 'detail') and isinstance(e.detail, dict):
+                # Extraer primer mensaje de error
+                for field, messages in e.detail.items():
+                    if messages:
+                        error_message = messages[0] if isinstance(messages, list) else str(messages)
+                        break
+            return create_error_response(
+                message=error_message,
+                error_type='password_validation_error',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={'field': 'password'}
+            )
+        except Exception as e:
+            return create_error_response(
+                message=f'Error al validar contraseña: {str(e)}',
+                error_type='validation_error',
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Establecer la contraseña
+        try:
+            user.set_password(password)
+            user.save()
+            logger.info(f"Contraseña creada para usuario {user.username} (ID: {user.id})")
+            
+            return create_success_response(
+                message='Password created successfully',
+                data={
+                    'status': 'success',
+                    'has_password': True
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error al crear contraseña para usuario {user.username}: {str(e)}", exc_info=True)
+            return create_error_response(
+                message='Error al crear la contraseña',
+                error_type='internal_server_error',
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                details={'error': str(e)}
+            )

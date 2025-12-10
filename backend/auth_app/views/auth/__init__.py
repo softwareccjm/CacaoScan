@@ -19,6 +19,7 @@ from .password_views import (
     ChangePasswordView,
     ForgotPasswordView,
     ResetPasswordView,
+    SetPasswordView,
 )
 from .email_verification_views import (
     EmailVerificationView,
@@ -52,6 +53,7 @@ __all__ = [
     'ChangePasswordView',
     'ForgotPasswordView',
     'ResetPasswordView',
+    'SetPasswordView',
     # Email verification views
     'EmailVerificationView',
     'ResendVerificationView',

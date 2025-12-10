@@ -16,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref(null)
   const lastActivity = ref(Date.now())
+  const hasPassword = ref(null) // Indica si el usuario tiene contraseña usable
 
   // Getters computados
   const isAuthenticated = computed(() => {
@@ -109,6 +110,10 @@ export const useAuthStore = defineStore('auth', () => {
     if (userData && !userData.role) {
       userData.role = 'farmer'
     }
+    // Guardar has_password si viene en los datos
+    if (userData && 'has_password' in userData) {
+      hasPassword.value = userData.has_password
+    }
     user.value = userData
     localStorage.setItem('user', JSON.stringify(userData))
     }
@@ -174,6 +179,11 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authApi.login(credentials)
       
       if (response.token && response.user) {
+        // Incluir has_password si viene en la respuesta
+        if (response.has_password !== undefined) {
+          response.user.has_password = response.has_password
+        }
+        
         // Guardar tokens (access y refresh si están disponibles)
         setTokens({
           access: response.token,
@@ -656,6 +666,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken,
     refreshToken,
     isLoading,
+    hasPassword,
     error,
     lastActivity,
     

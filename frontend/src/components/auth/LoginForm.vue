@@ -317,16 +317,18 @@ const handleGoogleCredential = async (credential) => {
       })
       
       // Guardar usuario (el backend puede retornar user completo o datos mínimos)
-      if (result.user) {
-        authStore.setUser(result.user)
-      } else {
-        // Si no viene el objeto user completo, crear uno mínimo con los datos disponibles
-        authStore.setUser({
-          email: result.email,
-          name: result.name,
-          picture: result.picture
-        })
+      const userData = result.user || {
+        email: result.email,
+        name: result.name,
+        picture: result.picture
       }
+      
+      // Incluir has_password si viene en la respuesta
+      if (result.has_password !== undefined) {
+        userData.has_password = result.has_password
+      }
+      
+      authStore.setUser(userData)
       
       authForm.setStatusMessage('¡Bienvenido a CacaoScan! 🌱', 'success')
       

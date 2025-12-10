@@ -9,7 +9,7 @@ from .views import (
     LoginView, RegisterView, LogoutView, UserProfileView, RefreshTokenView,
     ChangePasswordView, EmailVerificationView, ResendVerificationView,
     PreRegisterView, VerifyEmailPreRegistrationView, ForgotPasswordView,
-    ResetPasswordView, SendOtpView, VerifyOtpView, GoogleLoginView,
+    ResetPasswordView, SetPasswordView, SendOtpView, VerifyOtpView, GoogleLoginView,
     # User views (from auth_app)
     UserListView, UserUpdateView, UserDeleteView, UserStatsView,
     AdminStatsView, UserDetailView,
@@ -105,6 +105,7 @@ urlpatterns = [
     # Endpoints de recuperación de contraseña
     path('auth/forgot-password/', ForgotPasswordView.as_view(), name='auth-forgot-password'),
     path('auth/reset-password/', ResetPasswordView.as_view(), name='auth-reset-password'),
+    path('auth/set-password/', SetPasswordView.as_view(), name='auth-set-password'),
     
     # Endpoints de imágenes
     path('images/', ImagesListView.as_view(), name='images-list'),

@@ -72,6 +72,13 @@ class LoginSerializer(serializers.Serializer):
                 )
             raise serializers.ValidationError('Usuario inactivo.')
     
+    def _validate_user_has_password(self, user):
+        """Valida que el usuario tenga una contraseña usable si intenta login con contraseña."""
+        if not user.has_usable_password():
+            raise serializers.ValidationError(
+                'Esta cuenta fue creada mediante Google. Debes crear una contraseña antes de iniciar sesión con email y contraseña.'
+            )
+    
     def validate(self, attrs):
         username, email = self._normalize_username_email(attrs)
         password = attrs.get('password')
@@ -87,6 +94,7 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Credenciales inválidas.')
         
         self._validate_user_active(user)
+        self._validate_user_has_password(user)  # Validar que tenga contraseña usable
         attrs['user'] = user
         return attrs
 
@@ -246,10 +254,11 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for user information."""
     role = serializers.SerializerMethodField()
     is_verified = serializers.SerializerMethodField()
+    has_password = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'date_joined', 'role', 'is_verified')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'date_joined', 'role', 'is_verified', 'has_password')
         read_only_fields = ('id', 'date_joined')
     
     def get_role(self, obj):
@@ -269,6 +278,10 @@ class UserSerializer(serializers.ModelSerializer):
         except Exception:
             pass
         return obj.is_active  # Fallback for users without verification token
+    
+    def get_has_password(self, obj):
+        """Check if user has a usable password."""
+        return obj.has_usable_password()
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

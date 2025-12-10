@@ -129,6 +129,10 @@ class GoogleLoginView(APIView):
             if created:
                 logger.info(f"Usuario creado desde Google OAuth: {email}")
                 
+                # Marcar contraseña como no usable (solo puede entrar con Google por ahora)
+                user.set_unusable_password()
+                user.save()
+                
                 # Marcar como verificado automáticamente (viene de Google)
                 from auth_app.models import EmailVerification
                 EmailVerification.objects.create(
@@ -163,6 +167,9 @@ class GoogleLoginView(APIView):
             # Login en la sesión
             login(request, user)
             
+            # Verificar si el usuario tiene contraseña usable
+            has_password = user.has_usable_password()
+            
             return create_success_response(
                 message='Login exitoso con Google',
                 data={
@@ -172,6 +179,7 @@ class GoogleLoginView(APIView):
                     'email': email,
                     'name': name or f"{user.first_name} {user.last_name}".strip() or email,
                     'picture': picture,
+                    'has_password': has_password,
                     'access_expires_at': access_token['exp'],
                     'refresh_expires_at': refresh['exp']
                 }

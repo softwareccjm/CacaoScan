@@ -72,12 +72,16 @@ class LoginView(APIView):
                 # Login en la sesión
                 login(request, user)
                 
+                # Incluir has_password en la respuesta
+                has_password = user.has_usable_password()
+                
                 return create_success_response(
                     message='Login exitoso',
                     data={
                         'access': str(access_token),
                         'refresh': str(refresh),
                         'user': UserSerializer(user).data,
+                        'has_password': has_password,
                         'access_expires_at': access_token['exp'],
                         'refresh_expires_at': refresh['exp']
                     }
