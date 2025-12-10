@@ -9,6 +9,35 @@ from .logs import get_ml_logger
 logger = get_ml_logger("cacaoscan.ml.utils.early_stopping")
 
 
+def _calcular_min_delta(best_val_loss: float, min_delta_percent: float) -> float:
+    """Calcula el delta mínimo requerido para considerar una mejora."""
+    return abs(best_val_loss * min_delta_percent)
+
+
+def _es_mejora(val_loss: float, best_val_loss: float, min_delta: float) -> bool:
+    """Verifica si val_loss es una mejora sobre best_val_loss."""
+    if best_val_loss < 0:
+        return val_loss > best_val_loss + min_delta
+    return val_loss < best_val_loss - min_delta
+
+
+def _es_empeoramiento(val_loss: float, last_val_loss: float) -> bool:
+    """Verifica si la pérdida está empeorando."""
+    if last_val_loss < 0:
+        return val_loss < last_val_loss
+    return val_loss > last_val_loss
+
+
+def _calcular_mejora(val_loss: float, old_best: float) -> Tuple[str, float]:
+    """Calcula la dirección y magnitud de la mejora."""
+    improvement = abs(val_loss - old_best)
+    if old_best < 0:
+        direction = "improved" if val_loss > old_best else "changed"
+    else:
+        direction = "improved" if val_loss < old_best else "changed"
+    return direction, improvement
+
+
 class IntelligentEarlyStopping:
     """
     Early stopping with advanced rules:
@@ -67,11 +96,8 @@ class IntelligentEarlyStopping:
         if self.best_val_loss == float('inf'):
             return True
         
-        min_delta = abs(self.best_val_loss * self.min_delta_percent)
-        
-        if self.best_val_loss < 0:
-            return val_loss > self.best_val_loss + min_delta
-        return val_loss < self.best_val_loss - min_delta
+        min_delta = _calcular_min_delta(self.best_val_loss, self.min_delta_percent)
+        return _es_mejora(val_loss, self.best_val_loss, min_delta)
     
     def _check_low_r2(self, r2_scores: Dict[str, float]) -> bool:
         """Check for low R² scores and update counters."""
@@ -98,10 +124,7 @@ class IntelligentEarlyStopping:
         if self.last_val_loss == float('inf'):
             return False
         
-        is_worsening = (
-            (self.last_val_loss < 0 and val_loss < self.last_val_loss) or
-            (self.last_val_loss >= 0 and val_loss > self.last_val_loss)
-        )
+        is_worsening = _es_empeoramiento(val_loss, self.last_val_loss)
         
         if is_worsening:
             self.val_loss_increase_count += 1
@@ -129,8 +152,7 @@ class IntelligentEarlyStopping:
                     f"Epoch {epoch}: Initial best model (val_loss={val_loss:.4f})"
                 )
             else:
-                improvement = abs(val_loss - old_best)
-                direction = "improved" if (old_best < 0 and val_loss > old_best) or (old_best >= 0 and val_loss < old_best) else "changed"
+                direction, improvement = _calcular_mejora(val_loss, old_best)
                 logger.info(
                     f"Epoch {epoch}: New best model (val_loss={val_loss:.4f}, "
                     f"previous={old_best:.4f}, {direction} by {improvement:.4f})"
