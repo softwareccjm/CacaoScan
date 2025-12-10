@@ -21,6 +21,11 @@ const api = axios.create({
   }
 })
 
+// Inicializar headers comunes para Authorization
+if (!api.defaults.headers.common) {
+  api.defaults.headers.common = {}
+}
+
 // Interceptor para loggear todas las peticiones (SIEMPRE en producción para debug)
 api.interceptors.request.use(
   (config) => {
@@ -194,6 +199,12 @@ const saveTokens = async (accessToken, refreshToken) => {
   if (refreshToken) {
     localStorage.setItem('refresh_token', refreshToken)
   }
+  
+  // Asegurar que los headers por defecto estén configurados
+  if (!api.defaults.headers.common) {
+    api.defaults.headers.common = {}
+  }
+  api.defaults.headers.common.Authorization = 'Bearer ' + accessToken
   api.defaults.headers.Authorization = 'Bearer ' + accessToken
   
   try {
@@ -369,9 +380,49 @@ api.interceptors.request.use(
     
     // Solo agregar token si NO es un endpoint de autenticación
     if (!isAuthEndpoint) {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
+      // Intentar obtener token de múltiples fuentes
+      let token = null
+      
+      // Prioridad 1: localStorage
+      try {
+        token = localStorage.getItem('access_token') || localStorage.getItem('token')
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+      
+      // Prioridad 2: Header por defecto de axios common
+      if (!token && api.defaults.headers.common && api.defaults.headers.common.Authorization) {
+        const authHeader = api.defaults.headers.common.Authorization
+        if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7)
+        }
+      }
+      
+      // Prioridad 3: Header por defecto de axios directamente
+      if (!token && api.defaults.headers && api.defaults.headers.Authorization) {
+        const authHeader = api.defaults.headers.Authorization
+        if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7)
+        }
+      }
+      
+      
+      // Si hay token, asegurarse de que esté en el header de la petición
+      if (token && token.trim() !== '') {
+        const cleanToken = token.trim()
+        config.headers.Authorization = `Bearer ${cleanToken}`
+        // También actualizar los headers por defecto para futuras peticiones
+        if (!api.defaults.headers.common) {
+          api.defaults.headers.common = {}
+        }
+        api.defaults.headers.common.Authorization = `Bearer ${cleanToken}`
+        if (!api.defaults.headers) {
+          api.defaults.headers = {}
+        }
+        api.defaults.headers.Authorization = `Bearer ${cleanToken}`
+      } else {
+        // Si no hay token y no es un endpoint de autenticación, eliminar cualquier header previo
+        delete config.headers.Authorization
       }
     } else {
       // Para endpoints de autenticación, asegurar que NO haya token
@@ -540,6 +591,37 @@ export async function predictImage(formData) {
 
 // Re-export validateImageFile from utils for backward compatibility
 export { validateImageFileObject as validateImageFile } from '@/utils/imageValidationUtils'
+
+// Inicializar token desde localStorage al cargar el módulo
+const initializeAuthToken = () => {
+  try {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token')
+    if (token && token.trim() !== '') {
+      if (!api.defaults.headers.common) {
+        api.defaults.headers.common = {}
+      }
+      api.defaults.headers.common.Authorization = `Bearer ${token.trim()}`
+      if (!api.defaults.headers) {
+        api.defaults.headers = {}
+      }
+      api.defaults.headers.Authorization = `Bearer ${token.trim()}`
+    }
+  } catch (error) {
+    // Ignore errors during initialization
+  }
+}
+
+// Ejecutar inicialización al cargar el módulo
+if (typeof window !== 'undefined') {
+  initializeAuthToken()
+  
+  // También escuchar cambios en localStorage por si el token se actualiza
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'access_token' || e.key === 'token') {
+      initializeAuthToken()
+    }
+  })
+}
 
 // Exportar configuraciones útiles
 export const API_CONFIG = {

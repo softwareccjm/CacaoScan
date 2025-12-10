@@ -26,7 +26,8 @@ class FincaSerializerMixin:
         """
         try:
             queryset = self.get_queryset()
-            finca = queryset.get(id=finca_id)
+            # Prefetch lotes para optimizar las estadísticas
+            finca = queryset.prefetch_related('lotes').get(id=finca_id)
             return finca, None
         except Finca.DoesNotExist:
             return None, self.handle_finca_not_found(finca_id)

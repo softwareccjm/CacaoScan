@@ -29,6 +29,8 @@ class FincaSerializer(serializers.ModelSerializer):
     estadisticas = serializers.SerializerMethodField()
     # Departamento is now read-only, obtained from municipio.departamento
     departamento = serializers.SerializerMethodField()
+    municipio_nombre = serializers.SerializerMethodField()
+    departamento_nombre = serializers.SerializerMethodField()
     # Alias fields for compatibility with tests
     area_total = serializers.DecimalField(source='hectareas', max_digits=10, decimal_places=2, read_only=True)
     propietario = serializers.PrimaryKeyRelatedField(source='agricultor', read_only=True)
@@ -37,6 +39,7 @@ class FincaSerializer(serializers.ModelSerializer):
         model = Finca
         fields = (
             'id', 'nombre', 'ubicacion', 'municipio', 'departamento', 
+            'municipio_nombre', 'departamento_nombre',
             'hectareas', 'area_total', 'agricultor', 'propietario', 'agricultor_name', 'agricultor_email',
             'descripcion', 'coordenadas_lat', 'coordenadas_lng', 
             'fecha_registro', 'activa', 'ubicacion_completa', 'estadisticas',
@@ -45,7 +48,8 @@ class FincaSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             'id', 'fecha_registro', 'created_at', 'updated_at', 
-            'ubicacion_completa', 'estadisticas', 'agricultor', 'area_total', 'propietario', 'departamento'
+            'ubicacion_completa', 'estadisticas', 'agricultor', 'area_total', 'propietario', 'departamento',
+            'municipio_nombre', 'departamento_nombre'
         )
     
     def get_departamento(self, obj):
@@ -54,14 +58,41 @@ class FincaSerializer(serializers.ModelSerializer):
             return obj.municipio.departamento.id
         return None
     
+    def get_municipio_nombre(self, obj):
+        """Get municipio name for frontend convenience."""
+        if obj.municipio:
+            return obj.municipio.nombre
+        return None
+    
+    def get_departamento_nombre(self, obj):
+        """Get departamento name for frontend convenience."""
+        if obj.municipio and hasattr(obj.municipio, 'departamento'):
+            return obj.municipio.departamento.nombre
+        return None
+    
     def get_estadisticas(self, obj):
         """Get finca statistics."""
         try:
-            return obj.get_estadisticas()
-        except Exception:
-            # Return empty statistics if there's an error
+            stats = obj.get_estadisticas()
+            # Ensure total_lotes is included
+            if 'total_lotes' not in stats:
+                # Fallback: count lotes directly
+                stats['total_lotes'] = obj.lotes.count() if hasattr(obj, 'lotes') else 0
+            return stats
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger("cacaoscan.api")
+            logger.error(f"Error obteniendo estadísticas de finca {obj.id}: {e}", exc_info=True)
+            # Return empty statistics if there's an error, but try to get total_lotes directly
+            total_lotes = 0
+            try:
+                if hasattr(obj, 'lotes'):
+                    total_lotes = obj.lotes.count()
+            except Exception:
+                pass
             return {
-                'total_lotes': 0,
+                'total_lotes': total_lotes,
                 'lotes_activos': 0,
                 'total_analisis': 0,
                 'calidad_promedio': 0.0,
@@ -169,16 +200,18 @@ class FincaSerializer(serializers.ModelSerializer):
 
 
 class FincaListSerializer(serializers.ModelSerializer):
-    """Optimized serializer for finca listings (without heavy statistics)."""
+    """Optimized serializer for finca listings with basic statistics."""
     ubicacion_completa = serializers.SerializerMethodField()
     departamento = serializers.SerializerMethodField()
+    total_lotes = serializers.SerializerMethodField()
+    total_analisis = serializers.SerializerMethodField()
     
     class Meta:
         model = Finca
         fields = (
             'id', 'nombre', 'municipio', 'departamento', 'ubicacion', 
             'ubicacion_completa', 'hectareas', 'activa', 'fecha_registro', 'agricultor_id',
-            'coordenadas_lat', 'coordenadas_lng'
+            'coordenadas_lat', 'coordenadas_lng', 'total_lotes', 'total_analisis'
         )
     
     def get_departamento(self, obj):
@@ -194,6 +227,30 @@ class FincaListSerializer(serializers.ModelSerializer):
         elif obj.municipio:
             return obj.municipio.nombre
         return obj.ubicacion
+    
+    def get_total_lotes(self, obj):
+        """Get total number of lotes for this finca."""
+        try:
+            if hasattr(obj, 'lotes'):
+                return obj.lotes.count()
+            return 0
+        except Exception:
+            return 0
+    
+    def get_total_analisis(self, obj):
+        """Get total number of analyses for this finca."""
+        try:
+            if hasattr(obj, 'total_analisis'):
+                return obj.total_analisis
+            # Fallback: count from lotes
+            if hasattr(obj, 'lotes'):
+                from django.db.models import Count
+                return obj.lotes.aggregate(
+                    total=Count('cacao_images__prediction', distinct=True)
+                )['total'] or 0
+            return 0
+        except Exception:
+            return 0
 
 
 class FincaDetailSerializer(FincaSerializer):
@@ -216,11 +273,14 @@ class FincaDetailSerializer(FincaSerializer):
                 lotes_data.append({
                     'id': lote.id,
                     'identificador': lote.identificador,
-                    'variedad': lote.variedad,
-                    'estado': lote.estado,
+                    'nombre': lote.nombre,
+                    'variedad': lote.variedad.nombre if lote.variedad else None,
+                    'estado': lote.estado.nombre if lote.estado else None,
                     'activo': lote.activo,
+                    'peso_kg': float(lote.peso_kg) if lote.peso_kg else None,
+                    'fecha_recepcion': lote.fecha_recepcion.isoformat() if lote.fecha_recepcion else None,
                     'fecha_plantacion': lote.fecha_plantacion.isoformat() if lote.fecha_plantacion else None,
-                    'area_hectareas': float(lote.area_hectareas) if lote.area_hectareas else None,
+                    'fecha_cosecha': lote.fecha_cosecha.isoformat() if lote.fecha_cosecha else None,
                 })
             return lotes_data
         except Exception as e:
@@ -250,8 +310,6 @@ class LoteSerializer(serializers.ModelSerializer):
     ubicacion_completa = serializers.ReadOnlyField()
     estadisticas = serializers.SerializerMethodField()
     edad_meses = serializers.ReadOnlyField()
-    # Alias field for compatibility with tests (accept both input and output)
-    area = serializers.DecimalField(source='area_hectareas', max_digits=8, decimal_places=2, required=False, allow_null=True)
     # Make nombre optional in input, will be generated from identificador if not provided
     nombre = serializers.CharField(max_length=200, required=False, allow_blank=True)
     
@@ -259,13 +317,13 @@ class LoteSerializer(serializers.ModelSerializer):
         model = Lote
         fields = (
             'id', 'finca', 'finca_nombre', 'finca_ubicacion', 'agricultor_nombre',
-            'identificador', 'nombre', 'variedad', 'fecha_plantacion', 'fecha_cosecha',
-            'area_hectareas', 'area', 'estado', 'descripcion', 'coordenadas_lat', 
-            'coordenadas_lng', 'fecha_registro', 'activo', 'ubicacion_completa',
+            'identificador', 'nombre', 'variedad', 'peso_kg', 'fecha_recepcion',
+            'fecha_procesamiento', 'fecha_plantacion', 'fecha_cosecha',
+            'estado', 'descripcion', 'activo', 'ubicacion_completa',
             'estadisticas', 'edad_meses', 'created_at', 'updated_at'
         )
         read_only_fields = (
-            'id', 'fecha_registro', 'created_at', 'updated_at', 
+            'id', 'created_at', 'updated_at', 
             'ubicacion_completa', 'estadisticas', 'edad_meses'
         )
     
@@ -275,48 +333,71 @@ class LoteSerializer(serializers.ModelSerializer):
     
     def validate_identificador(self, value):
         """Validate lote identifier."""
-        if not value or len(value.strip()) < 2:
-            raise serializers.ValidationError("El identificador del lote debe tener al menos 2 caracteres.")
-        
-        # Check uniqueness per finca
-        finca = self.context.get('finca')
-        if finca and self.instance:
-            # Update: exclude current instance
-            if Lote.objects.filter(
-                finca=finca, 
-                identificador__iexact=value.strip()
-            ).exclude(id=self.instance.id).exists():
-                raise serializers.ValidationError("Ya existe un lote con este identificador en la finca.")
-        elif finca:
-            # Creation: check uniqueness
-            if Lote.objects.filter(
-                finca=finca, 
-                identificador__iexact=value.strip()
-            ).exists():
-                raise serializers.ValidationError("Ya existe un lote con este identificador en la finca.")
-        
-        return value.strip()
+        # Identificador is optional, but if provided must be valid
+        if value and value.strip():
+            if len(value.strip()) < 2:
+                raise serializers.ValidationError("El identificador debe tener al menos 2 caracteres.")
+            
+            # Check uniqueness per finca
+            finca = self.context.get('finca')
+            if finca and self.instance:
+                # Update: exclude current instance
+                if Lote.objects.filter(
+                    finca=finca, 
+                    identificador__iexact=value.strip()
+                ).exclude(id=self.instance.id).exists():
+                    raise serializers.ValidationError("Ya existe un lote con este identificador en la finca.")
+            elif finca:
+                # Creation: check uniqueness
+                if Lote.objects.filter(
+                    finca=finca, 
+                    identificador__iexact=value.strip()
+                ).exists():
+                    raise serializers.ValidationError("Ya existe un lote con este identificador en la finca.")
+            
+            return value.strip()
+        return value or ''
     
-    def validate_area_hectareas(self, value):
-        """Validate area in hectares."""
+    def validate_peso_kg(self, value):
+        """Validate weight in kilograms."""
         if value is None:
-            raise serializers.ValidationError("El área es requerida.")
-        if value < 0:
-            raise serializers.ValidationError("El área debe ser mayor o igual a 0.")
-        if value > 1000:
-            raise serializers.ValidationError("El área no puede ser mayor a 1,000 hectáreas.")
+            raise serializers.ValidationError("El peso en kilogramos es requerido.")
+        if value <= 0:
+            raise serializers.ValidationError("El peso debe ser mayor a 0.")
+        if value > 100000:
+            raise serializers.ValidationError("El peso no puede exceder 100,000 kg.")
         return value
     
-    def validate_area(self, value):
-        """Validate area alias (maps to area_hectareas)."""
+    def validate_fecha_recepcion(self, value):
+        """Validate reception date."""
+        if value is None:
+            raise serializers.ValidationError("La fecha de recepción es requerida.")
+        from django.utils import timezone
+        today = timezone.now().date()
+        if value > today:
+            raise serializers.ValidationError("La fecha de recepción no puede ser futura.")
+        return value
+    
+    def validate_fecha_procesamiento(self, value):
+        """Validate processing date."""
         if value is None:
             return None
-        if value < 0:
-            raise serializers.ValidationError("El área debe ser mayor o igual a 0.")
-        if value > 1000:
-            raise serializers.ValidationError("El área no puede ser mayor a 1,000 hectáreas.")
-        # Normalize to float to ensure consistent type
-        return float(value)
+        from django.utils import timezone
+        today = timezone.now().date()
+        if value > today:
+            raise serializers.ValidationError("La fecha de procesamiento no puede ser futura.")
+        # Check that it's >= fecha_recepcion (handled in model constraint, but validate here too)
+        fecha_recepcion = self.initial_data.get('fecha_recepcion')
+        if fecha_recepcion:
+            from datetime import datetime
+            try:
+                if isinstance(fecha_recepcion, str):
+                    fecha_recepcion = datetime.strptime(fecha_recepcion, '%Y-%m-%d').date()
+                if value < fecha_recepcion:
+                    raise serializers.ValidationError("La fecha de procesamiento no puede ser anterior a la fecha de recepción.")
+            except (ValueError, TypeError):
+                pass
+        return value
     
     def _parse_fecha_plantacion(self, fecha_plantacion):
         """Parse fecha_plantacion from string to date if needed."""
@@ -359,59 +440,38 @@ class LoteSerializer(serializers.ModelSerializer):
         
         return value
     
-    def validate_coordenadas_lat(self, value):
-        """Validate GPS latitude."""
-        from core.utils import validate_latitude
-        return validate_latitude(value)
-    
-    def validate_coordenadas_lng(self, value):
-        """Validate GPS longitude."""
-        from core.utils import validate_longitude
-        return validate_longitude(value)
-    
-    def _handle_coordinate_validation_error(self, e, errors):
-        """Handle coordinate validation errors."""
-        error_str = str(e)
-        if 'coordenadas_lat' in error_str or 'coordenadas_lng' in error_str:
-            errors.setdefault('non_field_errors', []).append(error_str)
-        else:
-            if 'coordenadas_lat' not in errors:
-                errors['coordenadas_lat'] = []
-            if 'coordenadas_lng' not in errors:
-                errors['coordenadas_lng'] = []
-            errors.setdefault('non_field_errors', []).append(error_str)
-    
-    def _handle_area_alias(self, attrs):
-        """Handle area alias mapping to area_hectareas."""
-        if 'area' in attrs and 'area_hectareas' not in attrs:
-            attrs['area_hectareas'] = attrs.pop('area')
-        elif 'area' in attrs and 'area_hectareas' in attrs:
-            attrs.pop('area')
-    
     def validate(self, attrs):
-        """General validations and handle area alias mapping."""
-        from core.utils import validate_coordinates
-        
-        self._handle_area_alias(attrs)
-        
+        """General validations."""
         errors = {}
         
-        variedad = attrs.get('variedad', '')
-        if not variedad or (isinstance(variedad, str) and not variedad.strip()):
+        # Validate variedad (required)
+        variedad = attrs.get('variedad')
+        if not variedad:
             errors['variedad'] = ["La variedad es requerida."]
         
-        # Generate nombre from identificador if not provided
-        if 'nombre' not in attrs or not attrs.get('nombre'):
+        # Ensure nombre is always set (required field in model)
+        nombre = attrs.get('nombre', '').strip() if attrs.get('nombre') else ''
+        if not nombre:
             identificador = attrs.get('identificador', '')
             if identificador:
-                attrs['nombre'] = identificador.strip()
+                # Handle both string and None cases
+                identificador_str = str(identificador).strip() if identificador else ''
+                if identificador_str:
+                    attrs['nombre'] = identificador_str
+                else:
+                    attrs['nombre'] = 'Bulto de cacao'
             else:
-                errors['nombre'] = ["El nombre del lote es requerido."]
+                attrs['nombre'] = 'Bulto de cacao'
+        else:
+            attrs['nombre'] = nombre
         
-        try:
-            validate_coordinates(attrs)
-        except Exception as e:
-            self._handle_coordinate_validation_error(e, errors)
+        # Ensure identificador is a string (can be empty)
+        if 'identificador' in attrs:
+            identificador = attrs.get('identificador')
+            if identificador is None:
+                attrs['identificador'] = ''
+            else:
+                attrs['identificador'] = str(identificador).strip()
         
         if errors:
             raise serializers.ValidationError(errors)
@@ -431,9 +491,10 @@ class LoteListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lote
         fields = (
-            'id', 'identificador', 'variedad', 'finca_nombre', 'agricultor_nombre',
-            'area_hectareas', 'estado', 'total_analisis', 'analisis_procesados',
-            'edad_meses', 'activo', 'fecha_plantacion', 'fecha_cosecha', 'ubicacion_completa'
+            'id', 'identificador', 'nombre', 'variedad', 'finca_nombre', 'agricultor_nombre',
+            'peso_kg', 'fecha_recepcion', 'fecha_procesamiento', 'estado', 
+            'total_analisis', 'analisis_procesados', 'edad_meses', 'activo', 
+            'fecha_plantacion', 'fecha_cosecha', 'ubicacion_completa'
         )
     
     def get_ubicacion_completa(self, obj):

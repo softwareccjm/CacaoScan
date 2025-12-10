@@ -848,8 +848,8 @@ const setupWebSocketListeners = () => {
   })
 
   websocket.on?.('report-stats-update', () => {
-    loadReportStats()
-  })
+      loadReportStats()
+      })
 }
 
 const setupRealtimeUpdates = () => {

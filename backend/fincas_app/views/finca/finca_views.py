@@ -38,10 +38,10 @@ class FincaPermissionMixin(FincaErrorMixin, FincaSerializerMixin, AdminPermissio
     """
     
     def get_queryset(self):
-        """Obtener queryset filtrado por permisos (optimizado con select_related)."""
+        """Obtener queryset filtrado por permisos (optimizado con select_related y prefetch_related)."""
         user = self.request.user
         
-        base_queryset = Finca.objects.select_related('agricultor')
+        base_queryset = Finca.objects.select_related('agricultor', 'municipio', 'municipio__departamento').prefetch_related('lotes')
         
         if self.is_admin_user(user):
             # Admin puede ver todas las fincas (activas e inactivas)
@@ -89,30 +89,26 @@ class FincaListCreateView(PaginationMixin, FincaPermissionMixin, APIView):
             logger.info(f"Queryset inicial para usuario {request.user.username} (admin: {self.is_admin_user(request.user)}): {queryset.count()} fincas")
             
             # Optimización: obtener solo los campos necesarios
-            # Incluir agricultor y sus campos necesarios para evitar conflicto con select_related
-            # El serializer FincaListSerializer solo necesita agricultor_id, así que incluimos eso
-            queryset = queryset.only(
-                'id', 'nombre', 'municipio', 'departamento', 'hectareas', 
-                'ubicacion', 'activa', 'fecha_registro', 'coordenadas_lat', 'coordenadas_lng',
-                'agricultor', 'agricultor__id'
-            )
+            # Incluir agricultor y municipio con select_related para evitar N+1 queries
+            # El departamento se obtiene de municipio.departamento (3NF)
+            queryset = queryset.select_related('municipio', 'municipio__departamento', 'agricultor')
             
             # Aplicar filtros
             search = request.GET.get('search', '').strip()
             if search:
                 queryset = queryset.filter(
                     Q(nombre__icontains=search) |
-                    Q(municipio__icontains=search) |
-                    Q(departamento__icontains=search)
+                    Q(municipio__nombre__icontains=search) |
+                    Q(municipio__departamento__nombre__icontains=search)
                 )
             
             municipio = request.GET.get('municipio', '').strip()
             if municipio:
-                queryset = queryset.filter(municipio__icontains=municipio)
+                queryset = queryset.filter(municipio__nombre__icontains=municipio)
             
             departamento = request.GET.get('departamento', '').strip()
             if departamento:
-                queryset = queryset.filter(departamento__icontains=departamento)
+                queryset = queryset.filter(municipio__departamento__nombre__icontains=departamento)
             
             # Filtro por estado activo
             # Por defecto, agricultores solo ven fincas activas, pero pueden filtrar explícitamente

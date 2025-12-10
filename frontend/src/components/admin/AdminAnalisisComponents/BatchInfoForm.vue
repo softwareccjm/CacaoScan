@@ -264,6 +264,7 @@
         v-if="showCreateFincaModal"
         :finca="null"
         :is-editing="false"
+        :initial-agricultor-id="getSelectedAgricultorId()"
         @close="closeCreateFincaModal"
         @saved="handleFincaCreated"
       />
@@ -429,7 +430,7 @@ const updateForm = () => {
     name: formData.value.name || '',
     farm: formData.value.farm || '',
     originPlace: formData.value.originPlace || '',
-    genetics: formData.value.genetics || '',
+    genetics: formData.value.genetics ? String(formData.value.genetics) : '',
     collectionDate: formData.value.collectionDate || '',
     origin: '',
     notes: formData.value.notes || '',
@@ -478,6 +479,14 @@ const openCreateLoteModal = () => {
 
 const closeCreateLoteModal = () => {
   showCreateLoteModal.value = false
+}
+
+const getSelectedAgricultorId = () => {
+  if (props.userRole !== 'admin' || !formData.value.farmer) {
+    return null
+  }
+  const selectedAgricultor = agricultores.value.find(a => a.username === formData.value.farmer)
+  return selectedAgricultor ? selectedAgricultor.id : null
 }
 
 const openCreateFincaModal = () => {
@@ -734,7 +743,12 @@ const handleLoteChange = async () => {
     
     // Genética/Variedad
     if (loteData.variedad) {
-      formData.value.genetics = loteData.variedad
+      // Si variedad es un objeto, usar el nombre; si es un ID, convertirlo a string
+      if (typeof loteData.variedad === 'object' && loteData.variedad !== null) {
+        formData.value.genetics = loteData.variedad.nombre || String(loteData.variedad.id || loteData.variedad)
+      } else {
+        formData.value.genetics = String(loteData.variedad)
+      }
     }
     
     // Fecha de recolección (usar fecha_cosecha si está disponible, o fecha actual como fallback)

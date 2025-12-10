@@ -244,8 +244,8 @@ function removeInvalidFields(data) {
 function cleanStringFields(formatted) {
   formatted.nombre = trimString(formatted.nombre)
   formatted.ubicacion = trimString(formatted.ubicacion)
-  formatted.municipio = trimString(formatted.municipio)
-  formatted.departamento = trimString(formatted.departamento)
+  // municipio es un ID numérico, no un string
+  // departamento no se limpia aquí porque se elimina después (el backend lo deriva del municipio)
   formatted.descripcion = trimString(formatted.descripcion)
 }
 
@@ -264,17 +264,49 @@ function formatCoordinateFields(formatted) {
  * @returns {Object} - Datos formateados
  */
 export function formatFincaData(fincaData) {
+  console.log('formatFincaData - Datos de entrada:', fincaData)
   const formatted = { ...fincaData }
 
   cleanStringFields(formatted)
   formatted.hectareas = parseHectareas(formatted.hectareas)
   formatCoordinateFields(formatted)
+  
+  // Convertir municipio a número si es string o está definido
+  if (formatted.municipio !== undefined && formatted.municipio !== null && formatted.municipio !== '') {
+    const municipioNum = parseInt(formatted.municipio, 10)
+    if (!isNaN(municipioNum)) {
+      formatted.municipio = municipioNum
+    } else {
+      console.warn('Municipio no es un número válido:', formatted.municipio)
+      formatted.municipio = null
+    }
+  } else {
+    formatted.municipio = null
+  }
+
+  // Eliminar departamento del payload - el backend lo deriva del municipio
+  delete formatted.departamento
+  
+  // Eliminar agricultor si está vacío (el backend usará el usuario autenticado)
+  if (!formatted.agricultor || formatted.agricultor === '') {
+    delete formatted.agricultor
+  } else {
+    // Asegurar que agricultor sea un número
+    const agricultorNum = parseInt(formatted.agricultor, 10)
+    if (!isNaN(agricultorNum)) {
+      formatted.agricultor = agricultorNum
+    } else {
+      delete formatted.agricultor
+    }
+  }
 
   if (formatted.activa === undefined) {
     formatted.activa = true
   }
 
   removeInvalidFields(formatted)
+  
+  console.log('formatFincaData - Datos formateados:', formatted)
 
   return formatted
 }

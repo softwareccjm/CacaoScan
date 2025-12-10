@@ -77,33 +77,51 @@ export const useConfigStore = defineStore('config', {
       return isAdmin || isAnalyst
     },
 
-    _buildConfigPromises(canAccessConfig) {
-      const promises = [configApi.getSystemConfig()]
-      if (canAccessConfig) {
+    _buildConfigPromises(canAccessConfig, isAuthenticated) {
+      const promises = []
+      
+      // Solo cargar system config si el usuario está autenticado
+      if (isAuthenticated) {
+        promises.push(configApi.getSystemConfig().catch(() => null))
+      }
+      
+      if (canAccessConfig && isAuthenticated) {
         promises.push(
-          configApi.getGeneralConfig(),
-          configApi.getSecurityConfig(),
-          configApi.getMLConfig()
+          configApi.getGeneralConfig().catch(() => null),
+          configApi.getSecurityConfig().catch(() => null),
+          configApi.getMLConfig().catch(() => null)
         )
       }
       return promises
     },
 
     _processConfigResults(results, canAccessConfig) {
-      if (canAccessConfig && results.length === 4) {
+      // Filtrar resultados nulos (errores silenciados)
+      const validResults = results.filter(r => r !== null)
+      
+      if (canAccessConfig && validResults.length === 4) {
         // results order: [system, general, security, ml]
         return {
-          system: results[0],
-          general: results[1],
-          security: results[2],
-          ml: results[3]
+          system: validResults[0] || null,
+          general: validResults[1] || null,
+          security: validResults[2] || null,
+          ml: validResults[3] || null
+        }
+      } else if (validResults.length > 0) {
+        // Solo tenemos system config
+        return {
+          system: validResults[0] || null,
+          general: null,
+          security: null,
+          ml: null
         }
       }
+      
       return {
         general: null,
         security: null,
         ml: null,
-        system: results[0]
+        system: null
       }
     },
 
@@ -149,19 +167,29 @@ export const useConfigStore = defineStore('config', {
       this.loading = true
       try {
         const authStore = await this._loadAuthStore()
-        const canAccessConfig = this._canAccessConfig(authStore)
+        const isAuthenticated = authStore?.isAuthenticated || false
+        const canAccessConfig = isAuthenticated && this._canAccessConfig(authStore)
 
-        const promises = this._buildConfigPromises(canAccessConfig)
-        const results = await Promise.all(promises)
-        const configs = this._processConfigResults(results, canAccessConfig)
+        const promises = this._buildConfigPromises(canAccessConfig, isAuthenticated)
+        
+        // Usar Promise.allSettled para que los errores individuales no detengan todo
+        const results = await Promise.allSettled(promises)
+        const settledResults = results.map(result => {
+          if (result.status === 'fulfilled') {
+            return result.value
+          }
+          // Ignorar errores 401/403 silenciosamente - el usuario simplemente no tiene acceso
+          return null
+        })
+        
+        const configs = this._processConfigResults(settledResults, canAccessConfig)
         
         this._updateConfigState(configs.general, configs.security, configs.ml, configs.system)
         
         this.lastUpdate = new Date()
         return { success: true, loaded: true }
       } catch (error) {
-        if (error.response?.status !== 403 && error.response?.status !== 500) {
-          }
+        // Silenciar errores de configuración - usar valores por defecto
         return { success: false, loaded: false, error: error.message }
       } finally {
         this.loading = false

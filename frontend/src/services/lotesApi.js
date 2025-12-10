@@ -40,26 +40,52 @@ export function validateLoteData(loteData) {
     errors.push('La finca es requerida')
   }
 
-  if (!loteData.identificador || loteData.identificador.trim().length === 0) {
-    errors.push('El identificador del lote es requerido')
-  } else if (loteData.identificador.length > 50) {
-    errors.push('El identificador no puede exceder 50 caracteres')
+  // Validar identificador (opcional, pero si se proporciona debe ser válido)
+  if (loteData.identificador && loteData.identificador.trim().length > 0) {
+    if (loteData.identificador.trim().length < 2) {
+      errors.push('El identificador debe tener al menos 2 caracteres')
+    } else if (loteData.identificador.length > 50) {
+      errors.push('El identificador no puede exceder 50 caracteres')
+    }
   }
 
-  if (!loteData.variedad || loteData.variedad.trim().length === 0) {
+  // Validar nombre (requerido si no hay identificador)
+  if (!loteData.nombre || loteData.nombre.trim().length === 0) {
+    if (!loteData.identificador || loteData.identificador.trim().length === 0) {
+      errors.push('El nombre o identificador es requerido')
+    }
+  }
+
+  // Validar variedad (requerida)
+  if (!loteData.variedad || (typeof loteData.variedad === 'string' && loteData.variedad.trim().length === 0)) {
     errors.push('La variedad es requerida')
-  } else if (loteData.variedad.length > 100) {
-    errors.push('La variedad no puede exceder 100 caracteres')
   }
 
-  if (!loteData.fecha_plantacion) {
-    errors.push('La fecha de plantación es requerida')
+  // Validar peso_kg (requerido)
+  const pesoKg = parseFloat(loteData.peso_kg)
+  if (!loteData.peso_kg || loteData.peso_kg.toString().trim().length === 0) {
+    errors.push('El peso en kilogramos es requerido')
+  } else if (isNaN(pesoKg)) {
+    errors.push('El peso debe ser un número válido')
+  } else if (pesoKg <= 0) {
+    errors.push('El peso debe ser mayor a 0')
+  } else if (pesoKg > 100000) {
+    errors.push('El peso no puede exceder 100,000 kg')
   }
 
-  if (!loteData.area_hectareas || loteData.area_hectareas <= 0) {
-    errors.push('El área en hectáreas debe ser un número positivo')
+  // Validar fecha_recepcion (requerida)
+  if (!loteData.fecha_recepcion) {
+    errors.push('La fecha de recepción es requerida')
   }
 
+  // Validar fecha_procesamiento (opcional, pero si se proporciona debe ser >= fecha_recepcion)
+  if (loteData.fecha_procesamiento && loteData.fecha_recepcion) {
+    if (new Date(loteData.fecha_procesamiento) < new Date(loteData.fecha_recepcion)) {
+      errors.push('La fecha de procesamiento no puede ser anterior a la fecha de recepción')
+    }
+  }
+
+  // Validar fecha_cosecha (opcional, pero si se proporciona debe ser >= fecha_plantacion)
   if (loteData.fecha_cosecha && loteData.fecha_plantacion) {
     if (new Date(loteData.fecha_cosecha) < new Date(loteData.fecha_plantacion)) {
       errors.push('La fecha de cosecha no puede ser anterior a la fecha de plantación')
@@ -76,17 +102,31 @@ export function formatLoteData(loteData) {
   const formatted = { ...loteData }
 
   if (formatted.identificador) {
-    formatted.identificador = formatted.identificador.trim()
-  }
-  if (formatted.variedad) {
-    formatted.variedad = formatted.variedad.trim()
-  }
-  if (formatted.descripcion) {
-    formatted.descripcion = formatted.descripcion.trim()
+    formatted.identificador = formatted.identificador.trim() || null
   }
 
-  if (formatted.area_hectareas) {
-    formatted.area_hectareas = Number.parseFloat(formatted.area_hectareas)
+  if (formatted.nombre) {
+    formatted.nombre = formatted.nombre.trim()
+  }
+
+  if (formatted.descripcion) {
+    formatted.descripcion = formatted.descripcion.trim() || null
+  }
+
+  // Formatear peso_kg
+  if (formatted.peso_kg !== undefined && formatted.peso_kg !== null) {
+    formatted.peso_kg = Number.parseFloat(formatted.peso_kg)
+  }
+
+  // Formatear campos opcionales
+  if (formatted.fecha_procesamiento === '' || formatted.fecha_procesamiento === null) {
+    formatted.fecha_procesamiento = null
+  }
+  if (formatted.fecha_plantacion === '' || formatted.fecha_plantacion === null) {
+    formatted.fecha_plantacion = null
+  }
+  if (formatted.fecha_cosecha === '' || formatted.fecha_cosecha === null) {
+    formatted.fecha_cosecha = null
   }
 
   if (formatted.activa === undefined) {

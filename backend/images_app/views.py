@@ -1,14 +1,18 @@
 ﻿"""
 Vistas para la gestión de imágenes de cacao.
 """
+import logging
 from typing import Optional, Tuple
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .models import CacaoImage
 from .serializers import CacaoImageSerializer
+
+logger = logging.getLogger("cacaoscan.api")
 
 
 class CacaoImageUploadView(APIView):
@@ -133,16 +137,79 @@ class CacaoImageListView(APIView):
         """
         Get queryset ordered by created_at descending.
         """
-        return CacaoImage.objects.order_by("-created_at")
+        return CacaoImage.objects.select_related('user', 'lote', 'finca').order_by("-created_at")
     
     def get(self, request):
         """
         Lista todas las imágenes de cacao del usuario autenticado.
         Ordenadas por created_at descendente (más recientes primero).
+        Soporta paginación con parámetros page y page_size.
         """
-        queryset = self.get_queryset().filter(user=request.user)
-        serializer = CacaoImageSerializer(queryset, many=True, context={'request': request})
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data
-        }, status=status.HTTP_200_OK)
+        try:
+            queryset = self.get_queryset().filter(user=request.user)
+            
+            # Obtener parámetros de paginación
+            page = request.GET.get('page', 1)
+            page_size = request.GET.get('page_size', 20)
+            
+            try:
+                page = int(page)
+                page_size = int(page_size)
+            except (ValueError, TypeError):
+                page = 1
+                page_size = 20
+            
+            # Limitar page_size a un máximo razonable
+            if page_size > 100:
+                page_size = 100
+            if page_size < 1:
+                page_size = 20
+            
+            # Paginar el queryset
+            paginator = Paginator(queryset, page_size)
+            total_pages = paginator.num_pages
+            total_count = paginator.count
+            
+            try:
+                page_obj = paginator.page(page)
+            except PageNotAnInteger:
+                page_obj = paginator.page(1)
+                page = 1
+            except EmptyPage:
+                page_obj = paginator.page(total_pages)
+                page = total_pages
+            
+            # Serializar los resultados de la página
+            serializer = CacaoImageSerializer(page_obj.object_list, many=True, context={'request': request})
+            
+            # Construir respuesta con información de paginación
+            response_data = {
+                'count': total_count,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': total_pages,
+                'results': serializer.data
+            }
+            
+            # Agregar enlaces de paginación
+            if page_obj.has_next():
+                response_data['next'] = f"?page={page + 1}&page_size={page_size}"
+            else:
+                response_data['next'] = None
+            
+            if page_obj.has_previous():
+                response_data['previous'] = f"?page={page - 1}&page_size={page_size}"
+            else:
+                response_data['previous'] = None
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error listando imágenes para usuario {request.user.username}: {e}", exc_info=True)
+            return Response(
+                {
+                    'error': 'Error interno del servidor',
+                    'details': str(e) if logger.level <= logging.DEBUG else 'Error al obtener la lista de imágenes'
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

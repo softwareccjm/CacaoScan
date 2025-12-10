@@ -32,7 +32,27 @@
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="p-6">
+      <form @submit.prevent="handleSubmit" class="p-6" id="finca-form">
+        <!-- Alerta de errores general -->
+        <div v-if="generalError || Object.keys(errors).length > 0" class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3 flex-1">
+              <h3 class="text-sm font-semibold text-red-800">
+                <span v-if="generalError">{{ generalError }}</span>
+                <span v-else-if="Object.keys(errors).length > 0">Por favor corrige los siguientes errores:</span>
+              </h3>
+              <ul v-if="Object.keys(errors).length > 0" class="mt-2 list-disc list-inside text-sm text-red-700">
+                <li v-for="(error, field) in errors" :key="field">{{ error }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
         <div class="space-y-8">
           <!-- Información básica -->
           <div class="bg-gray-50 rounded-lg p-6">
@@ -168,8 +188,8 @@
                     @change="onDepartamentoChange"
                   >
                     <option value="">Seleccionar departamento</option>
-                    <option v-for="dept in departamentos" :key="dept" :value="dept">
-                      {{ dept }}
+                    <option v-for="dept in departamentos" :key="typeof dept === 'string' ? dept : dept.nombre" :value="typeof dept === 'string' ? dept : dept.nombre">
+                      {{ typeof dept === 'string' ? dept : dept.nombre }}
                     </option>
                   </select>
                   <p v-if="errors.departamento" class="text-red-500 text-xs mt-2 flex items-center gap-1">
@@ -193,8 +213,8 @@
                     :class="{ 'border-red-500 focus:ring-red-500': errors.municipio }"
                   >
                     <option value="">Seleccionar municipio</option>
-                    <option v-for="mun in municipios" :key="mun" :value="mun">
-                      {{ mun }}
+                    <option v-for="mun in municipios" :key="mun.id" :value="mun.id">
+                      {{ mun.nombre }}
                     </option>
                   </select>
                   <p v-if="errors.municipio" class="text-red-500 text-xs mt-2 flex items-center gap-1">
@@ -317,6 +337,26 @@
           </div>
         </div>
 
+        <!-- Alerta de errores encima de los botones -->
+        <div v-if="generalError || Object.keys(errors).length > 0" class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3 flex-1">
+              <h3 class="text-sm font-semibold text-red-800">
+                <span v-if="generalError">{{ generalError }}</span>
+                <span v-else-if="Object.keys(errors).length > 0">Por favor corrige los siguientes errores:</span>
+              </h3>
+              <ul v-if="Object.keys(errors).length > 0" class="mt-2 list-disc list-inside text-sm text-red-700">
+                <li v-for="(error, field) in errors" :key="field">{{ error }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         <!-- Botones -->
         <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 px-6 py-4 rounded-b-xl">
           <button
@@ -345,8 +385,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import fincasApi, { getAgricultores } from '@/services/fincasApi'
+import catalogosApi from '@/services/catalogosApi'
 import { useFincasStore } from '@/stores/fincas'
 import { useAuthStore } from '@/stores/auth'
 import { useFormValidation } from '@/composables/useFormValidation'
@@ -361,6 +402,10 @@ const props = defineProps({
   isEditing: {
     type: Boolean,
     default: false
+  },
+  initialAgricultorId: {
+    type: [Number, String],
+    default: null
   }
 })
 
@@ -370,6 +415,7 @@ const fincasStore = useFincasStore()
 const authStore = useAuthStore()
 const { errors, mapServerErrors, scrollToFirstError } = useFormValidation()
 const { showSuccess, showError } = useNotifications()
+const generalError = ref('')
 const { create: createFincaComposable, update: updateFincaComposable, isLoading: isFincasLoading } = useFincas({
   onFincaCreate: () => {
     showSuccess('La finca se creó correctamente.')
@@ -384,9 +430,17 @@ const localLoading = ref(false)
 const loading = computed(() => localLoading.value || isFincasLoading.value)
 const municipios = ref([])
 const agricultores = ref([])
+const departamentosList = ref([])
 
 // Computed
 const isAdmin = computed(() => authStore.isAdmin)
+const departamentos = computed(() => {
+  // Si tenemos la lista de la API, usarla, sino usar la estática
+  if (departamentosList.value.length > 0) {
+    return departamentosList.value
+  }
+  return fincasApi.getDepartamentosColombia()
+})
 
 // Datos del formulario
 const formData = reactive({
@@ -402,9 +456,6 @@ const formData = reactive({
   agricultor: ''
 })
 
-// Computed
-const departamentos = computed(() => fincasApi.getDepartamentosColombia())
-
 // Métodos
 const resetForm = () => {
   Object.assign(formData, {
@@ -419,16 +470,23 @@ const resetForm = () => {
     activa: true,
     agricultor: ''
   })
-  errors.value = {}
+  // Limpiar errores correctamente
+  Object.keys(errors).forEach(key => delete errors[key])
 }
 
-const loadFincaData = () => {
+const loadFincaData = async () => {
   if (props.finca) {
+    // Obtener IDs del municipio y departamento
+    const municipioId = props.finca.municipio?.id || props.finca.municipio || null
+    const departamentoId = props.finca.departamento?.id || props.finca.departamento || null
+    // Obtener nombres si están disponibles (nuevos campos del serializer)
+    const municipioNombre = props.finca.municipio_nombre || null
+    const departamentoNombre = props.finca.departamento_nombre || null
+    
     Object.assign(formData, {
       nombre: props.finca.nombre || '',
       ubicacion: props.finca.ubicacion || '',
-      municipio: props.finca.municipio || '',
-      departamento: props.finca.departamento || '',
+      municipio: municipioId ? String(municipioId) : '',
       hectareas: props.finca.hectareas || '',
       descripcion: props.finca.descripcion || '',
       coordenadas_lat: props.finca.coordenadas_lat || '',
@@ -436,16 +494,131 @@ const loadFincaData = () => {
       activa: props.finca.activa ?? true
     })
     
-    // Cargar municipios si hay departamento
-    if (props.finca.departamento) {
-      municipios.value = fincasApi.getMunicipiosByDepartamento(props.finca.departamento)
+    // Cargar departamentos si aún no están cargados
+    if (departamentosList.value.length === 0) {
+      await loadDepartamentos()
+    }
+    
+    // Si tenemos el nombre del departamento directamente, usarlo
+    if (departamentoNombre) {
+      formData.departamento = departamentoNombre
+      await loadMunicipiosByDepartamento(departamentoNombre, true)
+      if (municipioId) {
+        formData.municipio = String(municipioId)
+      }
+    } else if (departamentoId) {
+      // Si solo tenemos el ID del departamento, buscar su nombre
+      const departamentoObj = departamentosList.value.find(d => {
+        if (typeof d === 'object' && d.id) {
+          return d.id === Number(departamentoId)
+        }
+        return false
+      })
+      
+      if (departamentoObj && departamentoObj.nombre) {
+        formData.departamento = departamentoObj.nombre
+        await loadMunicipiosByDepartamento(departamentoObj.nombre, true)
+        if (municipioId) {
+          formData.municipio = String(municipioId)
+        }
+      }
+    } else if (municipioId) {
+      // Si solo tenemos el ID del municipio, buscar su departamento
+      // Buscar en todos los departamentos (fallback)
+      let municipioEncontrado = null
+      let departamentoEncontrado = null
+      
+      for (const dept of departamentosList.value) {
+        if (typeof dept === 'object' && dept.id) {
+          try {
+            const response = await catalogosApi.getMunicipiosByDepartamento(dept.id)
+            const municipiosData = response.data || response
+            const municipiosList = Array.isArray(municipiosData?.results) 
+              ? municipiosData.results 
+              : Array.isArray(municipiosData) 
+                ? municipiosData 
+                : []
+            
+            municipioEncontrado = municipiosList.find(m => m.id === Number(municipioId))
+            if (municipioEncontrado) {
+              departamentoEncontrado = dept
+              break
+            }
+          } catch (error) {
+            // Continuar con el siguiente departamento
+            continue
+          }
+        }
+      }
+      
+      if (departamentoEncontrado && departamentoEncontrado.nombre) {
+        formData.departamento = departamentoEncontrado.nombre
+        await loadMunicipiosByDepartamento(departamentoEncontrado.nombre, true)
+        formData.municipio = String(municipioId)
+      }
     }
   }
 }
 
-const onDepartamentoChange = () => {
+const loadMunicipiosByDepartamento = async (departamentoNombre, preserveMunicipio = false) => {
+  if (!departamentoNombre) {
+    if (!preserveMunicipio) {
+      formData.municipio = ''
+    }
+    municipios.value = []
+    return
+  }
+  
+  try {
+    // Usar la lista de departamentos ya cargada, o cargarla si no está disponible
+    let deptsList = departamentosList.value
+    if (deptsList.length === 0) {
+      const deptsResponse = await catalogosApi.getDepartamentos()
+      const deptsData = deptsResponse.data || deptsResponse
+      deptsList = Array.isArray(deptsData?.results) 
+        ? deptsData.results 
+        : Array.isArray(deptsData) 
+          ? deptsData 
+          : []
+      departamentosList.value = deptsList
+    }
+    
+    // Buscar departamento por nombre (puede variar el formato)
+    const departamentoObj = deptsList.find(d => {
+      if (typeof d === 'string') {
+        return d.toLowerCase().trim() === departamentoNombre.toLowerCase().trim()
+      }
+      const nombreMatch = d.nombre && d.nombre.toLowerCase().trim() === departamentoNombre.toLowerCase().trim()
+      const codigoMatch = d.codigo && d.codigo.toString() === departamentoNombre.toString()
+      return nombreMatch || codigoMatch
+    })
+    
+    if (departamentoObj) {
+      const deptId = typeof departamentoObj === 'object' ? departamentoObj.id : null
+      
+      if (deptId) {
+        const response = await catalogosApi.getMunicipiosByDepartamento(deptId)
+        const municipiosData = response.data || response
+        municipios.value = Array.isArray(municipiosData?.results) 
+          ? municipiosData.results 
+          : Array.isArray(municipiosData) 
+            ? municipiosData 
+            : []
+      } else {
+        municipios.value = []
+      }
+    } else {
+      municipios.value = []
+    }
+  } catch (error) {
+    municipios.value = []
+  }
+}
+
+const onDepartamentoChange = async () => {
+  const currentMunicipio = formData.municipio
   formData.municipio = ''
-  municipios.value = fincasApi.getMunicipiosByDepartamento(formData.departamento)
+  await loadMunicipiosByDepartamento(formData.departamento, false)
 }
 
 const mapValidationErrorToField = (error) => {
@@ -468,67 +641,71 @@ const mapValidationErrorToField = (error) => {
   return null
 }
 
-const validateForm = () => {
+const validateForm = async () => {
   // Limpiar errores previos
-  errors.value = {}
+  Object.keys(errors).forEach(key => delete errors[key])
+  generalError.value = ''
+  // Forzar reactividad asegurando que el objeto reactive se actualice
   let isValid = true
+  
+  console.log('Validando formulario:', formData)
   
   // Validar nombre
   if (!formData.nombre || formData.nombre.trim().length === 0) {
-    errors.value.nombre = 'El nombre de la finca es requerido'
+    errors.nombre = 'El nombre de la finca es requerido'
     isValid = false
   } else if (formData.nombre.trim().length < 3) {
-    errors.value.nombre = 'El nombre debe tener al menos 3 caracteres'
+    errors.nombre = 'El nombre debe tener al menos 3 caracteres'
     isValid = false
   } else if (formData.nombre.trim().length > 200) {
-    errors.value.nombre = 'El nombre no puede exceder 200 caracteres'
+    errors.nombre = 'El nombre no puede exceder 200 caracteres'
     isValid = false
   }
   
   // Validar ubicación
   if (!formData.ubicacion || formData.ubicacion.trim().length === 0) {
-    errors.value.ubicacion = 'La ubicación es requerida'
+    errors.ubicacion = 'La ubicación es requerida'
     isValid = false
   } else if (formData.ubicacion.trim().length < 5) {
-    errors.value.ubicacion = 'La ubicación debe tener al menos 5 caracteres'
+    errors.ubicacion = 'La ubicación debe tener al menos 5 caracteres'
     isValid = false
   } else if (formData.ubicacion.trim().length > 300) {
-    errors.value.ubicacion = 'La ubicación no puede exceder 300 caracteres'
+    errors.ubicacion = 'La ubicación no puede exceder 300 caracteres'
     isValid = false
   }
   
   // Validar departamento
   if (!formData.departamento || formData.departamento.trim().length === 0) {
-    errors.value.departamento = 'El departamento es requerido'
+    errors.departamento = 'El departamento es requerido'
     isValid = false
   }
   
   // Validar municipio
-  if (!formData.municipio || formData.municipio.trim().length === 0) {
-    errors.value.municipio = 'El municipio es requerido'
+  if (!formData.municipio || (typeof formData.municipio === 'string' && formData.municipio.trim().length === 0)) {
+    errors.municipio = 'El municipio es requerido'
     isValid = false
   }
   
   // Validar hectáreas
   const hectareasNum = parseFloat(formData.hectareas)
   if (!formData.hectareas || formData.hectareas.toString().trim().length === 0) {
-    errors.value.hectareas = 'Las hectáreas son requeridas'
+    errors.hectareas = 'Las hectáreas son requeridas'
     isValid = false
   } else if (isNaN(hectareasNum)) {
-    errors.value.hectareas = 'Las hectáreas deben ser un número válido'
+    errors.hectareas = 'Las hectáreas deben ser un número válido'
     isValid = false
   } else if (hectareasNum <= 0) {
-    errors.value.hectareas = 'Las hectáreas deben ser mayor a 0'
+    errors.hectareas = 'Las hectáreas deben ser mayor a 0'
     isValid = false
   } else if (hectareasNum > 999999.99) {
-    errors.value.hectareas = 'Las hectáreas no pueden exceder 999,999.99'
+    errors.hectareas = 'Las hectáreas no pueden exceder 999,999.99'
     isValid = false
   }
   
   // Validar agricultor (solo para admin en creación)
   if (isAdmin.value && !props.isEditing) {
     if (!formData.agricultor || formData.agricultor.toString().trim().length === 0) {
-      errors.value.agricultor = 'Debes seleccionar un agricultor'
+      errors.agricultor = 'Debes seleccionar un agricultor'
       isValid = false
     }
   }
@@ -537,10 +714,10 @@ const validateForm = () => {
   if (formData.coordenadas_lat && formData.coordenadas_lat.toString().trim().length > 0) {
     const lat = parseFloat(formData.coordenadas_lat)
     if (isNaN(lat)) {
-      errors.value.coordenadas_lat = 'La latitud debe ser un número válido'
+      errors.coordenadas_lat = 'La latitud debe ser un número válido'
       isValid = false
     } else if (lat < -90 || lat > 90) {
-      errors.value.coordenadas_lat = 'La latitud debe estar entre -90 y 90'
+      errors.coordenadas_lat = 'La latitud debe estar entre -90 y 90'
       isValid = false
     }
   }
@@ -548,24 +725,44 @@ const validateForm = () => {
   if (formData.coordenadas_lng && formData.coordenadas_lng.toString().trim().length > 0) {
     const lng = parseFloat(formData.coordenadas_lng)
     if (isNaN(lng)) {
-      errors.value.coordenadas_lng = 'La longitud debe ser un número válido'
+      errors.coordenadas_lng = 'La longitud debe ser un número válido'
       isValid = false
     } else if (lng < -180 || lng > 180) {
-      errors.value.coordenadas_lng = 'La longitud debe estar entre -180 y 180'
+      errors.coordenadas_lng = 'La longitud debe estar entre -180 y 180'
       isValid = false
       }
     }
   
   // Validar descripción (opcional, pero si se proporciona tiene límite)
   if (formData.descripcion && formData.descripcion.length > 1000) {
-    errors.value.descripcion = 'La descripción no puede exceder 1000 caracteres'
+    errors.descripcion = 'La descripción no puede exceder 1000 caracteres'
     isValid = false
   }
   
   // Si hay errores, mostrar alerta y hacer scroll al primer error
   if (!isValid) {
-    showError('Por favor, corrige los errores en el formulario antes de continuar')
+    console.log('Formulario inválido. Errores:', errors)
+    console.log('Errores en formato JSON:', JSON.stringify(errors, null, 2))
+    console.log('Claves de errores:', Object.keys(errors))
+    
+    // Forzar reactividad asegurando que Vue detecte los cambios
+    await nextTick()
+    
+    // Mostrar notificación si está disponible
+    try {
+      showError('Por favor, corrige los errores en el formulario antes de continuar')
+    } catch (e) {
+      console.warn('No se pudo mostrar notificación:', e)
+    }
+    
+    // Esperar un tick adicional para asegurar que el DOM se actualice con los errores
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Hacer scroll al primer error
     scrollToFirstError('finca-form')
+  } else {
+    console.log('Formulario válido')
   }
   
   return isValid
@@ -619,31 +816,114 @@ const showGeneralErrorNotification = (errorMsg) => {
 }
 
 const handleServerError = (error) => {
+  // Limpiar errores previos
+  generalError.value = ''
+  
   if (error.response?.data) {
-    const serverErrors = error.response.data.details || error.response.data
+    const responseData = error.response.data
+    const serverErrors = responseData.details || responseData
+    
+    // Si details es un string con formato "campo: mensaje", extraerlo
+    if (responseData.details && typeof responseData.details === 'string') {
+      const detailsStr = responseData.details.trim()
+      // Formato: "nombre: Ya tienes una finca con este nombre."
+      const fieldErrorMatch = detailsStr.match(/^(\w+):\s*(.+)$/)
+      if (fieldErrorMatch) {
+        const [, fieldName, errorMessage] = fieldErrorMatch
+        errors[fieldName] = errorMessage.trim()
+        // Mensaje más claro para el usuario
+        const fieldLabel = fieldName === 'nombre' ? 'el nombre de la finca' : 
+                          fieldName === 'municipio' ? 'el municipio' :
+                          fieldName === 'departamento' ? 'el departamento' : fieldName
+        generalError.value = `Error en ${fieldLabel}: ${errorMessage.trim()}`
+        showError(generalError.value)
+        scrollToFirstError('finca-form')
+        return
+      }
+    }
+    
+    // Extraer mensaje de error general (autenticación, permisos, etc.)
+    const generalErrorMessage = responseData.error || responseData.detail || responseData.message
+    if (generalErrorMessage && typeof generalErrorMessage === 'string') {
+      // Si el mensaje general contiene información de un campo específico, extraerlo
+      const fieldErrorMatch = generalErrorMessage.match(/^(\w+):\s*(.+)$/)
+      if (fieldErrorMatch) {
+        const [, fieldName, errorMessage] = fieldErrorMatch
+        errors[fieldName] = errorMessage.trim()
+        const fieldLabel = fieldName === 'nombre' ? 'el nombre de la finca' : 
+                          fieldName === 'municipio' ? 'el municipio' :
+                          fieldName === 'departamento' ? 'el departamento' : fieldName
+        generalError.value = `Error en ${fieldLabel}: ${errorMessage.trim()}`
+        showError(generalError.value)
+        scrollToFirstError('finca-form')
+        return
+      } else {
+        generalError.value = String(generalErrorMessage)
+        showError(generalErrorMessage)
+      }
+    }
+    
+    // Procesar errores de campos específicos
     const errorMessage = processServerErrors(serverErrors)
+    if (errorMessage && !generalError.value) {
+      generalError.value = errorMessage
+      showValidationErrorNotification(errorMessage)
+    } else if (!generalError.value && Object.keys(errors).length > 0) {
+      // Si hay errores de campos pero no mensaje general, crear uno
+      const firstErrorField = Object.keys(errors)[0]
+      const firstErrorMessage = errors[firstErrorField]
+      const fieldLabel = firstErrorField === 'nombre' ? 'el nombre de la finca' : 
+                        firstErrorField === 'municipio' ? 'el municipio' :
+                        firstErrorField === 'departamento' ? 'el departamento' : firstErrorField
+      generalError.value = `Error en ${fieldLabel}: ${firstErrorMessage}`
+      showError(generalError.value)
+    } else if (!generalError.value) {
+      generalError.value = 'No se pudo guardar la finca. Por favor, intenta nuevamente.'
+      showError(generalError.value)
+    }
+    
     scrollToFirstError('finca-form')
-    showValidationErrorNotification(errorMessage)
   } else {
-    const errorMsg = error.message || 'No se pudo guardar la finca. Intenta nuevamente.'
+    // Error de red u otro error sin respuesta del servidor
+    const errorMsg = error.message || 'No se pudo guardar la finca. Verifica tu conexión e intenta nuevamente.'
+    generalError.value = errorMsg
     showGeneralErrorNotification(errorMsg)
   }
 }
 
-const handleSubmit = async () => {
-  if (!validateForm()) return
+const handleSubmit = async (event) => {
+  if (event) {
+    event.preventDefault()
+  }
   
+  console.log('handleSubmit llamado')
+  console.log('Datos del formulario:', formData)
+  
+  const isValid = await validateForm()
+  if (!isValid) {
+    console.log('Validación falló, no se puede enviar')
+    console.log('Estado actual de errores:', errors)
+    return
+  }
+  
+  console.log('Validación exitosa, procediendo a guardar...')
   localLoading.value = true
   
   try {
     const formattedData = fincasApi.formatFincaData(formData)
-    
+    console.log('Datos formateados para enviar:', formattedData)
+    console.log('Usuario autenticado:', authStore.user)
+    console.log('Es admin:', isAdmin.value)
     
     await saveFinca(formattedData)
+    console.log('Finca guardada exitosamente')
     // showSuccessNotification ya se llama desde los callbacks del composable
     emit('saved')
   } catch (error) {
-    
+    console.error('Error al guardar finca:', error)
+    console.error('Error completo:', error)
+    console.error('Response del error:', error.response)
+    console.error('Detalles del error:', error.response?.data)
     handleServerError(error)
   } finally {
     localLoading.value = false
@@ -672,16 +952,46 @@ const loadAgricultores = async () => {
       } else {
         agricultores.value = data?.results || []
       }
+      
+      // Si hay un agricultor inicial y no estamos editando, inicializarlo después de cargar
+      if (props.initialAgricultorId && !props.isEditing) {
+        const agricultorId = Number(props.initialAgricultorId)
+        if (!isNaN(agricultorId) && agricultorId > 0) {
+          const agricultor = agricultores.value.find(a => a.id === agricultorId)
+          if (agricultor) {
+            formData.agricultor = agricultor.id
+          }
+        }
+      }
     } catch (e) {
     }
   }
 }
 
-// Lifecycle
-onMounted(() => {
-  if (props.finca) {
-    loadFincaData()
+// Cargar departamentos desde la API
+const loadDepartamentos = async () => {
+  try {
+    const response = await catalogosApi.getDepartamentos()
+    const deptsData = response.data || response
+    const depts = Array.isArray(deptsData?.results) 
+      ? deptsData.results 
+      : Array.isArray(deptsData) 
+        ? deptsData 
+        : []
+    if (depts.length > 0) {
+      departamentosList.value = depts
+    }
+  } catch (error) {
+    // Si falla, usar la lista estática
   }
-  loadAgricultores()
+}
+
+// Lifecycle
+onMounted(async () => {
+  await loadDepartamentos()
+  if (props.finca) {
+    await loadFincaData()
+  }
+  await loadAgricultores()
 })
 </script>
