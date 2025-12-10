@@ -659,7 +659,17 @@ const passwordErrors = ref({})
 const isCreatingPassword = ref(false)
 
 const hasPassword = computed(() => {
-  return authStore.hasPassword !== false // Si es null, asumir true por compatibilidad
+  // Prioridad 1: Si hasPassword está explícitamente definido en el store, usar ese valor
+  if (authStore.hasPassword !== null && authStore.hasPassword !== undefined) {
+    return authStore.hasPassword === true
+  }
+  // Prioridad 2: Si no está definido en el store, intentar obtenerlo del objeto usuario
+  if (authStore.user && 'has_password' in authStore.user) {
+    return authStore.user.has_password === true
+  }
+  // Si hay usuario pero no tiene has_password definido, asumir true (usuario antiguo con contraseña)
+  // Si no hay usuario, retornar false
+  return authStore.user ? true : false
 })
 
 const handleCreatePassword = async () => {

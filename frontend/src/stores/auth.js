@@ -139,7 +139,13 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const storedUser = localStorage.getItem('user')
       if (storedUser) {
-        user.value = JSON.parse(storedUser)
+        const parsedUser = JSON.parse(storedUser)
+        user.value = parsedUser
+        // Restaurar has_password desde el usuario almacenado
+        if (parsedUser && 'has_password' in parsedUser) {
+          hasPassword.value = parsedUser.has_password
+        }
+        // Si no viene has_password, dejar null - el computed o getCurrentUser lo actualizará
       }
       
       const storedToken = localStorage.getItem('access_token')
@@ -345,7 +351,13 @@ export const useAuthStore = defineStore('auth', () => {
       if (!userData.role) {
         // Default to 'farmer' if role is missing
         userData.role = 'farmer'
-        }
+      }
+      
+      // Asegurar que has_password esté presente (UserSerializer lo incluye)
+      // Si no viene, asumir true por compatibilidad con usuarios antiguos
+      if (!('has_password' in userData)) {
+        userData.has_password = true
+      }
       
       setUser(userData)
       updateLastActivity()
@@ -543,6 +555,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = null
     refreshToken.value = null
     user.value = null
+    hasPassword.value = null
     error.value = null
     isLoading.value = false
     lastActivity.value = Date.now()

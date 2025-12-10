@@ -91,6 +91,7 @@ __all__ = [
     'VerifyEmailPreRegistrationView',
     'ForgotPasswordView',
     'ResetPasswordView',
+    'SetPasswordView',
     # Image views
     'ScanMeasureView',
     'ImagesListView',
