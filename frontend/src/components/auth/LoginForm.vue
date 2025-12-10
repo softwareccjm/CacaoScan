@@ -181,6 +181,23 @@
       </button>
     </form>
 
+    <!-- Separador para Google Login -->
+    <div class="mt-6">
+      <div class="relative">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-gray-200"></div>
+        </div>
+        <div class="relative flex justify-center text-sm">
+          <span class="px-4 bg-white text-gray-500">o</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botón de Google Login -->
+    <div class="mt-6">
+      <div id="google-login-button" class="w-full"></div>
+    </div>
+
     <!-- Separador con mejor presentación -->
     <div class="mt-8">
       <div class="relative">
@@ -214,17 +231,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useAuthForm } from '@/composables/useAuthForm'
 import BaseSpinner from '@/components/common/BaseSpinner.vue'
+import { setupGoogleLogin } from '@/utils/googleAuth'
+import authApi from '@/services/authApi'
+import { useAuthStore } from '@/stores/auth'
 
-// Route
+// Route and Router
 const route = useRoute()
+const router = useRouter()
 
 // Use auth composable
 const { login: loginUser, loading, error, clearError } = useAuth()
+
+// Auth store
+const authStore = useAuthStore()
 
 // Form state using useAuthForm for validation
 const authForm = useAuthForm({
@@ -272,6 +296,55 @@ const setStatusMessage = authForm.setStatusMessage
 
 // Local state
 const showPassword = ref(false)
+const googleLoginLoading = ref(false)
+
+// Handle Google Login
+const handleGoogleCredential = async (credential) => {
+  try {
+    googleLoginLoading.value = true
+    
+    globalThis.dispatchEvent(new CustomEvent('api-loading-start', {
+      detail: { type: 'google-login', message: 'Verificando con Google...' }
+    }))
+
+    const result = await authApi.googleLogin(credential)
+    
+    if (result.success) {
+      // Guardar tokens
+      authStore.setTokens({
+        access: result.access,
+        refresh: result.refresh
+      })
+      
+      // Guardar usuario (el backend puede retornar user completo o datos mínimos)
+      if (result.user) {
+        authStore.setUser(result.user)
+      } else {
+        // Si no viene el objeto user completo, crear uno mínimo con los datos disponibles
+        authStore.setUser({
+          email: result.email,
+          name: result.name,
+          picture: result.picture
+        })
+      }
+      
+      authForm.setStatusMessage('¡Bienvenido a CacaoScan! 🌱', 'success')
+      
+      // Redirigir al dashboard
+      router.push('/dashboard')
+    }
+  } catch (err) {
+    const errorMessage = err.message || 
+                        err.response?.data?.error ||
+                        err.response?.data?.message || 
+                        err.response?.data?.detail ||
+                        'Error al iniciar sesión con Google'
+    authForm.setStatusMessage(errorMessage, 'error')
+  } finally {
+    googleLoginLoading.value = false
+    globalThis.dispatchEvent(new CustomEvent('api-loading-end'))
+  }
+}
 
 // Handle form submission
 const handleSubmit = async () => {
@@ -286,7 +359,7 @@ const handleSubmit = async () => {
 const isLoading = computed(() => loading.value || authForm.isSubmitting.value)
 
 // Initialize component
-onMounted(() => {
+onMounted(async () => {
   // Show messages from query params
   if (route.query.message) {
     const type = route.query.expired ? 'error' : 'info'
@@ -297,6 +370,22 @@ onMounted(() => {
   if (error.value) {
     setStatusMessage(error.value, 'error')
     clearError()
+  }
+  
+  // Inicializar Google Login
+  try {
+    await setupGoogleLogin('google-login-button', handleGoogleCredential)
+  } catch (error) {
+    console.error('Error inicializando Google Login:', error)
+    // No mostrar error al usuario si falla la inicialización, solo en consola
+  }
+})
+
+onUnmounted(() => {
+  // Limpiar el contenedor del botón de Google al desmontar
+  const container = document.getElementById('google-login-button')
+  if (container) {
+    container.innerHTML = ''
   }
 })
 </script>

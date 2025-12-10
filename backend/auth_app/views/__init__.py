@@ -22,6 +22,7 @@ from .auth import (
     UserStatsView,
     AdminStatsView,
     UserDetailView,
+    GoogleLoginView,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     'UserStatsView',
     'AdminStatsView',
     'UserDetailView',
+    'GoogleLoginView',
 ]

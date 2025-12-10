@@ -97,6 +97,39 @@ const authApi = {
   },
 
   /**
+   * Iniciar sesión con Google OAuth
+   * @param {string} credential - Google ID Token (JWT)
+   * @returns {Promise<Object>} Normalized login response
+   */
+  async googleLogin(credential) {
+    try {
+      const response = await apiPost('/auth/google-login/', {
+        credential
+      })
+      
+      // Normalizar respuesta similar a login tradicional
+      return {
+        success: true,
+        access: response.data?.access || response.access,
+        refresh: response.data?.refresh || response.refresh,
+        user: response.data?.user || null,
+        email: response.data?.email || response.email,
+        name: response.data?.name || response.name,
+        picture: response.data?.picture || response.picture,
+        access_expires_at: response.data?.access_expires_at || response.access_expires_at,
+        refresh_expires_at: response.data?.refresh_expires_at || response.refresh_expires_at
+      }
+    } catch (error) {
+      const normalizedError = normalizeAuthError(error)
+      const authError = new Error(normalizedError.message)
+      authError.type = normalizedError.type
+      authError.status = normalizedError.status
+      authError.response = error.response
+      throw authError
+    }
+  },
+
+  /**
    * Registrar nuevo usuario con información de persona
    * @param {Object} userData - User registration data
    * @returns {Promise<Object>} Normalized registration response

@@ -9,7 +9,7 @@ from .views import (
     LoginView, RegisterView, LogoutView, UserProfileView, RefreshTokenView,
     ChangePasswordView, EmailVerificationView, ResendVerificationView,
     PreRegisterView, VerifyEmailPreRegistrationView, ForgotPasswordView,
-    ResetPasswordView, SendOtpView, VerifyOtpView,
+    ResetPasswordView, SendOtpView, VerifyOtpView, GoogleLoginView,
     # User views (from auth_app)
     UserListView, UserUpdateView, UserDeleteView, UserStatsView,
     AdminStatsView, UserDetailView,
@@ -82,6 +82,7 @@ urlpatterns = [
     
     # Endpoints de autenticación
     path('auth/login/', LoginView.as_view(), name='auth-login'),
+    path('auth/google-login/', GoogleLoginView.as_view(), name='auth-google-login'),
     path('auth/register/', RegisterView.as_view(), name='auth-register'),
     path('auth/logout/', LogoutView.as_view(), name='auth-logout'),
     path('auth/profile/', UserProfileView.as_view(), name='auth-profile'),

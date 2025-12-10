@@ -7,6 +7,9 @@ from .login_views import (
     UserProfileView,
     RefreshTokenView,
 )
+from .google_login_views import (
+    GoogleLoginView,
+)
 from .registration_views import (
     RegisterView,
     PreRegisterView,
@@ -40,6 +43,7 @@ __all__ = [
     'LogoutView',
     'UserProfileView',
     'RefreshTokenView',
+    'GoogleLoginView',
     # Registration views
     'RegisterView',
     'PreRegisterView',

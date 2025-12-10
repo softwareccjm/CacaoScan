@@ -25,6 +25,7 @@ from auth_app.views import (
     UserStatsView,
     AdminStatsView,
     UserDetailView,
+    GoogleLoginView,
 )
 
 # Images app views imported lazily to avoid circular dependency
@@ -81,6 +82,7 @@ __all__ = [
     'LogoutView',
     'UserProfileView',
     'RefreshTokenView',
+    'GoogleLoginView',
     'ChangePasswordView',
     'EmailVerificationView',
     'ResendVerificationView',

@@ -575,6 +575,7 @@ pip audit
 
 # Backend - Actualizar dependencias de forma segura
 pip install --upgrade package-name
+cls
 
 # Generar requirements.txt actualizado
 pip freeze > requirements.txt
