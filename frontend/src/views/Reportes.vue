@@ -520,7 +520,8 @@ export default {
         const response = await reportsStore.fetchUsers();
         users.value = response.data.results || [];
       } catch (error) {
-        }
+        console.error(error);
+      }
     };
 
     const loadFincas = async () => {
@@ -528,7 +529,8 @@ export default {
         const response = await reportsStore.fetchFincas();
         fincas.value = response.data.results || [];
       } catch (error) {
-        }
+        console.error(error);
+      }
     };
 
     const loadLotes = async (fincaId) => {
@@ -540,6 +542,7 @@ export default {
         const response = await reportsStore.fetchLotesByFinca(fincaId);
         lotes.value = response.data.results || [];
       } catch (error) {
+        console.error(error);
         lotes.value = [];
       }
     };
@@ -628,7 +631,8 @@ export default {
           sort_order: order
         });
       } catch (error) {
-        }
+        console.error('Error sorting reports:', error);
+      }
     };
 
     const handleSelectReport = (reportId) => {
@@ -653,7 +657,8 @@ export default {
         paginationComposable.goToPage(page);
         await loadReportsData({ ...filters.value, page });
       } catch (error) {
-        }
+        console.error('Error changing page:', error);
+      }
     };
 
     const refreshReports = async () => {

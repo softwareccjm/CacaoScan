@@ -204,27 +204,83 @@ class BatchAnalysisView(AdminPermissionMixin, APIView):
                     'status': 'error'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
-            # 6. Enqueue Celery task
-            task = process_batch_analysis_task.delay(
-                user_id=request.user.id,
-                lote_id=lote.id,
-                images_data=images_data
-            )
+            # 6. Enqueue Celery task o ejecutar síncronamente
+            import os
+            USE_CELERY_REDIS = os.environ.get('USE_CELERY_REDIS', 'True').lower() == 'true'
             
+            if USE_CELERY_REDIS:
+                # Ejecutar con Celery (asíncrono)
+                try:
+                    task = process_batch_analysis_task.delay(
+                        user_id=request.user.id,
+                        lote_id=lote.id,
+                        images_data=images_data
+                    )
+                    
+                    logger.info(
+                        f"Batch analysis task enqueued - Task ID: {task.id}, "
+                        f"Lote ID: {lote.id}, Images: {len(images_data)}"
+                    )
+                    
+                    # 7. Return task_id immediately
+                    return Response({
+                        'task_id': task.id,
+                        'lote_id': lote.id,
+                        'lote_name': lote.identificador,
+                        'total_images': len(images_data),
+                        'status': 'processing',
+                        'message': 'Análisis batch iniciado. Use el task_id para consultar el estado.'
+                    }, status=status.HTTP_202_ACCEPTED)
+                except Exception as celery_error:
+                    logger.warning(f"Error al encolar tarea en Celery: {celery_error}. Ejecutando síncronamente...")
+                    # Fallback a ejecución síncrona
+            
+            # Ejecutar síncronamente (sin Celery)
             logger.info(
-                f"Batch analysis task enqueued - Task ID: {task.id}, "
+                f"Ejecutando análisis batch síncronamente - "
                 f"Lote ID: {lote.id}, Images: {len(images_data)}"
             )
             
-            # 7. Return task_id immediately
-            return Response({
-                'task_id': task.id,
-                'lote_id': lote.id,
-                'lote_name': lote.identificador,
-                'total_images': len(images_data),
-                'status': 'processing',
-                'message': 'Análisis batch iniciado. Use el task_id para consultar el estado.'
-            }, status=status.HTTP_202_ACCEPTED)
+            try:
+                # Importar la función de implementación directamente
+                from api.tasks.image_tasks import _process_batch_analysis_impl
+                result = _process_batch_analysis_impl(
+                    user_id=request.user.id,
+                    lote_id=lote.id,
+                    images_data=images_data,
+                    task_instance=None  # Sin instancia de tarea para ejecución síncrona
+                )
+                
+                # Aplanar la respuesta para que las predicciones estén en el nivel superior
+                # Esto facilita el procesamiento en el frontend
+                response_data = {
+                    'lote_id': lote.id,
+                    'lote_name': lote.identificador,
+                    'total_images': len(images_data),
+                    'status': 'completed',
+                    'message': 'Análisis batch completado.'
+                }
+                
+                # Si result tiene datos, aplanarlos al nivel superior
+                if result and isinstance(result, dict):
+                    response_data.update({
+                        'processed_images': result.get('processed_images', 0),
+                        'failed_images': result.get('failed_images', 0),
+                        'average_confidence': result.get('average_confidence', 0),
+                        'average_dimensions': result.get('average_dimensions', {}),
+                        'total_weight': result.get('total_weight', 0),
+                        'predictions': result.get('predictions', []),
+                        'processing_time_seconds': result.get('processing_time_seconds', 0)
+                    })
+                
+                return Response(response_data, status=status.HTTP_200_OK)
+            except Exception as sync_error:
+                logger.error(f"Error ejecutando análisis síncrono: {sync_error}", exc_info=True)
+                return Response({
+                    'error': 'Error procesando imágenes',
+                    'details': str(sync_error),
+                    'status': 'error'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
         except Exception as e:
             logger.error(f"Error en análisis batch: {e}", exc_info=True)

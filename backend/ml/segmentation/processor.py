@@ -11,7 +11,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, List
 from PIL import Image
 import io
 try:
@@ -32,12 +32,257 @@ try:
 except Exception:
     _HAS_REMBG = False
 
+# YOLO para validación rápida de detección de granos
+try:
+    from .infer_yolo_seg import create_yolo_inference
+    _HAS_YOLO = True
+    _yolo_validator = None  # Se inicializa lazy
+except Exception:
+    _HAS_YOLO = False
+    _yolo_validator = None
+
 logger = get_ml_logger("cacaoscan.ml.segmentation.processor")
 
 
 class SegmentationError(Exception):
     """Excepción personalizada para errores de segmentación."""
     pass
+
+
+def _validate_with_yolo_fast(image_path: str, min_confidence: float = 0.75) -> bool:
+    """
+    Valida OBLIGATORIAMENTE con YOLO si hay un grano de cacao en la imagen.
+    YOLO ES OBLIGATORIO: Si YOLO falla, no detecta nada, o detecta una clase incorrecta,
+    se lanza SegmentationError y se detiene el proceso. NO se permite continuar con OpenCV.
+    
+    VALIDACIONES ESTRICTAS PARA ELIMINAR FALSOS POSITIVOS:
+    - Confianza mínima: 0.75 (75%) - muy estricto
+    - Área mínima: 0.5% de la imagen (mínimo absoluto 2000 píxeles)
+    - Área máxima: 40% de la imagen (para evitar objetos gigantes como dunas)
+    - Proporción del objeto: entre 0.5% y 40% de la imagen
+    - Aspect ratio: entre 0.2 y 4.0
+    - Clase obligatoria: debe ser "cacao", "cacao_grain", "cocoa", o "cocoa_bean"
+    
+    Args:
+        image_path: Ruta a la imagen
+        min_confidence: Confianza mínima requerida (0.75 = 75% por defecto, estricto)
+        
+    Returns:
+        True si YOLO detecta un grano válido
+        
+    Raises:
+        SegmentationError: Si YOLO no detecta un grano válido, falla, o detecta clase incorrecta
+    """
+    global _yolo_validator
+    
+    # YOLO ES OBLIGATORIO: Si no está disponible, lanzar error
+    if not _HAS_YOLO:
+        logger.error("YOLO no disponible - YOLO es obligatorio para validación de granos de cacao")
+        raise SegmentationError(
+            "No se puede validar la imagen: YOLO no está disponible. "
+            "YOLO es obligatorio para garantizar que solo se procesen granos de cacao válidos."
+        )
+    
+    # Lista de clases válidas de cacao
+    VALID_CACAO_CLASSES = ["cacao", "cacao_grain", "cocoa", "cocoa_bean"]
+    
+    try:
+        # Inicializar YOLO lazy (solo una vez)
+        if _yolo_validator is None:
+            logger.info("Inicializando YOLO para validación obligatoria...")
+            _yolo_validator = create_yolo_inference(confidence_threshold=min_confidence)
+        
+        # VALIDACIÓN OBLIGATORIA: Solo una predicción directa
+        image_path_obj = Path(image_path)
+        if not image_path_obj.exists():
+            raise FileNotFoundError(f"Imagen no encontrada: {image_path}")
+        
+        # Leer dimensiones de la imagen para validaciones relativas
+        from PIL import Image as PILImage
+        with PILImage.open(image_path) as img:
+            img_width, img_height = img.size
+            total_pixels = img_width * img_height
+        
+        logger.info(
+            f"[YOLO OBLIGATORIO] Validando: imagen={image_path_obj.name}, "
+            f"dimensiones={img_width}x{img_height}, total_pixels={total_pixels}, "
+            f"min_confidence={min_confidence:.2f}"
+        )
+        
+        # Predicción con umbral estricto
+        results = _yolo_validator.model(
+            str(image_path),
+            conf=min_confidence,  # Umbral estricto (0.75 = 75%)
+            imgsz=320,  # Resolución más baja para validación rápida
+            verbose=False,  # Sin logs verbosos
+            max_det=1,  # Solo necesitamos 1 detección para validar
+            iou=0.5  # NMS estándar
+        )
+        
+        # Procesar resultados
+        predictions = _yolo_validator._process_yolo_results(results, min_confidence=min_confidence)
+        
+        if not predictions:
+            # YOLO no detectó nada - OBLIGATORIO rechazar
+            logger.error(
+                f"[YOLO OBLIGATORIO] No detectó ningún objeto en {image_path_obj.name} "
+                f"(confianza mínima={min_confidence:.2f})"
+            )
+            raise SegmentationError(
+                "No se detectó un grano de cacao en la imagen. "
+                "El modelo de detección YOLO no encontró ningún grano válido. "
+                "YOLO es obligatorio para garantizar que solo se procesen granos de cacao."
+            )
+        
+        # Verificar que la mejor predicción tenga confianza suficiente
+        best_prediction = max(predictions, key=lambda p: p['confidence'])
+        
+        # Log detallado de la mejor predicción
+        logger.info(
+            f"[YOLO] Detectó objeto: confidence={best_prediction['confidence']:.3f}, "
+            f"area={best_prediction['area']}, class_name={best_prediction.get('class_name', 'unknown')}"
+        )
+        
+        # VALIDACIÓN 1: Confianza mínima estricta (0.75)
+        if best_prediction['confidence'] < min_confidence:
+            logger.error(
+                f"[YOLO OBLIGATORIO] Confianza insuficiente: {best_prediction['confidence']:.3f} < {min_confidence:.3f} "
+                f"en {image_path_obj.name}"
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"Confianza de detección: {best_prediction['confidence']*100:.1f}% "
+                f"(mínimo requerido: {min_confidence*100:.0f}%)."
+            )
+        
+        # VALIDACIÓN 2: Área mínima y máxima RELATIVA al tamaño de imagen
+        object_ratio = best_prediction['area'] / total_pixels if total_pixels > 0 else 0
+        min_area_ratio = 0.005  # 0.5% de la imagen (mínimo)
+        max_area_ratio = 0.40  # 40% de la imagen (máximo - para evitar objetos gigantes como dunas)
+        min_area = max(2000, int(min_area_ratio * total_pixels))  # Mínimo absoluto de 2000 píxeles
+        
+        if best_prediction['area'] < min_area:
+            logger.error(
+                f"[YOLO OBLIGATORIO] Área muy pequeña: {best_prediction['area']} < {min_area} "
+                f"({object_ratio*100:.2f}% < {min_area_ratio*100:.2f}%) en {image_path_obj.name}"
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"El área detectada es muy pequeña: {best_prediction['area']} píxeles "
+                f"({object_ratio*100:.2f}% de la imagen, "
+                f"mínimo requerido: {min_area} píxeles o {min_area_ratio*100:.2f}%)."
+            )
+        
+        # VALIDACIÓN 3: Proporción del objeto respecto a la imagen (mínimo y máximo)
+        if object_ratio < min_area_ratio:
+            logger.error(
+                f"[YOLO OBLIGATORIO] Proporción muy pequeña: {object_ratio*100:.2f}% < {min_area_ratio*100:.2f}% "
+                f"en {image_path_obj.name}"
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"El objeto detectado ocupa solo el {object_ratio*100:.2f}% de la imagen "
+                f"(mínimo requerido: {min_area_ratio*100:.2f}%)."
+            )
+        
+        if object_ratio > max_area_ratio:
+            logger.error(
+                f"[YOLO OBLIGATORIO] Proporción muy grande (posible objeto gigante como dunas): "
+                f"{object_ratio*100:.2f}% > {max_area_ratio*100:.0f}% en {image_path_obj.name}"
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"El objeto detectado ocupa el {object_ratio*100:.2f}% de la imagen "
+                f"(máximo permitido: {max_area_ratio*100:.0f}%). "
+                f"Esto sugiere que no es un grano de cacao (posiblemente un objeto gigante como dunas)."
+            )
+        
+        # VALIDACIÓN 4: Aspect ratio del bounding box
+        bbox = best_prediction.get('bbox', [])
+        aspect_ratio = None
+        if len(bbox) >= 4:
+            bbox_width = bbox[2] - bbox[0]
+            bbox_height = bbox[3] - bbox[1]
+            if bbox_height > 0:
+                aspect_ratio = bbox_width / bbox_height
+                min_aspect_ratio = 0.2
+                max_aspect_ratio = 4.0
+                if not (min_aspect_ratio <= aspect_ratio <= max_aspect_ratio):
+                    logger.error(
+                        f"[YOLO OBLIGATORIO] Aspect ratio fuera de rango: {aspect_ratio:.2f} "
+                        f"(esperado entre {min_aspect_ratio:.2f} y {max_aspect_ratio:.2f}) "
+                        f"en {image_path_obj.name}"
+                    )
+                    raise SegmentationError(
+                        f"No se detectó un grano de cacao válido en la imagen. "
+                        f"El objeto detectado tiene un aspect ratio inusual ({aspect_ratio:.2f}), "
+                        f"lo que sugiere que no es un grano de cacao."
+                    )
+        
+        # VALIDACIÓN 5: Clase OBLIGATORIA - debe ser cacao o variantes
+        class_name = best_prediction.get('class_name', '').lower().strip()
+        is_valid_class = False
+        
+        # Si no hay class_name, rechazar (no podemos confirmar que sea cacao)
+        if not class_name:
+            logger.error(
+                f"[YOLO OBLIGATORIO] No se detectó nombre de clase (class_name vacío) "
+                f"en {image_path_obj.name}. Se requiere una clase válida de cacao."
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"El modelo no devolvió un nombre de clase válido. "
+                f"Clases válidas requeridas: {', '.join(VALID_CACAO_CLASSES)}."
+            )
+        
+        # Verificar si la clase contiene alguna de las clases válidas
+        is_valid_class = any(valid_class in class_name for valid_class in VALID_CACAO_CLASSES)
+        
+        # También verificar si es exactamente una de las clases válidas
+        if not is_valid_class:
+            is_valid_class = class_name in VALID_CACAO_CLASSES
+        
+        if not is_valid_class:
+            logger.error(
+                f"[YOLO OBLIGATORIO] Clase inválida detectada: '{class_name}' "
+                f"(clases válidas: {VALID_CACAO_CLASSES}) en {image_path_obj.name}"
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"El modelo detectó un objeto de clase '{class_name}', no un grano de cacao. "
+                f"Clases válidas requeridas: {', '.join(VALID_CACAO_CLASSES)}. "
+                f"Si detectó 'seed', 'bean', 'object', etc., se rechaza automáticamente."
+            )
+        
+        # Log de validación exitosa con todas las métricas
+        aspect_ratio_str = f"{aspect_ratio:.2f}" if aspect_ratio is not None else "N/A"
+        logger.info(
+            f"[YOLO OBLIGATORIO] ✅ Validación exitosa: "
+            f"confidence={best_prediction['confidence']:.3f}, "
+            f"area={best_prediction['area']} píxeles, "
+            f"object_ratio={object_ratio*100:.2f}% (rango: {min_area_ratio*100:.2f}%-{max_area_ratio*100:.0f}%), "
+            f"aspect_ratio={aspect_ratio_str}, "
+            f"class_name='{class_name}' en {image_path_obj.name}"
+        )
+        return True
+        
+    except SegmentationError:
+        # Propagar SegmentationError inmediatamente - NO permitir continuar
+        raise
+    except Exception as e:
+        # Si hay error con YOLO, OBLIGATORIO lanzar error - NO permitir continuar con OpenCV
+        logger.error(
+            f"[YOLO OBLIGATORIO] Error en validación YOLO: {e} "
+            f"en {image_path_obj.name if 'image_path_obj' in locals() else image_path}"
+        )
+        raise SegmentationError(
+            f"No se puede validar la imagen: Error en YOLO: {str(e)}. "
+            "YOLO es obligatorio para garantizar que solo se procesen granos de cacao válidos."
+        ) from e
+
+
+# Alias para compatibilidad
+_validate_with_yolo = _validate_with_yolo_fast
 
 
 def _estimar_color_fondo(rgb: np.ndarray, bg_mask: np.ndarray) -> np.ndarray:
@@ -260,10 +505,60 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
     bin_mask = np.where((gc_mask == cv2.GC_FGD) | (gc_mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
     bin_mask = _clean_components(bin_mask)
 
+    # VALIDACIÓN TEMPRANA: Verificar rápidamente si hay suficiente área antes de procesar más
+    total_pixels = h * w
+    foreground_pixels = np.sum(bin_mask > 0)
+    foreground_ratio = foreground_pixels / total_pixels if total_pixels > 0 else 0
+    
+    logger.info(
+        f"OpenCV segmentación: dimensiones={w}x{h}, total_pixels={total_pixels}, "
+        f"foreground_pixels={foreground_pixels}, foreground_ratio={foreground_ratio*100:.2f}%"
+    )
+    
+    # AJUSTE: Área mínima reducida de 2% a 0.8% (más permisivo para reducir falsos negativos)
+    min_foreground_ratio = 0.008  # Mínimo 0.8% de la imagen debe ser foreground (antes 2%)
+    min_foreground_pixels = max(3000, int(min_foreground_ratio * total_pixels))  # Mínimo absoluto de 3000 píxeles
+    
+    if foreground_pixels < min_foreground_pixels or foreground_ratio < min_foreground_ratio:
+        logger.warning(
+            f"OpenCV detectó área insuficiente: {foreground_pixels} píxeles ({foreground_ratio*100:.2f}%) "
+            f"< {min_foreground_pixels} píxeles o {min_foreground_ratio*100:.2f}%"
+        )
+        raise SegmentationError(
+            f"No se detectó un grano de cacao en la imagen. "
+            f"El área detectada ocupa solo el {foreground_ratio*100:.2f}% de la imagen "
+            f"({foreground_pixels} píxeles, mínimo requerido: {min_foreground_ratio*100:.2f}% o {min_foreground_pixels} píxeles)."
+        )
+    
     # 3) Mantener solo el mayor contorno
     cnts, _ = cv2.findContours(bin_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if cnts:
         largest = max(cnts, key=cv2.contourArea)
+        largest_area = cv2.contourArea(largest)
+        
+        # VALIDACIÓN TEMPRANA: Verificar que el contorno más grande tenga área suficiente (relativa)
+        # AJUSTE: Área mínima ahora relativa (0.4% de la imagen) con mínimo absoluto de 3000 píxeles
+        min_contour_area_ratio = 0.004  # 0.4% de la imagen (antes era 5000 píxeles fijos)
+        min_contour_area = max(3000, int(min_contour_area_ratio * total_pixels))
+        
+        logger.info(
+            f"OpenCV contorno mayor: area={largest_area:.0f} píxeles "
+            f"({largest_area/total_pixels*100:.2f}% de imagen), "
+            f"min_requerido={min_contour_area} píxeles ({min_contour_area_ratio*100:.2f}%)"
+        )
+        
+        if largest_area < min_contour_area:
+            logger.warning(
+                f"OpenCV contorno mayor con área insuficiente: {largest_area:.0f} < {min_contour_area} "
+                f"({largest_area/total_pixels*100:.2f}% < {min_contour_area_ratio*100:.2f}%)"
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao en la imagen. "
+                f"El área del objeto detectado es de {largest_area:.0f} píxeles "
+                f"({largest_area/total_pixels*100:.2f}% de la imagen, "
+                f"mínimo requerido: {min_contour_area} píxeles o {min_contour_area_ratio*100:.2f}%)."
+            )
+        
         clean = np.zeros_like(bin_mask)
         cv2.drawContours(clean, [largest], -1, 255, thickness=cv2.FILLED)
         hull = cv2.convexHull(largest)
@@ -271,7 +566,10 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
         cv2.drawContours(hull_mask, [hull], -1, 255, thickness=cv2.FILLED)
         clean = cv2.bitwise_and(clean, hull_mask)
     else:
-        clean = bin_mask
+        # No hay contornos, definitivamente no hay grano
+        raise SegmentationError(
+            "No se detectó un grano de cacao en la imagen. No se encontraron objetos válidos en la segmentación."
+        )
 
     # 4) Feather del borde para alpha suave
     edge = cv2.Canny(clean, 50, 150)
@@ -283,11 +581,55 @@ def _remove_background_opencv(image_path: str) -> Image.Image:
     # 5) Recorte tight con padding
     ys, xs = np.nonzero(alpha > 0)
     if len(xs) == 0 or len(ys) == 0:
-        rgba = np.dstack([rgb, clean])
-        return Image.fromarray(rgba, "RGBA")
+        # VALIDACIÓN TEMPRANA: Si no hay píxeles no transparentes, no hay grano
+        raise SegmentationError(
+            "No se detectó un grano de cacao en la imagen. No se encontraron píxeles válidos después de la segmentación."
+        )
 
     x1, x2 = xs.min(), xs.max()
     y1, y2 = ys.min(), ys.max()
+    
+    # VALIDACIÓN TEMPRANA: Verificar dimensiones del bounding box antes de recortar (relativas)
+    bbox_width = x2 - x1 + 1
+    bbox_height = y2 - y1 + 1
+    bbox_area = bbox_width * bbox_height
+    
+    # AJUSTE: Dimensiones mínimas ahora relativas al tamaño de imagen
+    # Mínimo 2% del ancho/alto de la imagen, con mínimo absoluto de 40 píxeles
+    min_bbox_dimension_ratio = 0.02  # 2% de la dimensión de la imagen
+    min_bbox_dimension = max(40, int(min(min_bbox_dimension_ratio * w, min_bbox_dimension_ratio * h)))
+    min_bbox_area_ratio = 0.003  # 0.3% del área total (antes 2500 píxeles fijos)
+    min_bbox_area = max(2000, int(min_bbox_area_ratio * total_pixels))
+    
+    logger.info(
+        f"OpenCV bbox: dimensiones={bbox_width}x{bbox_height}, area={bbox_area} píxeles² "
+        f"({bbox_area/total_pixels*100:.2f}% de imagen), "
+        f"min_dimension={min_bbox_dimension}, min_area={min_bbox_area}"
+    )
+    
+    if bbox_width < min_bbox_dimension or bbox_height < min_bbox_dimension:
+        logger.warning(
+            f"OpenCV bbox con dimensiones insuficientes: {bbox_width}x{bbox_height} < {min_bbox_dimension}x{min_bbox_dimension}"
+        )
+        raise SegmentationError(
+            f"No se detectó un grano de cacao en la imagen. "
+            f"Dimensiones del objeto detectado: {bbox_width}x{bbox_height} píxeles "
+            f"(mínimo requerido: {min_bbox_dimension}x{min_bbox_dimension}, "
+            f"equivalente a {min_bbox_dimension_ratio*100:.0f}% de la imagen)."
+        )
+    
+    if bbox_area < min_bbox_area:
+        logger.warning(
+            f"OpenCV bbox con área insuficiente: {bbox_area} < {min_bbox_area} "
+            f"({bbox_area/total_pixels*100:.2f}% < {min_bbox_area_ratio*100:.2f}%)"
+        )
+        raise SegmentationError(
+            f"No se detectó un grano de cacao en la imagen. "
+            f"Área del objeto detectado: {bbox_area} píxeles cuadrados "
+            f"({bbox_area/total_pixels*100:.2f}% de la imagen, "
+            f"mínimo requerido: {min_bbox_area} píxeles cuadrados o {min_bbox_area_ratio*100:.2f}%)."
+        )
+    
     pad_x, pad_y = _calcular_padding_recorte(x1, x2, y1, y2)
     x1, y1, x2, y2 = _aplicar_padding_coordenadas(x1, y1, x2, y2, w, h, pad_x, pad_y)
 
@@ -353,6 +695,7 @@ def save_processed_png(pil_png: Image.Image, out_name: str) -> Path:
 def _process_with_opencv(image_path: str, filename: str) -> Image.Image:
     """
     Procesa imagen usando OpenCV directamente.
+    VALIDACIÓN PREVIA: Usa YOLO para validar que hay un grano antes de procesar.
     
     Args:
         image_path: Ruta a la imagen
@@ -362,11 +705,21 @@ def _process_with_opencv(image_path: str, filename: str) -> Image.Image:
         Imagen PIL RGBA procesada
         
     Raises:
+        SegmentationError: Si YOLO no detecta un grano o si OpenCV no detecta un grano válido
         FileNotFoundError: Si no se puede procesar la imagen
     """
     logger.debug("Segmentación solicitada con backend OpenCV (modo directo)")
     try:
+        # YOLO ES OBLIGATORIO: Debe validar antes de procesar con OpenCV
+        # Si YOLO falla, NO se permite continuar con OpenCV
+        logger.info("[YOLO OBLIGATORIO] Validando con YOLO antes de procesar con OpenCV...")
+        _validate_with_yolo_fast(image_path, min_confidence=0.75)  # Umbral estricto (75%)
+        logger.info("[YOLO OBLIGATORIO] YOLO validó detección, procesando con OpenCV...")
+        
         return _remove_background_opencv(image_path)
+    except SegmentationError:
+        # Propagar SegmentationError inmediatamente (detección temprana de "no hay grano")
+        raise
     except Exception as e_opencv:
         logger.error(f"OpenCV directo falló para {filename}: {e_opencv}")
         raise FileNotFoundError(f"No se pudo procesar la imagen {filename} con OpenCV: {e_opencv}")
@@ -374,7 +727,10 @@ def _process_with_opencv(image_path: str, filename: str) -> Image.Image:
 
 def _process_with_priority_chain(image_path: str, filename: str) -> Image.Image:
     """
-    Procesa imagen usando cadena de prioridad: AI -> rembg -> OpenCV.
+    Procesa imagen usando cadena de prioridad: YOLO (obligatorio) -> AI -> rembg -> OpenCV.
+    
+    YOLO ES OBLIGATORIO: Debe validar antes de cualquier método de segmentación.
+    Si YOLO falla, NO se permite continuar con ningún método.
     
     Args:
         image_path: Ruta a la imagen
@@ -384,11 +740,20 @@ def _process_with_priority_chain(image_path: str, filename: str) -> Image.Image:
         Imagen PIL RGBA procesada
         
     Raises:
+        SegmentationError: Si YOLO no detecta un grano válido o si ningún método detecta un grano válido
         FileNotFoundError: Si todos los métodos fallan
     """
+    # YOLO ES OBLIGATORIO: Validar primero antes de cualquier segmentación
+    logger.info("[YOLO OBLIGATORIO] Validando con YOLO antes de segmentación...")
+    _validate_with_yolo_fast(image_path, min_confidence=0.75)  # Umbral estricto (75%)
+    logger.info("[YOLO OBLIGATORIO] YOLO validó detección, procediendo con segmentación...")
+    
     try:
         logger.debug("Prioridad 1: Intentando U-Net (remove_background_ai)...")
         return remove_background_ai(image_path)
+    except SegmentationError:
+        # Propagar SegmentationError inmediatamente (detección temprana de "no hay grano")
+        raise
     except Exception as e_ai:
         logger.warning(f"U-Net (Prioridad 1) falló: {e_ai}. Intentando rembg...")
         return _try_rembg_then_opencv(image_path, filename)
@@ -398,26 +763,8 @@ def _try_rembg_then_opencv(image_path: str, filename: str) -> Image.Image:
     """
     Intenta rembg, fallback a OpenCV si falla.
     
-    Args:
-        image_path: Ruta a la imagen
-        filename: Nombre del archivo para logging
-        
-    Returns:
-        Imagen PIL RGBA procesada
-    """
-    try:
-        if _HAS_REMBG:
-            logger.debug("Prioridad 2: Intentando rembg...")
-            return _remove_background_rembg(image_path)
-        raise RuntimeError("rembg no disponible, saltando a OpenCV")
-    except Exception as e_rembg:
-        logger.warning(f"rembg (Prioridad 2) falló: {e_rembg}. Usando OpenCV como último recurso...")
-        return _try_opencv_fallback(image_path, filename)
-
-
-def _try_opencv_fallback(image_path: str, filename: str) -> Image.Image:
-    """
-    Intenta OpenCV como último recurso.
+    NOTA: YOLO ya fue validado en _process_with_priority_chain, así que OpenCV puede ejecutarse
+    solo si YOLO ya confirmó que hay un grano válido.
     
     Args:
         image_path: Ruta a la imagen
@@ -427,46 +774,107 @@ def _try_opencv_fallback(image_path: str, filename: str) -> Image.Image:
         Imagen PIL RGBA procesada
         
     Raises:
-        FileNotFoundError: Si OpenCV también falla
+        SegmentationError: Si no se detecta un grano válido (propagado inmediatamente)
     """
     try:
-        logger.debug("Prioridad 3: Intentando OpenCV...")
+        if _HAS_REMBG:
+            logger.debug("Prioridad 2: Intentando rembg...")
+            return _remove_background_rembg(image_path)
+        raise RuntimeError("rembg no disponible, saltando a OpenCV")
+    except SegmentationError:
+        # Propagar SegmentationError inmediatamente (detección temprana de "no hay grano")
+        raise
+    except Exception as e_rembg:
+        logger.warning(f"rembg (Prioridad 2) falló: {e_rembg}. Usando OpenCV como último recurso...")
+        # YOLO ya fue validado, así que OpenCV puede ejecutarse
+        return _try_opencv_fallback(image_path, filename)
+
+
+def _try_opencv_fallback(image_path: str, filename: str) -> Image.Image:
+    """
+    Intenta OpenCV como último recurso.
+    VALIDACIÓN PREVIA: Usa YOLO para validar que hay un grano antes de procesar.
+    
+    Args:
+        image_path: Ruta a la imagen
+        filename: Nombre del archivo para logging
+        
+    Returns:
+        Imagen PIL RGBA procesada
+        
+    Raises:
+        SegmentationError: Si YOLO no detecta un grano o si OpenCV no detecta un grano válido
+        FileNotFoundError: Si OpenCV falla por otros motivos
+    """
+    try:
+        logger.info("[YOLO OBLIGATORIO] Prioridad 3: Validando con YOLO antes de OpenCV...")
+        
+        # YOLO ES OBLIGATORIO: Debe validar antes de procesar con OpenCV
+        # Si YOLO falla, NO se permite continuar con OpenCV
+        _validate_with_yolo_fast(image_path, min_confidence=0.75)  # Umbral estricto (75%)
+        logger.info("[YOLO OBLIGATORIO] YOLO validó detección, procesando con OpenCV...")
+        
         return _remove_background_opencv(image_path)
+    except SegmentationError:
+        # Propagar SegmentationError inmediatamente (detección temprana de "no hay grano")
+        raise
     except Exception as e_opencv:
         logger.error(f"Todos los métodos de segmentación fallaron para {filename}: {e_opencv}")
         raise FileNotFoundError(f"No se pudo procesar la imagen {filename} con ningún método.")
 
 
-def segment_and_crop_cacao_bean(image_path: str, method: str = "ai") -> str:
+def segment_and_crop_cacao_bean(image_path: str, method: str = "yolo") -> str:
     """
-    Segmenta (elimina fondo) y recorta una imagen de cacao.
+    Segmenta (elimina fondo) y recorta una imagen de cacao usando YOLO-Seg.
     
-    PRIORIDAD RESTAURADA: 1. U-Net (ai), 2. rembg, 3. OpenCV
+    YOLO-Seg es OBLIGATORIO: No hay fallbacks. Si YOLO-Seg falla, se lanza SegmentationError.
+    
+    Migrado a YOLO-Seg para segmentación más precisa y reducción de falsos positivos.
 
     Args:
         image_path (str): Ruta de la imagen original.
-        method (str): Método de segmentación ("ai", "opencv", "yolo").
+        method (str): Método de segmentación (solo "yolo" es válido, otros valores se ignoran).
 
     Returns:
         str: Ruta absoluta del archivo PNG generado con fondo transparente.
+        
+    Raises:
+        SegmentationError: Si YOLO-Seg no detecta un grano válido
+        FileNotFoundError: Si la imagen no existe
     """
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"La imagen '{image_path}' no existe")
 
     filename = os.path.basename(image_path)
-    logger.info(f"Iniciando eliminación de fondo para: {filename}")
+    logger.info(f"[YOLO-Seg] Iniciando segmentación para: {filename}")
 
-    method = (method or "ai").lower()
-    if method == "opencv":
-        processed = _process_with_opencv(image_path, filename)
-    else:
-        processed = _process_with_priority_chain(image_path, filename)
-    
-    output_filename = f"cacao_{uuid.uuid4().hex}.png"
-    out_path = save_processed_png(processed, output_filename)
-
-    logger.info(f"[OK] Imagen procesada y guardada en: {out_path}")
-    return str(out_path)
+    # YOLO-Seg es el único método válido
+    try:
+        from .cacao_segmentation_model import CacaoSegmentationModel
+        
+        # Inicializar modelo (se carga lazy, solo una vez)
+        if not hasattr(segment_and_crop_cacao_bean, '_seg_model'):
+            segment_and_crop_cacao_bean._seg_model = CacaoSegmentationModel(
+                confidence_threshold=0.75
+            )
+        
+        seg_model = segment_and_crop_cacao_bean._seg_model
+        
+        # Segmentar y guardar
+        crop_image, output_path = seg_model.segment_and_save(image_path)
+        
+        logger.info(f"[YOLO-Seg] ✅ Imagen procesada y guardada en: {output_path}")
+        return str(output_path)
+        
+    except SegmentationError:
+        # Propagar SegmentationError inmediatamente
+        raise
+    except Exception as e:
+        logger.error(f"[YOLO-Seg] ❌ Error en segmentación: {e}", exc_info=True)
+        raise SegmentationError(
+            f"No se pudo segmentar la imagen: {str(e)}. "
+            "YOLO-Seg es obligatorio y no se permiten fallbacks."
+        ) from e
 
 
 def convert_bmp_to_jpg(bmp_path: Path) -> Tuple[Optional[Image.Image], Dict[str, Any]]:
@@ -496,3 +904,181 @@ def convert_bmp_to_jpg(bmp_path: Path) -> Tuple[Optional[Image.Image], Dict[str,
     except Exception as e:
         logger.error(f"Error convirtiendo BMP a JPG: {bmp_path.name}: {e}")
         return None, {"success": False, "error": str(e)}
+
+
+# ============================================================================
+# FUNCIÓN DE DEBUG PARA CALIBRAR UMBRALES
+# ============================================================================
+
+def debug_validate_thresholds(
+    image_paths: List[str],
+    min_confidence: float = 0.75,
+    verbose: bool = True
+) -> Dict[str, Any]:
+    """
+    Función de debug para calibrar umbrales de validación sobre un conjunto de imágenes de prueba.
+    
+    Esta función ejecuta las validaciones YOLO y post-segmentación sobre múltiples imágenes
+    y retorna métricas detalladas para ajustar los umbrales y reducir falsos negativos.
+    
+    Args:
+        image_paths: Lista de rutas a imágenes de prueba
+        min_confidence: Confianza mínima para YOLO (por defecto 0.75 - estricto)
+        verbose: Si True, imprime métricas detalladas por imagen
+        
+    Returns:
+        Diccionario con estadísticas agregadas y métricas por imagen
+    """
+    results = {
+        'total_images': len(image_paths),
+        'yolo_validations': [],
+        'post_segmentation_validations': [],
+        'summary': {
+            'yolo_passed': 0,
+            'yolo_failed': 0,
+            'segmentation_passed': 0,
+            'segmentation_failed': 0
+        }
+    }
+    
+    for image_path in image_paths:
+        image_path_obj = Path(image_path)
+        if not image_path_obj.exists():
+            logger.warning(f"Imagen no encontrada: {image_path}")
+            continue
+        
+        # Leer dimensiones de la imagen
+        from PIL import Image as PILImage
+        with PILImage.open(image_path) as img:
+            img_width, img_height = img.size
+            total_pixels = img_width * img_height
+        
+        # 1. Validación YOLO
+        yolo_result = {
+            'image_path': str(image_path),
+            'image_size': f"{img_width}x{img_height}",
+            'total_pixels': total_pixels,
+            'passed': False,
+            'error': None,
+            'metrics': {}
+        }
+        
+        try:
+            if _HAS_YOLO:
+                global _yolo_validator
+                if _yolo_validator is None:
+                    _yolo_validator = create_yolo_inference(confidence_threshold=min_confidence)
+                
+                results_yolo = _yolo_validator.model(
+                    str(image_path),
+                    conf=min_confidence,
+                    imgsz=320,
+                    verbose=False,
+                    max_det=1,
+                    iou=0.5
+                )
+                
+                predictions = _yolo_validator._process_yolo_results(results_yolo, min_confidence=min_confidence)
+                
+                if predictions:
+                    best_pred = max(predictions, key=lambda p: p['confidence'])
+                    bbox = best_pred.get('bbox', [])
+                    
+                    bbox_width = bbox[2] - bbox[0] if len(bbox) >= 4 else 0
+                    bbox_height = bbox[3] - bbox[1] if len(bbox) >= 4 else 0
+                    aspect_ratio = bbox_width / bbox_height if bbox_height > 0 else 0
+                    object_ratio = best_pred['area'] / total_pixels if total_pixels > 0 else 0
+                    
+                    yolo_result['metrics'] = {
+                        'confidence': best_pred['confidence'],
+                        'area': best_pred['area'],
+                        'object_ratio': object_ratio,
+                        'aspect_ratio': aspect_ratio,
+                        'class_name': best_pred.get('class_name', 'unknown'),
+                        'bbox_width': bbox_width,
+                        'bbox_height': bbox_height
+                    }
+                    
+                    # Intentar validación completa
+                    try:
+                        _validate_with_yolo_fast(image_path, min_confidence=min_confidence)
+                        yolo_result['passed'] = True
+                        results['summary']['yolo_passed'] += 1
+                    except SegmentationError as e:
+                        yolo_result['passed'] = False
+                        yolo_result['error'] = str(e)
+                        results['summary']['yolo_failed'] += 1
+                else:
+                    yolo_result['passed'] = False
+                    yolo_result['error'] = "YOLO no detectó ningún objeto"
+                    results['summary']['yolo_failed'] += 1
+            else:
+                yolo_result['error'] = "YOLO no disponible"
+        except Exception as e:
+            yolo_result['passed'] = False
+            yolo_result['error'] = str(e)
+            results['summary']['yolo_failed'] += 1
+        
+        results['yolo_validations'].append(yolo_result)
+        
+        # 2. Validación post-segmentación (simular)
+        seg_result = {
+            'image_path': str(image_path),
+            'passed': False,
+            'error': None,
+            'metrics': {}
+        }
+        
+        try:
+            # Intentar segmentación completa
+            segment_and_crop_cacao_bean(image_path, method="ai")
+            seg_result['passed'] = True
+            results['summary']['segmentation_passed'] += 1
+            
+            # Si pasó, intentar cargar el crop para obtener métricas
+            # (esto requiere acceso al crop generado, simplificado aquí)
+            seg_result['metrics'] = {
+                'status': 'segmentation_successful',
+                'note': 'Crop generado exitosamente'
+            }
+        except SegmentationError as e:
+            seg_result['passed'] = False
+            seg_result['error'] = str(e)
+            results['summary']['segmentation_failed'] += 1
+        except Exception as e:
+            seg_result['passed'] = False
+            seg_result['error'] = f"Error inesperado: {str(e)}"
+            results['summary']['segmentation_failed'] += 1
+        
+        results['post_segmentation_validations'].append(seg_result)
+        
+        # Imprimir métricas si verbose
+        if verbose:
+            print(f"\n{'='*80}")
+            print(f"Imagen: {image_path_obj.name}")
+            print(f"Tamaño: {img_width}x{img_height} ({total_pixels} píxeles)")
+            print(f"\nYOLO Validation:")
+            print(f"  Passed: {yolo_result['passed']}")
+            if yolo_result['metrics']:
+                print(f"  Confidence: {yolo_result['metrics'].get('confidence', 0):.3f}")
+                print(f"  Area: {yolo_result['metrics'].get('area', 0)} píxeles")
+                print(f"  Object Ratio: {yolo_result['metrics'].get('object_ratio', 0)*100:.2f}%")
+                print(f"  Aspect Ratio: {yolo_result['metrics'].get('aspect_ratio', 0):.2f}")
+                print(f"  Class: {yolo_result['metrics'].get('class_name', 'unknown')}")
+            if yolo_result['error']:
+                print(f"  Error: {yolo_result['error']}")
+            print(f"\nPost-Segmentation Validation:")
+            print(f"  Passed: {seg_result['passed']}")
+            if seg_result['error']:
+                print(f"  Error: {seg_result['error']}")
+    
+    # Resumen final
+    if verbose:
+        print(f"\n{'='*80}")
+        print("RESUMEN:")
+        print(f"Total imágenes: {results['total_images']}")
+        print(f"YOLO: {results['summary']['yolo_passed']} pasaron, {results['summary']['yolo_failed']} fallaron")
+        print(f"Segmentación: {results['summary']['segmentation_passed']} pasaron, {results['summary']['segmentation_failed']} fallaron")
+        print(f"{'='*80}\n")
+    
+    return results

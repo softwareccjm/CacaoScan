@@ -81,15 +81,16 @@ export const useConfigStore = defineStore('config', {
       const promises = []
       
       // Solo cargar system config si el usuario está autenticado
+      // Don't catch errors here - let them propagate to Promise.allSettled
       if (isAuthenticated) {
-        promises.push(configApi.getSystemConfig().catch(() => null))
+        promises.push(configApi.getSystemConfig())
       }
       
       if (canAccessConfig && isAuthenticated) {
         promises.push(
-          configApi.getGeneralConfig().catch(() => null),
-          configApi.getSecurityConfig().catch(() => null),
-          configApi.getMLConfig().catch(() => null)
+          configApi.getGeneralConfig(),
+          configApi.getSecurityConfig(),
+          configApi.getMLConfig()
         )
       }
       return promises
@@ -174,9 +175,18 @@ export const useConfigStore = defineStore('config', {
         
         // Usar Promise.allSettled para que los errores individuales no detengan todo
         const results = await Promise.allSettled(promises)
+        let hasError403Or500 = false
         const settledResults = results.map(result => {
           if (result.status === 'fulfilled') {
             return result.value
+          }
+          // Check for 403 or 500 errors
+          if (result.reason?.response?.status === 403 || result.reason?.response?.status === 500) {
+            hasError403Or500 = true
+          }
+          // Log unexpected errors (not 401/403)
+          if (result.reason?.response?.status !== 401 && result.reason?.response?.status !== 403) {
+            console.error('Unexpected error loading config:', result.reason)
           }
           // Ignorar errores 401/403 silenciosamente - el usuario simplemente no tiene acceso
           return null
@@ -184,11 +194,19 @@ export const useConfigStore = defineStore('config', {
         
         const configs = this._processConfigResults(settledResults, canAccessConfig)
         
+        // Check if any valid configs were loaded
+        const hasValidConfigs = settledResults.some(result => result !== null)
+        
+        // If there were 403 or 500 errors, return success: false
+        const success = hasError403Or500 ? false : hasValidConfigs
+        
         this._updateConfigState(configs.general, configs.security, configs.ml, configs.system)
         
         this.lastUpdate = new Date()
-        return { success: true, loaded: true }
+        return { success, loaded: hasValidConfigs }
       } catch (error) {
+        // Log unexpected errors
+        console.error(error)
         // Silenciar errores de configuración - usar valores por defecto
         return { success: false, loaded: false, error: error.message }
       } finally {

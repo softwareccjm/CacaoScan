@@ -21,7 +21,8 @@ import configApi from '@/services/configApi'
 // Mock auth store
 const mockAuthStore = {
   isAdmin: false,
-  isAnalyst: false
+  isAnalyst: false,
+  isAuthenticated: true
 }
 
 vi.mock('@/stores/auth', () => ({
@@ -105,6 +106,7 @@ describe('ConfigStore', () => {
   describe('loadAll', () => {
     it('should load all configs for admin user', async () => {
       mockAuthStore.isAdmin = true
+      mockAuthStore.isAuthenticated = true
       // _buildConfigPromises creates: [system, general, security, ml]
       // _processConfigResults maps: { system: results[0], general: results[1], security: results[2], ml: results[3] }
       configApi.getSystemConfig.mockResolvedValue({
@@ -135,6 +137,7 @@ describe('ConfigStore', () => {
     it('should load only system config for non-admin user', async () => {
       mockAuthStore.isAdmin = false
       mockAuthStore.isAnalyst = false
+      mockAuthStore.isAuthenticated = true
 
       configApi.getSystemConfig.mockResolvedValue({
         version: '1.0.0',
@@ -319,6 +322,7 @@ describe('ConfigStore', () => {
     it('should load all configs for analyst user', async () => {
       mockAuthStore.isAdmin = false
       mockAuthStore.isAnalyst = true
+      mockAuthStore.isAuthenticated = true
 
       configApi.getSystemConfig.mockResolvedValue({
         version: '1.0.0'

@@ -22,6 +22,9 @@ const parseErrorBlob = async (errorBlob) => {
     const parseErrorMessage = parseError instanceof Error ? parseError.message : String(parseError)
     const parseErrorStack = parseError instanceof Error ? parseError.stack : undefined
     
+    // Log the parsing error for debugging
+    console.error('Error parsing error response blob:', parseError)
+    
     // Throw error with parse error context
     const reportError = new Error(`Error al generar el reporte Excel: no se pudo parsear la respuesta de error del servidor (${parseErrorMessage})`)
     if (parseError instanceof Error) {

@@ -50,12 +50,6 @@ globalThis.fetch = vi.fn()
 // Mock fetch
 globalThis.fetch = vi.fn()
 
-// Mock console
-globalThis.console = {
-  ...console,
-  error: vi.fn()
-}
-
 describe('apiClient', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -106,12 +100,14 @@ describe('apiClient', () => {
     it('should log error and throw on failure', async () => {
       const error = new Error('Network error')
       api.get.mockRejectedValue(error)
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       await expect(apiGet('/test')).rejects.toThrow('Network error')
-      expect(console.error).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('[apiClient] GET /test error:'),
         error
       )
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -143,9 +139,11 @@ describe('apiClient', () => {
     it('should log error and throw on failure', async () => {
       const error = new Error('Validation error')
       api.post.mockRejectedValue(error)
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       await expect(apiPost('/test', {})).rejects.toThrow('Validation error')
-      expect(console.error).toHaveBeenCalled()
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -171,9 +169,11 @@ describe('apiClient', () => {
     it('should log error and throw on failure', async () => {
       const error = new Error('Update error')
       api.put.mockRejectedValue(error)
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       await expect(apiPut('/test/1', {})).rejects.toThrow('Update error')
-      expect(console.error).toHaveBeenCalled()
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -199,9 +199,11 @@ describe('apiClient', () => {
     it('should log error and throw on failure', async () => {
       const error = new Error('Patch error')
       api.patch.mockRejectedValue(error)
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       await expect(apiPatch('/test/1', {})).rejects.toThrow('Patch error')
-      expect(console.error).toHaveBeenCalled()
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -225,9 +227,11 @@ describe('apiClient', () => {
     it('should log error and throw on failure', async () => {
       const error = new Error('Delete error')
       api.delete.mockRejectedValue(error)
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       
       await expect(apiDelete('/test/1')).rejects.toThrow('Delete error')
-      expect(console.error).toHaveBeenCalled()
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      consoleErrorSpy.mockRestore()
     })
   })
 

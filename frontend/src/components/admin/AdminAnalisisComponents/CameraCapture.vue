@@ -248,8 +248,15 @@ const retakePhoto = async () => {
 }
 
 const savePhoto = async () => {
-  // La foto ya fue emitida en capturePhoto, solo resetear para tomar otra
+  // Emit the photo as blob when saving
   if (!canvas.value) return
+  
+  canvas.value.toBlob((blob) => {
+    if (blob) {
+      const file = new File([blob], `cocoa-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      emit('capture', file)
+    }
+  }, 'image/jpeg', 0.9)
   
   photoTaken.value = false
   await startCamera()

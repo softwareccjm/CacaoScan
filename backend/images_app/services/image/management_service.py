@@ -18,7 +18,6 @@ from api.utils.model_imports import get_model_safely
 
 # Import model safely
 CacaoImage = get_model_safely('images_app.models.CacaoImage')
-TipoArchivo = get_model_safely('catalogos.models.TipoArchivo')
 
 from django.contrib.auth.models import User
 
@@ -76,42 +75,9 @@ class ImageManagementService(BaseService):
         return None
     
     def _get_tipo_archivo_from_mime_type(self, mime_type: str):
-        """Get TipoArchivo from MIME type."""
-        if not TipoArchivo:
-            return None
-        
-        if not mime_type:
-            mime_type = 'image/jpeg'
-        
-        mime_type = mime_type.strip().lower()
-        
-        # Map of MIME types to TipoArchivo codigo
-        mime_type_map = {
-            'image/jpeg': 'IMAGE_JPEG',
-            'image/jpg': 'IMAGE_JPG',
-            'image/png': 'IMAGE_PNG',
-            'image/webp': 'IMAGE_WEBP',
-        }
-        
-        # Try to find by codigo
-        codigo = mime_type_map.get(mime_type)
-        if codigo:
-            try:
-                return TipoArchivo.objects.get(codigo=codigo, activo=True)
-            except TipoArchivo.DoesNotExist:
-                pass
-        
-        # Try to find by mime_type field
-        try:
-            return TipoArchivo.objects.filter(mime_type__iexact=mime_type, activo=True).first()
-        except Exception:
-            pass
-        
-        # Default to JPEG
-        try:
-            return TipoArchivo.objects.get(codigo='IMAGE_JPEG', activo=True)
-        except TipoArchivo.DoesNotExist:
-            return None
+        """Get Parametro (TEMA_TIPO_ARCHIVO) from MIME type."""
+        from images_app.utils import get_tipo_archivo_from_mime_type
+        return get_tipo_archivo_from_mime_type(mime_type)
     
     def _create_cacao_image_instance(self, image_file, filename, image_width, image_height, user):
         """Create CacaoImage instance."""

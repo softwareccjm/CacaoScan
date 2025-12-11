@@ -171,7 +171,8 @@ class YOLOTrainingManager:
         epochs: int = 100,
         batch_size: int = 16,
         confidence_threshold: float = 0.5,
-        iou_threshold: float = 0.7
+        iou_threshold: float = 0.7,
+        device: str = 'auto'
     ):
         """
         Inicializa el gestor de entrenamiento.
@@ -186,6 +187,7 @@ class YOLOTrainingManager:
             batch_size: Tamaño del batch
             confidence_threshold: Umbral de confianza
             iou_threshold: Umbral de IoU
+            device: Dispositivo para entrenamiento ('cpu', 'cuda', o 'auto' para detectar automáticamente)
         """
         if YOLO is None:
             raise ImportError("Ultralytics no está instalado. Instalar con: pip install ultralytics")
@@ -199,6 +201,7 @@ class YOLOTrainingManager:
         self.batch_size = batch_size
         self.confidence_threshold = confidence_threshold
         self.iou_threshold = iou_threshold
+        self.device = self._determine_device(device)
         
         # Directorios
         self.artifacts_dir = get_yolo_artifacts_dir()
@@ -216,6 +219,38 @@ class YOLOTrainingManager:
         
         logger.info(f"YOLO Training Manager inicializado para {self.dataset_size} imágenes")
         logger.info(f"Split: Train={train_split:.1%}, Val={val_split:.1%}, Test={test_split:.1%}")
+        logger.info(f"Dispositivo configurado: {self.device}")
+    
+    def _determine_device(self, device_option: str) -> str:
+        """Determina el dispositivo a usar para entrenamiento."""
+        if device_option == 'auto':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device = 'cuda'
+                    logger.info(f"GPU detectada: {torch.cuda.get_device_name(0)}")
+                else:
+                    device = 'cpu'
+                    logger.info("GPU no disponible, usando CPU")
+            except ImportError:
+                device = 'cpu'
+                logger.info("PyTorch no disponible, usando CPU")
+        elif device_option == 'cuda':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device = 'cuda'
+                    logger.info(f"Usando GPU: {torch.cuda.get_device_name(0)}")
+                else:
+                    device = 'cpu'
+                    logger.warning("GPU solicitada pero no disponible, usando CPU")
+            except ImportError:
+                device = 'cpu'
+                logger.warning("PyTorch no disponible, usando CPU")
+        else:
+            device = 'cpu'
+            logger.info("Usando CPU")
+        return device
     
     def create_dataset_structure(self) -> Path:
         """
@@ -607,6 +642,22 @@ class YOLOTrainingManager:
             Diccionario con resultados del entrenamiento
         """
         logger.info(f"Iniciando entrenamiento de {model_name}...")
+        logger.info(f"Usando dispositivo: {self.device}")
+        
+        # Verificar disponibilidad de GPU si se solicita
+        if self.device == 'cuda':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    logger.info(f"GPU disponible: {torch.cuda.get_device_name(0)}")
+                    logger.info(f"Memoria GPU total: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+                else:
+                    logger.warning("⚠️ CUDA solicitada pero no está disponible. Verifica:")
+                    logger.warning("  1. Que PyTorch con CUDA esté instalado: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118")
+                    logger.warning("  2. Que los drivers de NVIDIA estén instalados")
+                    logger.warning("  3. Ejecuta: python -c 'import torch; print(torch.cuda.is_available())'")
+            except ImportError:
+                logger.error("PyTorch no está instalado. Instala con: pip install torch")
         
         # Configurar logging de Ultralytics
         if LOGGER:
@@ -628,7 +679,7 @@ class YOLOTrainingManager:
             'save': True,
             'save_period': 10,
             'cache': True,
-            'device': 'cpu',  # Cambiar a 'cuda' si hay GPU disponible
+            'device': self.device,
             'workers': 4,
             'patience': 20,
             'lr0': 0.01,
@@ -813,7 +864,8 @@ class YOLOTrainingManager:
 def create_yolo_trainer(
     dataset_size: int = 150,
     epochs: int = 100,
-    batch_size: int = 16
+    batch_size: int = 16,
+    device: str = 'auto'
 ) -> YOLOTrainingManager:
     """
     Función de conveniencia para crear un entrenador YOLO.
@@ -822,6 +874,7 @@ def create_yolo_trainer(
         dataset_size: Número de imágenes para el dataset
         epochs: Número de épocas
         batch_size: Tamaño del batch
+        device: Dispositivo para entrenamiento ('cpu', 'cuda', o 'auto')
         
     Returns:
         Instancia de YOLOTrainingManager
@@ -829,7 +882,8 @@ def create_yolo_trainer(
     return YOLOTrainingManager(
         dataset_size=dataset_size,
         epochs=epochs,
-        batch_size=batch_size
+        batch_size=batch_size,
+        device=device
     )
 
 
@@ -837,7 +891,8 @@ def train_cacao_yolo_model(
     dataset_size: int = 150,
     epochs: int = 100,
     batch_size: int = 16,
-    model_name: str = "yolov8s-seg"
+    model_name: str = "yolov8s-seg",
+    device: str = 'auto'
 ) -> Dict[str, Any]:
     """
     Función de conveniencia para entrenar modelo YOLO de cacao.
@@ -847,11 +902,12 @@ def train_cacao_yolo_model(
         epochs: Número de épocas
         batch_size: Tamaño del batch
         model_name: Nombre del modelo base
+        device: Dispositivo para entrenamiento ('cpu', 'cuda', o 'auto')
         
     Returns:
         Resultados del entrenamiento
     """
-    trainer = create_yolo_trainer(dataset_size, epochs, batch_size)
+    trainer = create_yolo_trainer(dataset_size, epochs, batch_size, device)
     return trainer.run_full_training_pipeline(model_name)
 
 

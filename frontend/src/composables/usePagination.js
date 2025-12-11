@@ -135,7 +135,8 @@ export function usePagination(options = {}) {
         const apiTotalPages = responseData.total_pages || responseData.totalPages
         const computedTotalPages = totalPages.value
         if (Math.abs(apiTotalPages - computedTotalPages) > 1) {
-          }
+          console.warn(`Page mismatch: API reports ${apiTotalPages} total pages, but computed value is ${computedTotalPages}`)
+        }
       }
     }
   }

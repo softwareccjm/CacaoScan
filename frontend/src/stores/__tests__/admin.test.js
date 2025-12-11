@@ -436,7 +436,13 @@ describe('Admin Store', () => {
 
       await store.getActivityData('7')
 
-      expect(api.get).toHaveBeenCalledWith('/audit/activity-logs/')
+      expect(api.get).toHaveBeenCalledWith('/audit/activity-logs/', {
+        params: {
+          page_size: 100,
+          page: 1,
+          ordering: '-timestamp'
+        }
+      })
     })
   })
 

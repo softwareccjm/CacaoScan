@@ -5,6 +5,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationsStore } from '@/stores/notifications'
 import authApi from '@/services/authApi'
 
 /**
@@ -15,6 +16,7 @@ import authApi from '@/services/authApi'
 export function useAuth(options = {}) {
   const router = useRouter()
   const authStore = useAuthStore()
+  const notificationStore = useNotificationsStore()
   
   // Local state
   const loading = ref(false)
@@ -47,7 +49,25 @@ export function useAuth(options = {}) {
       
       const result = await authStore.login(credentials)
       
-      // Success is handled by the component, no need for notification here
+      // If store returns error object, throw exception for composable compatibility
+      if (result && result.success === false) {
+        const errorMessage = result.error || 'Error al iniciar sesión'
+        error.value = errorMessage
+        
+        const authError = new Error(errorMessage)
+        authError.originalError = result.originalError
+        throw authError
+      }
+      
+      // Show success notification
+      if (result && result.success !== false) {
+        notificationStore.addNotification({
+          type: 'success',
+          title: 'Éxito',
+          message: `Bienvenido, ${authStore.userFullName || 'usuario'}`
+        })
+      }
+      
       return result
     } catch (err) {
       // Extract error message from normalized error or response
@@ -78,6 +98,16 @@ export function useAuth(options = {}) {
       error.value = null
       
       const result = await authStore.register(userData)
+      
+      // Show success notification
+      if (result && result.success !== false) {
+        notificationStore.addNotification({
+          type: 'success',
+          title: 'Éxito',
+          message: 'Registro exitoso'
+        })
+      }
+      
       return result
     } catch (err) {
       const errorMessage = err.message || 'Error al registrar usuario'
@@ -99,6 +129,11 @@ export function useAuth(options = {}) {
       error.value = null
       
       await authStore.logout(redirectToLogin)
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Sesión cerrada',
+        message: 'Has cerrado sesión correctamente'
+      })
     } catch (err) {
       // Still clear local state even if API call fails
       authStore.clearAll()
@@ -122,6 +157,11 @@ export function useAuth(options = {}) {
       error.value = null
       
       const result = await authStore.verifyEmail(uid, token)
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Email verificado',
+        message: 'Tu email ha sido verificado correctamente'
+      })
       return result
     } catch (err) {
       const errorMessage = err.message || 'Error al verificar el email'
@@ -164,6 +204,11 @@ export function useAuth(options = {}) {
       error.value = null
       
       const result = await authStore.resendEmailVerification(email)
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Email reenviado',
+        message: 'Se ha reenviado el email de verificación'
+      })
       
       return result
     } catch (err) {

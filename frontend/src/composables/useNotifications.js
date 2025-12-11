@@ -18,16 +18,20 @@ export function useNotifications() {
    * @param {number} duration - Duration in milliseconds (optional)
    * @returns {void}
    */
-  const showSuccess = (message, duration = 5000) => {
+  const showSuccess = (message, duration = null) => {
+    store.createNotification({
+      tipo: 'success',
+      mensaje: message,
+      duracion: duration
+    })
     if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
       globalThis.showNotification({
         type: 'success',
         title: 'Éxito',
         message: message,
-        duration: duration
+        duration: duration || 5000
       })
-    } else {
-      }
+    }
   }
 
   /**
@@ -36,16 +40,20 @@ export function useNotifications() {
    * @param {number} duration - Duration in milliseconds (optional)
    * @returns {void}
    */
-  const showError = (message, duration = 8000) => {
+  const showError = (message, duration = null) => {
+    store.createNotification({
+      tipo: 'error',
+      mensaje: message,
+      duracion: duration
+    })
     if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
       globalThis.showNotification({
         type: 'error',
         title: 'Error',
         message: message,
-        duration: duration
+        duration: duration || 8000
       })
-    } else {
-      }
+    }
   }
 
   /**
@@ -54,16 +62,20 @@ export function useNotifications() {
    * @param {number} duration - Duration in milliseconds (optional)
    * @returns {void}
    */
-  const showWarning = (message, duration = 6000) => {
+  const showWarning = (message, duration = null) => {
+    store.createNotification({
+      tipo: 'warning',
+      mensaje: message,
+      duracion: duration
+    })
     if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
       globalThis.showNotification({
         type: 'warning',
         title: 'Advertencia',
         message: message,
-        duration: duration
+        duration: duration || 6000
       })
-    } else {
-      }
+    }
   }
 
   /**
@@ -72,16 +84,20 @@ export function useNotifications() {
    * @param {number} duration - Duration in milliseconds (optional)
    * @returns {void}
    */
-  const showInfo = (message, duration = 5000) => {
+  const showInfo = (message, duration = null) => {
+    store.createNotification({
+      tipo: 'info',
+      mensaje: message,
+      duracion: duration
+    })
     if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
       globalThis.showNotification({
         type: 'info',
         title: 'Información',
         message: message,
-        duration: duration
+        duration: duration || 5000
       })
-    } else {
-      }
+    }
   }
 
   /**

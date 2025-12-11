@@ -26,7 +26,7 @@ class CreadorModeloEstandar(CreadorModeloBase):
         use_pixel_features: bool
     ) -> nn.Module:
         """Create a standard model."""
-        from ....models import _create_standard_model
+        from ...models import _create_standard_model
         
         logger.info("Creating standard model via CreadorModeloEstandar")
         return _create_standard_model(

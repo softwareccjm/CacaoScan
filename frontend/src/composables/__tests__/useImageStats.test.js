@@ -51,7 +51,7 @@ describe('useImageStats', () => {
 
       await imageStats.fetchStats()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/images/stats/')
+      expect(axios.get).toHaveBeenCalledWith('/images/stats/')
       expect(imageStats.stats.value).toEqual(mockStats)
       expect(imageStats.loading.value).toBe(false)
     })

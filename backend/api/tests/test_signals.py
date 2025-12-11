@@ -67,7 +67,7 @@ class TestCacaoPredictionSignals:
                     # Verify notification was created
                     assert mock_realtime_service.create_and_send_notification.called
                     call_args = mock_realtime_service.create_and_send_notification.call_args
-                    assert call_args[1]['tipo'] == 'success'
+                    assert call_args[1]['tipo'] == 'SUCCESS'
                     assert 'Alta Calidad' in call_args[1]['titulo']
     
     def test_notify_prediction_completed_medium_confidence(self, mock_realtime_service):
@@ -101,7 +101,7 @@ class TestCacaoPredictionSignals:
                     )
                     
                     call_args = mock_realtime_service.create_and_send_notification.call_args
-                    assert call_args[1]['tipo'] == 'info'
+                    assert call_args[1]['tipo'] == 'INFO'
                     assert 'Calidad Estándar' in call_args[1]['titulo']
     
     def test_notify_prediction_completed_low_confidence(self, mock_realtime_service):
@@ -135,7 +135,7 @@ class TestCacaoPredictionSignals:
                     )
                     
                     call_args = mock_realtime_service.create_and_send_notification.call_args
-                    assert call_args[1]['tipo'] == 'warning'
+                    assert call_args[1]['tipo'] == 'WARNING'
                     assert 'Calidad Baja' in call_args[1]['titulo']
     
     def test_notify_prediction_completed_not_created(self, mock_realtime_service):
@@ -259,7 +259,7 @@ class TestTrainingJobSignals:
                 
                 assert mock_realtime_service.create_and_send_notification.called
                 call_args = mock_realtime_service.create_and_send_notification.call_args
-                assert call_args[1]['tipo'] == 'error'
+                assert call_args[1]['tipo'] == 'ERROR'
 
 
 @pytest.mark.django_db
@@ -285,7 +285,7 @@ class TestUserSignals:
             
             assert mock_realtime_service.create_and_send_notification.called
             call_args = mock_realtime_service.create_and_send_notification.call_args
-            assert call_args[1]['tipo'] == 'welcome'
+            assert call_args[1]['tipo'] == 'WELCOME'
             assert 'Bienvenido' in call_args[1]['titulo']
 
 

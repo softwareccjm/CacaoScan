@@ -135,7 +135,8 @@ export default {
         })
         recentNotifications.value = response.data.results || []
       } catch (error) {
-        } finally {
+        console.error('Error loading notifications:', error)
+      } finally {
         loading.value = false
       }
     }
@@ -171,7 +172,8 @@ export default {
           notification.leida = true
           notification.fecha_lectura = new Date().toISOString()
         } catch (error) {
-          }
+          console.error('Error marking notification as read:', error)
+        }
       }
 
       // Handle navigation based on notification type

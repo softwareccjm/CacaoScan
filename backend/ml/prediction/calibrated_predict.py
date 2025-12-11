@@ -288,8 +288,19 @@ class PredictorCacaoCalibrado(PredictorBase):
             logger.debug("Iniciando segmentación...")
             
             # Guardar imagen temporalmente para el cropper
+            # Convertir a RGB si es RGBA (JPEG no soporta transparencia)
+            if image.mode == 'RGBA':
+                # Crear fondo blanco y pegar la imagen RGBA encima
+                rgb_image = Image.new('RGB', image.size, (255, 255, 255))
+                rgb_image.paste(image, mask=image.split()[3])  # Usar canal alpha como máscara
+                image_to_save = rgb_image
+            elif image.mode != 'RGB':
+                image_to_save = image.convert('RGB')
+            else:
+                image_to_save = image
+            
             temp_image_path = self.runtime_crops_dir / f"temp_{uuid.uuid4()}.jpg"
-            image.save(temp_image_path)
+            image_to_save.save(temp_image_path, format='JPEG', quality=95)
             
             try:
                 # Usar el cropper para segmentar y recortar

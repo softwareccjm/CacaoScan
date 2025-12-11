@@ -467,7 +467,8 @@ class PipelineEntrenamientoCacao:
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.device = get_device()
+        device_option = config.get('device', 'auto')
+        self.device = self._determine_device(device_option)
         self.scalers = None
         self.train_loader: Optional[DataLoader] = None
         self.val_loader: Optional[DataLoader] = None
@@ -523,6 +524,22 @@ class PipelineEntrenamientoCacao:
         self.artifact_manager = ArtifactManager()
 
         logger.info(f"PipelineEntrenamientoCacao inicializado con configuración: {config}")
+
+    def _determine_device(self, device_option: str) -> torch.device:
+        """Determina el dispositivo a usar para entrenamiento."""
+        if device_option == 'auto':
+            return get_device()
+        elif device_option == 'cuda':
+            if torch.cuda.is_available():
+                device = torch.device('cuda')
+                logger.info(f"Usando GPU: {torch.cuda.get_device_name(0)}")
+                return device
+            else:
+                logger.warning("GPU solicitada pero no disponible, usando CPU")
+                return torch.device('cpu')
+        else:
+            logger.info("Usando CPU")
+            return torch.device('cpu')
 
     def _load_pixel_calibration(self) -> Optional[Dict[str, Any]]:
         """Load pixel calibration from JSON file."""
@@ -2055,6 +2072,7 @@ def ejecutar_pipeline_entrenamiento(
     img_size: int = 224,
     early_stopping_patience: int = 10,
     save_best_only: bool = True,
+    device: str = 'auto',
     **kwargs
 ) -> bool:
     """
@@ -2069,6 +2087,7 @@ def ejecutar_pipeline_entrenamiento(
         img_size: Tamaño de imagen
         early_stopping_patience: Paciencia para early stopping
         save_best_only: Solo guardar el mejor modelo
+        device: Dispositivo para entrenamiento ('cpu', 'cuda', o 'auto' para detectar automáticamente)
         
     Returns:
         bool: True si el entrenamiento fue exitoso, False en caso contrario
@@ -2109,6 +2128,7 @@ def ejecutar_pipeline_entrenamiento(
             'use_amp': False,  # Mixed precision (requiere GPU NVIDIA)
             'use_advanced_augmentation': True,  # Usar augmentation avanzado
             'improvement_threshold': 1e-4,  # Umbral mnimo de mejora para early stopping
+            'device': device,  # Dispositivo para entrenamiento
         }
         
         pipeline = PipelineEntrenamientoCacao(config)

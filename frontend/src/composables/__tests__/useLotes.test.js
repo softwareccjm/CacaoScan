@@ -21,7 +21,7 @@ vi.mock('@/stores/auth', () => ({
 }))
 
 vi.mock('@/stores/notifications', () => ({
-  useNotificationStore: () => mockNotificationStore
+  useNotificationsStore: () => mockNotificationStore
 }))
 
 vi.mock('@/services/lotesApi', () => ({

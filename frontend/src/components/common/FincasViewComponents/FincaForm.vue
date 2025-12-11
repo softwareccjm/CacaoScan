@@ -431,6 +431,7 @@ const loading = computed(() => localLoading.value || isFincasLoading.value)
 const municipios = ref([])
 const agricultores = ref([])
 const departamentosList = ref([])
+const isInitialized = ref(false)
 
 // Computed
 const isAdmin = computed(() => authStore.isAdmin)
@@ -472,6 +473,24 @@ const resetForm = () => {
   })
   // Limpiar errores correctamente
   Object.keys(errors).forEach(key => delete errors[key])
+}
+
+// Cargar departamentos desde la API
+const loadDepartamentos = async () => {
+  try {
+    const response = await catalogosApi.getDepartamentos()
+    const deptsData = response.data || response
+    const depts = Array.isArray(deptsData?.results) 
+      ? deptsData.results 
+      : Array.isArray(deptsData) 
+        ? deptsData 
+        : []
+    if (depts.length > 0) {
+      departamentosList.value = depts
+    }
+  } catch (error) {
+    // Si falla, usar la lista estática
+  }
 }
 
 const loadFincaData = async () => {
@@ -821,9 +840,37 @@ const handleServerError = (error) => {
   
   if (error.response?.data) {
     const responseData = error.response.data
-    const serverErrors = responseData.details || responseData
+    const serverErrors = responseData.errors || responseData.details || responseData
     
-    // Si details es un string con formato "campo: mensaje", extraerlo
+    // Primero intentar procesar errors como diccionario (formato estructurado)
+    if (responseData.errors && typeof responseData.errors === 'object' && !Array.isArray(responseData.errors)) {
+      // Procesar errores de campos desde el diccionario
+      let hasFieldErrors = false
+      for (const [fieldName, errorMessages] of Object.entries(responseData.errors)) {
+        if (Array.isArray(errorMessages) && errorMessages.length > 0) {
+          errors[fieldName] = errorMessages[0] // Tomar el primer mensaje de error
+          hasFieldErrors = true
+        } else if (typeof errorMessages === 'string') {
+          errors[fieldName] = errorMessages
+          hasFieldErrors = true
+        }
+      }
+      
+      if (hasFieldErrors) {
+        // Mostrar el primer error encontrado
+        const firstErrorField = Object.keys(errors)[0]
+        const firstErrorMessage = errors[firstErrorField]
+        const fieldLabel = firstErrorField === 'nombre' ? 'el nombre de la finca' : 
+                          firstErrorField === 'municipio' ? 'el municipio' :
+                          firstErrorField === 'departamento' ? 'el departamento' : firstErrorField
+        generalError.value = `Error en ${fieldLabel}: ${firstErrorMessage}`
+        showError(generalError.value)
+        scrollToFirstError('finca-form')
+        return
+      }
+    }
+    
+    // Si details es un string con formato "campo: mensaje", extraerlo (fallback para compatibilidad)
     if (responseData.details && typeof responseData.details === 'string') {
       const detailsStr = responseData.details.trim()
       // Formato: "nombre: Ya tienes una finca con este nombre."
@@ -930,15 +977,6 @@ const handleSubmit = async (event) => {
   }
 }
 
-// Watchers
-watch(() => props.finca, () => {
-  if (props.finca) {
-    loadFincaData()
-  } else {
-    resetForm()
-  }
-}, { immediate: true })
-
 // Cargar agricultores si es admin
 const loadAgricultores = async () => {
   if (isAdmin.value && !props.isEditing) {
@@ -968,24 +1006,6 @@ const loadAgricultores = async () => {
   }
 }
 
-// Cargar departamentos desde la API
-const loadDepartamentos = async () => {
-  try {
-    const response = await catalogosApi.getDepartamentos()
-    const deptsData = response.data || response
-    const depts = Array.isArray(deptsData?.results) 
-      ? deptsData.results 
-      : Array.isArray(deptsData) 
-        ? deptsData 
-        : []
-    if (depts.length > 0) {
-      departamentosList.value = depts
-    }
-  } catch (error) {
-    // Si falla, usar la lista estática
-  }
-}
-
 // Lifecycle
 onMounted(async () => {
   await loadDepartamentos()
@@ -993,5 +1013,18 @@ onMounted(async () => {
     await loadFincaData()
   }
   await loadAgricultores()
+  isInitialized.value = true
 })
+
+// Watchers - Definido después de todas las funciones para evitar problemas de inicialización
+watch(() => props.finca, async () => {
+  if (!isInitialized.value) {
+    return
+  }
+  if (props.finca) {
+    await loadFincaData()
+  } else {
+    resetForm()
+  }
+}, { immediate: false })
 </script>

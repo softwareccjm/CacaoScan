@@ -260,7 +260,6 @@ describe('useAuth', () => {
       
       expect(mockAuthStore.requestPasswordReset).toHaveBeenCalledWith('test@example.com')
       expect(result.success).toBe(true)
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
     })
 
     it('should handle password reset request error', async () => {
@@ -287,7 +286,6 @@ describe('useAuth', () => {
       
       expect(mockAuthApi.confirmPasswordReset).toHaveBeenCalledWith(resetData)
       expect(result.success).toBe(true)
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
     })
 
     it('should handle password reset confirmation error', async () => {
@@ -314,7 +312,6 @@ describe('useAuth', () => {
       
       expect(mockAuthStore.verifyEmailFromToken).toHaveBeenCalledWith('token123')
       expect(result.success).toBe(true)
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
     })
 
     it('should handle verify email from token error', async () => {

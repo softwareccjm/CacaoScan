@@ -74,7 +74,8 @@ export function useWebSocket() {
         try {
           callback(data)
         } catch (error) {
-          }
+          console.error('Error in WebSocket event listener:', error)
+        }
       }
     }
   }
@@ -281,6 +282,7 @@ export function useWebSocket() {
       userStatsSocket.connect()
       
     } catch (error) {
+      console.error('Error connecting WebSocket:', error)
       connectionError.value = error.message
     }
   }

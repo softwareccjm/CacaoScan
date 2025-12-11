@@ -26,7 +26,8 @@ import io
 from ..utils.paths import get_regressors_artifacts_dir, get_datasets_dir
 from ..utils.logs import get_ml_logger
 from ..utils.io import ensure_dir_exists, load_json
-from ..segmentation.processor import segment_and_crop_cacao_bean, SegmentationError
+from ..segmentation.processor import SegmentationError
+from ..segmentation.cacao_segmentation_model import CacaoSegmentationModel
 from ..regression.models import create_model, TARGETS, get_model_info
 from ..regression.scalers import load_scalers, CacaoScalers
 from .base_predictor import PredictorBase
@@ -112,6 +113,8 @@ class PredictorCacao(PredictorBase):
     def __init__(self, confidence_threshold: float = 0.5, config: Optional[PredictionConfig] = None):
         """
         Inicializa el predictor híbrido.
+        
+        Migrado a YOLO-Seg para segmentación más precisa y reducción de falsos positivos.
         """
         self.config = config or CONFIG
         
@@ -126,6 +129,9 @@ class PredictorCacao(PredictorBase):
         # Specific to hybrid predictor
         self.pixel_calibration: Optional[Dict[str, Any]] = None
         self._load_pixel_calibration()
+        
+        # Inicializar modelo de segmentación YOLO-Seg (lazy loading)
+        self.segmentation_model: Optional[CacaoSegmentationModel] = None
         
         self._setup_directories()
         
@@ -322,51 +328,76 @@ class PredictorCacao(PredictorBase):
     
     # _denormalize_predictions() is now inherited from BasePredictor
 
+    def _get_segmentation_model(self) -> CacaoSegmentationModel:
+        """
+        Obtiene el modelo de segmentación YOLO-Seg (lazy loading).
+        
+        Returns:
+            Instancia de CacaoSegmentationModel
+        """
+        if self.segmentation_model is None:
+            logger.info("Inicializando modelo YOLO-Seg para segmentación...")
+            self.segmentation_model = CacaoSegmentationModel(
+                model_path=None,
+                confidence_threshold=0.75
+            )
+        return self.segmentation_model
+    
     def _segment_and_crop(self, image: Image.Image) -> Tuple[Image.Image, str, float]:
         """
-        Segmenta y recorta la imagen usando el flujo de 'processor.py'
-        (U-Net -> rembg -> OpenCV).
-        REUTILIZA el archivo generado en lugar de copiarlo.
+        Segmenta y recorta la imagen usando YOLO-Seg.
+        
+        Migrado a YOLO-Seg para segmentación más precisa y reducción de falsos positivos.
+        Las validaciones se realizan dentro de CacaoSegmentationModel.
+        
+        Args:
+            image: Imagen PIL a segmentar
+            
+        Returns:
+            Tupla de (crop_image, crop_url, seg_confidence)
+            
+        Raises:
+            SegmentationError: Si no se detecta un grano válido
         """
-        # Guardar temporalmente para procesamiento
-        temp_image_path = self.runtime_crops_dir / f"temp_{uuid.uuid4()}.jpg"
-        image.save(temp_image_path)
+        # Obtener modelo de segmentación
+        seg_model = self._get_segmentation_model()
         
-        crop_image = None
-        # --- CORRECCIÓN: Confianza no hardcodeada ---
-        seg_confidence = 0.9 # Confianza base si tiene éxito
+        # Realizar segmentación y recorte con YOLO-Seg
+        crop_image, seg_metadata = seg_model.segment_and_crop(image)
         
+        # Extraer confianza de segmentación
+        seg_confidence = seg_metadata['confidence']
+        
+        # Guardar imagen procesada en el directorio estándar
+        today = datetime.now()
+        output_dir = MEDIA_ROOT / "cacao_images" / "processed" / \
+                     f"{today.year}" / f"{today.month:02d}" / f"{today.day:02d}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generar nombre de archivo único
+        output_filename = f"cacao_{uuid.uuid4().hex}.png"
+        output_path = output_dir / output_filename
+        
+        # Guardar imagen
+        crop_image.save(output_path, format='PNG')
+        
+        # Calcular URL relativa
         try:
-            # --- CORRECCIÓN: Usar la cascada (U-Net -> rembg -> OpenCV) ---
-            png_path_str = segment_and_crop_cacao_bean(str(temp_image_path), method="ai")
-            
-            if not png_path_str:
-                raise SegmentationError("Segmentación no devolvió ruta de imagen")
-            
-            crop_path = Path(png_path_str)
-            if not crop_path.exists():
-                raise SegmentationError(f"Imagen segmentada no encontrada: {crop_path}")
-            
-            crop_image = Image.open(crop_path).convert("RGBA")
-            
-            # --- CORRECCIÓN: Calcular URL relativa sin duplicar archivos ---
-            try:
-                # Png_path_str es una ruta absoluta /app/media/cacao_images/processed/...
-                # Necesitamos la URL relativa /media/cacao_images/processed/...
-                relative_path = crop_path.relative_to(MEDIA_ROOT.parent)
-                crop_url = f"/{relative_path.as_posix()}" 
-            except Exception:
-                # Fallback por si la ruta no es la esperada
-                crop_url = crop_path.as_posix().split("/app")[-1] # /media/cacao_images/...
-            
-            logger.info("Segmentación completada (cascada U-Net/rembg/OpenCV)")
-            
-            return crop_image, crop_url, seg_confidence
-            
-        finally:
-            # Limpiar solo el archivo temporal
-            if temp_image_path.exists():
-                temp_image_path.unlink()
+            relative_path = output_path.relative_to(MEDIA_ROOT.parent)
+            crop_url = f"/{relative_path.as_posix()}"
+        except Exception:
+            crop_url = output_path.as_posix().split("/app")[-1] if "/app" in str(output_path) else f"/{output_path.relative_to(MEDIA_ROOT)}"
+        
+        logger.info(
+            f"[YOLO-Seg] Segmentación completada: "
+            f"confidence={seg_confidence:.3f}, "
+            f"area={seg_metadata['area_pixels']} píxeles, "
+            f"aspect_ratio={seg_metadata['aspect_ratio']:.2f}, "
+            f"crop_size={seg_metadata['crop_width']}x{seg_metadata['crop_height']}, "
+            f"guardado en: {output_path}"
+        )
+        
+        return crop_image, crop_url, seg_confidence
 
     def _calculate_pixel_to_mm_scale_factor(self, width_pixels: int, height_pixels: int) -> float:
         """

@@ -33,14 +33,13 @@ class TestFincaSerializer:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             nombre='Test Finca',
             ubicacion='Test Location',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.5,
             agricultor=user,
             coordenadas_lat=4.5,
@@ -91,13 +90,12 @@ class TestFincaSerializer:
         with pytest.raises(ValidationError):
             serializer.validate_nombre('AB')
     
-    def test_validate_nombre_duplicate_on_create(self, user):
+    def test_validate_nombre_duplicate_on_create(self, user, municipio):
         """Test validate_nombre with duplicate name on create."""
         from fincas_app.models import Finca
         Finca.objects.create(
             nombre='Existing Finca',
-            municipio='Test',
-            departamento='Test',
+            municipio=municipio,
             hectareas=10,
             agricultor=user
         )
@@ -109,13 +107,12 @@ class TestFincaSerializer:
         with pytest.raises(ValidationError):
             serializer.validate_nombre('Existing Finca')
     
-    def test_validate_nombre_duplicate_on_update(self, user, finca):
+    def test_validate_nombre_duplicate_on_update(self, user, finca, municipio):
         """Test validate_nombre with duplicate name on update."""
         from fincas_app.models import Finca
         Finca.objects.create(
             nombre='Other Finca',
-            municipio='Test',
-            departamento='Test',
+            municipio=municipio,
             hectareas=10,
             agricultor=user
         )
@@ -187,10 +184,6 @@ class TestFincaSerializer:
         
         serializer._validate_required_fields({'municipio': ''}, errors, is_partial=True)
         assert 'municipio' in errors
-        
-        errors = {}
-        serializer._validate_required_fields({'departamento': '   '}, errors, is_partial=True)
-        assert 'departamento' in errors
     
     def test_validate_required_fields_full_update(self):
         """Test _validate_required_fields in full mode."""
@@ -199,10 +192,6 @@ class TestFincaSerializer:
         
         serializer._validate_required_fields({'municipio': ''}, errors, is_partial=False)
         assert 'municipio' in errors
-        
-        errors = {}
-        serializer._validate_required_fields({'departamento': '   '}, errors, is_partial=False)
-        assert 'departamento' in errors
     
     def test_handle_coordinate_validation_error_with_lat_lng(self):
         """Test _handle_coordinate_validation_error with lat/lng in error."""
@@ -290,13 +279,12 @@ class TestFincaListSerializer:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             nombre='Test Finca',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.5,
             agricultor=user
         )
@@ -314,7 +302,8 @@ class TestFincaListSerializer:
         """Test get_ubicacion_completa method."""
         serializer = FincaListSerializer()
         result = serializer.get_ubicacion_completa(finca)
-        assert result == "Test Municipio, Test Departamento"
+        assert "Test Municipio" in result
+        assert "Test Departamento" in result
 
 
 @pytest.mark.django_db
@@ -333,13 +322,12 @@ class TestFincaDetailSerializer:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             nombre='Test Finca',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.5,
             agricultor=user
         )
@@ -415,13 +403,12 @@ class TestLoteSerializer:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             nombre='Test Finca',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.5,
             agricultor=user
         )
@@ -724,13 +711,12 @@ class TestLoteListSerializer:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             nombre='Test Finca',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.5,
             agricultor=user
         )
@@ -775,13 +761,12 @@ class TestLoteDetailSerializer:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             nombre='Test Finca',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.5,
             agricultor=user
         )

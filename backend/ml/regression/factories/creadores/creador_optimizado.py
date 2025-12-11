@@ -26,7 +26,7 @@ class CreadorModeloOptimizado(CreadorModeloBase):
         use_pixel_features: bool
     ) -> Optional[nn.Module]:
         """Create an optimized model if available."""
-        from ....models import _create_optimized_model
+        from ...models import _create_optimized_model
         
         logger.info("Creating optimized model via CreadorModeloOptimizado")
         return _create_optimized_model(

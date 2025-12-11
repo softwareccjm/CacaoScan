@@ -82,6 +82,7 @@ export const useNotificationsStore = defineStore('notifications', {
         const response = await api.get(`/notifications/${id}/`)
         return response
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -100,6 +101,7 @@ export const useNotificationsStore = defineStore('notifications', {
         
         return true
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -117,6 +119,7 @@ export const useNotificationsStore = defineStore('notifications', {
         
         return true
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -127,6 +130,7 @@ export const useNotificationsStore = defineStore('notifications', {
         this.unreadCount = response.data.unread_count
         return response.data.unread_count
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -137,6 +141,7 @@ export const useNotificationsStore = defineStore('notifications', {
         this.stats = response.data
         return response.data
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -151,8 +156,14 @@ export const useNotificationsStore = defineStore('notifications', {
         
         return response.data
       } catch (error) {
+        console.error(error)
         throw error
       }
+    },
+
+    // Alias for createNotification for compatibility
+    addNotification(notificationData) {
+      return this.createNotification(notificationData)
     },
 
     // Métodos para integración con WebSockets
@@ -235,6 +246,7 @@ export const useNotificationsStore = defineStore('notifications', {
         this.notifications = response.data.results || response.data
         return response
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -248,6 +260,7 @@ export const useNotificationsStore = defineStore('notifications', {
         this.notifications = response.data.results || response.data
         return response
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -261,6 +274,7 @@ export const useNotificationsStore = defineStore('notifications', {
         this.notifications = response.data.results || response.data
         return response
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -271,6 +285,7 @@ export const useNotificationsStore = defineStore('notifications', {
         const response = await this.fetchNotifications({ page })
         return response
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -284,6 +299,7 @@ export const useNotificationsStore = defineStore('notifications', {
         })
         return response
       } catch (error) {
+        console.error(error)
         throw error
       }
     },
@@ -300,6 +316,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
         return true
       } catch (error) {
+        console.error('Error al exportar notificaciones:', error)
         throw error
       }
     }

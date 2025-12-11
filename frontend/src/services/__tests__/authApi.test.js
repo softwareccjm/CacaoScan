@@ -57,6 +57,9 @@ describe('authApi', () => {
         token: 'access-token',
         refresh: 'refresh-token',
         user: { id: 1, email: 'test@example.com' },
+        has_password: true,
+        login_provider: 'local',
+        password_allowed: true,
         access_expires_at: '2024-12-31T23:59:59Z',
         refresh_expires_at: '2024-12-31T23:59:59Z',
         message: 'Login successful'

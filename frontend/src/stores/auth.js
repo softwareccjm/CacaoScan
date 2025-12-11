@@ -328,10 +328,12 @@ export const useAuthStore = defineStore('auth', () => {
                           err.response?.data?.detail ||
                           'Error al iniciar sesión'
       setError(errorMessage)
-      // Throw error so it can be caught by the component
-      const loginError = new Error(errorMessage)
-      loginError.originalError = err
-      throw loginError
+      // Return error object instead of throwing
+      return {
+        success: false,
+        error: errorMessage,
+        originalError: err
+      }
     } finally {
       isLoading.value = false
     }

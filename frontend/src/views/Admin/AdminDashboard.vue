@@ -320,6 +320,7 @@ const qualityChartOptions = computed(() => ({
 
 // Watch stats for debugging
 watch(() => stats.value, (newStats) => {
+  console.log('🔄 Stats cambiaron:', newStats)
   }, { deep: true })
 
 // Properties
@@ -717,7 +718,23 @@ const updateActivityChart = async () => {
     
     updateActivityChartFromStats()
   } catch (error) {
-    updateActivityChartFromStats()
+    // On error, set empty arrays instead of default values
+    activityData.value = {
+      labels: [],
+      datasets: [{
+        label: 'Actividad del Sistema',
+        data: [],
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#22c55e',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2
+      }]
+    }
   }
 }
 
@@ -785,9 +802,11 @@ const handleQualityRefresh = () => {
 }
 
 const handleActivityClick = (event) => {
+  console.log('Activity click:', event)
   }
 
 const handleQualityClick = (event) => {
+  console.log('Quality click:', event)
   }
 
 const handleViewUser = (userId) => {

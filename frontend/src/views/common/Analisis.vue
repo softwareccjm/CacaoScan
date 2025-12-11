@@ -43,19 +43,32 @@
               <!-- Progress Indicator (solo mientras se sube/procesa) -->
               <ProgressIndicator v-if="isUploading || isSubmitting" :progress="uploadProgress" label="Procesando imágenes..." />
 
-              <!-- Success Alert (mostrar resultados cuando existan) -->
-              <div v-if="analysisResult && !isUploading && !isSubmitting" class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-8 shadow-lg">
+              <!-- Success Alert (mostrar resultados cuando existan, incluso si hay errores) -->
+              <div v-if="analysisResult && !isUploading && !isSubmitting" 
+                   :class="[
+                     'border-2 rounded-xl p-8 shadow-lg',
+                     hasErrors ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-300' : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300'
+                   ]">
                 <div class="flex items-start">
                   <div class="flex-shrink-0">
-                    <div class="flex items-center justify-center w-16 h-16 bg-green-500 rounded-full">
-                      <svg class="h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <div :class="[
+                      'flex items-center justify-center w-16 h-16 rounded-full',
+                      hasErrors ? 'bg-amber-500' : 'bg-green-500'
+                    ]">
+                      <svg v-if="hasErrors" class="h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>
+                      <svg v-else class="h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                       </svg>
                     </div>
                   </div>
                   <div class="ml-6 flex-1">
-                    <h3 class="text-2xl font-bold text-green-900 mb-4">
-                      Análisis completado exitosamente
+                    <h3 :class="[
+                      'text-2xl font-bold mb-4',
+                      hasErrors ? 'text-amber-900' : 'text-green-900'
+                    ]">
+                      {{ hasErrors ? 'Análisis completado con advertencias' : 'Análisis completado exitosamente' }}
                     </h3>
                     
                     <!-- Estadísticas principales -->
@@ -411,12 +424,14 @@ import { useAnalysisStore } from '@/stores/analysis'
 
 // 5. Composables
 import { useSidebarNavigation } from '@/composables/useSidebarNavigation'
+import { useNotifications } from '@/composables/useNotifications'
 
 // Router and stores
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const analysisStore = useAnalysisStore()
+const { showError } = useNotifications()
 
 // Sidebar navigation composable
 const {
@@ -564,6 +579,16 @@ const isUploading = computed(() => {
 
 const error = computed(() => {
   return analysisStore.uploadError
+})
+
+// Computed para verificar si hay errores en los resultados
+const hasErrors = computed(() => {
+  if (!analysisResult.value || !analysisResult.value.predictions) {
+    return false
+  }
+  return analysisResult.value.predictions.some(
+    pred => pred.success === false || pred.error
+  )
 })
 
 const userRole = computedUserRole
@@ -872,13 +897,59 @@ const submitAnalysis = async () => {
 
     const result = await analysisStore.submitBatch()
 
-    analysisResult.value = result
+    // Aplanar la respuesta si viene anidada (compatibilidad con versiones anteriores)
+    let flattenedResult = result
+    if (result && result.result && result.result.predictions) {
+      // Si la respuesta viene anidada en 'result', aplanarla
+      flattenedResult = {
+        ...result,
+        ...result.result,
+        predictions: result.result.predictions
+      }
+      delete flattenedResult.result
+    }
 
-    if (result) {
+    analysisResult.value = flattenedResult
+
+    // Verificar si hay errores de "No se detectó un grano de cacao"
+    if (flattenedResult && flattenedResult.predictions) {
+      const grainDetectionErrors = flattenedResult.predictions.filter(
+        pred => pred.error && pred.error.includes('No se detectó un grano de cacao')
+      )
+      
+      if (grainDetectionErrors.length > 0) {
+        const errorCount = grainDetectionErrors.length
+        const totalImages = flattenedResult.predictions.length
+        
+        if (errorCount === totalImages) {
+          // Todas las imágenes fallaron
+          showError(
+            `⚠️ No se detectó un grano de cacao en ninguna de las ${totalImages} imagen${totalImages > 1 ? 'es' : ''} subida${totalImages > 1 ? 's' : ''}. Por favor, asegúrate de que las imágenes contengan granos de cacao visibles.`,
+            10000
+          )
+        } else {
+          // Algunas imágenes fallaron
+          showError(
+            `⚠️ No se detectó un grano de cacao en ${errorCount} de ${totalImages} imagen${totalImages > 1 ? 'es' : ''}. Revisa los resultados individuales para más detalles.`,
+            10000
+          )
+        }
+      }
+    }
+
+    // Solo resetear el formulario si todas las imágenes se procesaron exitosamente
+    if (flattenedResult && flattenedResult.predictions) {
+      const allSuccessful = flattenedResult.predictions.every(pred => pred.success !== false && !pred.error)
+      if (allSuccessful) {
+        resetForm()
+      }
+    } else if (flattenedResult) {
       resetForm()
     }
   } catch (error) {
-    } finally {
+    const errorMessage = error.message || 'Error desconocido al procesar el análisis'
+    showError(errorMessage, 10000)
+  } finally {
     isSubmitting.value = false
   }
 }

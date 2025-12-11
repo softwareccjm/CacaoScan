@@ -2,7 +2,7 @@
  * Unit tests for useNotifications composable
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useNotifications } from '../useNotifications.js'
 
 // Mock notifications store
@@ -15,6 +15,9 @@ const mockStore = {
   error: null
 }
 
+// Mock globalThis.showNotification
+const mockShowNotification = vi.fn()
+
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => mockStore
 }))
@@ -26,27 +29,35 @@ describe('useNotifications', () => {
     vi.clearAllMocks()
     mockStore.notifications = []
     mockStore.unreadCount = 0
+    // Setup globalThis.showNotification mock
+    globalThis.showNotification = mockShowNotification
     notifications = useNotifications()
+  })
+
+  afterEach(() => {
+    delete globalThis.showNotification
   })
 
   describe('showSuccess', () => {
     it('should create success notification', () => {
       notifications.showSuccess('Operation successful')
       
-      expect(mockStore.createNotification).toHaveBeenCalledWith({
-        tipo: 'success',
-        mensaje: 'Operation successful',
-        duracion: null
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        type: 'success',
+        title: 'Éxito',
+        message: 'Operation successful',
+        duration: 5000
       })
     })
 
     it('should create success notification with duration', () => {
       notifications.showSuccess('Operation successful', 5000)
       
-      expect(mockStore.createNotification).toHaveBeenCalledWith({
-        tipo: 'success',
-        mensaje: 'Operation successful',
-        duracion: 5000
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        type: 'success',
+        title: 'Éxito',
+        message: 'Operation successful',
+        duration: 5000
       })
     })
   })
@@ -55,10 +66,11 @@ describe('useNotifications', () => {
     it('should create error notification', () => {
       notifications.showError('Operation failed')
       
-      expect(mockStore.createNotification).toHaveBeenCalledWith({
-        tipo: 'error',
-        mensaje: 'Operation failed',
-        duracion: null
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        type: 'error',
+        title: 'Error',
+        message: 'Operation failed',
+        duration: 8000
       })
     })
   })
@@ -67,10 +79,11 @@ describe('useNotifications', () => {
     it('should create warning notification', () => {
       notifications.showWarning('Warning message')
       
-      expect(mockStore.createNotification).toHaveBeenCalledWith({
-        tipo: 'warning',
-        mensaje: 'Warning message',
-        duracion: null
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        type: 'warning',
+        title: 'Advertencia',
+        message: 'Warning message',
+        duration: 6000
       })
     })
   })
@@ -79,10 +92,11 @@ describe('useNotifications', () => {
     it('should create info notification', () => {
       notifications.showInfo('Info message')
       
-      expect(mockStore.createNotification).toHaveBeenCalledWith({
-        tipo: 'info',
-        mensaje: 'Info message',
-        duracion: null
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        type: 'info',
+        title: 'Información',
+        message: 'Info message',
+        duration: 5000
       })
     })
   })

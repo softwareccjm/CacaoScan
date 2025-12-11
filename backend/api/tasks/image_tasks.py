@@ -1,11 +1,19 @@
 """
 Celery tasks for image processing operations in CacaoScan.
 Handles heavy image processing operations asynchronously.
+Can also be executed synchronously when Celery is not available.
 """
 import logging
 import time
 from typing import Dict, Any, List
-from celery import shared_task
+try:
+    from celery import shared_task
+except ImportError:
+    # Si Celery no está disponible, crear un decorador dummy
+    def shared_task(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -94,14 +102,16 @@ def _calculate_statistics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         'total_weight': stats['total_weight']
     }
 
-def _process_single_image(self, image_data, idx, total_images, user, lote, predictor):
+def _process_single_image(task_instance, image_data, idx, total_images, user, lote, predictor):
     """Process a single image and return result."""
     def safe_update_state(state: str, meta: Dict[str, Any]) -> None:
         """Safely update task state, only if task_id exists (not in test mode)."""
-        if not hasattr(self, 'request') or not getattr(self.request, 'id', None):
+        if task_instance is None:
             return
-        if hasattr(self, 'update_state'):
-            self.update_state(state=state, meta=meta)
+        if not hasattr(task_instance, 'request') or not getattr(task_instance.request, 'id', None):
+            return
+        if hasattr(task_instance, 'update_state'):
+            task_instance.update_state(state=state, meta=meta)
     
     import os
     try:
@@ -131,15 +141,15 @@ def _process_single_image(self, image_data, idx, total_images, user, lote, predi
         logger.error(f"Error processing image {idx + 1}: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}
 
-@shared_task(bind=True, name='api.tasks.image.process_batch_analysis')
-def process_batch_analysis_task(
-    self,
+def _process_batch_analysis_impl(
     user_id: int,
     lote_id: int,
-    images_data: List[Dict[str, Any]]
+    images_data: List[Dict[str, Any]],
+    task_instance=None
 ) -> Dict[str, Any]:
     """
-    Process a batch of images with ML predictions asynchronously.
+    Internal implementation for processing a batch of images.
+    Can be called directly or via Celery task.
     
     Args:
         user_id: ID of the user performing the analysis
@@ -149,16 +159,19 @@ def process_batch_analysis_task(
             - file_size: int
             - file_type: str
             - temp_path: str (temporary path to saved image file)
+        task_instance: Optional Celery task instance for state updates
     
     Returns:
         Dictionary with processing results
     """
     def safe_update_state(state: str, meta: Dict[str, Any]) -> None:
         """Safely update task state, only if task_id exists (not in test mode)."""
-        if not hasattr(self, 'request') or not getattr(self.request, 'id', None):
+        if task_instance is None:
             return
-        if hasattr(self, 'update_state'):
-            self.update_state(state=state, meta=meta)
+        if not hasattr(task_instance, 'request') or not getattr(task_instance.request, 'id', None):
+            return
+        if hasattr(task_instance, 'update_state'):
+            task_instance.update_state(state=state, meta=meta)
     
     try:
         start_time = time.time()
@@ -184,7 +197,7 @@ def process_batch_analysis_task(
         total_images = len(images_data)
         
         for idx, image_data in enumerate(images_data):
-            result = _process_single_image(self, image_data, idx, total_images, user, lote, predictor)
+            result = _process_single_image(task_instance, image_data, idx, total_images, user, lote, predictor)
             results.append(result)
         
         processed_images = sum(1 for r in results if r.get('success', False))
@@ -212,4 +225,27 @@ def process_batch_analysis_task(
             'status': 'error',
             'error': str(e)
         }
+
+
+@shared_task(bind=True, name='api.tasks.image.process_batch_analysis')
+def process_batch_analysis_task(
+    self,
+    user_id: int,
+    lote_id: int,
+    images_data: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Celery task wrapper for processing a batch of images.
+    Calls the internal implementation with the task instance.
+    
+    Args:
+        self: Celery task instance
+        user_id: ID of the user performing the analysis
+        lote_id: ID of the lote to associate images with
+        images_data: List of image data dictionaries
+    
+    Returns:
+        Dictionary with processing results
+    """
+    return _process_batch_analysis_impl(user_id, lote_id, images_data, task_instance=self)
 

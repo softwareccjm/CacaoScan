@@ -40,19 +40,14 @@ export function validateLoteData(loteData) {
     errors.push('La finca es requerida')
   }
 
-  // Validar identificador (opcional, pero si se proporciona debe ser válido)
-  if (loteData.identificador && loteData.identificador.trim().length > 0) {
+  // Validar identificador (requerido)
+  if (!loteData.identificador || (typeof loteData.identificador === 'string' && loteData.identificador.trim().length === 0)) {
+    errors.push('El identificador del lote es requerido')
+  } else if (typeof loteData.identificador === 'string') {
     if (loteData.identificador.trim().length < 2) {
       errors.push('El identificador debe tener al menos 2 caracteres')
     } else if (loteData.identificador.length > 50) {
       errors.push('El identificador no puede exceder 50 caracteres')
-    }
-  }
-
-  // Validar nombre (requerido si no hay identificador)
-  if (!loteData.nombre || loteData.nombre.trim().length === 0) {
-    if (!loteData.identificador || loteData.identificador.trim().length === 0) {
-      errors.push('El nombre o identificador es requerido')
     }
   }
 
@@ -61,22 +56,20 @@ export function validateLoteData(loteData) {
     errors.push('La variedad es requerida')
   }
 
-  // Validar peso_kg (requerido)
-  const pesoKg = parseFloat(loteData.peso_kg)
-  if (!loteData.peso_kg || loteData.peso_kg.toString().trim().length === 0) {
-    errors.push('El peso en kilogramos es requerido')
-  } else if (isNaN(pesoKg)) {
-    errors.push('El peso debe ser un número válido')
-  } else if (pesoKg <= 0) {
-    errors.push('El peso debe ser mayor a 0')
-  } else if (pesoKg > 100000) {
-    errors.push('El peso no puede exceder 100,000 kg')
+  // Validar peso_kg (opcional, pero si se proporciona debe ser válido)
+  if (loteData.peso_kg !== undefined && loteData.peso_kg !== null && loteData.peso_kg.toString().trim().length > 0) {
+    const pesoKg = parseFloat(loteData.peso_kg)
+    if (isNaN(pesoKg)) {
+      errors.push('El peso debe ser un número válido')
+    } else if (pesoKg <= 0) {
+      errors.push('El peso debe ser mayor a 0')
+    } else if (pesoKg > 100000) {
+      errors.push('El peso no puede exceder 100,000 kg')
+    }
   }
 
-  // Validar fecha_recepcion (requerida)
-  if (!loteData.fecha_recepcion) {
-    errors.push('La fecha de recepción es requerida')
-  }
+  // Validar fecha_recepcion (opcional, pero si se proporciona debe ser válida)
+  // No es requerida en la validación básica
 
   // Validar fecha_procesamiento (opcional, pero si se proporciona debe ser >= fecha_recepcion)
   if (loteData.fecha_procesamiento && loteData.fecha_recepcion) {
@@ -89,6 +82,18 @@ export function validateLoteData(loteData) {
   if (loteData.fecha_cosecha && loteData.fecha_plantacion) {
     if (new Date(loteData.fecha_cosecha) < new Date(loteData.fecha_plantacion)) {
       errors.push('La fecha de cosecha no puede ser anterior a la fecha de plantación')
+    }
+  }
+
+  // Validar area_hectareas (opcional, pero si se proporciona debe ser válido)
+  if (loteData.area_hectareas !== undefined && loteData.area_hectareas !== null && loteData.area_hectareas !== '') {
+    const areaHectareas = parseFloat(loteData.area_hectareas)
+    if (isNaN(areaHectareas)) {
+      errors.push('El área en hectáreas debe ser un número válido')
+    } else if (areaHectareas <= 0) {
+      errors.push('El área en hectáreas debe ser un número positivo')
+    } else if (areaHectareas > 999999.99) {
+      errors.push('El área en hectáreas no puede exceder 999,999.99')
     }
   }
 
@@ -113,9 +118,65 @@ export function formatLoteData(loteData) {
     formatted.descripcion = formatted.descripcion.trim() || null
   }
 
+  // Formatear variedad: puede ser un número (ID), un objeto con id, o un string (legacy)
+  if (formatted.variedad !== undefined && formatted.variedad !== null) {
+    if (typeof formatted.variedad === 'object' && formatted.variedad !== null) {
+      // Si es un objeto, extraer el ID
+      formatted.variedad = formatted.variedad.id || formatted.variedad
+    } else if (typeof formatted.variedad === 'string') {
+      // Si es un string, intentar convertirlo a número primero
+      const variedadNum = Number.parseInt(formatted.variedad, 10)
+      if (!Number.isNaN(variedadNum)) {
+        formatted.variedad = variedadNum
+      } else {
+        // Si no es un número válido, mantener como string (legacy)
+        formatted.variedad = formatted.variedad.trim()
+      }
+    }
+    // Si ya es un número, mantenerlo (no necesita conversión)
+  }
+
+  // Formatear estado: puede ser un número (ID), un objeto con id, o un string (legacy)
+  if (formatted.estado !== undefined && formatted.estado !== null) {
+    if (typeof formatted.estado === 'object' && formatted.estado !== null) {
+      // Si es un objeto, extraer el ID
+      formatted.estado = formatted.estado.id || formatted.estado
+    } else if (typeof formatted.estado === 'string') {
+      // Si es un string, intentar convertirlo a número primero
+      const estadoNum = Number.parseInt(formatted.estado, 10)
+      if (!Number.isNaN(estadoNum)) {
+        formatted.estado = estadoNum
+      } else {
+        // Si no es un número válido, mantener como string (legacy)
+        formatted.estado = formatted.estado.trim()
+      }
+    }
+    // Si ya es un número, mantenerlo (no necesita conversión)
+  }
+
+  // Formatear finca: puede ser un número (ID) o un objeto con id
+  if (formatted.finca !== undefined && formatted.finca !== null) {
+    if (typeof formatted.finca === 'object' && formatted.finca !== null) {
+      // Si es un objeto, extraer el ID
+      formatted.finca = formatted.finca.id || formatted.finca
+    } else if (typeof formatted.finca === 'string') {
+      // Si es un string, intentar convertirlo a número
+      const fincaNum = Number.parseInt(formatted.finca, 10)
+      if (!Number.isNaN(fincaNum)) {
+        formatted.finca = fincaNum
+      }
+    }
+    // Si ya es un número, mantenerlo (no necesita conversión)
+  }
+
   // Formatear peso_kg
   if (formatted.peso_kg !== undefined && formatted.peso_kg !== null) {
     formatted.peso_kg = Number.parseFloat(formatted.peso_kg)
+  }
+
+  // Formatear area_hectareas
+  if (formatted.area_hectareas !== undefined && formatted.area_hectareas !== null && formatted.area_hectareas !== '') {
+    formatted.area_hectareas = Number.parseFloat(formatted.area_hectareas)
   }
 
   // Formatear campos opcionales

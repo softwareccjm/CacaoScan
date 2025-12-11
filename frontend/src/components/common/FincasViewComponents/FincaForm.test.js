@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { nextTick, reactive } from 'vue'
 import FincaForm from './FincaForm.vue'
 
 vi.mock('@/services/fincasApi', async () => {
@@ -39,7 +39,7 @@ vi.mock('@/stores/auth', () => ({
 
 vi.mock('@/composables/useFormValidation', () => ({
   useFormValidation: vi.fn(() => ({
-    errors: { value: {} },
+    errors: reactive({}),
     mapServerErrors: vi.fn(),
     scrollToFirstError: vi.fn()
   }))
@@ -58,6 +58,23 @@ vi.mock('@/composables/useFincas', () => ({
     update: vi.fn(() => Promise.resolve()),
     isLoading: { value: false }
   }))
+}))
+
+vi.mock('@/services/catalogosApi', () => ({
+  default: {
+    getDepartamentos: vi.fn(() => Promise.resolve({
+      results: [
+        { id: 1, nombre: 'Cundinamarca', codigo: '25' },
+        { id: 2, nombre: 'Antioquia', codigo: '05' }
+      ]
+    })),
+    getMunicipiosByDepartamento: vi.fn(() => Promise.resolve({
+      results: [
+        { id: 1, nombre: 'Bogotá' },
+        { id: 2, nombre: 'Soacha' }
+      ]
+    }))
+  }
 }))
 
 describe('FincaForm', () => {
@@ -151,6 +168,10 @@ describe('FincaForm', () => {
       }
     })
 
+    // Wait for component to mount and load data
+    await nextTick()
+    // Wait for async operations in onMounted (loadDepartamentos, loadFincaData)
+    await new Promise(resolve => setTimeout(resolve, 100))
     await nextTick()
 
     const nombreInput = wrapper.find('#finca-form-nombre')
@@ -179,7 +200,11 @@ describe('FincaForm', () => {
   })
 
   it('should load municipios when departamento changes', async () => {
-    const fincasApi = await import('@/services/fincasApi')
+    const catalogosApi = await import('@/services/catalogosApi')
+    
+    // Clear any previous calls
+    vi.mocked(catalogosApi.default.getMunicipiosByDepartamento).mockClear()
+    
     wrapper = mount(FincaForm, {
       props: {
         finca: null,
@@ -187,14 +212,19 @@ describe('FincaForm', () => {
       }
     })
 
+    // Wait for initial load of departamentos
     await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 200))
 
     const departamentoSelect = wrapper.find('#finca-form-departamento')
     if (departamentoSelect.exists()) {
       await departamentoSelect.setValue('Cundinamarca')
       await nextTick()
+      // Wait for async loadMunicipiosByDepartamento to complete
+      await new Promise(resolve => setTimeout(resolve, 200))
+      await nextTick()
 
-      expect(fincasApi.default.getMunicipiosByDepartamento).toHaveBeenCalledWith('Cundinamarca')
+      expect(catalogosApi.default.getMunicipiosByDepartamento).toHaveBeenCalledWith(1)
     }
   })
 
@@ -274,6 +304,10 @@ describe('FincaForm', () => {
   })
 
   it('should emit saved event after successful creation', async () => {
+    // Ensure mock is configured before mounting
+    const { useFincasStore } = await import('@/stores/fincas')
+    vi.mocked(useFincasStore).mockReturnValue(mockFincasStore)
+
     wrapper = mount(FincaForm, {
       props: {
         finca: null,
@@ -281,30 +315,34 @@ describe('FincaForm', () => {
       }
     })
 
+    // Wait for component to initialize and load departamentos
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 300))
     await nextTick()
 
-    const nombreInput = wrapper.find('#finca-form-nombre')
-    const ubicacionInput = wrapper.find('#finca-form-ubicacion')
-    const departamentoSelect = wrapper.find('#finca-form-departamento')
-    const municipioSelect = wrapper.find('#finca-form-municipio')
-    const hectareasInput = wrapper.find('#finca-form-hectareas')
-
-    if (nombreInput.exists()) {
-      await nombreInput.setValue('Nueva Finca')
-    }
-    if (ubicacionInput.exists()) {
-      await ubicacionInput.setValue('Nueva Ubicación')
-    }
-    if (departamentoSelect.exists()) {
-      await departamentoSelect.setValue('Cundinamarca')
-    }
-    if (municipioSelect.exists()) {
-      await municipioSelect.setValue('Bogotá')
-    }
-    if (hectareasInput.exists()) {
-      await hectareasInput.setValue('5')
+    // Set form values directly on the component's formData
+    if (wrapper.vm.formData) {
+      wrapper.vm.formData.nombre = 'Nueva Finca'
+      wrapper.vm.formData.ubicacion = 'Nueva Ubicación'
+      wrapper.vm.formData.departamento = 'Cundinamarca'
+      wrapper.vm.formData.hectareas = '5'
     }
 
+    // Wait for municipios to load after selecting departamento
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 200))
+    await nextTick()
+
+    // Set municipio ID (the component expects an ID, not a name)
+    if (wrapper.vm.formData && wrapper.vm.municipios.length > 0) {
+      wrapper.vm.formData.municipio = String(wrapper.vm.municipios[0].id)
+    } else if (wrapper.vm.formData) {
+      // If municipios not loaded, set a mock ID
+      wrapper.vm.formData.municipio = '1'
+    }
+
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await nextTick()
 
     const form = wrapper.find('form')
@@ -312,7 +350,9 @@ describe('FincaForm', () => {
       await form.trigger('submit')
       await nextTick()
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Wait for async operations
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await nextTick()
       await nextTick()
 
       expect(mockCreate).toHaveBeenCalled()
@@ -321,6 +361,10 @@ describe('FincaForm', () => {
   })
 
   it('should emit saved event after successful update', async () => {
+    // Ensure mock is configured before mounting
+    const { useFincasStore } = await import('@/stores/fincas')
+    vi.mocked(useFincasStore).mockReturnValue(mockFincasStore)
+
     wrapper = mount(FincaForm, {
       props: {
         finca: mockFinca,
@@ -328,6 +372,27 @@ describe('FincaForm', () => {
       }
     })
 
+    // Wait for component to initialize and load finca data
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 300))
+    await nextTick()
+
+    // Ensure formData has all required fields
+    if (wrapper.vm.formData) {
+      // Ensure municipio is set (as ID)
+      if (!wrapper.vm.formData.municipio && wrapper.vm.municipios.length > 0) {
+        wrapper.vm.formData.municipio = String(wrapper.vm.municipios[0].id)
+      } else if (!wrapper.vm.formData.municipio) {
+        wrapper.vm.formData.municipio = '1'
+      }
+      // Ensure departamento is set
+      if (!wrapper.vm.formData.departamento) {
+        wrapper.vm.formData.departamento = 'Cundinamarca'
+      }
+    }
+
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
     await nextTick()
 
     const form = wrapper.find('form')
@@ -335,7 +400,9 @@ describe('FincaForm', () => {
       await form.trigger('submit')
       await nextTick()
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Wait for async operations
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await nextTick()
       await nextTick()
 
       expect(mockUpdate).toHaveBeenCalled()

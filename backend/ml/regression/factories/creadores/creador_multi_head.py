@@ -26,7 +26,7 @@ class CreadorModeloMultiHead(CreadorModeloBase):
         use_pixel_features: bool
     ) -> nn.Module:
         """Create a multi-head model."""
-        from ....models import _create_multi_head_model
+        from ...models import _create_multi_head_model
         
         logger.info("Creating multi-head model via CreadorModeloMultiHead")
         return _create_multi_head_model(

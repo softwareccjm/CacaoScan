@@ -115,7 +115,7 @@ describe('FincaCardActions', () => {
     })
 
     const buttons = wrapper.findAll('button')
-    const deleteButton = buttons.find(btn => btn.text().includes('Eliminar'))
+    const deleteButton = buttons.find(btn => btn.text().includes('Desactivar'))
     expect(deleteButton?.exists() ?? false).toBe(true)
   })
 
@@ -128,7 +128,7 @@ describe('FincaCardActions', () => {
     })
 
     const buttons = wrapper.findAll('button')
-    const deleteButton = buttons.find(btn => btn.text().includes('Eliminar'))
+    const deleteButton = buttons.find(btn => btn.text().includes('Desactivar'))
     expect(deleteButton?.exists() ?? false).toBe(false)
   })
 
@@ -177,7 +177,7 @@ describe('FincaCardActions', () => {
     })
 
     const buttons = wrapper.findAll('button')
-    const deleteButton = buttons.find(btn => btn.text().includes('Eliminar'))
+    const deleteButton = buttons.find(btn => btn.text().includes('Desactivar'))
     
     if (deleteButton) {
       await deleteButton.trigger('click')

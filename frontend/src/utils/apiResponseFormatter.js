@@ -65,44 +65,52 @@ export function normalizeApiResponse(responseData, alwaysWrap = false) {
 /**
  * Normalizes API response arrays from paginated or non-paginated endpoints
  * Handles both {results: [...]} and [...] formats
- * For paginated responses, returns the full object with results, count, etc.
- * For array responses, returns an object with results array
+ * For paginated responses, extracts and returns the results array
+ * For array responses, returns the array as is
  * For custom formats like {lotes: [...], finca: {...}}, returns as is
  * @param {Object|Array} data - Response data (can be paginated object or array)
- * @returns {Object|Array} Normalized response (object for paginated, array for simple lists)
+ * @returns {Array} Normalized response array
  */
 export function normalizeResponse(data) {
-  // If it's a paginated response with results, return the full object
-  if (data && typeof data === 'object' && 'results' in data && Array.isArray(data.results)) {
-    return data
-  }
-  // If it's a custom object format (like {lotes: [...], finca: {...}}), return as is
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    // Check if it has custom keys that indicate it's not a simple paginated response
-    const hasCustomFormat = 'lotes' in data || 'finca' in data || 'total' in data
-    if (hasCustomFormat) {
-      return data
-    }
-    // Otherwise return as is for other object formats
-    return data
-  }
-  // If it's a simple array, wrap it in an object for consistency
+  // If it's a simple array, return it as is (check first, before any other logic)
   if (Array.isArray(data)) {
-    return {
-      results: data,
-      count: data.length,
-      page: 1,
-      page_size: data.length,
-      total_pages: 1
-    }
+    return data
   }
-  // Fallback: return empty paginated structure
-  return {
-    results: [],
-    count: 0,
-    page: 1,
-    page_size: 0,
-    total_pages: 0
+  
+  // Handle null or undefined explicitly - return empty array immediately
+  if (data === null || data === undefined) {
+    return []
   }
+  
+  // If it's not an object, return empty array
+  if (typeof data !== 'object') {
+    return []
+  }
+  
+  // Handle empty object explicitly - return empty array
+  if (Object.keys(data).length === 0) {
+    return []
+  }
+  
+  // If it's a paginated response with results, extract the results array
+  // This check must come before custom format checks to prioritize paginated responses
+  if (data.results !== undefined && Array.isArray(data.results)) {
+    return data.results
+  }
+  
+  // If object has pagination properties (count, page, etc.) but no results, return empty array
+  const hasPaginationProps = 'count' in data || 'page' in data || 'page_size' in data || 'total_pages' in data
+  if (hasPaginationProps && data.results === undefined) {
+    return []
+  }
+  
+  // If it's a custom object format (like {lotes: [...], finca: {...}}), return as is
+  // Check if it has custom keys that indicate it's not a simple paginated response
+  const hasCustomFormat = 'lotes' in data || 'finca' in data || 'total' in data
+  if (hasCustomFormat) {
+    return data
+  }
+  
+  // Otherwise return empty array for other object formats
+  return []
 }
-

@@ -254,3 +254,172 @@ def clean_db(db):
     # This is just for explicit documentation
     yield
     # Cleanup happens automatically via transaction rollback
+
+
+@pytest.fixture(scope='function')
+def departamento(db):
+    """Create a test Departamento."""
+    from catalogos.models import Departamento
+    return Departamento.objects.create(
+        codigo='TEST',
+        nombre='Test Departamento'
+    )
+
+
+@pytest.fixture(scope='function')
+def municipio(db, departamento):
+    """Create a test Municipio."""
+    from catalogos.models import Municipio
+    return Municipio.objects.create(
+        departamento=departamento,
+        codigo='TEST',
+        nombre='Test Municipio'
+    )
+
+
+@pytest.fixture(scope='function')
+def tema_tipo_notificacion(db):
+    """Create TEMA_TIPO_NOTIFICACION theme."""
+    from catalogos.models import Tema
+    tema, _ = Tema.objects.get_or_create(
+        codigo='TEMA_TIPO_NOTIFICACION',
+        defaults={
+            'nombre': 'Tipo de Notificación',
+            'descripcion': 'Tipos de notificaciones del sistema'
+        }
+    )
+    return tema
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_notificacion_info(db, tema_tipo_notificacion):
+    """Create INFO notification type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_notificacion,
+        codigo='INFO',
+        defaults={
+            'nombre': 'Información',
+            'descripcion': 'Notificación informativa'
+        }
+    )
+    return parametro
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_notificacion_success(db, tema_tipo_notificacion):
+    """Create SUCCESS notification type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_notificacion,
+        codigo='SUCCESS',
+        defaults={
+            'nombre': 'Éxito',
+            'descripcion': 'Notificación de éxito'
+        }
+    )
+    return parametro
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_notificacion_warning(db, tema_tipo_notificacion):
+    """Create WARNING notification type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_notificacion,
+        codigo='WARNING',
+        defaults={
+            'nombre': 'Advertencia',
+            'descripcion': 'Notificación de advertencia'
+        }
+    )
+    return parametro
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_notificacion_error(db, tema_tipo_notificacion):
+    """Create ERROR notification type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_notificacion,
+        codigo='ERROR',
+        defaults={
+            'nombre': 'Error',
+            'descripcion': 'Notificación de error'
+        }
+    )
+    return parametro
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_notificacion_welcome(db, tema_tipo_notificacion):
+    """Create WELCOME notification type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_notificacion,
+        codigo='WELCOME',
+        defaults={
+            'nombre': 'Bienvenida',
+            'descripcion': 'Notificación de bienvenida'
+        }
+    )
+    return parametro
+
+
+@pytest.fixture(scope='function')
+def tema_tipo_archivo(db):
+    """Create TEMA_TIPO_ARCHIVO theme."""
+    from catalogos.models import Tema
+    tema, _ = Tema.objects.get_or_create(
+        codigo='TEMA_TIPO_ARCHIVO',
+        defaults={
+            'nombre': 'Tipo de Archivo',
+            'descripcion': 'Tipos de archivos del sistema'
+        }
+    )
+    return tema
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_archivo_jpeg(db, tema_tipo_archivo):
+    """Create image/jpeg file type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_archivo,
+        codigo='IMAGE_JPEG',
+        defaults={
+            'nombre': 'JPEG',
+            'descripcion': 'Imagen JPEG',
+            'metadata': {'mime_type': 'image/jpeg'}
+        }
+    )
+    return parametro
+
+
+@pytest.fixture(scope='function')
+def tema_tipo_reporte(db):
+    """Create TEMA_TIPO_REPORTE theme."""
+    from catalogos.models import Tema
+    tema, _ = Tema.objects.get_or_create(
+        codigo='TEMA_TIPO_REPORTE',
+        defaults={
+            'nombre': 'Tipo de Reporte',
+            'descripcion': 'Tipos de reportes del sistema'
+        }
+    )
+    return tema
+
+
+@pytest.fixture(scope='function')
+def parametro_tipo_reporte_analisis(db, tema_tipo_reporte):
+    """Create analisis report type parameter."""
+    from catalogos.models import Parametro
+    parametro, _ = Parametro.objects.get_or_create(
+        tema=tema_tipo_reporte,
+        codigo='ANALISIS',
+        defaults={
+            'nombre': 'Análisis',
+            'descripcion': 'Reporte de análisis'
+        }
+    )
+    return parametro

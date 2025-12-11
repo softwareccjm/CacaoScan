@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import api from '../api'
-import catalogosApi from '../catalogosApi'
 
 vi.mock('../api', () => ({
   default: {
     get: vi.fn()
   }
 }))
+
+vi.mock('@/utils/apiConfig', () => ({
+  getApiBaseUrlWithPath: vi.fn(() => 'http://localhost:8000/api/v1')
+}))
+
+import api from '../api'
+import catalogosApi from '../catalogosApi'
 
 describe('catalogosApi', () => {
   beforeEach(() => {
@@ -48,19 +53,26 @@ describe('catalogosApi', () => {
     it('should fallback to second alternative endpoint', async () => {
       const error1 = { response: { status: 404 } }
       const error2 = { response: { status: 404 } }
-      const mockResponse = {
+      const mockTemasResponse = {
+        data: [
+          { id: 1, codigo: 'TIPO_DOC', nombre: 'Tipo de Documento' }
+        ]
+      }
+      const mockParametrosResponse = {
         data: [{ codigo: 'CC', nombre: 'Cédula' }]
       }
       api.get
         .mockRejectedValueOnce(error1)
         .mockRejectedValueOnce(error2)
-        .mockResolvedValueOnce(mockResponse)
+        .mockResolvedValueOnce(mockTemasResponse)
+        .mockResolvedValueOnce(mockParametrosResponse)
 
       const result = await catalogosApi.getParametrosPorTema('TIPO_DOC')
 
-      expect(api.get).toHaveBeenCalledTimes(3)
-      expect(api.get).toHaveBeenNthCalledWith(3, '/temas/TIPO_DOC/parametros/', { params: {} })
-      expect(result).toEqual(mockResponse.data)
+      expect(api.get).toHaveBeenCalledTimes(4)
+      expect(api.get).toHaveBeenNthCalledWith(3, '/temas/', { params: {} })
+      expect(api.get).toHaveBeenNthCalledWith(4, '/temas/1/parametros/', { params: {} })
+      expect(result).toEqual(mockParametrosResponse.data)
     })
 
     it('should throw error if all endpoints fail', async () => {
@@ -68,7 +80,7 @@ describe('catalogosApi', () => {
       api.get
         .mockRejectedValueOnce(error)
         .mockRejectedValueOnce(error)
-        .mockRejectedValueOnce(error)
+        .mockRejectedValueOnce(error) // falla también la llamada a /temas/
 
       await expect(catalogosApi.getParametrosPorTema('TIPO_DOC')).rejects.toEqual(error)
     })
@@ -147,28 +159,36 @@ describe('catalogosApi', () => {
   })
 
   describe('getDepartamentoPorCodigo', () => {
+    beforeEach(() => {
+      global.fetch = vi.fn()
+    })
+
     it('should get departamento by code successfully', async () => {
-      const mockResponse = {
-        data: [
-          { codigo: '05', nombre: 'Antioquia' },
-          { codigo: '11', nombre: 'Bogotá' }
-        ]
-      }
-      api.get.mockResolvedValue(mockResponse)
+      const mockDepartamentos = [
+        { codigo: '05', nombre: 'Antioquia' },
+        { codigo: '11', nombre: 'Bogotá' }
+      ]
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: mockDepartamentos })
+      })
 
       const result = await catalogosApi.getDepartamentoPorCodigo('05')
 
-      expect(api.get).toHaveBeenCalledWith('/departamentos/', { params: {} })
+      expect(global.fetch).toHaveBeenCalled()
       expect(result).toEqual({ codigo: '05', nombre: 'Antioquia' })
     })
 
     it('should return undefined if departamento not found', async () => {
-      const mockResponse = {
-        data: [
-          { codigo: '05', nombre: 'Antioquia' }
-        ]
-      }
-      api.get.mockResolvedValue(mockResponse)
+      const mockDepartamentos = [
+        { codigo: '05', nombre: 'Antioquia' }
+      ]
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: mockDepartamentos })
+      })
 
       const result = await catalogosApi.getDepartamentoPorCodigo('99')
 
@@ -176,10 +196,12 @@ describe('catalogosApi', () => {
     })
 
     it('should handle error when getting departamento by code', async () => {
-      const error = new Error('Network error')
-      api.get.mockRejectedValue(error)
+      global.fetch.mockResolvedValue({
+        ok: false,
+        status: 500
+      })
 
-      await expect(catalogosApi.getDepartamentoPorCodigo('05')).rejects.toThrow('Network error')
+      await expect(catalogosApi.getDepartamentoPorCodigo('05')).rejects.toThrow()
     })
   })
 

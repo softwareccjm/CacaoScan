@@ -73,10 +73,18 @@ def load_image_for_prediction(image_file, cacao_image) -> Image.Image:
 
 
 def get_tipo_dispositivo_from_code(codigo: str):
-    """Get TipoDispositivo from code string."""
+    """Get Parametro (TEMA_TIPO_DISPOSITIVO) from code string."""
     from api.utils.model_imports import get_model_safely
-    TipoDispositivo = get_model_safely('catalogos.models.TipoDispositivo')
-    if not TipoDispositivo:
+    Parametro = get_model_safely('catalogos.models.Parametro')
+    Tema = get_model_safely('catalogos.models.Tema')
+    
+    if not Parametro or not Tema:
+        return None
+    
+    # Get TEMA_TIPO_DISPOSITIVO theme
+    try:
+        tema_tipo_dispositivo = Tema.objects.get(codigo='TEMA_TIPO_DISPOSITIVO')
+    except Tema.DoesNotExist:
         return None
     
     codigo_upper = codigo.strip().upper()
@@ -88,30 +96,39 @@ def get_tipo_dispositivo_from_code(codigo: str):
     codigo_mapped = device_map.get(codigo_upper, codigo_upper)
     
     try:
-        return TipoDispositivo.objects.get(codigo=codigo_mapped, activo=True)
-    except TipoDispositivo.DoesNotExist:
+        return Parametro.objects.get(tema=tema_tipo_dispositivo, codigo=codigo_mapped, activo=True)
+    except Parametro.DoesNotExist:
         # Default to CPU
         try:
-            return TipoDispositivo.objects.get(codigo='CPU', activo=True)
-        except TipoDispositivo.DoesNotExist:
+            return Parametro.objects.get(tema=tema_tipo_dispositivo, codigo='CPU', activo=True)
+        except Parametro.DoesNotExist:
             return None
 
 
 def get_version_modelo_from_code(codigo: str):
-    """Get VersionModelo from code string."""
+    """Get Parametro (TEMA_VERSION_MODELO) from code string."""
     from api.utils.model_imports import get_model_safely
-    VersionModelo = get_model_safely('catalogos.models.VersionModelo')
-    if not VersionModelo:
+    Parametro = get_model_safely('catalogos.models.Parametro')
+    Tema = get_model_safely('catalogos.models.Tema')
+    
+    if not Parametro or not Tema:
+        return None
+    
+    # Get TEMA_VERSION_MODELO theme
+    try:
+        tema_version_modelo = Tema.objects.get(codigo='TEMA_VERSION_MODELO')
+    except Tema.DoesNotExist:
         return None
     
     codigo_clean = codigo.strip()
     
     try:
-        return VersionModelo.objects.get(codigo=codigo_clean, activo=True)
-    except VersionModelo.DoesNotExist:
+        return Parametro.objects.get(tema=tema_version_modelo, codigo=codigo_clean, activo=True)
+    except Parametro.DoesNotExist:
         # Try to create if it doesn't exist (for dynamic versions)
         try:
-            return VersionModelo.objects.create(
+            return Parametro.objects.create(
+                tema=tema_version_modelo,
                 codigo=codigo_clean,
                 nombre=codigo_clean,
                 descripcion=f'Versión {codigo_clean} del modelo',
@@ -120,8 +137,8 @@ def get_version_modelo_from_code(codigo: str):
         except Exception:
             # Default to v1.0
             try:
-                return VersionModelo.objects.get(codigo='v1.0', activo=True)
-            except VersionModelo.DoesNotExist:
+                return Parametro.objects.get(tema=tema_version_modelo, codigo='v1.0', activo=True)
+            except Parametro.DoesNotExist:
                 return None
 
 

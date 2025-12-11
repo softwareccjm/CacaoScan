@@ -93,6 +93,7 @@ export const apiGet = async (endpoint, params = {}, options = {}) => {
     const response = await api.get(endpoint, { params, ...options })
     return response.data
   } catch (error) {
+    console.error(`[apiClient] GET ${endpoint} error:`, error)
     throw error
   }
 }
@@ -109,6 +110,7 @@ export const apiPost = async (endpoint, data = {}, options = {}) => {
     const response = await api.post(endpoint, data, options)
     return response.data
   } catch (error) {
+    console.error(`[apiClient] POST ${endpoint} error:`, error)
     throw error
   }
 }
@@ -125,6 +127,7 @@ export const apiPatch = async (endpoint, data = {}, options = {}) => {
     const response = await api.patch(endpoint, data, options)
     return response.data
   } catch (error) {
+    console.error(`[apiClient] PATCH ${endpoint} error:`, error)
     throw error
   }
 }
@@ -141,6 +144,7 @@ export const apiPut = async (endpoint, data = {}, options = {}) => {
     const response = await api.put(endpoint, data, options)
     return response.data
   } catch (error) {
+    console.error(`[apiClient] PUT ${endpoint} error:`, error)
     throw error
   }
 }
@@ -156,6 +160,7 @@ export const apiDelete = async (endpoint, options = {}) => {
     const response = await api.delete(endpoint, options)
     return response.data
   } catch (error) {
+    console.error(`[apiClient] DELETE ${endpoint} error:`, error)
     throw error
   }
 }

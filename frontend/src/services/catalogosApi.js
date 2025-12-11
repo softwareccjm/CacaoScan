@@ -1,6 +1,7 @@
 /**
  * Servicio de API para catálogos (Tema-Parámetro) y ubicaciones
  */
+import api from './api'
 import { getApiBaseUrlWithPath } from '@/utils/apiConfig'
 
 const catalogosApi = {
@@ -12,76 +13,28 @@ const catalogosApi = {
   async getParametrosPorTema(codigoTema) {
     try {
       // Ruta principal: query por tema
-      const baseUrl = getApiBaseUrlWithPath()
-      const url = `${baseUrl}/parametros/?tema=${codigoTema}`
-      console.log('[catalogosApi] getParametrosPorTema - URL:', url)
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      console.log('[catalogosApi] getParametrosPorTema - Response status:', response.status)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('[catalogosApi] getParametrosPorTema - Error response:', errorText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
-      }
-      
-      const data = await response.json()
-      console.log('[catalogosApi] getParametrosPorTema - Data recibida:', data)
-      
+      const response = await api.get('/parametros/', { params: { tema: codigoTema } })
+      const data = response.data
       // Si es paginado, retornar results, sino retornar directamente
-      const result = Array.isArray(data) ? data : (data.results || data)
-      console.log('[catalogosApi] getParametrosPorTema - Resultado final:', result)
-      return result
+      return Array.isArray(data) ? data : (data.results || data)
     } catch (error_) {
       try {
         // Fallback 1: endpoint REST por tema
-        const baseUrl = getApiBaseUrlWithPath()
-        const response = await fetch(`${baseUrl}/parametros/tema/${codigoTema}/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
-        const data = await response.json()
+        const response = await api.get(`/parametros/tema/${codigoTema}/`, { params: {} })
+        const data = response.data
         return data.parametros || data
       } catch (error_) {
         try {
           // Fallback 2: parámetros anidados bajo tema (necesita buscar tema por código primero)
-          const baseUrl = getApiBaseUrlWithPath()
-          const temasResponse = await fetch(`${baseUrl}/temas/`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-          if (!temasResponse.ok) {
-            throw new Error(`HTTP ${temasResponse.status}`)
-          }
-          const temas = await temasResponse.json()
+          const temasResponse = await api.get('/temas/', { params: {} })
+          const temas = temasResponse.data
           const temasArray = Array.isArray(temas) ? temas : (temas.results || [])
           const tema = temasArray.find(t => t.codigo === codigoTema)
           if (!tema) {
             throw new Error(`Tema ${codigoTema} no encontrado`)
           }
-          const response = await fetch(`${baseUrl}/temas/${tema.id}/parametros/`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`)
-          }
-          const data = await response.json()
+          const response = await api.get(`/temas/${tema.id}/parametros/`, { params: {} })
+          const data = response.data
           return Array.isArray(data) ? data : (data.results || data)
         } catch (error_) {
           throw error_
@@ -96,17 +49,8 @@ const catalogosApi = {
    */
   async getTemas() {
     try {
-      const baseUrl = getApiBaseUrlWithPath()
-      const response = await fetch(`${baseUrl}/temas/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      const data = await response.json()
+      const response = await api.get('/temas/', { params: {} })
+      const data = response.data
       return Array.isArray(data) ? data : (data.results || data)
     } catch (error) {
       throw error
@@ -157,18 +101,8 @@ const catalogosApi = {
    */
   async getMunicipiosPorDepartamento(codigoDepartamento) {
     try {
-      const baseUrl = getApiBaseUrlWithPath()
-      const response = await fetch(`${baseUrl}/municipios/?departamento=${codigoDepartamento}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      const data = await response.json()
-      return Array.isArray(data) ? data : (data.results || data)
+      const response = await api.get('/municipios/', { params: { departamento: codigoDepartamento } })
+      return Array.isArray(response) ? response : (response.results || response)
     } catch (error) {
       throw error
     }
@@ -192,7 +126,17 @@ const catalogosApi = {
         throw new Error(`HTTP ${response.status}`)
       }
       const data = await response.json()
-      const departamentos = Array.isArray(data) ? data : (data.results || data)
+      // Handle different response formats: array, {results: []}, or {data: []}
+      let departamentos = null
+      if (Array.isArray(data)) {
+        departamentos = data
+      } else if (Array.isArray(data.results)) {
+        departamentos = data.results
+      } else if (Array.isArray(data.data)) {
+        departamentos = data.data
+      } else {
+        departamentos = []
+      }
       return departamentos.find(dept => dept.codigo === codigo)
     } catch (error) {
       throw error

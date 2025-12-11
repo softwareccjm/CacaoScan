@@ -46,12 +46,11 @@ class TestNotificationListCreateView:
         from notifications.models import Notification
         
         # Create a test notification
-        notification = Notification.objects.create(
+        notification = Notification.create_notification(
             user=user,
-            tipo='info',
+            tipo='INFO',
             titulo='Test Notification',
-            mensaje='Test message',
-            leida=False
+            mensaje='Test message'
         )
         
         client.force_authenticate(user=user)
@@ -106,9 +105,9 @@ class TestNotificationDetailView:
         """Test getting notification detail."""
         from notifications.models import Notification
         
-        notification = Notification.objects.create(
+        notification = Notification.create_notification(
             user=user,
-            tipo='info',
+            tipo='INFO',
             titulo='Test Notification',
             mensaje='Test message'
         )

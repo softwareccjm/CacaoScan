@@ -29,7 +29,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.getPerfil()
 
-      expect(api.get).toHaveBeenCalledWith('/api/personas/perfil/', { params: {} })
+      expect(api.get).toHaveBeenCalledWith('/personas/perfil/', { params: {} })
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -56,7 +56,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.crearPerfil(profileData)
 
-      expect(api.post).toHaveBeenCalledWith('/api/personas/perfil/', profileData, {})
+      expect(api.post).toHaveBeenCalledWith('/personas/perfil/', profileData, {})
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -81,7 +81,7 @@ describe('personasApi', () => {
 
       const result = await personasApi.actualizarPerfil(profileData)
 
-      expect(api.patch).toHaveBeenCalledWith('/api/personas/perfil/', profileData, {})
+      expect(api.patch).toHaveBeenCalledWith('/personas/perfil/', profileData, {})
       expect(result).toEqual(mockResponse.data)
     })
 

@@ -37,6 +37,11 @@ except ImportError:
 # Cargar variables de entorno desde .env
 BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_path = os.path.join(BASE_DIR, ".env")
+# Si .env no existe, intentar con 'env' (sin punto) como fallback
+if not os.path.exists(dotenv_path):
+    env_path_alt = os.path.join(BASE_DIR, "env")
+    if os.path.exists(env_path_alt):
+        dotenv_path = env_path_alt
 
 # Crear .env si no existe con valores por defecto (solo en desarrollo)
 if not os.path.exists(dotenv_path):
@@ -108,19 +113,29 @@ if os.path.exists(dotenv_path):
         if raw_content.startswith(b'\xef\xbb\xbf'):
             raw_content = raw_content[3:]
         
-        # Remove problematic bytes: 0xf3 (causes UnicodeDecodeError)
-        # Also remove other invalid UTF-8 continuation bytes
-        invalid_bytes = [b'\xf3', b'\xef', b'\xbb', b'\xbf']
-        for invalid_byte in invalid_bytes:
-            if invalid_byte in raw_content:
-                raw_content = raw_content.replace(invalid_byte, b'')
+        # Remove problematic bytes that cause UnicodeDecodeError
+        # 0xab = « (comillas angulares), 0xbb = », 0xf3, BOM, etc.
+        problematic_bytes = [
+            b'\xab',  # «
+            b'\xbb',  # »
+            b'\xf3',  # ó (en algunos encodings)
+            b'\xef',  # BOM part 1
+            b'\xbf',  # BOM part 3
+            b'\x00',  # Null byte
+        ]
+        for pb in problematic_bytes:
+            raw_content = raw_content.replace(pb, b'')
         
         # Decode with UTF-8, fallback to latin-1
         try:
-            content = raw_content.decode('utf-8')
-        except UnicodeDecodeError:
+            content = raw_content.decode('utf-8', errors='replace')
+        except Exception:
             # If UTF-8 fails, try latin-1 with replacement
-            content = raw_content.decode('latin-1', errors='replace')
+            try:
+                content = raw_content.decode('latin-1', errors='replace')
+            except Exception:
+                # Last resort: decode as ASCII
+                content = raw_content.decode('ascii', errors='ignore')
         
         # Load environment variables from content
         for line in content.splitlines():
@@ -133,12 +148,20 @@ if os.path.exists(dotenv_path):
                 # Clean value: remove quotes, invalid chars, BOM, and problematic bytes
                 value = value.strip().strip('"\'').rstrip('\r\n')
                 # Remove any remaining problematic characters
-                value = value.replace('\ufeff', '').replace('\xf3', '').replace('\x00', '')
-                # Remove non-printable ASCII control characters (except space)
+                problematic_chars = ['\ufeff', '\xf3', '\x00', '\xab', '\xbb', '\xad']
+                for char in problematic_chars:
+                    value = value.replace(char, '')
+                # Remove non-printable ASCII control characters (except space, tab, newline, carriage return)
                 value = ''.join(char for char in value if ord(char) >= 32 or char in '\t\n\r')
+                # Final UTF-8 validation
+                try:
+                    value.encode('utf-8', errors='strict')
+                except UnicodeEncodeError:
+                    # Force clean encoding
+                    value = value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
                 if key and key not in os.environ:
                     os.environ[key] = value
-    except Exception:
+    except Exception as e:
         # Fallback: use load_dotenv
         try:
             load_dotenv(dotenv_path, override=False)
@@ -285,17 +308,32 @@ def _decode_bytes_to_string(value: bytes) -> str:
 
 def _normalize_to_string(value) -> str:
     """Normalize value to string, handling bytes and other types."""
-    if not value:
+    if value is None:
         return ""
     
+    # Si es bytes, decodificar primero
     if isinstance(value, bytes):
         return _decode_bytes_to_string(value)
     
+    # Si no es string, convertir
     if not isinstance(value, str):
         try:
-            return str(value)
+            value = str(value)
         except Exception:
             return ""
+    
+    # Si el string contiene bytes problemáticos, limpiarlos
+    try:
+        # Intentar codificar/decodificar para detectar problemas
+        value.encode('utf-8', errors='strict')
+    except UnicodeEncodeError:
+        # Si hay problemas, limpiar
+        try:
+            # Convertir a bytes y decodificar con replace
+            value = value.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+        except Exception:
+            # Último recurso: ASCII
+            value = value.encode('ascii', errors='ignore').decode('ascii')
     
     return value
 
@@ -305,18 +343,38 @@ def _remove_bom_and_problematic_bytes(value: str) -> str:
         value = value[1:]
     
     try:
+        # Primero intentar decodificar si viene como bytes
+        if isinstance(value, bytes):
+            # Intentar decodificar con diferentes encodings
+            for encoding in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
+                try:
+                    value = value.decode(encoding, errors='replace')
+                    break
+                except (UnicodeDecodeError, AttributeError):
+                    continue
+            else:
+                # Si todos fallan, usar replace para ignorar bytes inválidos
+                value = value.decode('utf-8', errors='replace')
+        
+        # Convertir a bytes y limpiar bytes problemáticos
         value_bytes = value.encode('utf-8', errors='replace')
-        value_bytes = value_bytes.replace(b'\xf3', b'')
+        # Remover bytes problemáticos comunes: 0xab («), 0xbb (»), 0xf3, BOM, etc.
+        problematic_bytes = [b'\xab', b'\xbb', b'\xf3', b'\xef', b'\xbb', b'\xbf', b'\x00']
+        for pb in problematic_bytes:
+            value_bytes = value_bytes.replace(pb, b'')
+        
         return value_bytes.decode('utf-8', errors='replace')
     except Exception:
         try:
+            # Fallback: convertir a ASCII eliminando caracteres no ASCII
             return value.encode('ascii', errors='ignore').decode('ascii')
         except Exception:
             return ""
 
 def _remove_invalid_chars(value: str) -> str:
     """Remove invalid characters from string."""
-    invalid_chars = ['\x00', '\xef', '\xbb', '\xbf']
+    # Caracteres inválidos comunes (incluyendo 0xab y 0xbb)
+    invalid_chars = ['\x00', '\xef', '\xbb', '\xbf', '\xab', '\xad']
     for char in invalid_chars:
         value = value.replace(char, '')
     return value
@@ -370,31 +428,102 @@ TESTING = IS_TESTING
 # Database configuration - Force PostgreSQL for ALL environments including tests
 # This ensures tests run in the same environment as production
 # Clean all database values to ensure UTF-8 encoding
-_db_name = clean_value(os.getenv("POSTGRES_DB", os.getenv("DB_NAME", "cacaoscan_db")) or "cacaoscan_db")
-_db_user = clean_value(os.getenv("POSTGRES_USER", os.getenv("DB_USER", "postgres")) or "postgres")
-_db_password = clean_value(os.getenv("POSTGRES_PASSWORD", os.getenv("DB_PASSWORD", "postgres")) or "postgres")
-_db_host = clean_value(os.getenv("POSTGRES_HOST", os.getenv("DB_HOST", "127.0.0.1")) or "127.0.0.1")
-_db_port = clean_value(os.getenv("POSTGRES_PORT", os.getenv("DB_PORT", "5432")) or "5432")
-_db_test_name = clean_value(os.getenv("POSTGRES_DB_TEST", "cacaoscan_db_test")) or "cacaoscan_db_test"
+def _get_db_value(env_key: str, alt_key: str = None, default: str = "") -> str:
+    """Get database value from environment with proper encoding handling."""
+    value = None
+    if alt_key:
+        value = os.getenv(env_key) or os.getenv(alt_key)
+    else:
+        value = os.getenv(env_key)
+    
+    if not value:
+        return clean_value(default) if default else ""
+    
+    # Asegurar que el valor sea string y esté limpio
+    return clean_value(value)
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": _db_name,
-        "USER": _db_user,
-        "PASSWORD": _db_password,
-        "HOST": _db_host,
-        "PORT": _db_port,
-        "CONN_MAX_AGE": 600,
-        "OPTIONS": {
-            "client_encoding": "UTF8",
-            "connect_timeout": 10,
-        },
-        "TEST": {
-            "NAME": _db_test_name,
-        },
+_db_name = _get_db_value("POSTGRES_DB", "DB_NAME", "cacaoscan_db")
+_db_user = _get_db_value("POSTGRES_USER", "DB_USER", "postgres")
+_db_password = _get_db_value("POSTGRES_PASSWORD", "DB_PASSWORD", "postgres")
+_db_host = _get_db_value("POSTGRES_HOST", "DB_HOST", "127.0.0.1")
+_db_port = _get_db_value("POSTGRES_PORT", "DB_PORT", "5432")
+_db_test_name = _get_db_value("POSTGRES_DB_TEST", None, "cacaoscan_db_test")
+
+# Asegurar que todos los valores sean strings válidos UTF-8 antes de crear la configuración
+# Convertir explícitamente a string y validar encoding
+try:
+    _db_name_str = str(_db_name) if _db_name else "cacaoscan_db"
+    _db_user_str = str(_db_user) if _db_user else "postgres"
+    _db_password_str = str(_db_password) if _db_password else "postgres"
+    _db_host_str = str(_db_host) if _db_host else "127.0.0.1"
+    _db_port_str = str(_db_port) if _db_port else "5432"
+    _db_test_name_str = str(_db_test_name) if _db_test_name else "cacaoscan_db_test"
+    
+    # Validar y limpiar que todos los valores sean UTF-8 válidos
+    # Remover caracteres problemáticos antes de validar
+    def _clean_db_value(val: str) -> str:
+        """Clean database value removing problematic characters."""
+        if not val:
+            return val
+        # Remover caracteres problemáticos conocidos
+        problematic = ['\xab', '\xbb', '\xf3', '\x00', '\xad', '\ufeff']
+        for char in problematic:
+            val = val.replace(char, '')
+        # Validar y limpiar encoding
+        try:
+            val.encode('utf-8', errors='strict')
+            return val
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            # Forzar limpieza
+            return val.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+    
+    _db_name_str = _clean_db_value(_db_name_str)
+    _db_user_str = _clean_db_value(_db_user_str)
+    _db_password_str = _clean_db_value(_db_password_str)
+    _db_host_str = _clean_db_value(_db_host_str)
+    _db_port_str = _clean_db_value(_db_port_str)
+    _db_test_name_str = _clean_db_value(_db_test_name_str)
+    
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": _db_name_str,
+            "USER": _db_user_str,
+            "PASSWORD": _db_password_str,
+            "HOST": _db_host_str,
+            "PORT": _db_port_str,
+            "CONN_MAX_AGE": 600,
+            "OPTIONS": {
+                "client_encoding": "UTF8",
+                "connect_timeout": 10,
+            },
+            "TEST": {
+                "NAME": _db_test_name_str,
+            },
+        }
     }
-}
+except Exception as e:
+    # Fallback a valores por defecto si hay error
+    import warnings
+    warnings.warn(f"Error procesando configuración de base de datos: {e}. Usando valores por defecto.")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "cacaoscan_db",
+            "USER": "postgres",
+            "PASSWORD": "postgres",
+            "HOST": "127.0.0.1",
+            "PORT": "5432",
+            "CONN_MAX_AGE": 600,
+            "OPTIONS": {
+                "client_encoding": "UTF8",
+                "connect_timeout": 10,
+            },
+            "TEST": {
+                "NAME": "cacaoscan_db_test",
+            },
+        }
+    }
 
 # No psycopg2 patches needed - database parameters are already cleaned
 
@@ -503,7 +632,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATIC_ROOT = Path(os.environ.get('DJANGO_STATIC_ROOT', BASE_DIR / 'staticfiles'))
+# Handle empty string from env file - treat as None to use default
+_static_root_env = os.environ.get('DJANGO_STATIC_ROOT', '').strip()
+STATIC_ROOT = Path(_static_root_env) if _static_root_env else (BASE_DIR / 'staticfiles')
 # Usar storage sin manifest en producción si hay problemas, o con manifest si está disponible
 # CompressedManifestStaticFilesStorage requiere que collectstatic se ejecute correctamente
 if os.environ.get('USE_STATICFILES_MANIFEST', 'True').lower() == 'true':
@@ -513,7 +644,9 @@ else:
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media'))
+# Handle empty string from env file - treat as None to use default
+_media_root_env = os.environ.get('DJANGO_MEDIA_ROOT', '').strip()
+MEDIA_ROOT = Path(_media_root_env) if _media_root_env else (BASE_DIR / 'media')
 
 # AWS S3 Configuration
 USE_S3 = os.environ.get('USE_S3', 'False').lower() == 'true'
@@ -539,7 +672,8 @@ if USE_S3:
 else:
     # Configuración local para desarrollo / entornos sin S3
     MEDIA_URL = '/media/'
-    MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media'))
+    # MEDIA_ROOT ya está definido arriba, no necesita redefinirse aquí
+    # Solo asegurarse de que no se sobrescriba si ya está configurado
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -982,9 +1116,19 @@ REALTIME_NOTIFICATIONS_ENABLED = os.environ.get('REALTIME_NOTIFICATIONS_ENABLED'
 NOTIFICATION_BROADCAST_ENABLED = os.environ.get('NOTIFICATION_BROADCAST_ENABLED', 'True').lower() == 'true'
 NOTIFICATION_PERSISTENCE_ENABLED = os.environ.get('NOTIFICATION_PERSISTENCE_ENABLED', 'True').lower() == 'true'
 
-# Configuracin de Celery
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
+# Configuración de Celery
+# Si Redis no está disponible, usar broker en memoria (solo para desarrollo)
+USE_CELERY_REDIS = os.environ.get('USE_CELERY_REDIS', 'True').lower() == 'true'
+
+if USE_CELERY_REDIS:
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
+else:
+    # Broker en memoria para desarrollo sin Redis (NO usar en producción)
+    # Nota: Estos valores se usan solo si Celery se inicializa, pero si USE_CELERY_REDIS=False,
+    # Celery no se inicializará en absoluto (ver cacaoscan/__init__.py)
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

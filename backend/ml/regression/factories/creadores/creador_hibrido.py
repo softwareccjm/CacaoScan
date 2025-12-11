@@ -26,7 +26,7 @@ class CreadorModeloHibrido(CreadorModeloBase):
         use_pixel_features: bool
     ) -> nn.Module:
         """Create a hybrid model."""
-        from ....models import _create_hybrid_model
+        from ...models import _create_hybrid_model
         
         logger.info("Creating hybrid model via CreadorModeloHibrido")
         return _create_hybrid_model(
