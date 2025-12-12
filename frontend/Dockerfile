@@ -59,12 +59,12 @@ RUN touch /usr/share/nginx/html/config.js && \
 
 USER 101
 
-# Render inyecta PORT automáticamente
-ENV PORT=8080
+# Puerto interno del contenedor (evita conflictos con otros servicios)
+ENV PORT=18081
 
-EXPOSE 8080
+EXPOSE 18081
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:${PORT:-8080}/health || exit 1
+    CMD curl -fsS http://127.0.0.1:${PORT:-18081}/health || exit 1
 
 CMD ["/start-nginx.sh"]
