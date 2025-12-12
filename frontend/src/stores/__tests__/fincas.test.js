@@ -105,7 +105,11 @@ describe('FincasStore', () => {
 
       mockFincasApi.getFincas.mockRejectedValue(error)
 
-      await fincasStore.fetchFincas()
+      try {
+        await fincasStore.fetchFincas()
+      } catch (err) {
+        // Expected to throw
+      }
 
       expect(fincasStore.error).toBe('Error fetching fincas')
       expect(fincasStore.loading).toBe(false)

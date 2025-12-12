@@ -69,12 +69,12 @@ class ImageDetailView(APIView, ImagePermissionMixin):
         try:
             image = CacaoImage.objects.select_related(
                 'user',
-                'finca',
-                'finca__agricultor',
                 'lote',
                 'lote__finca',
-                'lote__finca__agricultor'
-            ).prefetch_related('prediction').get(id=image_id)
+                'lote__finca__agricultor',
+                'file_type',
+                'prediction'
+            ).get(id=image_id)
         except CacaoImage.DoesNotExist:
             return Response({
                 'error': ERROR_IMAGE_NOT_FOUND,

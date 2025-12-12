@@ -533,11 +533,14 @@ describe('Reportes', () => {
   })
 
   it('should handle sort error', async () => {
-    mockReportsStore.fetchReports.mockRejectedValueOnce(new Error('Sort error'))
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
     wrapper = createWrapper()
     await wrapper.vm.$nextTick()
+    await flushPromises()
+    
+    // Configure mock after initial mount to avoid consuming it in onMounted
+    mockReportsStore.fetchReports.mockRejectedValueOnce(new Error('Sort error'))
     
     await wrapper.vm.handleSort({ key: 'titulo', order: 'asc' })
     await flushPromises()
@@ -584,11 +587,14 @@ describe('Reportes', () => {
   })
 
   it('should handle page change error', async () => {
-    mockReportsStore.fetchReports.mockRejectedValueOnce(new Error('Page error'))
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     
     wrapper = createWrapper()
     await wrapper.vm.$nextTick()
+    await flushPromises()
+    
+    // Configure mock after initial mount to avoid consuming it in onMounted
+    mockReportsStore.fetchReports.mockRejectedValueOnce(new Error('Page error'))
     
     await wrapper.vm.handlePageChange(2)
     await flushPromises()

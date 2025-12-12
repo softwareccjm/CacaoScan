@@ -51,9 +51,13 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => mockAuthStore
 }))
 
-vi.mock('@/stores/notifications', () => ({
-  useNotificationStore: () => mockNotificationStore
-}))
+vi.mock('@/stores/notifications', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    useNotificationsStore: () => mockNotificationStore
+  }
+})
 
 vi.mock('vue-router', () => ({
   useRouter: () => mockRouter,

@@ -204,14 +204,31 @@ class CacaoPrediction(models.Model):
     @property
     def average_confidence(self):
         """Calcular confianza promedio."""
-        from django.utils import timezone
-        confidences = [
-            float(self.confidence_alto),
-            float(self.confidence_ancho),
-            float(self.confidence_grosor),
-            float(self.confidence_peso)
-        ]
-        return round(sum(confidences) / len(confidences), 3)
+        confidences = []
+        if self.confidence_alto is not None:
+            try:
+                confidences.append(float(self.confidence_alto))
+            except (TypeError, ValueError):
+                pass
+        if self.confidence_ancho is not None:
+            try:
+                confidences.append(float(self.confidence_ancho))
+            except (TypeError, ValueError):
+                pass
+        if self.confidence_grosor is not None:
+            try:
+                confidences.append(float(self.confidence_grosor))
+            except (TypeError, ValueError):
+                pass
+        if self.confidence_peso is not None:
+            try:
+                confidences.append(float(self.confidence_peso))
+            except (TypeError, ValueError):
+                pass
+        
+        if confidences:
+            return round(sum(confidences) / len(confidences), 3)
+        return 0.0
     
     @property
     def volume_cm3(self):

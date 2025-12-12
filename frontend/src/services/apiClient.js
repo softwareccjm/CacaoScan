@@ -43,7 +43,12 @@ const buildQueryParams = (filters = {}) => {
           params.append(key, item)
         }
       } else {
-        params.append(key, value)
+        // Convert boolean to string 'true' or 'false' for backend compatibility
+        if (typeof value === 'boolean') {
+          params.append(key, value ? 'true' : 'false')
+        } else {
+          params.append(key, value)
+        }
       }
     }
   }

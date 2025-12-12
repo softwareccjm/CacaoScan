@@ -209,27 +209,40 @@ class ForgotPasswordView(APIView):
             }
 
             # Enviar correo
-            email_result = send_email_notification(
-                user_email=user.email,
-                notification_type="reset_request",
-                context=email_context,
-            )
-
-            if email_result.get("success"):
-                logger.info(f"[FORGOT_PASSWORD] Email de recuperación enviado a {email}")
-                return Response(
-                    {
-                        "success": True,
-                        "message": f"Se enviaron instrucciones de recuperación a {email}."
-                    },
-                    status=status.HTTP_200_OK,
+            try:
+                email_result = send_email_notification(
+                    user_email=user.email,
+                    notification_type="reset_request",
+                    context=email_context,
                 )
-            else:
-                logger.error(f"[FORGOT_PASSWORD] Fallo envío a {email}: {email_result.get('error')}")
+
+                if email_result and email_result.get("success"):
+                    logger.info(f"[FORGOT_PASSWORD] Email de recuperación enviado a {email}")
+                    return Response(
+                        {
+                            "success": True,
+                            "message": f"Se enviaron instrucciones de recuperación a {email}."
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+                else:
+                    error_msg = email_result.get('error', 'Error desconocido') if email_result else 'No se recibió respuesta del servicio de email'
+                    logger.error(f"[FORGOT_PASSWORD] Fallo envío a {email}: {error_msg}")
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Error al enviar el correo. Verifique la configuración del servidor de correo o intente nuevamente más tarde.",
+                            "error_details": error_msg if settings.DEBUG else None
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+            except Exception as email_error:
+                logger.error(f"[FORGOT_PASSWORD] Excepción al enviar email a {email}: {email_error}", exc_info=True)
                 return Response(
                     {
                         "success": False,
-                        "message": "Error al enviar el correo. Intente nuevamente más tarde."
+                        "message": "Error al enviar el correo. Verifique la configuración del servidor de correo.",
+                        "error_details": str(email_error) if settings.DEBUG else None
                     },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )

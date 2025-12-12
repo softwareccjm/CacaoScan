@@ -6,6 +6,7 @@ import { ref, reactive, computed } from 'vue'
 import { useDateFormatting } from './useDateFormatting'
 import reportsService from '@/services/reportsService'
 import { useNotificationStore } from '@/stores/notifications'
+import { useReportsStore } from '@/stores/reports'
 
 /**
  * Format report type label
@@ -111,6 +112,7 @@ export function formatDuration(seconds) {
  */
 export function useReports(options = {}) {
   const notificationStore = useNotificationStore()
+  const reportsStore = useReportsStore()
   const { formatDate } = useDateFormatting()
   
   // State
@@ -289,7 +291,8 @@ export function useReports(options = {}) {
       loading.value = true
       error.value = null
       
-      await reportsService.downloadReportFile(reportId, filename)
+      // Use store's downloadReport method which handles the download properly
+      await reportsStore.downloadReport(reportId)
       
       notificationStore.addNotification({
         type: 'success',
@@ -370,8 +373,9 @@ export function useReports(options = {}) {
         try {
           attempts++
           const status = await checkReportStatus(reportId)
+          const estado = (status.estado || '').toLowerCase()
           
-          if (status.estado === 'completado') {
+          if (estado === 'completado' || estado === 'completed') {
             isResolved = true
             if (timeoutId) {
               clearTimeout(timeoutId)
@@ -381,7 +385,7 @@ export function useReports(options = {}) {
             return
           }
           
-          if (status.estado === 'error' || status.estado === 'fallido') {
+          if (estado === 'error' || estado === 'fallido' || estado === 'failed') {
             isResolved = true
             if (timeoutId) {
               clearTimeout(timeoutId)

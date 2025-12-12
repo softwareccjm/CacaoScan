@@ -827,6 +827,10 @@ def segment_and_crop_cacao_bean(image_path: str, method: str = "yolo") -> str:
     """
     Segmenta (elimina fondo) y recorta una imagen de cacao usando YOLO-Seg.
     
+    VALIDACIÓN EN DOS ETAPAS:
+    1. Clasificador binario (si está disponible): Valida usando imágenes de ejemplo
+    2. YOLO-Seg: Validación y segmentación final
+    
     YOLO-Seg es OBLIGATORIO: No hay fallbacks. Si YOLO-Seg falla, se lanza SegmentationError.
     
     Migrado a YOLO-Seg para segmentación más precisa y reducción de falsos positivos.
@@ -839,16 +843,58 @@ def segment_and_crop_cacao_bean(image_path: str, method: str = "yolo") -> str:
         str: Ruta absoluta del archivo PNG generado con fondo transparente.
         
     Raises:
-        SegmentationError: Si YOLO-Seg no detecta un grano válido
+        SegmentationError: Si el clasificador o YOLO-Seg no detecta un grano válido
         FileNotFoundError: Si la imagen no existe
     """
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"La imagen '{image_path}' no existe")
 
     filename = os.path.basename(image_path)
-    logger.info(f"[YOLO-Seg] Iniciando segmentación para: {filename}")
+    logger.info(f"[Validación] Iniciando validación y segmentación para: {filename}")
 
-    # YOLO-Seg es el único método válido
+    # ETAPA 1: Validación con clasificador binario (OBLIGATORIA si está disponible)
+    try:
+        from ..classification import get_cacao_classifier
+        
+        classifier = get_cacao_classifier()
+        if classifier is not None:
+            logger.info(f"[Clasificador] Validando imagen con clasificador binario (OBLIGATORIO)...")
+            try:
+                is_cacao, confidence, details = classifier.classify(image_path)
+                
+                # El método classify() ya lanza SegmentationError si no es cacao
+                # Si llegamos aquí, la validación pasó
+                logger.info(
+                    f"[Clasificador] ✅ Validación exitosa: confianza={confidence:.3f}, "
+                    f"prob_cacao={details.get('cacao_probability', 0)*100:.1f}%, "
+                    f"prob_no_cacao={details.get('not_cacao_probability', 0)*100:.1f}%"
+                )
+            except SegmentationError as seg_err:
+                # El clasificador rechazó la imagen - OBLIGATORIO rechazar
+                logger.error(f"[Clasificador] ❌ Imagen rechazada: {seg_err}")
+                raise
+        else:
+            logger.warning(
+                "[Clasificador] ⚠️ Clasificador no disponible. "
+                "Se recomienda entrenar el clasificador para mejor validación. "
+                "Usando solo YOLO..."
+            )
+    except SegmentationError:
+        # Propagar error del clasificador inmediatamente - NO continuar
+        raise
+    except Exception as e:
+        # Si el clasificador falla por otros motivos (error técnico), 
+        # OBLIGATORIO rechazar para evitar falsos positivos
+        logger.error(
+            f"[Clasificador] ❌ Error técnico en clasificación: {e}. "
+            "Rechazando imagen por seguridad (evitar falsos positivos)."
+        )
+        raise SegmentationError(
+            f"No se pudo validar la imagen con el clasificador: {str(e)}. "
+            "La imagen fue rechazada por seguridad para evitar falsos positivos."
+        ) from e
+
+    # ETAPA 2: Validación y segmentación con YOLO-Seg
     try:
         from .cacao_segmentation_model import CacaoSegmentationModel
         

@@ -331,7 +331,27 @@ class LoteSerializer(serializers.ModelSerializer):
     
     def get_estadisticas(self, obj):
         """Get lote statistics."""
-        return obj.get_estadisticas()
+        try:
+            return obj.get_estadisticas()
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger("cacaoscan.api")
+            logger.error(f"Error obteniendo estadísticas de lote {obj.id}: {e}", exc_info=True)
+            # Return empty statistics if there's an error
+            return {
+                'total_analisis': 0,
+                'analisis_procesados': 0,
+                'calidad_promedio': 0.0,
+                'peso_kg': float(obj.peso_kg) if obj.peso_kg else 0.0,
+                'edad_meses': 0,
+                'estado': None,
+                'activo': obj.activo if hasattr(obj, 'activo') else True,
+                'fecha_plantacion': None,
+                'fecha_cosecha': None,
+                'fecha_recepcion': None,
+                'fecha_procesamiento': None,
+            }
     
     def validate_identificador(self, value):
         """Validate lote identifier."""
@@ -442,6 +462,54 @@ class LoteSerializer(serializers.ModelSerializer):
         
         return value
     
+    def validate_estado(self, value):
+        """Validate estado is a valid Parametro with TEMA_ESTADO_LOTE."""
+        if value is None:
+            raise serializers.ValidationError("El estado es requerido.")
+        
+        from catalogos.models import Parametro
+        from django.db.models import Q
+        
+        try:
+            # If value is already a Parametro instance, validate it
+            if hasattr(value, 'tema'):
+                if value.tema.codigo != 'TEMA_ESTADO_LOTE':
+                    raise serializers.ValidationError("El estado debe ser un parámetro de tipo TEMA_ESTADO_LOTE.")
+                if not value.activo:
+                    raise serializers.ValidationError("El estado seleccionado no está activo.")
+                return value
+            
+            # If value is an ID (int), get the Parametro
+            if isinstance(value, int):
+                estado_param = Parametro.objects.get(
+                    id=value,
+                    tema__codigo='TEMA_ESTADO_LOTE',
+                    activo=True
+                )
+                return estado_param
+            
+            # If value is a string, try to find by codigo or nombre
+            if isinstance(value, str):
+                estado_param = Parametro.objects.filter(
+                    tema__codigo='TEMA_ESTADO_LOTE',
+                    activo=True
+                ).filter(
+                    Q(codigo__iexact=value) | Q(nombre__iexact=value)
+                ).first()
+                
+                if not estado_param:
+                    raise serializers.ValidationError(f"Estado '{value}' no encontrado o no está activo.")
+                return estado_param
+            
+            raise serializers.ValidationError("Formato de estado inválido.")
+            
+        except Parametro.DoesNotExist:
+            raise serializers.ValidationError("El estado seleccionado no existe o no está activo.")
+        except Exception as e:
+            if isinstance(e, serializers.ValidationError):
+                raise
+            raise serializers.ValidationError(f"Error validando estado: {str(e)}")
+    
     def validate(self, attrs):
         """General validations."""
         errors = {}
@@ -450,6 +518,11 @@ class LoteSerializer(serializers.ModelSerializer):
         variedad = attrs.get('variedad')
         if not variedad:
             errors['variedad'] = ["La variedad es requerida."]
+        
+        # Validate estado (required)
+        estado = attrs.get('estado')
+        if not estado:
+            errors['estado'] = ["El estado es requerido."]
         
         # Ensure nombre is always set (required field in model)
         nombre = attrs.get('nombre', '').strip() if attrs.get('nombre') else ''
@@ -484,31 +557,74 @@ class LoteSerializer(serializers.ModelSerializer):
 class LoteListSerializer(serializers.ModelSerializer):
     """Optimized serializer for lote listings."""
     finca_nombre = serializers.CharField(source='finca.nombre', read_only=True)
-    agricultor_nombre = serializers.CharField(source='finca.agricultor.get_full_name', read_only=True)
+    agricultor_nombre = serializers.SerializerMethodField()
     ubicacion_completa = serializers.SerializerMethodField()
-    total_analisis = serializers.ReadOnlyField()
-    analisis_procesados = serializers.ReadOnlyField()
-    edad_meses = serializers.ReadOnlyField()
+    total_analisis = serializers.SerializerMethodField()
+    analisis_procesados = serializers.SerializerMethodField()
+    edad_meses = serializers.SerializerMethodField()
+    variedad_nombre = serializers.SerializerMethodField()
     
     class Meta:
         model = Lote
         fields = (
-            'id', 'identificador', 'nombre', 'variedad', 'finca_nombre', 'agricultor_nombre',
+            'id', 'identificador', 'nombre', 'variedad', 'variedad_nombre', 'finca_nombre', 'agricultor_nombre',
             'peso_kg', 'fecha_recepcion', 'fecha_procesamiento', 'estado', 
             'total_analisis', 'analisis_procesados', 'edad_meses', 'activo', 
             'fecha_plantacion', 'fecha_cosecha', 'ubicacion_completa'
         )
     
+    def get_agricultor_nombre(self, obj):
+        """Get agricultor name safely."""
+        try:
+            if obj.finca and obj.finca.agricultor:
+                return obj.finca.agricultor.get_full_name() or obj.finca.agricultor.username
+            return ""
+        except Exception:
+            return ""
+    
+    def get_total_analisis(self, obj):
+        """Get total analyses safely."""
+        try:
+            return obj.total_analisis if hasattr(obj, 'total_analisis') else 0
+        except Exception:
+            return 0
+    
+    def get_analisis_procesados(self, obj):
+        """Get processed analyses safely."""
+        try:
+            return obj.analisis_procesados if hasattr(obj, 'analisis_procesados') else 0
+        except Exception:
+            return 0
+    
+    def get_edad_meses(self, obj):
+        """Get age in months safely."""
+        try:
+            return obj.edad_meses if hasattr(obj, 'edad_meses') else 0
+        except Exception:
+            return 0
+    
+    def get_variedad_nombre(self, obj):
+        """Get variedad name safely."""
+        try:
+            if obj.variedad:
+                return obj.variedad.nombre if hasattr(obj.variedad, 'nombre') else str(obj.variedad)
+            return None
+        except Exception:
+            return None
+    
     def get_ubicacion_completa(self, obj):
         """Get complete location."""
-        if hasattr(obj, 'ubicacion_completa') and obj.ubicacion_completa:
-            return obj.ubicacion_completa
-        # Use normalized relationship: municipio.departamento
-        if obj.finca and obj.finca.municipio and hasattr(obj.finca.municipio, 'departamento'):
-            return f"{obj.finca.ubicacion}, {obj.finca.municipio.nombre}, {obj.finca.municipio.departamento.nombre}"
-        elif obj.finca:
-            return obj.finca.ubicacion
-        return ""
+        try:
+            if hasattr(obj, 'ubicacion_completa') and obj.ubicacion_completa:
+                return obj.ubicacion_completa
+            # Use normalized relationship: municipio.departamento
+            if obj.finca and obj.finca.municipio and hasattr(obj.finca.municipio, 'departamento'):
+                return f"{obj.finca.ubicacion}, {obj.finca.municipio.nombre}, {obj.finca.municipio.departamento.nombre}"
+            elif obj.finca:
+                return obj.finca.ubicacion
+            return ""
+        except Exception:
+            return ""
 
 
 class LoteDetailSerializer(LoteSerializer):

@@ -23,7 +23,7 @@ from .views import (
     FincaListCreateView, FincaDetailView, FincaUpdateView,
     FincaDeleteView, FincaActivateView, FincaStatsView,
     LoteListCreateView, LoteDetailView, LoteUpdateView,
-    LoteDeleteView, LoteStatsView, LotesPorFincaView,
+    LoteDeleteView, LoteStatsView, LotesPorFincaView, LoteAnalisisView,
     # Report views (from reports)
     ReporteListCreateView, ReporteDetailView, ReporteDownloadView,
     ReporteDeleteView, ReporteStatsView, ReporteCleanupView,
@@ -159,6 +159,7 @@ urlpatterns = [
     path('lotes/<int:lote_id>/update/', LoteUpdateView.as_view(), name='lote-update'),
     path('lotes/<int:lote_id>/delete/', LoteDeleteView.as_view(), name='lote-delete'),
     path('lotes/<int:lote_id>/stats/', LoteStatsView.as_view(), name='lote-stats'),
+    path('lotes/<int:lote_id>/analisis/', LoteAnalisisView.as_view(), name='lote-analisis'),
     path('fincas/<int:finca_id>/lotes/', LotesPorFincaView.as_view(), name='lotes-por-finca'),
     
     # Endpoints de gestión de notificaciones

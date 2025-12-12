@@ -62,7 +62,7 @@ class AdminImagesListView(PaginationMixin, AdminPermissionMixin, APIView):
             filters_applied['region'] = region
         
         if finca:
-            queryset = queryset.filter(finca__icontains=finca)
+            queryset = queryset.filter(lote__finca__nombre__icontains=finca)
             filters_applied['finca'] = finca
         
         if processed is not None:
@@ -81,10 +81,9 @@ class AdminImagesListView(PaginationMixin, AdminPermissionMixin, APIView):
         if search:
             queryset = queryset.filter(
                 Q(notas__icontains=search) |
-                Q(finca__icontains=search) |
-                Q(region__icontains=search) |
-                Q(lote_id__icontains=search) |
-                Q(variedad__icontains=search) |
+                Q(lote__finca__nombre__icontains=search) |
+                Q(lote__identificador__icontains=search) |
+                Q(lote__variedad__icontains=search) |
                 Q(user__username__icontains=search)
             )
             filters_applied['search'] = search
@@ -183,12 +182,12 @@ class AdminImagesListView(PaginationMixin, AdminPermissionMixin, APIView):
             # Optimizado: select_related para ForeignKeys, prefetch_related para OneToOne reverso
             queryset = CacaoImage.objects.all().select_related(
                 'user',
-                'finca',
-                'finca__agricultor',
                 'lote',
                 'lote__finca',
-                'lote__finca__agricultor'
-            ).prefetch_related('prediction')
+                'lote__finca__agricultor',
+                'file_type',
+                'prediction'
+            )
             
             # Aplicar filtros
             filters_applied = {}

@@ -92,8 +92,13 @@ class UserListView(PaginationMixin, AdminPermissionMixin, APIView):
         date_from = request.GET.get('date_from')
         date_to = request.GET.get('date_to')
         
-        # Construir queryset base (evitar select_related/prefetch a relaciones no garantizadas)
-        queryset = User.objects.all().prefetch_related('groups')
+        # Construir queryset base con optimizaciones para evitar consultas N+1
+        # Incluir persona con municipio y departamento para obtener región
+        queryset = User.objects.all().prefetch_related('groups').select_related(
+            'persona',
+            'persona__municipio',
+            'persona__municipio__departamento'
+        )
         
         # Aplicar filtros
         if role:
@@ -140,11 +145,29 @@ class UserListView(PaginationMixin, AdminPermissionMixin, APIView):
         queryset = queryset.order_by('-date_joined')
         
         # Paginar usando el mixin
-        return self.paginate_queryset(
+        response = self.paginate_queryset(
             request,
             queryset,
             UserSerializer
         )
+        
+        # Agregar información de persona a cada usuario en la respuesta
+        if response.status_code == 200 and 'results' in response.data:
+            from personas.serializers import PersonaSerializer
+            for user_data in response.data['results']:
+                try:
+                    # Obtener el usuario del queryset original para acceder a persona
+                    user_id = user_data.get('id')
+                    if user_id:
+                        # Buscar el usuario en el queryset (ya está cargado con select_related)
+                        user = next((u for u in queryset if u.id == user_id), None)
+                        if user and hasattr(user, 'persona') and user.persona:
+                            user_data['persona'] = PersonaSerializer(user.persona).data
+                except Exception as e:
+                    logger.warning(f"Error agregando persona al usuario {user_id}: {e}")
+                    # Continuar con el siguiente usuario si hay error
+        
+        return response
 
 
 class UserUpdateView(AdminPermissionMixin, APIView):

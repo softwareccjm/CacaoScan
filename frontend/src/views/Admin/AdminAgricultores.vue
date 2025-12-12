@@ -25,8 +25,8 @@
                 </svg>
               </div>
               <div>
-                <h1 class="text-3xl font-bold text-gray-900">Gestión de Agricultores</h1>
-                <p class="text-gray-600 mt-1">Administra todos los agricultores y fincas del sistema</p>
+                <h1 class="text-3xl font-bold text-gray-900">Gestión de Cacaocultores</h1>
+                <p class="text-gray-600 mt-1">Administra todos los cacaocultores y fincas del sistema</p>
               </div>
             </div>
             <!-- Acciones principales -->
@@ -39,7 +39,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
-                Reporte Agricultores
+                Reporte Cacaocultores
               </button>
               <button 
                 @click="handleNewFarmer"
@@ -49,7 +49,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
-                Nuevo Agricultor
+                Nuevo Cacaocultor
               </button>
             </div>
           </div>
@@ -71,7 +71,7 @@
           :placeholder="searchPlaceholder"
         />
 
-        <!-- Tabla de agricultores -->
+        <!-- Tabla de cacaocultores -->
         <FarmersTable 
           :filtered-farmers="displayedFarmers"
           :search-query="searchQuery"
@@ -91,13 +91,13 @@
       </main>
     </div>
 
-    <!-- Modal para crear agricultor -->
+    <!-- Modal para crear cacaocultor -->
     <CreateFarmerModal 
       ref="createFarmerModalRef"
       @farmer-created="handleFarmerCreated"
     />
 
-    <!-- Modal para ver detalles del agricultor -->
+    <!-- Modal para ver detalles del cacaocultor -->
     <FarmerDetailModal 
       ref="farmerDetailModalRef"
       :farmer="selectedFarmer"
@@ -209,19 +209,37 @@ const getUserInitials = (user) => {
     : user.username?.substring(0, 2).toUpperCase() || 'AA'
 }
 
-const createFarmerFromUser = (user) => ({
-  id: user.id,
-  initials: getUserInitials(user),
-  name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
-  email: user.email,
-  farm: 'Sin finca',
-  hectares: '0 hectáreas',
-  region: user.region || 'No especificada',
-  status: user.is_active ? 'Activo' : 'Inactivo',
-  is_active: user.is_active || false,
-  isUpdating: false,
-  fincas: []
-})
+const createFarmerFromUser = (user) => {
+  // Obtener región desde persona.departamento_info.nombre o persona.municipio.departamento.nombre
+  let region = 'No especificada'
+  if (user.persona?.departamento_info?.nombre) {
+    region = user.persona.departamento_info.nombre
+  } else if (user.persona?.municipio_info?.departamento?.nombre) {
+    region = user.persona.municipio_info.departamento.nombre
+  } else if (user.persona?.municipio?.departamento?.nombre) {
+    region = user.persona.municipio.departamento.nombre
+  } else if (typeof user.region === 'string' && user.region) {
+    // Fallback: si viene como string (nombre), usarlo
+    region = user.region
+  } else if (typeof user.region === 'number') {
+    // Si viene como ID, no podemos resolverlo aquí, dejarlo como "No especificada"
+    region = 'No especificada'
+  }
+  
+  return {
+    id: user.id,
+    initials: getUserInitials(user),
+    name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+    email: user.email,
+    farm: 'Sin finca',
+    hectares: '0 hectáreas',
+    region: region,
+    status: user.is_active ? 'Activo' : 'Inactivo',
+    is_active: user.is_active || false,
+    isUpdating: false,
+    fincas: []
+  }
+}
 
 const isFarmer = (user) => {
   return user.role === 'farmer' || (!user.is_superuser && !user.is_staff && !user.is_admin)
@@ -270,7 +288,14 @@ const updateFarmerWithFinca = (existingFarmer, finca) => {
   if (existingFarmer.fincas.length === 0) {
     existingFarmer.farm = finca.nombre
     existingFarmer.hectares = `${finca.hectareas} hectáreas`
-    existingFarmer.region = finca.departamento || existingFarmer.region
+    // Usar departamento_nombre si está disponible, si no, mantener la región existente
+    if (finca.departamento_nombre) {
+      existingFarmer.region = finca.departamento_nombre
+    } else if (typeof finca.departamento === 'string' && finca.departamento) {
+      // Si departamento viene como string (nombre), usarlo
+      existingFarmer.region = finca.departamento
+    }
+    // Si finca.departamento es un número (ID), no lo usamos, mantenemos la región existente
     existingFarmer.status = finca.activa ? 'Activo' : 'Inactivo'
   }
   existingFarmer.fincas.push(finca)

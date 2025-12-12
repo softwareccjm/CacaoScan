@@ -18,13 +18,13 @@
     </div>
 
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-      <!-- Agricultor (solo para admin) -->
+      <!-- Cacaocultor (solo para admin) -->
       <div v-if="userRole === 'admin'">
         <label for="farmer" class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
           <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
           </svg>
-          Agricultor <span class="text-red-500">*</span>
+          Cacaocultor <span class="text-red-500">*</span>
         </label>
         <div class="relative">
           <select
@@ -39,7 +39,7 @@
               'bg-gray-100 cursor-wait': loadingAgricultores
             }"
           >
-            <option value="">{{ loadingAgricultores ? 'Cargando agricultores...' : 'Selecciona un agricultor' }}</option>
+            <option value="">{{ loadingAgricultores ? 'Cargando cacaocultores...' : 'Selecciona un cacaocultor' }}</option>
             <option v-for="agricultor in agricultores" :key="agricultor.id" :value="agricultor.username">
               {{ agricultor.first_name }} {{ agricultor.last_name }} ({{ agricultor.email }})
             </option>
@@ -50,7 +50,7 @@
             @click="clearFarmerSelection"
             type="button"
             class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600 transition-colors duration-200 p-1 rounded-lg hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
-            title="Deseleccionar agricultor"
+            title="Deseleccionar cacaocultor"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -67,7 +67,7 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
           </svg>
-          No hay agricultores registrados
+          No hay cacaocultores registrados
         </p>
         <p v-if="selectedLoteData" class="mt-1 text-xs text-gray-500 flex items-center gap-1">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +77,7 @@
         </p>
       </div>
 
-      <!-- Finca (se muestra solo si hay agricultor seleccionado para admin, o siempre para agricultor) -->
+      <!-- Finca (se muestra solo si hay cacaocultor seleccionado para admin, o siempre para cacaocultor) -->
       <div v-if="userRole !== 'admin' || formData.farmer">
         <label for="farm" class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
           <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +99,7 @@
               'bg-gray-100 cursor-not-allowed': (userRole === 'admin' && !formData.farmer)
             }"
           >
-            <option value="">{{ loadingFincas ? 'Cargando fincas...' : (userRole === 'admin' && !formData.farmer ? 'Primero selecciona un agricultor' : 'Selecciona una finca') }}</option>
+            <option value="">{{ loadingFincas ? 'Cargando fincas...' : (userRole === 'admin' && !formData.farmer ? 'Primero selecciona un cacaocultor' : 'Selecciona una finca') }}</option>
             <option v-for="finca in fincas" :key="finca.id" :value="finca.nombre">
               {{ finca.nombre }} - {{ finca.ubicacion || 'Sin ubicación' }}
             </option>
@@ -134,7 +134,7 @@
               </div>
               <div class="flex-1">
                 <h3 class="text-sm font-semibold text-amber-800 mb-1">
-                  {{ userRole === 'agricultor' ? 'No tienes fincas registradas' : 'Este agricultor no tiene fincas registradas' }}
+                  {{ userRole === 'agricultor' ? 'No tienes fincas registradas' : 'Este cacaocultor no tiene fincas registradas' }}
                 </h3>
                 <p class="text-xs text-amber-700 mb-3">
                   Necesitas registrar una finca para poder realizar análisis.
@@ -378,31 +378,39 @@ const loadAgricultores = async () => {
 
 const loadAllFincas = async () => {
   try {
+    loadingFincas.value = true
     // Para admin, cargar todas las fincas (activas e inactivas) para poder filtrar después
     // Para otros roles, solo cargar activas
     const params = props.userRole === 'admin' ? { page_size: 1000 } : { activa: true, page_size: 1000 }
     const response = await getFincas(params)
-    // normalizeResponse puede devolver un array directamente o un objeto con results
-    if (Array.isArray(response)) {
+    // getFincas now returns paginated format {results: [...], count: N}
+    if (response && typeof response === 'object' && !Array.isArray(response)) {
+      if (response.results && Array.isArray(response.results)) {
+        allFincas.value = response.results
+      } else {
+        allFincas.value = []
+      }
+    } else if (Array.isArray(response)) {
+      // Fallback: if it's an array (shouldn't happen with new getFincas)
       allFincas.value = response
-    } else if (response && response.results && Array.isArray(response.results)) {
-      allFincas.value = response.results
     } else {
       allFincas.value = []
     }
   } catch (error) {
     console.error('Error cargando fincas:', error)
     allFincas.value = []
+  } finally {
+    loadingFincas.value = false
   }
 }
 
 const validateForm = () => {
   const validationErrors = {}
   
-  // Validar agricultor (solo para admin)
+  // Validar cacaocultor (solo para admin)
   if (props.userRole === 'admin') {
     if (!formData.value.farmer || formData.value.farmer.trim().length === 0) {
-      validationErrors.farmer = 'Debes seleccionar un agricultor'
+      validationErrors.farmer = 'Debes seleccionar un cacaocultor'
     }
   }
   
@@ -541,7 +549,7 @@ const handleFincaCreated = async () => {
   } else if (props.userRole === 'admin' && formData.value.farmer) {
     // Si es admin y hay agricultor seleccionado, actualizar lista de fincas de ese agricultor
     const selectedAgricultor = agricultores.value.find(a => a.username === formData.value.farmer)
-    if (selectedAgricultor) {
+    if (selectedAgricultor && selectedAgricultor.id) {
       const agricultorId = Number(selectedAgricultor.id)
       fincas.value = allFincas.value.filter(finca => Number(finca.agricultor_id) === agricultorId && finca.activa === true)
     }
@@ -605,16 +613,18 @@ const handleFarmerChange = async (skipUpdate = false) => {
       String(a.username).trim().toLowerCase() === farmerUsernameNormalized
     )
     
-    if (selectedAgricultor) {
+    if (selectedAgricultor && selectedAgricultor.id) {
       // Use the exact username from the found agricultor to ensure match
       if (formData.value.farmer !== selectedAgricultor.username) {
         formData.value.farmer = selectedAgricultor.username
       }
       // Filtrar solo fincas activas por agricultor
       // Asegurar que ambos IDs sean números para la comparación
+      const agricultorId = Number(selectedAgricultor.id)
       fincas.value = allFincas.value.filter(finca => {
         const fincaAgricultorId = Number(finca.agricultor_id)
-        return fincaAgricultorId === agricultorId && finca.activa === true
+        const isActive = finca.activa === true || finca.activa === 'true' || finca.activa === 1
+        return fincaAgricultorId === agricultorId && isActive
       })
     } else {
       fincas.value = []
@@ -767,10 +777,15 @@ const handleFincaChange = async (skipUpdate = false) => {
         const selectedAgricultor = agricultores.value.find(a => 
           String(a.username).trim().toLowerCase() === String(formData.value.farmer).trim().toLowerCase()
         )
-        if (selectedAgricultor && selectedFinca.agricultor_id === selectedAgricultor.id) {
+        if (selectedAgricultor && selectedAgricultor.id && selectedFinca.agricultor_id === selectedAgricultor.id) {
           // Asegurar que la finca esté en la lista de fincas
           if (!fincas.value.find(f => f.id === selectedFinca.id)) {
-            fincas.value = allFincas.value.filter(f => f.agricultor_id === selectedAgricultor.id && f.activa === true)
+            const agricultorId = Number(selectedAgricultor.id)
+            fincas.value = allFincas.value.filter(f => {
+              const fincaAgricultorId = Number(f.agricultor_id)
+              const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+              return fincaAgricultorId === agricultorId && isActive
+            })
           }
         }
       }
@@ -959,7 +974,12 @@ const handleLoteChange = async () => {
         if (associatedAgricultor && formData.value.farmer !== associatedAgricultor.username) {
           formData.value.farmer = associatedAgricultor.username
           // Actualizar lista de fincas activas para este agricultor
-          fincas.value = allFincas.value.filter(f => Number(f.agricultor_id) === fincaAgricultorId && f.activa === true)
+          const agricultorId = fincaAgricultorId
+          fincas.value = allFincas.value.filter(f => {
+            const fAgricultorId = Number(f.agricultor_id)
+            const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+            return fAgricultorId === agricultorId && isActive
+          })
         }
       }
     }
@@ -1021,6 +1041,7 @@ watch(() => props.modelValue, async (newValue) => {
   // Check if farmer or farm changed
   const farmerChanged = newValue.farmer && newValue.farmer !== formData.value.farmer
   const farmChanged = newValue.farm && newValue.farm !== formData.value.farm
+  const loteChanged = newValue.lote && newValue.lote !== formData.value.lote
   
   // If farmer changed and is admin, handle farmer change first (before updating formData)
   if (farmerChanged && props.userRole === 'admin') {
@@ -1085,8 +1106,13 @@ watch(() => props.modelValue, async (newValue) => {
       const selectedAgricultor = agricultores.value.find(a => 
         String(a.username).trim().toLowerCase() === String(formData.value.farmer).trim().toLowerCase()
       )
-      if (selectedAgricultor) {
-        fincas.value = allFincas.value.filter(f => f.agricultor_id === selectedAgricultor.id && f.activa === true)
+      if (selectedAgricultor && selectedAgricultor.id) {
+        const agricultorId = Number(selectedAgricultor.id)
+        fincas.value = allFincas.value.filter(f => {
+          const fincaAgricultorId = Number(f.agricultor_id)
+          const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+          return fincaAgricultorId === agricultorId && isActive
+        })
         // Wait for the list to update
         await nextTick()
         await new Promise(resolve => setTimeout(resolve, 200))
@@ -1114,8 +1140,13 @@ watch(() => props.modelValue, async (newValue) => {
         const selectedAgricultor = agricultores.value.find(a => 
           String(a.username).trim().toLowerCase() === String(formData.value.farmer).trim().toLowerCase()
         )
-        if (selectedAgricultor && foundFinca.agricultor_id === selectedAgricultor.id) {
-          fincas.value = allFincas.value.filter(f => f.agricultor_id === selectedAgricultor.id && f.activa === true)
+        if (selectedAgricultor && selectedAgricultor.id && Number(foundFinca.agricultor_id) === Number(selectedAgricultor.id)) {
+          const agricultorId = Number(selectedAgricultor.id)
+          fincas.value = allFincas.value.filter(f => {
+            const fincaAgricultorId = Number(f.agricultor_id)
+            const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+            return fincaAgricultorId === agricultorId && isActive
+          })
           await nextTick()
         }
       }
@@ -1199,8 +1230,13 @@ watch(() => formData.value.farm, async (newFarm, oldFarm) => {
     // If admin and farmer is set, make sure fincas are filtered for that farmer
     if (props.userRole === 'admin' && formData.value.farmer) {
       const selectedAgricultor = agricultores.value.find(a => a.username === formData.value.farmer)
-      if (selectedAgricultor) {
-        fincas.value = allFincas.value.filter(f => f.agricultor_id === selectedAgricultor.id && f.activa === true)
+      if (selectedAgricultor && selectedAgricultor.id) {
+        const agricultorId = Number(selectedAgricultor.id)
+        fincas.value = allFincas.value.filter(f => {
+          const fincaAgricultorId = Number(f.agricultor_id)
+          const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+          return fincaAgricultorId === agricultorId && isActive
+        })
       }
     }
     await handleFincaChange()
@@ -1233,12 +1269,32 @@ onMounted(async () => {
   await loadAllFincas()
   await loadAgricultores()
   
-  if (props.userRole === 'agricultor' && props.userId) {
-    // Para agricultores, mostrar solo sus fincas activas
-    const userIdNum = Number(props.userId)
-    fincas.value = allFincas.value.filter(finca => Number(finca.agricultor_id) === userIdNum && finca.activa === true) || []
+  console.log('[BatchInfoForm] onMounted - allFincas:', allFincas.value.length, 'userRole:', props.userRole, 'userId:', props.userId)
+  
+  if (props.userRole === 'agricultor') {
+    // Para agricultores, mostrar solo sus fincas activas si hay userId
+    if (props.userId) {
+      const userIdNum = Number(props.userId)
+      console.log('[BatchInfoForm] Filtering fincas for agricultor userId:', userIdNum)
+      console.log('[BatchInfoForm] Sample finca:', allFincas.value[0])
+      fincas.value = allFincas.value.filter(finca => {
+        const fincaAgricultorId = Number(finca.agricultor_id)
+        const isActive = finca.activa === true || finca.activa === 'true' || finca.activa === 1
+        const matches = fincaAgricultorId === userIdNum && isActive
+        if (matches) {
+          console.log('[BatchInfoForm] Found matching finca:', finca.nombre, 'agricultor_id:', finca.agricultor_id, 'activa:', finca.activa)
+        }
+        return matches
+      }) || []
+      console.log('[BatchInfoForm] Filtered fincas for agricultor:', fincas.value.length)
+    }
+    
+    // Establecer farmer desde userName si está disponible y no está ya establecido
     if (props.userName && !formData.value.farmer) {
       formData.value.farmer = props.userName
+      // Emit update when setting farmer from userName
+      await nextTick()
+      updateForm()
     }
   } else if (props.userRole === 'admin') {
     // Para admin, no mostrar fincas hasta que seleccione un agricultor
@@ -1247,14 +1303,24 @@ onMounted(async () => {
     // Si ya hay un farmer en el modelValue, cargar sus fincas
     if (props.modelValue?.farmer) {
       const selectedAgricultor = agricultores.value.find(a => a.username === props.modelValue.farmer)
-      if (selectedAgricultor) {
-        fincas.value = allFincas.value.filter(f => f.agricultor_id === selectedAgricultor.id && f.activa === true)
+      if (selectedAgricultor && selectedAgricultor.id) {
+        const agricultorId = Number(selectedAgricultor.id)
+        fincas.value = allFincas.value.filter(f => {
+          const fincaAgricultorId = Number(f.agricultor_id)
+          const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+          return fincaAgricultorId === agricultorId && isActive
+        })
       }
     }
   } else {
     // Solo mostrar fincas activas
-    fincas.value = allFincas.value.filter(finca => finca.activa === true)
+    fincas.value = allFincas.value.filter(finca => {
+      const isActive = finca.activa === true || finca.activa === 'true' || finca.activa === 1
+      return isActive
+    })
   }
+  
+  console.log('[BatchInfoForm] Final fincas count:', fincas.value.length)
   
   // Si hay datos en modelValue, aplicarlos después de cargar las listas
   if (props.modelValue && Object.keys(props.modelValue).length > 0) {
@@ -1315,8 +1381,13 @@ onMounted(async () => {
         const selectedAgricultor = agricultores.value.find(a => 
           String(a.username).trim().toLowerCase() === String(formData.value.farmer).trim().toLowerCase()
         )
-        if (selectedAgricultor) {
-          fincas.value = allFincas.value.filter(f => f.agricultor_id === selectedAgricultor.id && f.activa === true)
+        if (selectedAgricultor && selectedAgricultor.id) {
+          const agricultorId = Number(selectedAgricultor.id)
+          fincas.value = allFincas.value.filter(f => {
+            const fincaAgricultorId = Number(f.agricultor_id)
+            const isActive = f.activa === true || f.activa === 'true' || f.activa === 1
+            return fincaAgricultorId === agricultorId && isActive
+          })
           await nextTick()
         }
       }

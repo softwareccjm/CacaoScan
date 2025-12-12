@@ -117,14 +117,27 @@ export function useLotes(options = {}) {
       
       return data
     } catch (err) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Error al cargar el lote'
-      error.value = errorMessage
+      let errorMessage = 'Error al cargar el lote'
       
-      notificationStore.addNotification({
-        type: 'error',
-        title: 'Error',
-        message: errorMessage
-      })
+      // Check for network/connection errors
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error' || err.message?.includes('CONNECTION_REFUSED')) {
+        errorMessage = 'No se pudo conectar al servidor. Asegúrate de que el backend esté corriendo en http://localhost:8000'
+      } else if (err.response) {
+        if (err.response.status === 500) {
+          errorMessage = err.response.data?.error || err.response.data?.detail || 'Error interno del servidor. Por favor, intenta nuevamente más tarde.'
+        } else if (err.response.data?.detail) {
+          errorMessage = err.response.data.detail
+        } else if (err.response.data?.error) {
+          errorMessage = err.response.data.error
+        } else {
+          errorMessage = `Error ${err.response.status}: ${err.response.statusText}`
+        }
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      error.value = errorMessage
+      showError(errorMessage)
       
       throw err
     } finally {
@@ -172,11 +185,11 @@ export function useLotes(options = {}) {
       
       return result
     } catch (err) {
-      // No mostrar el error aquí, dejar que el componente lo maneje
-      // para poder mostrar mensajes más específicos
-      error.value = err.response?.data?.detail || err.message || 'Error al crear el lote'
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al crear el lote'
+      error.value = errorMessage
       
-      // Re-lanzar el error para que el componente pueda manejarlo
+      showError(errorMessage)
+      
       throw err
     } finally {
       loading.value = false

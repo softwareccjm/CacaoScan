@@ -63,33 +63,10 @@ const catalogosApi = {
    */
   async getDepartamentos() {
     try {
-      const baseUrl = getApiBaseUrlWithPath()
-      const url = `${baseUrl}/departamentos/`
-      console.log('[catalogosApi] getDepartamentos - URL:', url)
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      console.log('[catalogosApi] getDepartamentos - Response status:', response.status)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('[catalogosApi] getDepartamentos - Error response:', errorText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
-      }
-      
-      const data = await response.json()
-      console.log('[catalogosApi] getDepartamentos - Data recibida:', data)
-      
-      const result = Array.isArray(data) ? data : (data.results || data)
-      console.log('[catalogosApi] getDepartamentos - Resultado final:', result?.length || 0, 'departamentos')
-      return result
+      const response = await api.get('/departamentos/', { params: {} })
+      const data = response.data
+      return Array.isArray(data) ? data : (data.results || data)
     } catch (error) {
-      console.error('[catalogosApi] getDepartamentos - Error:', error)
       throw error
     }
   },
@@ -102,7 +79,8 @@ const catalogosApi = {
   async getMunicipiosPorDepartamento(codigoDepartamento) {
     try {
       const response = await api.get('/municipios/', { params: { departamento: codigoDepartamento } })
-      return Array.isArray(response) ? response : (response.results || response)
+      const data = response.data
+      return Array.isArray(data) ? data : (data.results || data)
     } catch (error) {
       throw error
     }
@@ -150,17 +128,8 @@ const catalogosApi = {
    */
   async getMunicipiosByDepartamento(idDepartamento) {
     try {
-      const baseUrl = getApiBaseUrlWithPath()
-      const response = await fetch(`${baseUrl}/municipios/?departamento=${idDepartamento}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      const data = await response.json()
+      const response = await api.get('/municipios/', { params: { departamento: idDepartamento } })
+      const data = response.data
       return Array.isArray(data) ? data : (data.results || data)
     } catch (error) {
       throw error

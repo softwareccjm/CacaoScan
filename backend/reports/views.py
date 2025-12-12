@@ -66,12 +66,10 @@ def apply_image_filters(queryset, request_data, filters_dict):
         queryset = queryset.filter(created_at__date__lte=request_data['date_to'])
         filters_dict[FILTER_DATE_TO] = request_data['date_to']
     
-    if 'region' in request_data and request_data['region']:
-        queryset = queryset.filter(region__icontains=request_data['region'])
-        filters_dict[FILTER_REGION] = request_data['region']
+    # Note: region filter removed - field doesn't exist in CacaoImage model
     
     if 'finca' in request_data and request_data['finca']:
-        queryset = queryset.filter(finca__nombre__icontains=request_data['finca'])
+        queryset = queryset.filter(lote__finca__nombre__icontains=request_data['finca'])
         filters_dict['Finca'] = request_data['finca']
     
     return queryset
@@ -94,11 +92,10 @@ def apply_query_filters(queryset, request_get):
     if 'date_to' in request_get:
         queryset = queryset.filter(created_at__date__lte=request_get['date_to'])
     
-    if 'region' in request_get:
-        queryset = queryset.filter(region__icontains=request_get['region'])
+    # Note: region filter removed - field doesn't exist in CacaoImage model
     
     if 'finca' in request_get:
-        queryset = queryset.filter(finca__nombre__icontains=request_get['finca'])
+        queryset = queryset.filter(lote__finca__nombre__icontains=request_get['finca'])
     
     return queryset
 
@@ -400,19 +397,15 @@ class ReportStatsView(APIView):
                 max_confidence=Avg('prediction__average_confidence')
             )
             
-            # Estadísticas por región
-            # Mock average_confidence since the field lookup causes BigAutoField error
-            region_stats = images_queryset.values('region').annotate(
-                count=Count('id'),
-                average_confidence=Value(0.0, output_field=FloatField())
-            ).exclude(region__isnull=True).exclude(region='').order_by('-count')[:5]
+            # Estadísticas por región - removed (field doesn't exist in CacaoImage model)
+            region_stats = []
             
             # Estadísticas por finca
             # Mock average_confidence since the field lookup causes BigAutoField error
-            finca_stats = images_queryset.values('finca__nombre').annotate(
+            finca_stats = images_queryset.values('lote__finca__nombre').annotate(
                 count=Count('id'),
                 average_confidence=Value(0.0, output_field=FloatField())
-            ).exclude(finca__isnull=True).order_by('-count')[:5]
+            ).exclude(lote__finca__isnull=True).order_by('-count')[:5]
             
             stats = {
                 'total_images': total_images,
@@ -424,7 +417,7 @@ class ReportStatsView(APIView):
                     'maximum': round(float(confidence_stats['max_confidence'] or 0), 3)
                 },
                 'top_regions': list(region_stats),
-                'top_fincas': [{'finca': stat.get('finca__nombre', 'N/A'), 'count': stat['count']} for stat in finca_stats],
+                'top_fincas': [{'finca': stat.get('lote__finca__nombre', 'N/A'), 'count': stat['count']} for stat in finca_stats],
                 'filters_applied': {
                     'date_from': request_get.get('date_from'),
                     'date_to': request_get.get('date_to'),

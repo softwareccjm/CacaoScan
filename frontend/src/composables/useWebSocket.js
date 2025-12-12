@@ -126,7 +126,8 @@ export function useWebSocket() {
       if (eventName) {
         emit(eventName, data.data)
       } else {
-        }
+        console.log(`[${logContext}] Unhandled message type:`, data.type, data)
+      }
     }
   }
   

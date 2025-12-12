@@ -153,6 +153,25 @@ class ReporteGenerado(models.Model):
         self.archivo = archivo
         self.tiempo_generacion = tiempo_generacion
         self.fecha_generacion = timezone.now()
+        
+        # Set nombre_archivo if not already set
+        if not self.nombre_archivo and hasattr(archivo, 'name'):
+            self.nombre_archivo = archivo.name
+        
+        # Set tamano_archivo if available
+        if hasattr(archivo, 'size'):
+            self.tamano_archivo = archivo.size
+        elif hasattr(archivo, 'read'):
+            # For ContentFile, read to get size
+            try:
+                current_pos = archivo.tell()
+                archivo.seek(0, 2)  # Seek to end
+                size = archivo.tell()
+                archivo.seek(current_pos)  # Restore position
+                self.tamano_archivo = size
+            except Exception:
+                pass
+        
         self.save()
     
     def marcar_fallido(self, mensaje_error):

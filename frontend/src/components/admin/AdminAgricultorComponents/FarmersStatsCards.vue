@@ -4,7 +4,7 @@
     <div class="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-sm transition-shadow">
       <div class="flex items-start justify-between">
         <div class="flex-1">
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Agricultores</p>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Cacaocultores</p>
           <p class="text-3xl font-bold text-gray-900">{{ totalItems }}</p>
         </div>
         <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">

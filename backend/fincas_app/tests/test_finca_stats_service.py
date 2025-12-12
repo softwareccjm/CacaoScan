@@ -42,14 +42,13 @@ def admin_user(db):
 
 
 @pytest.fixture
-def finca(user):
+def finca(user, municipio):
     """Create test finca."""
     from fincas_app.models import Finca
     return Finca.objects.create(
         nombre='Test Finca',
         ubicacion='Test Location',
-        municipio='Test Municipio',
-        departamento='Test Departamento',
+        municipio=municipio,
         hectareas=Decimal('10.5'),
         agricultor=user,
         activa=True
@@ -108,7 +107,7 @@ class TestFincaStatsService:
         assert result.data['total_fincas'] == 0
         assert result.data['total_hectareas'] == Decimal('0')
     
-    def test_get_finca_statistics_hectareas_distribution(self, service, user):
+    def test_get_finca_statistics_hectareas_distribution(self, service, user, municipio):
         """Test get_finca_statistics hectareas distribution."""
         from fincas_app.models import Finca
         
@@ -116,8 +115,7 @@ class TestFincaStatsService:
         Finca.objects.create(
             nombre='Small Finca',
             ubicacion='Test',
-            municipio='Test',
-            departamento='Test',
+            municipio=municipio,
             hectareas=Decimal('3.0'),
             agricultor=user,
             activa=True
@@ -125,8 +123,7 @@ class TestFincaStatsService:
         Finca.objects.create(
             nombre='Medium Finca',
             ubicacion='Test',
-            municipio='Test',
-            departamento='Test',
+            municipio=municipio,
             hectareas=Decimal('10.0'),
             agricultor=user,
             activa=True
@@ -134,8 +131,7 @@ class TestFincaStatsService:
         Finca.objects.create(
             nombre='Large Finca',
             ubicacion='Test',
-            municipio='Test',
-            departamento='Test',
+            municipio=municipio,
             hectareas=Decimal('25.0'),
             agricultor=user,
             activa=True

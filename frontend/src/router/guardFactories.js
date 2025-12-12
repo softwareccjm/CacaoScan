@@ -125,8 +125,6 @@ export const createRoleGuard = (allowedRoles, options = {}) => {
     const hasRequiredRole = allowedRoles.includes(userRole)
 
     if (!hasRequiredRole) {
-      }`)
-      
       const errorPath = getErrorPathByRole(userRole)
       next({
         path: errorPath,

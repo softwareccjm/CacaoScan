@@ -2,47 +2,52 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import AdminConfiguracion from '../../Admin/AdminConfiguracion.vue'
-import configApi from '@/services/configApi'
+import { useConfigStore } from '@/stores/config'
 
-// Create mock configApi methods
-const mockGetSystemConfig = vi.fn().mockResolvedValue({
-  version: '1.0.0',
-  server_status: 'online',
-  backend_version: '4.2.7',
-  frontend_version: '3.5.3',
-  database: 'PostgreSQL 16'
-})
+// Mock configApi - create mocks inside factory to avoid hoisting issues
+vi.mock('@/services/configApi', () => {
+  const mockGetSystemConfig = vi.fn().mockResolvedValue({
+    version: '1.0.0',
+    server_status: 'online',
+    backend_version: '4.2.7',
+    frontend_version: '3.5.3',
+    database: 'PostgreSQL 16'
+  })
 
-const mockGetGeneralConfig = vi.fn().mockResolvedValue({
-  nombre_sistema: 'CacaoScan',
-  email_contacto: 'contacto@cacaoscan.com',
-  lema: 'La mejor plataforma para el control de calidad del cacao',
-  logo_url: null
-})
+  const mockGetGeneralConfig = vi.fn().mockResolvedValue({
+    nombre_sistema: 'CacaoScan',
+    email_contacto: 'contacto@cacaoscan.com',
+    lema: 'La mejor plataforma para el control de calidad del cacao',
+    logo_url: null
+  })
 
-const mockGetSecurityConfig = vi.fn().mockResolvedValue({
-  recaptcha_enabled: true,
-  session_timeout: 60,
-  login_attempts: 5,
-  two_factor_auth: false
-})
+  const mockGetSecurityConfig = vi.fn().mockResolvedValue({
+    recaptcha_enabled: true,
+    session_timeout: 60,
+    login_attempts: 5,
+    two_factor_auth: false
+  })
 
-const mockGetMLConfig = vi.fn().mockResolvedValue({
-  active_model: 'yolov8',
-  last_training: null
-})
+  const mockGetMLConfig = vi.fn().mockResolvedValue({
+    active_model: 'yolov8',
+    last_training: null
+  })
 
-vi.mock('@/services/configApi', () => ({
-  default: {
-    getSystemConfig: mockGetSystemConfig,
-    getGeneralConfig: mockGetGeneralConfig,
-    getSecurityConfig: mockGetSecurityConfig,
-    getMLConfig: mockGetMLConfig,
-    saveGeneralConfig: vi.fn().mockResolvedValue({}),
-    saveSecurityConfig: vi.fn().mockResolvedValue({}),
-    saveMLConfig: vi.fn().mockResolvedValue({})
+  return {
+    default: {
+      getSystemConfig: mockGetSystemConfig,
+      getGeneralConfig: mockGetGeneralConfig,
+      getSecurityConfig: mockGetSecurityConfig,
+      getMLConfig: mockGetMLConfig,
+      saveGeneralConfig: vi.fn().mockResolvedValue({}),
+      saveSecurityConfig: vi.fn().mockResolvedValue({}),
+      saveMLConfig: vi.fn().mockResolvedValue({})
+    }
   }
-}))
+})
+
+// Import configApi after mock to get the mocked version
+import configApi from '@/services/configApi'
 
 // Mock auth store
 const mockAuthStore = {
@@ -51,58 +56,13 @@ const mockAuthStore = {
   isAdmin: true,
   isAnalyst: false,
   isAuthenticated: true,
+  accessToken: 'mock-access-token',
+  refreshToken: 'mock-refresh-token',
   logout: vi.fn()
 }
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => mockAuthStore
-}))
-
-// Mock config store
-const mockConfigStore = {
-  brandName: 'CacaoScan',
-  general: {
-    nombre_sistema: 'CacaoScan',
-    email_contacto: 'contacto@cacaoscan.com',
-    lema: 'La mejor plataforma para el control de calidad del cacao',
-    logo_url: null
-  },
-  security: {
-    recaptcha_enabled: true,
-    session_timeout: 60,
-    login_attempts: 5,
-    two_factor_auth: false
-  },
-  ml: {
-    active_model: 'yolov8',
-    last_training: null
-  },
-  system: {
-    version: '1.0.0',
-    server_status: 'online',
-    backend_version: '4.2.7',
-    frontend_version: '3.5.3',
-    database: 'PostgreSQL 16'
-  },
-  loadAll: vi.fn(async () => {
-    // Call the mocked configApi methods
-    await Promise.all([
-      mockGetSystemConfig(),
-      mockGetGeneralConfig(),
-      mockGetSecurityConfig(),
-      mockGetMLConfig()
-    ])
-    return { success: true, loaded: true }
-  }),
-  saveGeneral: vi.fn().mockResolvedValue({}),
-  saveSecurity: vi.fn().mockResolvedValue({}),
-  saveML: vi.fn().mockResolvedValue({}),
-  updateGeneral: vi.fn(),
-  updateSecurity: vi.fn()
-}
-
-vi.mock('@/stores/config', () => ({
-  useConfigStore: () => mockConfigStore
 }))
 
 // Mock vue-router
@@ -129,9 +89,11 @@ vi.mock('sweetalert2', () => ({
 
 describe('AdminConfiguracion', () => {
   let wrapper
+  let configStore
 
   beforeEach(() => {
     setActivePinia(createPinia())
+    configStore = useConfigStore()
     vi.clearAllMocks()
   })
 
@@ -161,18 +123,23 @@ describe('AdminConfiguracion', () => {
     await wrapper.vm.$nextTick()
     await flushPromises()
     await wrapper.vm.$nextTick()
+    await flushPromises()
 
-    // Verify that loadAll was called
-    expect(mockConfigStore.loadAll).toHaveBeenCalled()
-    
     // Verify that the config API methods were called
-    expect(mockGetSystemConfig).toHaveBeenCalled()
-    expect(mockGetGeneralConfig).toHaveBeenCalled()
-    expect(mockGetSecurityConfig).toHaveBeenCalled()
-    expect(mockGetMLConfig).toHaveBeenCalled()
+    expect(configApi.getSystemConfig).toHaveBeenCalled()
+    expect(configApi.getGeneralConfig).toHaveBeenCalled()
+    expect(configApi.getSecurityConfig).toHaveBeenCalled()
+    expect(configApi.getMLConfig).toHaveBeenCalled()
   })
 
   it('should save configuration', async () => {
+    const mockSaveGeneralConfig = vi.spyOn(configApi, 'saveGeneralConfig').mockResolvedValue({
+      nombre_sistema: 'New System Name',
+      email_contacto: 'contacto@cacaoscan.com',
+      lema: 'La mejor plataforma para el control de calidad del cacao',
+      logo_url: null
+    })
+
     wrapper = mount(AdminConfiguracion, {
       global: {
         stubs: { 'router-link': true, 'router-view': true }
@@ -190,13 +157,13 @@ describe('AdminConfiguracion', () => {
       await wrapper.vm.$nextTick()
       await flushPromises()
 
-      expect(mockConfigStore.saveGeneral).toHaveBeenCalled()
+      expect(mockSaveGeneralConfig).toHaveBeenCalled()
     }
   })
 
   it('should handle save error', async () => {
     const error = new Error('Save failed')
-    mockConfigStore.saveGeneral.mockRejectedValueOnce(error)
+    const mockSaveGeneralConfig = vi.spyOn(configApi, 'saveGeneralConfig').mockRejectedValueOnce(error)
 
     wrapper = mount(AdminConfiguracion, {
       global: {
@@ -213,7 +180,7 @@ describe('AdminConfiguracion', () => {
       await flushPromises()
 
       // Error should be handled by Swal.fire
-      expect(mockConfigStore.saveGeneral).toHaveBeenCalled()
+      expect(mockSaveGeneralConfig).toHaveBeenCalled()
     }
   })
 

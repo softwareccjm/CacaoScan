@@ -335,10 +335,15 @@ class Lote(TimeStampedModel):
     @property
     def edad_meses(self):
         """Calcular edad del lote en meses."""
-        from datetime import date
-        today = date.today()
-        delta = today - self.fecha_plantacion
-        return delta.days // 30
+        try:
+            if not self.fecha_plantacion:
+                return 0
+            from datetime import date
+            today = date.today()
+            delta = today - self.fecha_plantacion
+            return max(0, delta.days // 30)
+        except (ValueError, TypeError, AttributeError):
+            return 0
     
     @property
     def ubicacion_completa(self):
@@ -351,18 +356,38 @@ class Lote(TimeStampedModel):
     
     def get_estadisticas(self):
         """Obtener estadísticas completas del lote."""
-        return {
-            'total_analisis': self.total_analisis,
-            'analisis_procesados': self.analisis_procesados,
-            'calidad_promedio': self.calidad_promedio,
-            'peso_kg': float(self.peso_kg) if self.peso_kg else 0.0,
-            'edad_meses': self.edad_meses,
-            'estado': self.estado.nombre if self.estado else None,
-            'activo': self.activo,
-            'fecha_plantacion': self.fecha_plantacion.strftime(DATE_FORMAT_DMY) if self.fecha_plantacion else None,
-            'fecha_cosecha': self.fecha_cosecha.strftime(DATE_FORMAT_DMY) if self.fecha_cosecha else None,
-            'fecha_recepcion': self.fecha_recepcion.strftime(DATE_FORMAT_DMY) if self.fecha_recepcion else None,
-            'fecha_procesamiento': self.fecha_procesamiento.strftime(DATE_FORMAT_DMY) if self.fecha_procesamiento else None,
-        }
+        try:
+            return {
+                'total_analisis': self.total_analisis,
+                'analisis_procesados': self.analisis_procesados,
+                'calidad_promedio': self.calidad_promedio,
+                'peso_kg': float(self.peso_kg) if self.peso_kg else 0.0,
+                'edad_meses': self.edad_meses,
+                'estado': self.estado.nombre if self.estado else None,
+                'activo': self.activo,
+                'fecha_plantacion': self.fecha_plantacion.strftime(DATE_FORMAT_DMY) if self.fecha_plantacion else None,
+                'fecha_cosecha': self.fecha_cosecha.strftime(DATE_FORMAT_DMY) if self.fecha_cosecha else None,
+                'fecha_recepcion': self.fecha_recepcion.strftime(DATE_FORMAT_DMY) if self.fecha_recepcion else None,
+                'fecha_procesamiento': self.fecha_procesamiento.strftime(DATE_FORMAT_DMY) if self.fecha_procesamiento else None,
+            }
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger("cacaoscan.models")
+            logger.error(f"Error obteniendo estadísticas de lote {self.id}: {e}", exc_info=True)
+            # Return safe default statistics
+            return {
+                'total_analisis': 0,
+                'analisis_procesados': 0,
+                'calidad_promedio': 0.0,
+                'peso_kg': float(self.peso_kg) if self.peso_kg else 0.0,
+                'edad_meses': 0,
+                'estado': None,
+                'activo': getattr(self, 'activo', True),
+                'fecha_plantacion': None,
+                'fecha_cosecha': None,
+                'fecha_recepcion': None,
+                'fecha_procesamiento': None,
+            }
 
 

@@ -11,11 +11,37 @@ import api from './api' // Mantener para getAgricultores y getFincasByAgricultor
 /**
  * Obtener lista de fincas del usuario autenticado
  * @param {Object} params - Parámetros de filtrado y paginación
- * @returns {Promise<Object>} - Lista de fincas con metadatos
+ * @returns {Promise<Object>} - Lista de fincas con metadatos (formato paginado: {results: [...], count: N})
  */
 export async function getFincas(params = {}) {
   const data = await apiGet('/fincas/', params)
-  return normalizeResponse(data)
+  // Return paginated response as-is, don't normalize to array
+  // The composable expects {results: [...], count: N} format
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data
+  }
+  // If it's an array (shouldn't happen with pagination), wrap it
+  if (Array.isArray(data)) {
+    return {
+      results: data,
+      count: data.length,
+      page: 1,
+      page_size: data.length,
+      total_pages: 1,
+      next: null,
+      previous: null
+    }
+  }
+  // Fallback for empty/null responses
+  return {
+    results: [],
+    count: 0,
+    page: 1,
+    page_size: 20,
+    total_pages: 0,
+    next: null,
+    previous: null
+  }
 }
 
 /**

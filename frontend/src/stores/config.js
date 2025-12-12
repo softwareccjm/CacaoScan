@@ -204,6 +204,12 @@ export const useConfigStore = defineStore('config', {
           if (result.reason?.response?.status === 403 || result.reason?.response?.status === 500) {
             hasError403Or500 = true
           }
+          // Check for network errors
+          if (result.reason?.code === 'ERR_NETWORK' || result.reason?.message === 'Network Error') {
+            console.warn('Backend no disponible. Asegúrate de que el servidor esté corriendo en http://localhost:8000')
+            // Don't show error for network issues during config load - it's expected if backend is down
+            return null
+          }
           // Log unexpected errors (not 401/403)
           if (result.reason?.response?.status !== 401 && result.reason?.response?.status !== 403) {
             console.error('Unexpected error loading config:', result.reason)

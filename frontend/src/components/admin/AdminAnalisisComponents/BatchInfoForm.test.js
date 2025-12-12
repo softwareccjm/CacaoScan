@@ -359,6 +359,9 @@ describe('BatchInfoForm', () => {
     mockGetFincas.mockResolvedValue({
       results: []
     })
+    mockGetUsers.mockResolvedValue({
+      results: []
+    })
 
     wrapper = mount(BatchInfoForm, {
       props: {
@@ -374,10 +377,16 @@ describe('BatchInfoForm', () => {
       }
     })
 
+    // Wait for component to mount and initialize
     await wrapper.vm.$nextTick()
-    await new Promise(resolve => setTimeout(resolve, 200))
+    // Wait for async operations (loadAllFincas, loadAgricultores, and updateForm)
+    await new Promise(resolve => setTimeout(resolve, 500))
 
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
+    // Verify that the farmer was set correctly
+    const emittedEvents = wrapper.emitted('update:modelValue')
+    expect(emittedEvents).toBeTruthy()
+    expect(emittedEvents[0][0].farmer).toBe('farmer1')
   })
 })
 

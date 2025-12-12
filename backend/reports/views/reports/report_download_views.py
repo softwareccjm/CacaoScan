@@ -58,11 +58,12 @@ class ReporteDownloadView(APIView):
         try:
             reporte = ReporteGenerado.objects.get(id=reporte_id, usuario=request.user)
             
-            # Verify state
-            if reporte.estado != 'completado':
+            # Verify state (estado is a ForeignKey to Parametro)
+            estado_codigo = reporte.estado.codigo if hasattr(reporte.estado, 'codigo') else None
+            if estado_codigo != 'COMPLETADO':
                 return Response({
                     'error': 'El reporte aún no está listo para descarga',
-                    'details': 'El reporte aún no está listo para descarga'
+                    'details': f'El reporte está en estado: {estado_codigo or "desconocido"}'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Verify if expired
@@ -79,22 +80,40 @@ class ReporteDownloadView(APIView):
                     'details': 'El archivo del reporte no está disponible'
                 }, status=status.HTTP_404_NOT_FOUND)
             
+            # Get filename and format extension
+            formato_codigo = reporte.formato.codigo if hasattr(reporte.formato, 'codigo') else 'PDF'
+            if reporte.nombre_archivo:
+                filename = reporte.nombre_archivo
+            else:
+                # Generate filename with correct extension
+                extension_map = {
+                    'PDF': 'pdf',
+                    'EXCEL': 'xlsx',
+                    'CSV': 'csv',
+                    'JSON': 'json'
+                }
+                extension = extension_map.get(formato_codigo, 'pdf')
+                filename = f"{reporte.titulo}.{extension}"
+            
             # Prepare download response
             response = FileResponse(
                 reporte.archivo,
                 as_attachment=True,
-                filename=reporte.nombre_archivo or f"{reporte.titulo}.{reporte.formato}"
+                filename=filename
             )
             
             # Configure headers according to format
-            if reporte.formato == 'pdf':
+            if formato_codigo == 'PDF':
                 response['Content-Type'] = 'application/pdf'
-            elif reporte.formato == 'excel':
+            elif formato_codigo == 'EXCEL':
                 response['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            elif reporte.formato == 'csv':
+            elif formato_codigo == 'CSV':
                 response['Content-Type'] = 'text/csv'
-            elif reporte.formato == 'json':
+            elif formato_codigo == 'JSON':
                 response['Content-Type'] = CONTENT_TYPE_JSON
+            
+            # Ensure Content-Disposition header is set correctly
+            response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(filename)}"'
             
             logger.info(f"Reporte {reporte_id} descargado por usuario {request.user.username}")
             

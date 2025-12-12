@@ -100,11 +100,14 @@ class TestCleanOrphanedLotesCommand:
             email=f'test_{unique_id}@example.com',
             password='testpass'
         )
+        from catalogos.models import Municipio, Departamento
+        departamento = Departamento.objects.create(codigo='TEST', nombre='Test Departamento')
+        municipio = Municipio.objects.create(departamento=departamento, codigo='TEST', nombre='Test Municipio')
+        
         test_finca = Finca.objects.create(
             nombre='Test Finca',
             ubicacion='Test Location',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=10.0,
             agricultor=test_user
         )
@@ -114,8 +117,7 @@ class TestCleanOrphanedLotesCommand:
         orphan_finca = Finca.objects.create(
             nombre='Orphan Finca',
             ubicacion='Test Location',
-            municipio='Test Municipio',
-            departamento='Test Departamento',
+            municipio=municipio,
             hectareas=5.0,
             agricultor=test_user
         )

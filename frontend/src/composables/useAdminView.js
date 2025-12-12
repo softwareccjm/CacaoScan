@@ -93,7 +93,8 @@ export function useAdminView(options) {
       await authStore.logout()
       router.push('/login')
     } catch (error) {
-      }
+      console.error('Error during logout:', error)
+    }
   }
 
   const handleRefresh = async () => {
@@ -156,7 +157,8 @@ export function useAdminView(options) {
         await loadData({ ...filters.value, page })
       }
     } catch (error) {
-      }
+      console.error('Error during page change:', error)
+    }
   }
 
   return {

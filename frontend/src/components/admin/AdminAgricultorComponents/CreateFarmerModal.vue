@@ -1,8 +1,8 @@
 <template>
   <BaseModal
     :show="isOpen"
-    title="Crear Nuevo Agricultor"
-    subtitle="Complete el formulario para registrar un nuevo agricultor"
+    title="Crear Nuevo Cacaocultor"
+    subtitle="Complete el formulario para registrar un nuevo cacaocultor"
     max-width="2xl"
     @close="closeModal"
     @update:show="(value) => { if (!value) closeModal() }"
@@ -16,8 +16,8 @@
           </svg>
         </div>
         <div>
-          <h3 class="text-xl font-bold text-gray-900">Crear Nuevo Agricultor</h3>
-          <p class="text-sm text-gray-600 mt-1">Complete el formulario para registrar un nuevo agricultor</p>
+          <h3 class="text-xl font-bold text-gray-900">Crear Nuevo Cacaocultor</h3>
+          <p class="text-sm text-gray-600 mt-1">Complete el formulario para registrar un nuevo cacaocultor</p>
         </div>
       </div>
     </template>
@@ -301,7 +301,7 @@
           :disabled="isSubmitting || !isFormValid"
           class="px-6 py-3 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center"
         >
-          <span v-if="!isSubmitting">Crear Agricultor</span>
+          <span v-if="!isSubmitting">Crear Cacaocultor</span>
           <span v-else class="flex items-center">
             <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg"
               fill="none" viewBox="0 0 24 24">
@@ -593,7 +593,7 @@ const extractErrorMessage = (data) => {
   if (Object.keys(errors).length > 0) {
     return errors[Object.keys(errors)[0]]
   }
-  return 'Error al crear el agricultor'
+  return 'Error al crear el cacaocultor'
 }
 
 const handleSubmit = async () => {
@@ -607,7 +607,7 @@ const handleSubmit = async () => {
     const farmerData = buildFarmerData()
     const response = await authApi.register(farmerData)
 
-    showSuccess('El agricultor ha sido registrado exitosamente')
+    showSuccess('El cacaocultor ha sido registrado exitosamente')
 
     emit('farmer-created', response)
     resetForm()
@@ -627,7 +627,7 @@ const handleSubmit = async () => {
       const errorMessage = extractErrorMessage(data)
       showError(errorMessage.replaceAll('\n', ' '))
     } else {
-      showError(error.message || 'Error al crear el agricultor')
+      showError(error.message || 'Error al crear el cacaocultor')
     }
   } finally {
     isSubmitting.value = false

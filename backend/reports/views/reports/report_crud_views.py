@@ -61,16 +61,26 @@ class ReporteListCreateView(PaginationMixin, APIView):
         """Serialize report objects to dict."""
         reportes_data = []
         for reporte in reportes:
+            # Get codes and names from Parametro ForeignKeys
+            tipo_reporte_codigo = reporte.tipo_reporte.codigo if hasattr(reporte.tipo_reporte, 'codigo') else None
+            tipo_reporte_nombre = reporte.tipo_reporte.nombre if hasattr(reporte.tipo_reporte, 'nombre') else str(reporte.tipo_reporte)
+            
+            formato_codigo = reporte.formato.codigo if hasattr(reporte.formato, 'codigo') else None
+            formato_nombre = reporte.formato.nombre if hasattr(reporte.formato, 'nombre') else str(reporte.formato)
+            
+            estado_codigo = reporte.estado.codigo if hasattr(reporte.estado, 'codigo') else None
+            estado_nombre = reporte.estado.nombre if hasattr(reporte.estado, 'nombre') else str(reporte.estado)
+            
             reportes_data.append({
                 'id': reporte.id,
-                'tipo_reporte': reporte.tipo_reporte,
-                'tipo_reporte_display': reporte.get_tipo_reporte_display(),
-                'formato': reporte.formato,
-                'formato_display': reporte.get_formato_display(),
+                'tipo_reporte': tipo_reporte_codigo,
+                'tipo_reporte_display': tipo_reporte_nombre,
+                'formato': formato_codigo,
+                'formato_display': formato_nombre,
                 'titulo': reporte.titulo,
                 'descripcion': reporte.descripcion,
-                'estado': reporte.estado,
-                'estado_display': reporte.get_estado_display(),
+                'estado': estado_codigo,
+                'estado_display': estado_nombre,
                 'fecha_solicitud': reporte.fecha_solicitud.isoformat(),
                 'fecha_generacion': reporte.fecha_generacion.isoformat() if reporte.fecha_generacion else None,
                 'fecha_expiracion': reporte.fecha_expiracion.isoformat() if reporte.fecha_expiracion else None,
@@ -84,16 +94,40 @@ class ReporteListCreateView(PaginationMixin, APIView):
     
     @staticmethod
     def _validate_report_type_and_format(tipo_reporte, formato):
-        """Validate report type and format."""
-        valid_types = [choice[0] for choice in ReporteGenerado.TIPO_REPORTE_CHOICES]
-        if tipo_reporte not in valid_types:
+        """Validate report type and format using Parametro catalog."""
+        from catalogos.models import Parametro
+        
+        # Validate tipo_reporte
+        try:
+            tipo_parametro = Parametro.objects.get(
+                tema__codigo='TEMA_TIPO_REPORTE',
+                codigo=tipo_reporte.upper(),
+                activo=True
+            )
+        except Parametro.DoesNotExist:
+            # Get valid types for error message
+            valid_types = list(Parametro.objects.filter(
+                tema__codigo='TEMA_TIPO_REPORTE',
+                activo=True
+            ).values_list('codigo', flat=True))
             return Response({
                 'error': f'Tipo de reporte inválido. Opciones válidas: {", ".join(valid_types)}',
                 'details': f'Tipo de reporte inválido. Opciones válidas: {", ".join(valid_types)}'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        valid_formats = [choice[0] for choice in ReporteGenerado.FORMATO_CHOICES]
-        if formato not in valid_formats:
+        # Validate formato
+        try:
+            formato_parametro = Parametro.objects.get(
+                tema__codigo='TEMA_FORMATO_REPORTE',
+                codigo=formato.upper(),
+                activo=True
+            )
+        except Parametro.DoesNotExist:
+            # Get valid formats for error message
+            valid_formats = list(Parametro.objects.filter(
+                tema__codigo='TEMA_FORMATO_REPORTE',
+                activo=True
+            ).values_list('codigo', flat=True))
             return Response({
                 'error': f'Formato inválido. Opciones válidas: {", ".join(valid_formats)}',
                 'details': f'Formato inválido. Opciones válidas: {", ".join(valid_formats)}'
@@ -122,18 +156,41 @@ class ReporteListCreateView(PaginationMixin, APIView):
         try:
             queryset = ReporteGenerado.objects.filter(usuario=request.user)
             
-            # Apply filters
+            # Apply filters (using Parametro ForeignKeys)
+            from catalogos.models import Parametro
+            
             tipo_reporte = request.GET.get('tipo_reporte', '').strip()
             if tipo_reporte:
-                queryset = queryset.filter(tipo_reporte=tipo_reporte)
+                try:
+                    tipo_parametro = Parametro.objects.get(
+                        tema__codigo='TEMA_TIPO_REPORTE',
+                        codigo=tipo_reporte.upper()
+                    )
+                    queryset = queryset.filter(tipo_reporte=tipo_parametro)
+                except Parametro.DoesNotExist:
+                    pass  # Ignore invalid filter
             
             formato = request.GET.get('formato', '').strip()
             if formato:
-                queryset = queryset.filter(formato=formato)
+                try:
+                    formato_parametro = Parametro.objects.get(
+                        tema__codigo='TEMA_FORMATO_REPORTE',
+                        codigo=formato.upper()
+                    )
+                    queryset = queryset.filter(formato=formato_parametro)
+                except Parametro.DoesNotExist:
+                    pass  # Ignore invalid filter
             
             estado = request.GET.get('estado', '').strip()
             if estado:
-                queryset = queryset.filter(estado=estado)
+                try:
+                    estado_parametro = Parametro.objects.get(
+                        tema__codigo='TEMA_ESTADO_REPORTE',
+                        codigo=estado.upper()
+                    )
+                    queryset = queryset.filter(estado=estado_parametro)
+                except Parametro.DoesNotExist:
+                    pass  # Ignore invalid filter
             
             # Use shared serialization function
             return self.paginate_queryset(
@@ -211,10 +268,10 @@ class ReporteListCreateView(PaginationMixin, APIView):
                 'success': True,
                 'reporte': {
                     'id': reporte.id,
-                    'tipo_reporte': reporte.tipo_reporte,
-                    'formato': reporte.formato,
+                    'tipo_reporte': reporte.tipo_reporte.codigo if hasattr(reporte.tipo_reporte, 'codigo') else str(reporte.tipo_reporte),
+                    'formato': reporte.formato.codigo if hasattr(reporte.formato, 'codigo') else str(reporte.formato),
                     'titulo': reporte.titulo,
-                    'estado': reporte.estado,
+                    'estado': reporte.estado.codigo if hasattr(reporte.estado, 'codigo') else str(reporte.estado),
                     'fecha_solicitud': reporte.fecha_solicitud.isoformat(),
                 },
                 'message': 'Reporte creado exitosamente. Se generará en segundo plano.'
@@ -233,37 +290,50 @@ class ReporteListCreateView(PaginationMixin, APIView):
             start_time = timezone.now()
             user = reporte.usuario
             
+            # Get format and type codes from Parametro ForeignKeys
+            formato_codigo = reporte.formato.codigo if hasattr(reporte.formato, 'codigo') else None
+            tipo_reporte_codigo = reporte.tipo_reporte.codigo if hasattr(reporte.tipo_reporte, 'codigo') else None
+            
             # Generate according to type and format
-            if reporte.formato == 'pdf':
-                from reports.services import CacaoReportPDFGenerator
-                CacaoReportPDFGenerator()
+            if formato_codigo == 'PDF':
+                from reports.services.report.pdf_generator import CacaoReportPDFGenerator
+                pdf_generator = CacaoReportPDFGenerator()
+                # TODO: Implement PDF generation based on tipo_reporte_codigo
                 raise ValueError("Generación de PDF no implementada aún")
-            elif reporte.formato == 'excel':
+            elif formato_codigo == 'EXCEL':
                 excel_service = ExcelAnalisisGenerator()
                 # Generate content according to type
-                if reporte.tipo_reporte == 'calidad':
+                if tipo_reporte_codigo == 'CALIDAD':
                     content = excel_service.generate_quality_report(user, reporte.filtros_aplicados)
-                elif reporte.tipo_reporte == 'finca':
+                elif tipo_reporte_codigo == 'FINCA':
                     finca_id = reporte.parametros.get('finca_id')
                     if not finca_id:
                         raise ValueError("finca_id es requerido para reportes de finca")
                     content = excel_service.generate_finca_report(finca_id, user, reporte.filtros_aplicados)
-                elif reporte.tipo_reporte == 'auditoria':
+                elif tipo_reporte_codigo == 'AUDITORIA':
                     content = excel_service.generate_audit_report(user, reporte.filtros_aplicados)
-                elif reporte.tipo_reporte == 'personalizado':
+                elif tipo_reporte_codigo == 'PERSONALIZADO':
                     content = excel_service.generate_custom_report(
                         user, 
-                        reporte.parametros.get('tipo_reporte', 'calidad'),
+                        reporte.parametros.get('tipo_reporte', 'CALIDAD'),
                         reporte.parametros,
                         reporte.filtros_aplicados
                     )
                 else:
-                    raise ValueError(f"Tipo de reporte no soportado: {reporte.tipo_reporte}")
+                    raise ValueError(f"Tipo de reporte no soportado: {tipo_reporte_codigo}")
             else:
-                raise ValueError(f"Formato no soportado: {reporte.formato}")
+                raise ValueError(f"Formato no soportado: {formato_codigo}")
             
             # Create file
             file_content = ContentFile(content)
+            
+            # Set filename based on format
+            formato_codigo = reporte.formato.codigo if hasattr(reporte.formato, 'codigo') else 'EXCEL'
+            tipo_reporte_codigo = reporte.tipo_reporte.codigo if hasattr(reporte.tipo_reporte, 'codigo') else 'REPORTE'
+            extension = 'xlsx' if formato_codigo == 'EXCEL' else 'pdf' if formato_codigo == 'PDF' else 'csv' if formato_codigo == 'CSV' else 'json'
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{tipo_reporte_codigo.lower()}_{reporte.usuario.username}_{timestamp}.{extension}"
+            file_content.name = filename
             
             # Calculate generation time
             end_time = timezone.now()
@@ -271,6 +341,11 @@ class ReporteListCreateView(PaginationMixin, APIView):
             
             # Mark as completed
             reporte.marcar_completado(file_content, tiempo_generacion)
+            
+            # Set nombre_archivo if not already set
+            if not reporte.nombre_archivo:
+                reporte.nombre_archivo = filename
+                reporte.save()
             
             logger.info(f"Reporte {reporte.id} generado exitosamente en {tiempo_generacion.total_seconds():.2f} segundos")
             

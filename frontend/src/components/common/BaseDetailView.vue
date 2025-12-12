@@ -43,7 +43,7 @@
           <!-- Main Content Column -->
           <div :class="`col-lg-${mainColumnSize || 8}`">
             <!-- Header Card -->
-            <div v-if="$slots.header || title" class="card mb-4">
+            <div v-if="hasHeaderSlot || title" class="card mb-4">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
                   <h5 class="mb-0">
@@ -73,7 +73,7 @@
                   </slot>
                 </div>
               </div>
-              <div v-if="$slots.header-content || mainContent" class="card-body">
+              <div v-if="hasHeaderContentSlot || mainContent" class="card-body">
                 <slot name="header-content">
                   <div v-if="mainContent">{{ sanitizedMainContent }}</div>
                 </slot>
@@ -118,7 +118,7 @@
           </div>
 
           <!-- Sidebar Column -->
-          <div :class="`col-lg-${sidebarColumnSize || 4}`">
+          <div :class="`col-lg-${sidebarColumnSize || 4} col-md-12`">
             <!-- Actions Card -->
             <div class="card">
               <div class="card-header">
@@ -129,13 +129,17 @@
               </div>
               <div class="card-body">
                 <div class="d-grid gap-2">
-                  <slot name="actions"></slot>
+                  <slot name="actions">
+                    <!-- Default content if no actions provided -->
+                  </slot>
                 </div>
               </div>
             </div>
 
             <!-- Related Items -->
-            <slot name="sidebar"></slot>
+            <slot name="sidebar">
+              <!-- Default content if no sidebar content provided -->
+            </slot>
           </div>
         </div>
       </div>
@@ -144,8 +148,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, useSlots } from 'vue'
 import { escapeHTML } from '@/utils/security'
+
+const slots = useSlots()
 
 const props = defineProps({
   // Breadcrumbs
@@ -280,6 +286,15 @@ const handleRetry = () => {
   emit('retry')
 }
 
+// Check if slots exist
+const hasHeaderSlot = computed(() => {
+  return !!slots.header
+})
+
+const hasHeaderContentSlot = computed(() => {
+  return !!slots['header-content']
+})
+
 // Sanitize HTML content to prevent XSS attacks
 const sanitizedMainContent = computed(() => {
   if (!props.mainContent) {
@@ -324,24 +339,29 @@ const sanitizedMainContent = computed(() => {
 .breadcrumb-item a:hover {
   text-decoration: underline;
 }
+</style>
 
-.card {
+<style>
+/* Estilos globales para cards y componentes dentro de BaseDetailView */
+.base-detail-view .card {
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   border: 1px solid rgba(0, 0, 0, 0.125);
   margin-bottom: 1rem;
+  border-radius: 0.375rem;
+  background-color: #ffffff;
 }
 
-.card-header {
+.base-detail-view .card-header {
   background-color: rgba(0, 0, 0, 0.03);
   border-bottom: 1px solid rgba(0, 0, 0, 0.125);
   padding: 1rem 1.25rem;
 }
 
-.card-body {
+.base-detail-view .card-body {
   padding: 1.25rem;
 }
 
-.border-end {
+.base-detail-view .border-end {
   border-right: 1px solid #dee2e6 !important;
 }
 

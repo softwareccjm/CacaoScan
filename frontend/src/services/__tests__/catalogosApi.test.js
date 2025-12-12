@@ -222,10 +222,14 @@ describe('catalogosApi', () => {
     })
 
     it('should handle error when getting municipios by departamento id', async () => {
-      const error = new Error('Network error')
+      const error = new Error('HTTP 500')
+      error.response = {
+        status: 500,
+        data: { detail: 'HTTP 500' }
+      }
       api.get.mockRejectedValue(error)
 
-      await expect(catalogosApi.getMunicipiosByDepartamento(1)).rejects.toThrow('Network error')
+      await expect(catalogosApi.getMunicipiosByDepartamento(1)).rejects.toThrow('HTTP 500')
     })
   })
 

@@ -140,6 +140,7 @@ __all__ = [
     'LoteDeleteView',
     'LoteStatsView',
     'LotesPorFincaView',
+    'LoteAnalisisView',
     # Auth OTP views
     'SendOtpView',
     'VerifyOtpView',
@@ -254,6 +255,7 @@ def _lazy_import_fincas_views():
             LoteDeleteView,
             LoteStatsView,
             LotesPorFincaView,
+            LoteAnalisisView,
         )
         _fincas_views = {
             'FincaListCreateView': FincaListCreateView,
@@ -268,6 +270,7 @@ def _lazy_import_fincas_views():
             'LoteDeleteView': LoteDeleteView,
             'LoteStatsView': LoteStatsView,
             'LotesPorFincaView': LotesPorFincaView,
+            'LoteAnalisisView': LoteAnalisisView,
         }
     return _fincas_views
 

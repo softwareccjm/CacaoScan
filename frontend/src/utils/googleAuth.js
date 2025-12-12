@@ -1,6 +1,22 @@
 /**
  * Google Authentication Utility
  * Maneja la inicialización y callback de Google Identity Services
+ * 
+ * IMPORTANTE: Configuración de Google OAuth
+ * 
+ * Si ves el error "The given origin is not allowed for the given client ID":
+ * 1. Ve a Google Cloud Console: https://console.cloud.google.com/
+ * 2. Selecciona tu proyecto
+ * 3. Ve a "APIs & Services" > "Credentials"
+ * 4. Encuentra tu OAuth 2.0 Client ID
+ * 5. En "Authorized JavaScript origins", agrega:
+ *    - http://localhost:8000 (para desarrollo)
+ *    - http://localhost:5173 (si usas Vite en puerto 5173)
+ *    - https://tu-dominio.com (para producción)
+ * 6. En "Authorized redirect URIs", agrega:
+ *    - http://localhost:8000/api/v1/auth/google-login/
+ *    - https://tu-dominio.com/api/v1/auth/google-login/
+ * 7. Guarda los cambios y espera unos minutos para que se propaguen
  */
 
 // ← Pegar aquí el CLIENT_ID de Google

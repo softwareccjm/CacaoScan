@@ -36,7 +36,7 @@ const parseErrorBlob = async (errorBlob) => {
 
 const reportsApi = {
   /**
-   * Descargar reporte Excel de agricultores con sus fincas
+   * Descargar reporte Excel de cacaocultores con sus fincas
    */
   async downloadReporteAgricultores() {
     try {
@@ -53,7 +53,7 @@ const reportsApi = {
       }
       
       // Intentar obtener el nombre del archivo desde el Content-Disposition header
-      let filename = `reporte_agricultores_${new Date().toISOString().slice(0, 10)}.xlsx`
+      let filename = `reporte_cacaocultores_${new Date().toISOString().slice(0, 10)}.xlsx`
       const contentDisposition = response.headers['content-disposition']
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)

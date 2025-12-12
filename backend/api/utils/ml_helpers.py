@@ -266,6 +266,9 @@ def process_image_prediction(
     """
     Processes image with ML predictor and creates prediction.
     
+    If prediction fails due to SegmentationError (no cacao bean detected),
+    the image is deleted and no data is returned.
+    
     Args:
         predictor: ML predictor instance
         image_source: PIL Image or path to image file
@@ -274,6 +277,7 @@ def process_image_prediction(
         
     Returns:
         Tuple of (result_dict, error_string). If successful, result_dict has 'success': True.
+        If SegmentationError occurs, image is deleted and error is returned.
     """
     try:
         if isinstance(image_source, str):
@@ -304,10 +308,23 @@ def process_image_prediction(
             }
         }, None
     except Exception as pred_error:
+        # Check if it's a SegmentationError (no cacao bean detected)
+        from ml.segmentation.processor import SegmentationError
+        if isinstance(pred_error, SegmentationError):
+            logger.error(f"No se detectó un grano de cacao en la imagen {cacao_image.id}: {pred_error}")
+            # Delete the image since it's not a valid cacao bean
+            try:
+                if cacao_image.image:
+                    cacao_image.image.delete(save=False)
+                cacao_image.delete()
+                logger.info(f"Imagen {cacao_image.id} eliminada porque no contiene un grano de cacao válido")
+            except Exception as delete_error:
+                logger.warning(f"Error eliminando imagen {cacao_image.id}: {delete_error}")
+        
         logger.error(f"Error in prediction: {pred_error}", exc_info=True)
         return {
             'success': False,
-            'image_id': cacao_image.id,
+            'image_id': cacao_image.id if cacao_image and hasattr(cacao_image, 'id') else None,
             'error': str(pred_error)
         }, str(pred_error)
 

@@ -1,6 +1,88 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+
+// Mock router FIRST before any imports that might use it
+const mockRouterInstance = {
+  push: vi.fn(),
+  replace: vi.fn(),
+  go: vi.fn(),
+  back: vi.fn(),
+  forward: vi.fn(),
+  beforeEach: vi.fn(), // Mock beforeEach to prevent errors
+  afterEach: vi.fn(),
+  beforeResolve: vi.fn(),
+  onError: vi.fn(),
+  currentRoute: {
+    value: {
+      path: '/configuracion',
+      params: {},
+      query: {},
+      meta: {}
+    }
+  }
+}
+
+vi.mock('@/router', () => ({
+  default: mockRouterInstance
+}))
+
+// Mock api.js to prevent router import
+vi.mock('@/services/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+    interceptors: {
+      request: { use: vi.fn(), eject: vi.fn() },
+      response: { use: vi.fn(), eject: vi.fn() }
+    }
+  }
+}))
+
+// Mock vue-router
+const mockRouter = {
+  push: vi.fn(),
+  replace: vi.fn(),
+  currentRoute: {
+    value: {
+      path: '/configuracion',
+      params: {},
+      query: {}
+    }
+  }
+}
+
+const mockRoute = {
+  path: '/configuracion',
+  params: {},
+  query: {}
+}
+
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual('vue-router')
+  return {
+    ...actual,
+    createRouter: vi.fn(() => mockRouterInstance),
+    createWebHistory: vi.fn(),
+    createMemoryHistory: vi.fn(),
+    useRouter: () => mockRouter,
+    useRoute: () => mockRoute,
+    RouterLink: {
+      name: 'RouterLink',
+      template: '<a><slot></slot></a>',
+      props: ['to']
+    },
+    RouterView: {
+      name: 'RouterView',
+      template: '<div></div>'
+    }
+  }
+})
+
+// Now import the component and services after mocks
 import AgricultorConfiguracion from '../../Agricultor/AgricultorConfiguracion.vue'
 import { personasApi, authApi } from '@/services'
 
@@ -51,51 +133,8 @@ vi.mock('@/composables/useSidebarNavigation', () => ({
   useSidebarNavigation: () => mockSidebarNavigation
 }))
 
-// Mock vue-router to avoid $route redefinition errors
-const mockRouter = {
-  push: vi.fn(),
-  replace: vi.fn(),
-  currentRoute: {
-    value: {
-      path: '/configuracion',
-      params: {},
-      query: {}
-    }
-  }
-}
+// mockRouter is already defined above, no need to redefine
 
-const mockRoute = {
-  path: '/configuracion',
-  params: {},
-  query: {}
-}
-
-vi.mock('vue-router', async () => {
-  const actual = await vi.importActual('vue-router')
-  // Create a mock router instance that won't install to prevent $route redefinition
-  const mockRouterInstance = {
-    install: vi.fn(), // Prevent actual installation - just return without doing anything
-    push: vi.fn(),
-    replace: vi.fn()
-  }
-  return {
-    ...actual,
-    createRouter: vi.fn(() => mockRouterInstance),
-    createWebHistory: vi.fn(),
-    createMemoryHistory: vi.fn(),
-    useRouter: () => mockRouter,
-    useRoute: () => mockRoute,
-    RouterLink: {
-      name: 'RouterLink',
-      template: '<a><slot></slot></a>',
-      props: ['to']
-    },
-    RouterView: {
-      name: 'RouterView',
-      template: '<div></div>'
-    }
-  }
-})
 
 // Mock components
 const mockProfileSection = {
@@ -271,16 +310,18 @@ describe('AgricultorConfiguracion', () => {
     })
 
     it('should handle other errors when loading profile', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const error = new Error('Network error')
       personasApi.getPerfil.mockRejectedValue(error)
 
       wrapper = createWrapper()
       await wrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 200))
+      await wrapper.vm.$nextTick()
 
-      expect(consoleErrorSpy).toHaveBeenCalled()
-      consoleErrorSpy.mockRestore()
+      // The component uses console.warn, not console.error
+      expect(consoleWarnSpy).toHaveBeenCalled()
+      consoleWarnSpy.mockRestore()
     })
   })
 

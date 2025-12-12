@@ -76,17 +76,21 @@ const imagesLoading = ref(false)
 const loadRecentAnalyses = async () => {
   imagesLoading.value = true
   try {
-    const data = await fetchImages(1, { page_size: '10' })
-    recentAnalyses.value = data.results.map(image => ({
+    const result = await fetchImages(1, { page_size: '10' })
+    // fetchImages devuelve directamente los datos o un objeto con data
+    const data = result.data || result
+    
+    recentAnalyses.value = (data.results || []).map(image => ({
       id: `CAC-${image.id}`,
       status: image.processed ? 'completed' : 'pending',
       statusLabel: image.processed ? 'Completado' : 'Pendiente',
-      quality: image.prediction?.quality || 0,
+      quality: image.prediction?.average_confidence ? (image.prediction.average_confidence * 100) : (image.prediction?.quality || 0),
       date: image.created_at,
       predictions: image.prediction ? [image.prediction] : [],
       ...image
     }))
   } catch (error) {
+    console.error('Error loading recent analyses:', error)
     } finally {
     imagesLoading.value = false
   }

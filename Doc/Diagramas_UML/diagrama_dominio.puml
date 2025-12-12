@@ -3,6 +3,7 @@
 ' Compatible con draw.io
 ' Basado en los modelos Django reales y migraciones actuales
 ' Organizado por módulos/aplicaciones
+' Incluye métodos y propiedades principales
 
 skinparam classAttributeIconSize 0
 skinparam linetype ortho
@@ -23,6 +24,9 @@ class User {
     + is_superuser: Boolean
     + date_joined: DateTime
     + last_login: DateTime
+    --
+    + get_full_name(): String
+    + get_short_name(): String
 }
 }
 
@@ -41,6 +45,15 @@ class EmailVerification {
     + last_sent: DateTime
     + verified_at: DateTime
     + is_verified: Boolean
+    --
+    + is_expired: Boolean {property}
+    + expires_at: DateTime {property}
+    + verify(): void
+    + create_for_user(user, type): EmailVerification {classmethod}
+    + create_for_email(email, type, temp_data): EmailVerification {classmethod}
+    + get_valid_token(token_uuid): EmailVerification {classmethod}
+    + get_valid_otp(email, otp_code): EmailVerification {classmethod}
+    + generate_otp_code(): String {static}
 }
 
 class UserProfile {
@@ -49,8 +62,13 @@ class UserProfile {
     + farm_size_hectares: Decimal
     + preferred_language: String
     + email_notifications: Boolean
+    + login_provider: String
     + created_at: DateTime
     + updated_at: DateTime
+    --
+    + full_name: String {property}
+    + role: String {property}
+    + is_verified: Boolean {property}
 }
 }
 
@@ -69,6 +87,21 @@ class Persona {
     + direccion: String
     + fecha_nacimiento: Date
     + fecha_creacion: DateTime
+    + user_id: Integer
+    + tipo_documento_id: Long
+    + genero_id: Long
+    + municipio_id: Long
+    --
+    + nombre_completo: String {property}
+    + edad: Integer {property}
+    + departamento: Departamento {property}
+    + clean(): void
+    + save(): void
+    + _validate_document_number(errors): void
+    + _validate_phone(errors): void
+    + _validate_birth_date(errors): void
+    + _validate_names(errors): void
+    + _validate_municipality_department(errors): void
 }
 }
 
@@ -80,6 +113,8 @@ class Departamento {
     + id: Long
     + codigo: String
     + nombre: String
+    --
+    + municipios_count: Integer {property}
 }
 
 class Municipio {
@@ -94,6 +129,8 @@ class Tema {
     + nombre: String
     + descripcion: String
     + activo: Boolean
+    --
+    + parametros_count: Integer {property}
 }
 
 class Parametro {
@@ -103,12 +140,7 @@ class Parametro {
     + descripcion: String
     + activo: Boolean
     + metadata: JSON
-}
-
-class TemaParametro {
-    + id: Long
     + tema_id: Long
-    + parametro_id: Long
 }
 }
 
@@ -131,6 +163,20 @@ class Finca {
     + altitud: Integer
     + precipitacion_anual: Decimal
     + temperatura_promedio: Decimal
+    + agricultor_id: Integer
+    + municipio_id: Long
+    + tipo_suelo_id: Long
+    + clima_id: Long
+    + estado_id: Long
+    --
+    + propietario: User {property}
+    + area_total: Decimal {property}
+    + total_lotes: Integer {property}
+    + lotes_activos: Integer {property}
+    + total_analisis: Integer {property}
+    + calidad_promedio: Decimal {property}
+    + ubicacion_completa: String {property}
+    + get_estadisticas(): Dict
 }
 
 class Lote {
@@ -149,6 +195,16 @@ class Lote {
     + activo: Boolean
     + fecha_creacion: DateTime
     + fecha_actualizacion: DateTime
+    + finca_id: Long
+    + variedad_id: Long
+    + estado_id: Long
+    --
+    + total_analisis: Integer {property}
+    + analisis_procesados: Integer {property}
+    + calidad_promedio: Decimal {property}
+    + edad_meses: Integer {property}
+    + ubicacion_completa: String {property}
+    + get_estadisticas(): Dict
 }
 }
 
@@ -167,6 +223,16 @@ class CacaoImage {
     + file_name: String
     + file_size: Integer
     + metadata: JSON
+    + lote_id: Long
+    + user_id: Integer
+    + file_type_id: Long
+    --
+    + file_size_mb: Decimal {property}
+    + has_prediction: Boolean {property}
+    + filename: String {property}
+    + finca: Finca {property}
+    + clean(): void
+    + save(): void
 }
 
 class CacaoPrediction {
@@ -187,6 +253,15 @@ class CacaoPrediction {
     + processing_time_ms: Integer
     + crop_url: String
     + created_at: DateTime
+    + image_id: Long
+    + user_id: Integer
+    + model_version_id: Long
+    + device_used_id: Long
+    --
+    + created: DateTime {property}
+    + average_confidence: Decimal {property}
+    + volume_cm3: Decimal {property}
+    + density_g_cm3: Decimal {property}
 }
 }
 
@@ -213,6 +288,16 @@ class TrainingJob {
     + completed_at: DateTime
     + error_message: String
     + progress_percentage: Float
+    + created_by_id: Integer
+    --
+    + duration: Float {property}
+    + duration_formatted: String {property}
+    + is_active: Boolean {property}
+    + update_progress(percentage, logs): void
+    + mark_started(): void
+    + mark_completed(metrics, model_path): void
+    + mark_failed(error_message): void
+    + mark_cancelled(): void
 }
 
 class ModelMetrics {
@@ -245,6 +330,16 @@ class ModelMetrics {
     + is_production_model: Boolean
     + created_at: DateTime
     + updated_at: DateTime
+    + created_by_id: Integer
+    + training_job_id: Long
+    --
+    + accuracy_percentage: Float {property}
+    + training_time_formatted: String {property}
+    + performance_summary: Dict {property}
+    + dataset_summary: Dict {property}
+    + model_summary: Dict {property}
+    + get_performance_trend(model_name, target, metric_type): List {classmethod}
+    + get_comparison_with_previous(): Dict
 }
 }
 
@@ -262,6 +357,25 @@ class Notification {
     + datos_extra: JSON
     + created_at: DateTime
     + updated_at: DateTime
+    + user_id: Integer
+    + tipo_id: Long
+    --
+    + tiempo_transcurrido: String {property}
+    + create_notification(user, tipo, titulo, mensaje, datos_extra): Notification {classmethod}
+    + mark_as_read(): void
+    + get_unread_count(user): Integer {classmethod}
+    + mark_all_as_read(user): Integer {classmethod}
+}
+}
+
+' ============================================
+' MÓDULO: DJANGO CONTENT TYPES
+' ============================================
+package "django.contrib.contenttypes" {
+class ContentType {
+    + id: Integer
+    + app_label: String
+    + model: String
 }
 }
 
@@ -272,25 +386,39 @@ package "audit" {
 class ActivityLog {
     + id: Long
     + action: String
-    + content_type_id: Integer
-    + object_id: Integer
+    + modelo: String
+    + objeto_id: String
+    + descripcion: Text
+    + ip_address: Inet
+    + user_agent: Text
+    + datos_antes: JSON
+    + datos_despues: JSON
+    + timestamp: DateTime
+    + user_id: Integer
     + resource_type: String
     + resource_id: Integer
     + details: JSON
-    + ip_address: String
-    + user_agent: String
-    + timestamp: DateTime
+    + content_type_id: Integer
+    + object_id: Integer
+    --
+    + content_object: GenericForeignKey {property}
+    + clean(): void
+    + save(): void
 }
 
 class LoginHistory {
     + id: Long
-    + ip_address: String
-    + user_agent: String
+    + ip_address: Inet
+    + user_agent: Text
     + login_time: DateTime
     + logout_time: DateTime
-    + session_duration: Duration
+    + session_duration: Interval
     + login_successful: Boolean
     + failure_reason: String
+    + user_id: Integer
+    --
+    + success: Boolean {property}
+    + usuario: User {property}
 }
 }
 
@@ -311,10 +439,24 @@ class ReporteGenerado {
     + fecha_solicitud: DateTime
     + fecha_generacion: DateTime
     + fecha_expiracion: DateTime
-    + tiempo_generacion: Duration
+    + tiempo_generacion: Interval
     + mensaje_error: String
     + created_at: DateTime
     + updated_at: DateTime
+    + usuario_id: Integer
+    + tipo_reporte_id: Long
+    + formato_id: Long
+    + estado_id: Long
+    --
+    + tamano_archivo_mb: Decimal {property}
+    + archivo_url: String {property}
+    + tiempo_generacion_segundos: Float {property}
+    + esta_expirado: Boolean {property}
+    + generar_reporte(usuario, tipo_reporte, formato, titulo, descripcion, parametros, filtros): ReporteGenerado {static}
+    + marcar_completado(archivo, tiempo_generacion): void
+    + marcar_fallido(mensaje_error): void
+    + clean(): void
+    + save(): void
 }
 }
 
@@ -341,6 +483,9 @@ class SystemSettings {
     + last_training: DateTime
     + created_at: DateTime
     + updated_at: DateTime
+    --
+    + get_singleton(): SystemSettings {classmethod}
+    + save(): void
 }
 }
 
@@ -349,65 +494,75 @@ class SystemSettings {
 ' ============================================
 
 ' Relaciones de Usuario (django.contrib.auth.User)
-User "1" ||--|| Persona : "tiene"
-User "1" ||--o| UserProfile : "tiene"
-User "1" ||--o{ EmailVerification : "tiene (user)"
-User "1" ||--o{ Finca : "es propietario (agricultor)"
-User "1" ||--o{ CacaoImage : "sube"
-User "1" ||--o{ CacaoPrediction : "genera (opcional)"
-User "1" ||--o{ TrainingJob : "crea (created_by)"
-User "1" ||--o{ ModelMetrics : "crea (created_by)"
-User "1" ||--o{ Notification : "recibe"
-User "1" ||--o{ ActivityLog : "realiza"
-User "1" ||--o{ LoginHistory : "tiene"
-User "1" ||--o{ ReporteGenerado : "solicita (usuario)"
+User "1" ||--|| Persona : "user_id"
+User "1" ||--o| UserProfile : "user_id"
+User "1" ||--o{ EmailVerification : "user_id"
+User "1" ||--o{ Finca : "agricultor_id"
+User "1" ||--o{ CacaoImage : "user_id"
+User "1" ||--o{ CacaoPrediction : "user_id"
+User "1" ||--o{ TrainingJob : "created_by_id"
+User "1" ||--o{ ModelMetrics : "created_by_id"
+User "1" ||--o{ Notification : "user_id"
+User "1" ||--o{ ActivityLog : "user_id"
+User "1" ||--o{ LoginHistory : "user_id"
+User "1" ||--o{ ReporteGenerado : "usuario_id"
 
 ' Relaciones de Persona
-Persona "N" }o--|| Parametro : "tipo_documento (TIPO_DOC)"
-Persona "N" }o--|| Parametro : "genero (SEXO)"
-Persona "N" }o--o| Municipio : "reside_en"
+Persona "N" }o--|| Parametro : "tipo_documento_id"
+Persona "N" }o--|| Parametro : "genero_id"
+Persona "N" }o--o| Municipio : "municipio_id"
+Persona "1" ||--|| User : "user_id"
 
 ' Relaciones de UserProfile
-UserProfile "N" }o--o| Municipio : "ubicado_en"
+UserProfile "N" }o--o| Municipio : "municipio_id"
 
 ' Relaciones de EmailVerification
-EmailVerification "N" }o--o| User : "verifica (opcional)"
+EmailVerification "N" }o--o| User : "user_id"
 
 ' Relaciones de Finca
-Finca "N" }o--|| Municipio : "ubicada_en"
-Finca "N" }o--o| Parametro : "tipo_suelo (TEMA_TIPO_SUELO)"
-Finca "N" }o--o| Parametro : "clima (TEMA_CLIMA)"
-Finca "N" }o--o| Parametro : "estado (TEMA_ESTADO_FINCA)"
-Finca "1" ||--o{ Lote : "contiene"
+Finca "N" }o--|| Municipio : "municipio_id"
+Finca "N" }o--o| Parametro : "tipo_suelo_id"
+Finca "N" }o--o| Parametro : "clima_id"
+Finca "N" }o--o| Parametro : "estado_id"
+Finca "N" }o--|| User : "agricultor_id"
+Finca "1" ||--o{ Lote : "finca_id"
 
 ' Relaciones de Lote
-Lote "N" }o--|| Parametro : "variedad (TEMA_VARIEDAD_CACAO)"
-Lote "N" }o--o| Parametro : "estado (TEMA_ESTADO_LOTE)"
-Lote "1" ||--o{ CacaoImage : "contiene"
+Lote "N" }o--|| Parametro : "variedad_id"
+Lote "N" }o--o| Parametro : "estado_id"
+Lote "1" ||--o{ CacaoImage : "lote_id"
 
 ' Relaciones de CacaoImage
-CacaoImage "N" }o--o| Parametro : "file_type (TEMA_TIPO_ARCHIVO)"
+CacaoImage "N" }o--o| Parametro : "file_type_id"
+CacaoImage "N" }o--|| User : "user_id"
 
 ' Relaciones de CacaoPrediction
-CacaoPrediction "1" ||--|| CacaoImage : "analiza"
-CacaoPrediction "N" }o--|| Parametro : "model_version (TEMA_VERSION_MODELO)"
-CacaoPrediction "N" }o--|| Parametro : "device_used (TEMA_TIPO_DISPOSITIVO)"
+CacaoPrediction "1" ||--|| CacaoImage : "image_id"
+CacaoPrediction "N" }o--|| Parametro : "model_version_id"
+CacaoPrediction "N" }o--|| Parametro : "device_used_id"
+CacaoPrediction "N" }o--o| User : "user_id"
 
 ' Relaciones de Notification
-Notification "N" }o--|| Parametro : "tipo (TEMA_TIPO_NOTIFICACION)"
+Notification "N" }o--|| Parametro : "tipo_id"
 
 ' Relaciones de ReporteGenerado
-ReporteGenerado "N" }o--|| Parametro : "tipo_reporte (TEMA_TIPO_REPORTE)"
-ReporteGenerado "N" }o--|| Parametro : "formato (TEMA_FORMATO_REPORTE)"
-ReporteGenerado "N" }o--|| Parametro : "estado (TEMA_ESTADO_REPORTE)"
+ReporteGenerado "N" }o--|| Parametro : "tipo_reporte_id"
+ReporteGenerado "N" }o--|| Parametro : "formato_id"
+ReporteGenerado "N" }o--|| Parametro : "estado_id"
 
 ' Relaciones de ModelMetrics
-ModelMetrics "N" }o--o| TrainingJob : "relacionado_con"
+ModelMetrics "N" }o--o| TrainingJob : "training_job_id"
+
+' Relaciones de ActivityLog
+ActivityLog "N" }o--o| ContentType : "content_type_id"
 
 ' Relaciones de Catálogos
-Departamento "1" ||--o{ Municipio : "contiene"
-Tema "1" ||--o{ Parametro : "tiene"
-TemaParametro }o--|| Tema : "tema"
-TemaParametro }o--|| Parametro : "parametro"
+Departamento "1" ||--o{ Municipio : "departamento_id"
+Tema "1" ||--o{ Parametro : "tema_id"
+
+' Herencia de TimeStampedModel
+TimeStampedModel <|-- Finca
+TimeStampedModel <|-- Lote
+TimeStampedModel <|-- CacaoImage
 
 @enduml

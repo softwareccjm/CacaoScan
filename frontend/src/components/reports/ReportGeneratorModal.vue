@@ -1,26 +1,50 @@
 <template>
-  <BaseModal
-    :show="true"
-    title="Generar Nuevo Reporte"
-    subtitle="Configura los parámetros para generar tu reporte personalizado"
-    max-width="5xl"
-    @close="closeModal"
+  <div
+    v-if="true"
+    class="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm"
+    aria-labelledby="modal-title"
+    role="dialog"
+    aria-modal="true"
+    @click.self="closeModal"
   >
-    <template #header>
-      <div class="modal-header">
-        <div class="header-content">
-          <div class="header-icon">
-            <i class="fas fa-chart-bar"></i>
-          </div>
-          <div class="header-text">
-            <h3>Generar Nuevo Reporte</h3>
-            <p>Configura los parámetros para generar tu reporte personalizado</p>
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity" @click="closeModal"></div>
+
+    <!-- Modal -->
+    <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+      <div
+        class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-5xl max-h-[90vh] flex flex-col"
+        @click.stop
+      >
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-green-50 to-green-50 px-6 py-5 border-b border-gray-200">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-4">
+              <div class="bg-green-100 p-3 rounded-xl">
+                <i class="fas fa-chart-bar text-green-600 text-2xl"></i>
+              </div>
+              <div>
+                <h3 class="text-2xl font-bold text-gray-900" id="modal-title">
+                  Generar Nuevo Reporte
+                </h3>
+                <p class="text-sm text-gray-600 mt-1">
+                  Configura los parámetros para generar tu reporte personalizado
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="text-gray-400 hover:text-gray-600 transition-all duration-200 p-2 rounded-lg hover:bg-gray-100"
+              @click="closeModal"
+            >
+              <span class="sr-only">Cerrar</span>
+              <i class="fas fa-times text-xl"></i>
+            </button>
           </div>
         </div>
-      </div>
-    </template>
 
-    <div class="modal-body">
+        <!-- Content -->
+        <div class="bg-white px-6 py-6 overflow-y-auto flex-1">
         <!-- Indicador de progreso -->
         <div class="progress-indicator">
           <div class="progress-steps">
@@ -68,14 +92,12 @@
                   required
                 >
                   <option value="">Seleccionar tipo</option>
-                  <option value="calidad">Reporte de Calidad</option>
-                  <option value="finca">Reporte de Finca</option>
-                  <option value="lote">Reporte de Lote</option>
-                  <option value="usuario">Reporte de Usuario</option>
-                  <option value="auditoria">Reporte de Auditoría</option>
-                  <option value="personalizado">Reporte Personalizado</option>
-                  <option value="metricas">Reporte de Métricas de Modelos</option>
-                  <option value="entrenamiento">Reporte de Entrenamiento</option>
+                  <option value="CALIDAD">Reporte de Calidad</option>
+                  <option value="FINCA">Reporte de Finca</option>
+                  <option value="LOTE">Reporte de Lote</option>
+                  <option value="USUARIO">Reporte de Usuario</option>
+                  <option value="AUDITORIA">Reporte de Auditoría</option>
+                  <option value="PERSONALIZADO">Reporte Personalizado</option>
                 </select>
                 <span v-if="errors.tipo_reporte" class="error-message">
                   {{ errors.tipo_reporte }}
@@ -228,7 +250,7 @@
             </div>
             
             <!-- Parámetros para Reporte de Finca -->
-            <div v-if="formData.tipo_reporte === 'finca'" class="parameter-section">
+            <div v-if="formData.tipo_reporte === 'FINCA'" class="parameter-section">
               <h5>Configuración de Finca</h5>
               <div class="form-grid">
                 <div class="form-group">
@@ -244,9 +266,15 @@
                   >
                     <option value="">Seleccionar finca</option>
                     <option v-for="finca in fincas" :key="finca.id" :value="finca.id">
-                      {{ finca.nombre }} - {{ finca.ubicacion }}
+                      {{ finca.nombre }}{{ finca.municipio ? ` - ${finca.municipio}` : '' }}{{ finca.departamento ? `, ${finca.departamento}` : '' }}
                     </option>
                   </select>
+                  <div v-if="fincas.length === 0" class="text-sm text-gray-500 mt-1">
+                    Cargando fincas...
+                  </div>
+                  <div v-else class="text-sm text-gray-500 mt-1">
+                    {{ fincas.length }} finca(s) disponible(s)
+                  </div>
                   <span v-if="errors.finca_id" class="error-message">
                     {{ errors.finca_id }}
                   </span>
@@ -271,7 +299,7 @@
             </div>
 
             <!-- Parámetros para Reporte de Lote -->
-            <div v-if="formData.tipo_reporte === 'lote'" class="parameter-section">
+            <div v-if="formData.tipo_reporte === 'LOTE'" class="parameter-section">
               <h5>Configuración de Lote</h5>
               <div class="form-grid">
                 <div class="form-group">
@@ -310,7 +338,7 @@
             </div>
 
             <!-- Parámetros para Reporte Personalizado -->
-            <div v-if="formData.tipo_reporte === 'personalizado'" class="parameter-section">
+            <div v-if="formData.tipo_reporte === 'PERSONALIZADO'" class="parameter-section">
               <h5>Configuración Personalizada</h5>
               <div class="form-grid">
                 <div class="form-group">
@@ -322,11 +350,8 @@
                     v-model="formData.parametros.custom_type"
                     class="form-select"
                   >
-                    <option value="calidad">Análisis de Calidad</option>
-                    <option value="rendimiento">Análisis de Rendimiento</option>
-                    <option value="tendencias">Análisis de Tendencias</option>
-                    <option value="comparativo">Análisis Comparativo</option>
-                    <option value="predicciones">Análisis de Predicciones</option>
+                    <option value="CALIDAD">Análisis de Calidad</option>
+                    <option value="RENDIMIENTO">Análisis de Rendimiento</option>
                   </select>
                 </div>
 
@@ -342,47 +367,6 @@
                     <option value="basic">Básico</option>
                     <option value="intermediate">Intermedio</option>
                     <option value="advanced">Avanzado</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Parámetros para Reporte de Métricas -->
-            <div v-if="formData.tipo_reporte === 'metricas'" class="parameter-section">
-              <h5>Configuración de Métricas</h5>
-              <div class="form-grid">
-                <div class="form-group">
-                  <label for="model_type" class="form-label">
-                    Tipo de Modelo
-                  </label>
-                  <select 
-                    id="model_type"
-                    v-model="formData.parametros.model_type"
-                    class="form-select"
-                  >
-                    <option value="">Todos los tipos</option>
-                    <option value="regression">Regresión</option>
-                    <option value="classification">Clasificación</option>
-                    <option value="segmentation">Segmentación</option>
-                    <option value="incremental">Incremental</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="target_metric" class="form-label">
-                    Variable Objetivo
-                  </label>
-                  <select 
-                    id="target_metric"
-                    v-model="formData.parametros.target_metric"
-                    class="form-select"
-                  >
-                    <option value="">Todas las variables</option>
-                    <option value="alto">Altura</option>
-                    <option value="ancho">Ancho</option>
-                    <option value="grosor">Grosor</option>
-                    <option value="peso">Peso</option>
-                    <option value="calidad">Calidad</option>
                   </select>
                 </div>
               </div>
@@ -667,69 +651,73 @@
             </div>
           </div>
         </form>
-      </div>
-
-    <template #footer>
-      <div class="modal-footer">
-        <div class="footer-left">
-          <button 
-            v-if="currentStep > 1"
-            type="button" 
-            class="btn btn-secondary"
-            @click="previousStep"
-          >
-            <i class="fas fa-arrow-left"></i>
-            Anterior
-          </button>
         </div>
 
-        <div class="footer-right">
-          <button 
-            type="button" 
-            class="btn btn-outline"
-            @click="closeModal"
-          >
-            Cancelar
-          </button>
-          <button 
-            v-if="currentStep < totalSteps"
-            type="button" 
-            class="btn btn-primary"
-            @click="nextStep"
-            :disabled="!canProceed"
-          >
-            Siguiente
-            <i class="fas fa-arrow-right"></i>
-          </button>
-          <button 
-            v-else
-            type="submit" 
-            class="btn btn-primary"
-            @click="generateReport"
-            :disabled="loading || !canProceed"
-          >
-            <i v-if="loading" class="fas fa-spinner fa-spin"></i>
-            <i v-else class="fas fa-chart-bar"></i>
-            Generar Reporte
-          </button>
+        <!-- Footer -->
+        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <button 
+              v-if="currentStep > 1"
+              type="button" 
+              class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
+              @click="previousStep"
+            >
+              <i class="fas fa-arrow-left"></i>
+              Anterior
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button 
+              type="button" 
+              class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              @click="closeModal"
+            >
+              Cancelar
+            </button>
+            <button 
+              v-if="currentStep < totalSteps"
+              type="button" 
+              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="nextStep"
+              :disabled="!canProceed"
+              :title="!canProceed ? `Faltan campos requeridos: tipo_reporte=${!!formData.tipo_reporte}, formato=${!!formData.formato}` : 'Continuar al siguiente paso'"
+            >
+              Siguiente
+              <i class="fas fa-arrow-right"></i>
+            </button>
+            <button 
+              v-else
+              type="submit" 
+              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="generateReport"
+              :disabled="loading || !canProceed"
+            >
+              <i v-if="loading" class="fas fa-spinner fa-spin"></i>
+              <i v-else class="fas fa-chart-bar"></i>
+              Generar Reporte
+            </button>
+          </div>
         </div>
       </div>
-    </template>
-  </BaseModal>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useReportsStore } from '@/stores/reports'
+import { useReports } from '@/composables/useReports'
 import { useEmailValidation } from '@/composables/useEmailValidation'
 import { useNotifications } from '@/composables/useNotifications'
-import BaseModal from '@/components/common/BaseModal.vue'
+import { getFincas } from '@/services/fincasApi'
 
 const emit = defineEmits(['close', 'created'])
 
 const reportsStore = useReportsStore()
 const { isValidEmail } = useEmailValidation()
 const { showSuccess, showError } = useNotifications()
+const { pollForCompletion, downloadReport: downloadReportFromComposable } = useReports()
 
 const loading = ref(false)
 const errors = ref({})
@@ -751,25 +739,25 @@ const steps = [
 
 const formatOptions = [
       {
-        value: 'pdf',
-        name: 'PDF',
-        description: 'Documento portátil con gráficos',
-        icon: 'fas fa-file-pdf'
-      },
-      {
-        value: 'excel',
+        value: 'EXCEL',
         name: 'Excel',
         description: 'Hoja de cálculo con datos',
         icon: 'fas fa-file-excel'
       },
       {
-        value: 'csv',
+        value: 'PDF',
+        name: 'PDF',
+        description: 'Documento portátil con gráficos',
+        icon: 'fas fa-file-pdf'
+      },
+      {
+        value: 'CSV',
         name: 'CSV',
         description: 'Datos separados por comas',
         icon: 'fas fa-file-csv'
       },
       {
-        value: 'json',
+        value: 'JSON',
         name: 'JSON',
         description: 'Datos estructurados',
         icon: 'fas fa-file-code'
@@ -785,10 +773,8 @@ const formData = reactive({
       parametros: {
         finca_id: '',
         lote_id: '',
-        custom_type: 'calidad',
+        custom_type: 'CALIDAD',
         analysis_depth: 'intermediate',
-        model_type: '',
-        target_metric: '',
         include_charts: true,
         include_recommendations: true,
         include_raw_data: false,
@@ -818,12 +804,13 @@ const formData = reactive({
 const canProceed = computed(() => {
       switch (currentStep.value) {
         case 1:
-          return formData.tipo_reporte && formData.formato
+          const step1Valid = !!(formData.tipo_reporte && formData.formato)
+          return step1Valid
         case 2:
-          return formData.titulo.trim()
+          return !!formData.titulo.trim()
         case 3:
-          if (formData.tipo_reporte === 'finca') {
-            return formData.parametros.finca_id
+          if (formData.tipo_reporte === 'FINCA') {
+            return !!formData.parametros.finca_id
           }
           return true
         case 4:
@@ -838,15 +825,25 @@ const canProceed = computed(() => {
 // Methods
 const loadInitialData = async () => {
       try {
-        const [fincasResponse, usersResponse] = await Promise.all([
-          reportsStore.fetchFincas(),
-          reportsStore.fetchUsers()
-        ])
+        // Load fincas using the same service as other components
+        const fincasResponse = await getFincas({ page_size: 1000, activa: true })
+        fincas.value = fincasResponse?.results || fincasResponse?.data?.results || []
         
-        fincas.value = fincasResponse.data.results || []
-        users.value = usersResponse.data.results || []
-      } catch (error) {
+        // Load users if needed (optional for now)
+        try {
+          const { apiGet } = await import('@/services/apiClient')
+          const usersResponse = await apiGet('/auth/users/', { page_size: 1000 })
+          users.value = usersResponse?.results || usersResponse?.data?.results || []
+        } catch (userError) {
+          console.warn('Could not load users:', userError)
+          users.value = []
         }
+        
+        console.log('Fincas loaded:', fincas.value.length)
+      } catch (error) {
+        console.error('Error loading initial data:', error)
+        showError('Error al cargar las fincas. Por favor, intenta nuevamente.')
+      }
     }
 
 const loadLotes = async () => {
@@ -856,9 +853,11 @@ const loadLotes = async () => {
   }
 
   try {
-    const response = await reportsStore.fetchLotesByFinca(formData.parametros.finca_id)
-    lotes.value = response.data.results || []
+    const { apiGet } = await import('@/services/apiClient')
+    const response = await apiGet(`/fincas/${formData.parametros.finca_id}/lotes/`, { page_size: 1000 })
+    lotes.value = response?.results || response?.data?.results || []
   } catch (error) {
+    console.error('Error loading lotes:', error)
     lotes.value = []
   }
 }
@@ -868,10 +867,8 @@ const onTypeChange = () => {
   formData.parametros = {
     finca_id: '',
     lote_id: '',
-    custom_type: 'calidad',
+    custom_type: 'CALIDAD',
     analysis_depth: 'intermediate',
-    model_type: '',
-    target_metric: '',
     include_charts: true,
     include_recommendations: true,
     include_raw_data: false,
@@ -887,16 +884,14 @@ const onTypeChange = () => {
   // Generate default title based on type
   if (formData.tipo_reporte && !formData.titulo) {
     const typeNames = {
-      'calidad': 'Reporte de Calidad',
-      'finca': 'Reporte de Finca',
-      'lote': 'Reporte de Lote',
-      'usuario': 'Reporte de Usuario',
-      'auditoria': 'Reporte de Auditoría',
-      'personalizado': 'Reporte Personalizado',
-      'metricas': 'Reporte de Métricas',
-      'entrenamiento': 'Reporte de Entrenamiento'
+      'CALIDAD': 'Reporte de Calidad',
+      'FINCA': 'Reporte de Finca',
+      'LOTE': 'Reporte de Lote',
+      'USUARIO': 'Reporte de Usuario',
+      'AUDITORIA': 'Reporte de Auditoría',
+      'PERSONALIZADO': 'Reporte Personalizado'
     }
-    formData.titulo = `${typeNames[formData.tipo_reporte]} - ${new Date().toLocaleDateString('es-ES')}`
+    formData.titulo = `${typeNames[formData.tipo_reporte] || 'Reporte'} - ${new Date().toLocaleDateString('es-ES')}`
   }
 }
 
@@ -910,6 +905,13 @@ const onScheduledChange = () => {
 }
 
 const nextStep = () => {
+  console.log('nextStep called:', {
+    canProceed: canProceed.value,
+    currentStep: currentStep.value,
+    totalSteps: totalSteps,
+    tipo_reporte: formData.tipo_reporte,
+    formato: formData.formato
+  })
   if (canProceed.value && currentStep.value < totalSteps) {
     currentStep.value++
   }
@@ -943,7 +945,7 @@ const validateForm = () => {
   }
 
   // Specific validations
-  if (formData.tipo_reporte === 'finca' && !formData.parametros.finca_id) {
+  if (formData.tipo_reporte === 'FINCA' && !formData.parametros.finca_id) {
     errors.value.finca_id = 'Debe seleccionar una finca'
   }
 
@@ -1015,8 +1017,35 @@ const generateReport = async () => {
   try {
     const reportData = buildReportData()
     const response = await reportsStore.createReport(reportData)
+    const reportId = response.data?.id || response?.id
 
-    showSuccess('El reporte ha sido enviado para generación. Te notificaremos cuando esté listo.')
+    if (!reportId) {
+      throw new Error('No se pudo obtener el ID del reporte creado')
+    }
+
+    // Show initial success message
+    showSuccess('El reporte se está generando. Esperando a que esté listo...')
+
+    // Wait for report to be completed
+    try {
+      const completedReport = await pollForCompletion(reportId, 2000, 30) // Poll every 2 seconds, max 30 attempts (1 minute)
+      
+      // Report is ready, download it automatically
+      showSuccess('Reporte generado exitosamente. Iniciando descarga...')
+      
+      // Small delay to ensure file is fully ready
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Download the report
+      await downloadReportFromComposable(reportId)
+      
+      showSuccess('Reporte descargado exitosamente')
+      
+    } catch (pollError) {
+      // If polling fails or times out, still emit created event
+      console.warn('Error esperando reporte o descargando:', pollError)
+      showError(pollError.message || 'El reporte se creó pero no se pudo descargar automáticamente. Puedes descargarlo desde la lista de reportes.')
+    }
 
     emit('created', response.data)
     closeModal()
@@ -1030,7 +1059,7 @@ const generateReport = async () => {
         showError(errorData.detail || 'No se pudo crear el reporte')
       }
     } else {
-      showError('No se pudo crear el reporte')
+      showError(error.message || 'No se pudo crear el reporte')
     }
   } finally {
     loading.value = false
@@ -1041,6 +1070,22 @@ const closeModal = () => {
   emit('close')
 }
 
+// Debug watchers
+watch(() => formData.tipo_reporte, (newVal) => {
+  console.log('tipo_reporte changed:', newVal)
+})
+
+watch(() => formData.formato, (newVal) => {
+  console.log('formato changed:', newVal)
+})
+
+watch(canProceed, (newVal) => {
+  console.log('canProceed changed:', newVal, {
+    tipo_reporte: formData.tipo_reporte,
+    formato: formData.formato
+  })
+})
+
 // Lifecycle
 onMounted(() => {
   loadInitialData()
@@ -1048,45 +1093,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.modal-header {
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  background: linear-gradient(135deg, #4c63d2 0%, #5a3d8a 100%);
-  color: #ffffff;
-  border-radius: 12px 12px 0 0;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.header-icon {
-  width: 3rem;
-  height: 3rem;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.header-text h3 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.header-text p {
-  margin: 0.25rem 0 0 0;
-  opacity: 0.9;
-  font-size: 0.875rem;
-}
 
 /* Progress Indicator */
 .progress-indicator {
@@ -1472,21 +1478,6 @@ input:checked + .toggle-label .toggle-slider:before {
   border-top: 1px solid #e5e7eb;
 }
 
-/* Modal Footer */
-.modal-footer {
-  padding: 1.5rem 2rem;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f8fafc;
-}
-
-.footer-left,
-.footer-right {
-  display: flex;
-  gap: 0.75rem;
-}
 
 /* Buttons */
 .btn {
@@ -1566,21 +1557,6 @@ input:checked + .toggle-label .toggle-slider:before {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .modal-header {
-    padding: 1rem;
-  }
-  
-  .modal-footer {
-    padding: 1rem;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .footer-left,
-  .footer-right {
-    width: 100%;
-    justify-content: center;
-  }
   
   .form-grid {
     grid-template-columns: 1fr;
@@ -1609,26 +1585,4 @@ input:checked + .toggle-label .toggle-slider:before {
   }
 }
 
-@media (max-width: 480px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .header-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 1rem;
-  }
-  
-  .header-text h3 {
-    font-size: 1.25rem;
-  }
-  
-  .btn {
-    padding: 0.625rem 1rem;
-    font-size: 0.8125rem;
-  }
-}
 </style>

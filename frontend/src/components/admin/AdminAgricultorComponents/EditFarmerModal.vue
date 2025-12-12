@@ -1,8 +1,8 @@
 <template>
   <BaseModal
     :show="isOpen"
-    title="Editar Agricultor"
-    subtitle="Modifica la información del agricultor y gestiona sus fincas"
+    title="Editar Cacaocultor"
+    subtitle="Modifica la información del cacaocultor y gestiona sus fincas"
     max-width="4xl"
     @close="closeModal"
     @update:show="(value) => { if (!value) closeModal() }"
@@ -17,8 +17,8 @@
           </svg>
         </div>
         <div>
-          <h3 class="text-xl font-bold text-gray-900">Editar Agricultor</h3>
-          <p class="text-sm text-gray-600 mt-1">Modifica la información del agricultor y gestiona sus fincas</p>
+          <h3 class="text-xl font-bold text-gray-900">Editar Cacaocultor</h3>
+          <p class="text-sm text-gray-600 mt-1">Modifica la información del cacaocultor y gestiona sus fincas</p>
         </div>
       </div>
     </template>
@@ -234,7 +234,7 @@
                   </path>
                 </svg>
                 <h4 class="text-lg font-bold text-gray-900 mb-2">Sin fincas registradas</h4>
-                <p class="text-gray-600">Este agricultor no tiene fincas asociadas aún</p>
+                <p class="text-gray-600">Este cacaocultor no tiene fincas asociadas aún</p>
               </div>
             </div>
           </div>
@@ -508,12 +508,12 @@ const handleUpdate = async () => {
       }
     }
 
-    showSuccess('La información del agricultor ha sido actualizada exitosamente')
+    showSuccess('La información del cacaocultor ha sido actualizada exitosamente')
 
     emit('farmer-updated', { type: 'user-updated', user: response.user })
     closeModal()
   } catch (error) {
-    const errorMessage = extractErrorMessageWithDetails(error, 'Error al actualizar el agricultor')
+    const errorMessage = extractErrorMessageWithDetails(error, 'Error al actualizar el cacaocultor')
     showError(errorMessage)
   } finally {
     isSubmitting.value = false

@@ -51,14 +51,13 @@ def admin_user(db):
 
 
 @pytest.fixture
-def finca(user):
+def finca(user, municipio):
     """Create test finca."""
     from fincas_app.models import Finca
     return Finca.objects.create(
         nombre='Test Finca',
         ubicacion='Test Location',
-        municipio='Test Municipio',
-        departamento='Test Departamento',
+        municipio=municipio,
         hectareas=Decimal('10.5'),
         agricultor=user,
         activa=True

@@ -181,7 +181,15 @@ const loadImages = async (page = 1, append = false) => {
   error.value = null
   
   try {
-    const response = await getImages({ page, page_size: 12 })
+    const result = await getImages({ page, page_size: 12 })
+    
+    // getImages devuelve { success: true, data: response } o { success: false, error: ... }
+    if (!result.success) {
+      error.value = result.error || 'Error al cargar imágenes'
+      return
+    }
+    
+    const response = result.data || result
     
     if (append) {
       images.value = [...images.value, ...(response.results || [])]

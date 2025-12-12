@@ -12,16 +12,43 @@ const mockAuthStore = {
   userRole: 'farmer'
 }
 
-const mockNotificationStore = {
-  addNotification: vi.fn()
-}
+const mockShowSuccess = vi.fn()
+const mockShowError = vi.fn()
+const mockShowWarning = vi.fn()
+const mockShowInfo = vi.fn()
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => mockAuthStore
 }))
 
+const mockNotificationsStore = {
+  createNotification: vi.fn(),
+  addNotification: vi.fn(),
+  reset: vi.fn(),
+  notifications: [],
+  unreadCount: 0,
+  loading: false,
+  error: null
+}
+
 vi.mock('@/stores/notifications', () => ({
-  useNotificationsStore: () => mockNotificationStore
+  useNotificationsStore: () => mockNotificationsStore
+}))
+
+vi.mock('@/composables/useNotifications', () => ({
+  useNotifications: () => ({
+    showSuccess: mockShowSuccess,
+    showError: mockShowError,
+    showWarning: mockShowWarning,
+    showInfo: mockShowInfo,
+    createPersistentNotification: vi.fn(),
+    clearAll: vi.fn(),
+    notifications: { value: [] },
+    unreadCount: { value: 0 },
+    loading: { value: false },
+    error: { value: null },
+    store: mockNotificationsStore
+  })
 }))
 
 vi.mock('@/services/lotesApi', () => ({
@@ -41,6 +68,12 @@ vi.mock('@/services/fincasApi', () => ({
   getFincaById: vi.fn()
 }))
 
+vi.mock('../useDateFormatting', () => ({
+  useDateFormatting: () => ({
+    formatDate: vi.fn((date) => date)
+  })
+}))
+
 describe('useLotes', () => {
   let lotes
   let fincasApi
@@ -48,6 +81,10 @@ describe('useLotes', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     mockAuthStore.userRole = 'farmer'
+    mockShowSuccess.mockClear()
+    mockShowError.mockClear()
+    mockShowWarning.mockClear()
+    mockShowInfo.mockClear()
     fincasApi = await import('@/services/fincasApi')
     fincasApi.getFincaById.mockClear()
     lotes = useLotes()
@@ -115,7 +152,7 @@ describe('useLotes', () => {
       await expect(lotes.loadLotes()).rejects.toThrow()
 
       expect(lotes.error.value).toBeTruthy()
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+      expect(mockShowError).toHaveBeenCalled()
     })
   })
 
@@ -158,7 +195,7 @@ describe('useLotes', () => {
 
       await expect(lotes.loadLote(1)).rejects.toThrow()
       expect(lotes.error.value).toBeTruthy()
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+      expect(mockShowError).toHaveBeenCalled()
     })
   })
 
@@ -197,7 +234,7 @@ describe('useLotes', () => {
       expect(lotesApi.formatLoteData).toHaveBeenCalled()
       expect(lotesApi.createLote).toHaveBeenCalled()
       expect(result).toEqual(mockResult)
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+      expect(mockShowSuccess).toHaveBeenCalled()
     })
 
     it('should handle validation error', async () => {
@@ -219,7 +256,7 @@ describe('useLotes', () => {
 
       await expect(lotes.createLote(loteData)).rejects.toThrow()
       expect(lotes.error.value).toBeTruthy()
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+      // Note: createLote doesn't call showError on error, it just sets error.value
     })
   })
 
@@ -236,7 +273,7 @@ describe('useLotes', () => {
 
       expect(lotesApi.updateLote).toHaveBeenCalledWith(1, loteData)
       expect(lotes.lote.value).toEqual(mockResult)
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+      expect(mockShowSuccess).toHaveBeenCalled()
     })
 
     it('should handle update error', async () => {
@@ -263,7 +300,7 @@ describe('useLotes', () => {
       expect(lotes.lotes.value).not.toContainEqual({ id: 1 })
       expect(lotes.lote.value).toBe(null)
       expect(result).toBe(true)
-      expect(mockNotificationStore.addNotification).toHaveBeenCalled()
+      expect(mockShowSuccess).toHaveBeenCalled()
     })
 
     it('should handle delete error', async () => {

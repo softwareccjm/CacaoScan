@@ -59,16 +59,30 @@ export function useFincas(options = {}) {
 
       const response = await getFincas(params)
 
+      // Handle both paginated response {results: [...], count: N} and direct array
+      let fincasList = []
+      let totalCount = 0
+
+      if (Array.isArray(response)) {
+        // Direct array response
+        fincasList = response
+        totalCount = response.length
+      } else if (response && typeof response === 'object') {
+        // Paginated response
+        fincasList = response.results || []
+        totalCount = response.count || fincasList.length
+      }
+
       if (page === 1) {
-        fincas.value = response.results || []
+        fincas.value = fincasList
       } else {
-        fincas.value = [...fincas.value, ...(response.results || [])]
+        fincas.value = [...fincas.value, ...fincasList]
       }
 
       pagination.value = {
         currentPage: page,
-        totalPages: Math.ceil((response.count || 0) / pageSize),
-        totalItems: response.count || 0,
+        totalPages: Math.ceil(totalCount / pageSize),
+        totalItems: totalCount,
         itemsPerPage: pageSize
       }
 

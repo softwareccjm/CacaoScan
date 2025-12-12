@@ -296,8 +296,14 @@ const confirmActivate = async (finca) => {
 // Sidebar and navbar methods are now provided by useSidebarNavigation composable
 
 // Lifecycle
-onMounted(() => {
-  loadFincas()
+onMounted(async () => {
+  try {
+    // Load fincas without filters first - backend will filter by authenticated user automatically
+    await loadFincas({}, 1, 20)
+    console.log('[FincasView] Loaded fincas:', fincas.value.length)
+  } catch (error) {
+    console.error('[FincasView] Error loading fincas:', error)
+  }
 })
 </script>
 

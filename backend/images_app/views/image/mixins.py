@@ -54,12 +54,12 @@ class ImagePermissionMixin(AdminPermissionMixin):
         """
         base_queryset = CacaoImage.objects.select_related(
             'user',
-            'finca',
-            'finca__agricultor',
             'lote',
             'lote__finca',
-            'lote__finca__agricultor'
-        ).prefetch_related('prediction')
+            'lote__finca__agricultor',
+            'file_type',
+            'prediction'  # OneToOne relationship, use select_related
+        )
         
         if self.is_admin_user(user):
             # Admins pueden ver todas las imágenes

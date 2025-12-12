@@ -154,8 +154,8 @@ class CacaoSegmentationModel:
         """
         Realiza predicción segmentada con YOLO-Seg.
         
-        Si no encuentra detecciones con el umbral inicial, intenta con umbrales más bajos
-        (especialmente útil cuando se usa el modelo base YOLOv8s-seg).
+        VALIDACIÓN ESTRICTA: Solo acepta detecciones con confianza >= 0.75 y clase válida.
+        No se permiten umbrales bajos para evitar falsos positivos.
         
         Args:
             image_path: Ruta a la imagen a segmentar
@@ -174,29 +174,16 @@ class CacaoSegmentationModel:
         if not Path(image_path).exists():
             raise FileNotFoundError(f"Imagen no encontrada: {image_path}")
         
-        # Intentar con el umbral inicial
+        # Solo intentar con el umbral estricto (0.75)
+        # NO permitir umbrales bajos para evitar falsos positivos
         threshold = self.confidence_threshold
         results = self._try_predict_with_threshold(image_path, threshold)
-        
-        # Si no hay detecciones y el umbral es alto, intentar con umbrales más bajos
-        if results is None and threshold >= 0.5:
-            logger.info(
-                f"[YOLO-Seg] No se encontraron detecciones con conf={threshold:.2f}, "
-                f"intentando con umbrales más bajos..."
-            )
-            lower_thresholds = [0.4, 0.3, 0.25, 0.2, 0.15, 0.1]
-            for lower_threshold in lower_thresholds:
-                results = self._try_predict_with_threshold(image_path, lower_threshold)
-                if results is not None:
-                    logger.info(
-                        f"[YOLO-Seg] Encontrada detección con umbral más bajo: {lower_threshold:.2f}"
-                    )
-                    break
         
         if results is None:
             raise SegmentationError(
                 "No se detectó un grano de cacao en la imagen. "
-                "YOLO-Seg no encontró ningún objeto válido incluso con umbrales bajos."
+                f"YOLO-Seg no encontró ningún objeto válido con confianza >= {threshold*100:.0f}%. "
+                "Solo se aceptan detecciones con alta confianza para garantizar que sea un grano de cacao."
             )
         
         return results
@@ -266,16 +253,11 @@ class CacaoSegmentationModel:
             mask_binary = (mask_resized > 0.5).astype(np.uint8) * 255
             area = int(np.sum(mask_binary > 0))
             
-            # Validar detección (pero con umbral más flexible si es modelo base)
+            # Validar detección con umbral estricto (0.75) - NO se permiten excepciones
+            # Siempre usar MIN_CONFIDENCE (0.75) para evitar falsos positivos
             min_confidence_for_validation = self.MIN_CONFIDENCE
-            if not self.is_custom_model:
-                # Para modelo base, usar umbral más bajo (0.3 en lugar de 0.75)
-                min_confidence_for_validation = max(0.3, threshold * 0.8)
-                logger.info(
-                    f"[YOLO-Seg] Usando modelo base, umbral de validación ajustado a {min_confidence_for_validation:.2f}"
-                )
             
-            # Validar detección con umbral ajustado
+            # Validar detección con umbral estricto
             try:
                 self._validate_detection_with_threshold(
                     confidence, class_name, area, bbox, image_path, min_confidence_for_validation
@@ -364,32 +346,28 @@ class CacaoSegmentationModel:
                 f"(mínimo requerido: {min_confidence*100:.0f}%)."
             )
         
-        # Validación 2: Clase válida (más flexible para modelo base)
+        # Validación 2: Clase válida OBLIGATORIA - NO se permiten excepciones
         is_valid_class = False
         if class_name:
             is_valid_class = any(valid_class in class_name for valid_class in self.VALID_CACAO_CLASSES)
             if not is_valid_class:
                 is_valid_class = class_name in self.VALID_CACAO_CLASSES
         
-        # Si es modelo base y no es clase válida, pero tiene buena confianza y área razonable,
-        # permitir continuar (el modelo base puede clasificar incorrectamente)
+        # OBLIGATORIO: La clase debe ser válida, sin excepciones
+        # NO se permite continuar con clases inválidas, incluso con buena confianza
         if not is_valid_class:
-            if not self.is_custom_model and confidence >= 0.3 and area >= self.MIN_AREA_PIXELS:
-                logger.warning(
-                    f"[YOLO-Seg] Modelo base detectó clase '{class_name}' (no es cacao), "
-                    f"pero confianza y área son razonables. Continuando con validación..."
-                )
-                # No rechazar, pero registrar advertencia
-            else:
-                logger.error(
-                    f"[YOLO-Seg] Clase inválida: '{class_name}' "
-                    f"(clases válidas: {self.VALID_CACAO_CLASSES}) en {filename}"
-                )
-                raise SegmentationError(
-                    f"No se detectó un grano de cacao válido en la imagen. "
-                    f"El modelo detectó un objeto de clase '{class_name}', no un grano de cacao. "
-                    f"Clases válidas: {', '.join(self.VALID_CACAO_CLASSES)}."
-                )
+            logger.error(
+                f"[YOLO-Seg] Clase inválida detectada: '{class_name}' "
+                f"(clases válidas: {self.VALID_CACAO_CLASSES}) en {filename}. "
+                f"Confianza: {confidence:.3f}, Área: {area} píxeles. "
+                f"Se rechaza porque no es una clase válida de cacao."
+            )
+            raise SegmentationError(
+                f"No se detectó un grano de cacao válido en la imagen. "
+                f"El modelo detectó un objeto de clase '{class_name}', no un grano de cacao. "
+                f"Clases válidas requeridas: {', '.join(self.VALID_CACAO_CLASSES)}. "
+                f"Si detectó 'seed', 'bean', 'object', u otra clase, se rechaza automáticamente."
+            )
         
         # Validación 3: Área mínima
         if area < self.MIN_AREA_PIXELS:

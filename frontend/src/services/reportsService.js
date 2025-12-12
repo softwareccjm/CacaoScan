@@ -12,7 +12,7 @@ import {
 } from './reports/reportDTOs'
 
 class ReportsService {
-  baseURL = '/api/reportes'
+  baseURL = '/api/v1/reportes'
 
   /**
    * Listar reportes con filtros y paginación
@@ -48,7 +48,7 @@ class ReportsService {
    */
   async createReport(reportData) {
     const payload = buildReportRequestPayload(reportData)
-    const response = await fetchPost(this.baseURL, payload)
+    const response = await fetchPost(`${this.baseURL}/`, payload)
     return normalizeReportDTO(response)
   }
 
@@ -65,13 +65,29 @@ class ReportsService {
     const response = await fetch(fullUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Accept': 'application/octet-stream'
+        'Accept': '*/*' // Accept any content type for file downloads
       }
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || 'Error al descargar el reporte')
+      // Try to get error message from response
+      let errorMessage = `Error al descargar el reporte (${response.status})`
+      try {
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.detail || errorMessage
+        } else {
+          const text = await response.text()
+          if (text) {
+            errorMessage = text.substring(0, 200) // Limit error message length
+          }
+        }
+      } catch (e) {
+        // If we can't parse the error, use the default message
+        console.warn('Could not parse error response:', e)
+      }
+      throw new Error(errorMessage)
     }
 
     return response
@@ -110,8 +126,8 @@ class ReportsService {
    */
   async generateQualityReport(title, description = '', filters = {}) {
     return this.createReport({
-      tipo_reporte: 'calidad',
-      formato: 'pdf',
+      tipo_reporte: 'CALIDAD',
+      formato: 'EXCEL',
       titulo: title,
       descripcion: description,
       filtros: filters
@@ -128,8 +144,8 @@ class ReportsService {
    */
   async generateFincaReport(fincaId, title, description = '', filters = {}) {
     return this.createReport({
-      tipo_reporte: 'finca',
-      formato: 'pdf',
+      tipo_reporte: 'FINCA',
+      formato: 'EXCEL',
       titulo: title,
       descripcion: description,
       parametros: { finca_id: fincaId },
@@ -146,8 +162,8 @@ class ReportsService {
    */
   async generateAuditReport(title, description = '', filters = {}) {
     return this.createReport({
-      tipo_reporte: 'auditoria',
-      formato: 'pdf',
+      tipo_reporte: 'AUDITORIA',
+      formato: 'EXCEL',
       titulo: title,
       descripcion: description,
       filtros: filters
@@ -165,11 +181,11 @@ class ReportsService {
    */
   async generateCustomReport(tipoReporte, formato, title, parametros = {}, filtros = {}) {
     return this.createReport({
-      tipo_reporte: 'personalizado',
-      formato: formato,
+      tipo_reporte: 'PERSONALIZADO',
+      formato: formato.toUpperCase(),
       titulo: title,
       parametros: {
-        tipo_reporte: tipoReporte,
+        tipo_reporte: tipoReporte.toUpperCase(),
         ...parametros
       },
       filtros: filtros
@@ -237,10 +253,10 @@ class ReportsService {
    */
   getReportTypes() {
     return [
-      { value: 'calidad', label: 'Reporte de Calidad', description: 'Análisis de calidad de granos de cacao' },
-      { value: 'finca', label: 'Reporte de Finca', description: 'Análisis específico de una finca' },
-      { value: 'auditoria', label: 'Reporte de Auditoría', description: 'Actividad y logs del sistema' },
-      { value: 'personalizado', label: 'Reporte Personalizado', description: 'Reporte con parámetros específicos' }
+      { value: 'CALIDAD', label: 'Reporte de Calidad', description: 'Análisis de calidad de granos de cacao' },
+      { value: 'FINCA', label: 'Reporte de Finca', description: 'Análisis específico de una finca' },
+      { value: 'AUDITORIA', label: 'Reporte de Auditoría', description: 'Actividad y logs del sistema' },
+      { value: 'PERSONALIZADO', label: 'Reporte Personalizado', description: 'Reporte con parámetros específicos' }
     ]
   }
 
@@ -249,10 +265,10 @@ class ReportsService {
    */
   getReportFormats() {
     return [
-      { value: 'pdf', label: 'PDF', description: 'Documento PDF con gráficos y tablas' },
-      { value: 'excel', label: 'Excel', description: 'Hoja de cálculo Excel con datos detallados' },
-      { value: 'csv', label: 'CSV', description: 'Archivo CSV con datos tabulares' },
-      { value: 'json', label: 'JSON', description: 'Datos en formato JSON' }
+      { value: 'EXCEL', label: 'Excel', description: 'Hoja de cálculo Excel con datos detallados' },
+      { value: 'PDF', label: 'PDF', description: 'Documento PDF con gráficos y tablas' },
+      { value: 'CSV', label: 'CSV', description: 'Archivo CSV con datos tabulares' },
+      { value: 'JSON', label: 'JSON', description: 'Datos en formato JSON' }
     ]
   }
 
@@ -261,9 +277,10 @@ class ReportsService {
    */
   getReportStates() {
     return [
-      { value: 'completado', label: 'Completado', color: 'success' },
-      { value: 'generando', label: 'Generando', color: 'warning' },
-      { value: 'fallido', label: 'Fallido', color: 'danger' }
+      { value: 'COMPLETADO', label: 'Completado', color: 'success' },
+      { value: 'GENERANDO', label: 'Generando', color: 'warning' },
+      { value: 'PENDIENTE', label: 'Pendiente', color: 'info' },
+      { value: 'FALLIDO', label: 'Fallido', color: 'danger' }
     ]
   }
 }

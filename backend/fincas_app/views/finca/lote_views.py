@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import serializers
 from django.core.paginator import Paginator
 from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
@@ -27,7 +28,8 @@ from api.serializers import (
     LoteListSerializer,
     LoteDetailSerializer,
     LoteStatsSerializer,
-    ErrorResponseSerializer
+    ErrorResponseSerializer,
+    CacaoImageSerializer
 )
 
 logger = logging.getLogger("cacaoscan.api")
@@ -86,12 +88,26 @@ class LotePermissionMixin(AdminPermissionMixin):
         
         if self.is_admin_user(user):
             # Admin puede ver todos los lotes
-            return Lote.objects.all().select_related('finca', 'finca__agricultor')
+            return Lote.objects.all().select_related(
+                'finca', 
+                'finca__agricultor',
+                'variedad',
+                'estado',
+                'finca__municipio',
+                'finca__municipio__departamento'
+            ).prefetch_related('cacao_images')
         else:
             # Agricultor solo ve lotes de sus fincas
             return Lote.objects.filter(
                 finca__agricultor=user
-            ).select_related('finca', 'finca__agricultor')
+            ).select_related(
+                'finca', 
+                'finca__agricultor',
+                'variedad',
+                'estado',
+                'finca__municipio',
+                'finca__municipio__departamento'
+            ).prefetch_related('cacao_images')
     
     def perform_create(self, serializer):
         """Validar que la finca pertenezca al usuario."""
@@ -548,5 +564,139 @@ class LotesPorFincaView(LotePermissionMixin, APIView):
         except Exception as e:
             logger.error(f"Error obteniendo lotes de finca {finca_id} para usuario {request.user.username}: {e}", exc_info=True)
             return handle_exception(e, request.user.username, "obteniendo lotes de finca", finca_id)
+
+
+class AnalisisSerializer(serializers.Serializer):
+    """Serializer for análisis (images) in lote detail view."""
+    id = serializers.IntegerField()
+    fecha_analisis = serializers.DateTimeField(source='created_at')
+    tipo_analisis = serializers.SerializerMethodField()
+    calidad = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    prediction = serializers.SerializerMethodField()
+    
+    def get_tipo_analisis(self, obj):
+        return 'Análisis de Imagen'
+    
+    def get_calidad(self, obj):
+        if hasattr(obj, 'prediction') and obj.prediction:
+            if obj.prediction.quality_score is not None:
+                return float(obj.prediction.quality_score)
+            # Calcular calidad basada en confianza promedio si no hay quality_score
+            if hasattr(obj.prediction, 'average_confidence'):
+                avg_conf = float(obj.prediction.average_confidence)
+                return round(avg_conf * 100, 2)
+        return 0
+    
+    def get_image_url(self, obj):
+        """Get image URL."""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def get_prediction(self, obj):
+        """Get prediction data if exists."""
+        if hasattr(obj, 'prediction') and obj.prediction:
+            pred = obj.prediction
+            return {
+                'id': pred.id,
+                'alto_mm': float(pred.alto_mm) if pred.alto_mm else None,
+                'ancho_mm': float(pred.ancho_mm) if pred.ancho_mm else None,
+                'grosor_mm': float(pred.grosor_mm) if pred.grosor_mm else None,
+                'peso_g': float(pred.peso_g) if pred.peso_g else None,
+                'confidence_alto': float(pred.confidence_alto) if pred.confidence_alto else None,
+                'confidence_ancho': float(pred.confidence_ancho) if pred.confidence_ancho else None,
+                'confidence_grosor': float(pred.confidence_grosor) if pred.confidence_grosor else None,
+                'confidence_peso': float(pred.confidence_peso) if pred.confidence_peso else None,
+                'average_confidence': float(pred.average_confidence) if hasattr(pred, 'average_confidence') and pred.average_confidence else None,
+                'processing_time_ms': pred.processing_time_ms,
+                'crop_url': pred.crop_url if pred.crop_url else None,
+                'model_version': str(pred.model_version) if pred.model_version else None,
+                'device_used': str(pred.device_used) if pred.device_used else None,
+                'created_at': pred.created_at.isoformat() if pred.created_at else None
+            }
+        return None
+        return None
+
+
+class LoteAnalisisView(PaginationMixin, LotePermissionMixin, APIView):
+    """
+    Vista para obtener los análisis (imágenes) de un lote específico.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Obtiene los análisis (imágenes) de un lote específico con paginación",
+        operation_summary="Análisis de lote",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, description="Número de página", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, description="Tamaño de página (máximo 100)", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('processed', openapi.IN_QUERY, description="Filtrar por estado de procesamiento", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('date_from', openapi.IN_QUERY, description="Fecha desde (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+            openapi.Parameter('date_to', openapi.IN_QUERY, description="Fecha hasta (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Análisis obtenidos exitosamente",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'results': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)),
+                        'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'next': openapi.Schema(type=openapi.TYPE_STRING),
+                        'previous': openapi.Schema(type=openapi.TYPE_STRING),
+                        'page': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'page_size': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'total_pages': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            404: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        },
+        tags=['Lotes']
+    )
+    def get(self, request, lote_id):
+        """
+        Obtener análisis (imágenes) de un lote específico.
+        """
+        try:
+            # Verificar que el lote existe y el usuario tiene permisos
+            queryset = self.get_queryset()
+            lote = queryset.get(id=lote_id)
+            
+            # Obtener imágenes del lote con predicciones (OneToOne relationship)
+            images_queryset = lote.cacao_images.all().select_related(
+                'user', 'lote', 'file_type', 'prediction'
+            ).order_by('-created_at')
+            
+            # Aplicar filtros opcionales
+            processed = request.GET.get('processed')
+            if processed is not None:
+                processed_bool = processed.lower() in ['true', '1', 'yes']
+                images_queryset = images_queryset.filter(processed=processed_bool)
+            
+            date_from = request.GET.get('date_from')
+            if date_from:
+                images_queryset = images_queryset.filter(created_at__date__gte=date_from)
+            
+            date_to = request.GET.get('date_to')
+            if date_to:
+                images_queryset = images_queryset.filter(created_at__date__lte=date_to)
+            
+            # Paginar usando el mixin con serializer personalizado
+            return self.paginate_queryset(
+                request,
+                images_queryset,
+                AnalisisSerializer
+            )
+            
+        except Lote.DoesNotExist:
+            return create_error_response(ERROR_LOTE_NOT_FOUND, status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return handle_exception(e, request.user.username, "obteniendo análisis de", lote_id)
 
 

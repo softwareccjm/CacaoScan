@@ -30,15 +30,15 @@ class TestLoteService:
         )
     
     @pytest.fixture
-    def finca(self, user):
+    def finca(self, user, municipio):
         """Create test finca."""
         from fincas_app.models import Finca
         return Finca.objects.create(
             agricultor=user,
             nombre='Test Finca',
             hectareas=Decimal('10.0'),
-            municipio='Test Municipio',
-            departamento='Test Departamento'
+            municipio=municipio,
+            ubicacion='Test Location'
         )
     
     def test_extract_lote_data(self, service):

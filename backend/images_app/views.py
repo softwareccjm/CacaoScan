@@ -137,7 +137,7 @@ class CacaoImageListView(APIView):
         """
         Get queryset ordered by created_at descending.
         """
-        return CacaoImage.objects.select_related('user', 'lote', 'finca').order_by("-created_at")
+        return CacaoImage.objects.select_related('user', 'lote', 'lote__finca', 'lote__finca__agricultor', 'file_type', 'prediction').order_by("-created_at")
     
     def get(self, request):
         """

@@ -228,7 +228,8 @@ class PersonaSerializer(serializers.ModelSerializer):
                 'codigo': obj.municipio.codigo,
                 'nombre': obj.municipio.nombre
             }
-        return None
+        except Exception:
+            return None
     
     def get_login_provider(self, obj):
         """Obtener login_provider desde UserProfile."""

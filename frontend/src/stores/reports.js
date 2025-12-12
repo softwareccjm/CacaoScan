@@ -253,14 +253,26 @@ export const useReportsStore = defineStore('reports', {
         let filename = `reporte_${id}.pdf`
         
         if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+          // Try to extract filename from Content-Disposition header
+          const filenameMatch = contentDisposition.match(/filename="(.+)"/) || contentDisposition.match(/filename=([^;]+)/)
           if (filenameMatch) {
-            filename = filenameMatch[1]
+            filename = filenameMatch[1].trim()
+            // Remove quotes if present
+            filename = filename.replace(/^["']|["']$/g, '')
           }
         }
         
         const blob = await response.blob()
-        downloadBlob(blob, filename)
+        
+        // Convert Headers object to plain object for downloadBlob
+        const headersObj = {}
+        if (response.headers) {
+          response.headers.forEach((value, key) => {
+            headersObj[key.toLowerCase()] = value
+          })
+        }
+        
+        downloadBlob(blob, filename, headersObj)
 
         return true
       } catch (error) {

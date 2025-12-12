@@ -2,5 +2,5 @@ projectKey=cacao-scan
 serverUrl=https://sonarqube.dataguaviare.com.co
 serverVersion=25.11.0.114957
 dashboardUrl=https://sonarqube.dataguaviare.com.co/dashboard?id=cacao-scan
-ceTaskId=f3176b7c-320b-44f9-8b8e-ced13a4db54a
-ceTaskUrl=https://sonarqube.dataguaviare.com.co/api/ce/task?id=f3176b7c-320b-44f9-8b8e-ced13a4db54a
+ceTaskId=e8dfec96-a32b-4a4d-893b-8536ac30fea6
+ceTaskUrl=https://sonarqube.dataguaviare.com.co/api/ce/task?id=e8dfec96-a32b-4a4d-893b-8536ac30fea6

@@ -18,6 +18,24 @@
       <!-- Page Content -->
       <main class="py-8 px-4 sm:px-6 lg:px-8 min-h-screen bg-white relative z-0">
         <div class="max-w-7xl mx-auto space-y-8">
+          <!-- Breadcrumb Navigation -->
+          <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+              <li>
+                <router-link to="/fincas" class="hover:text-green-600 transition-colors">Fincas</router-link>
+              </li>
+              <li class="text-gray-400">/</li>
+              <li v-if="finca" class="text-gray-900 font-medium">
+                <router-link :to="`/fincas/${fincaId}`" class="hover:text-green-600 transition-colors">
+                  {{ finca.nombre || 'Finca' }}
+                </router-link>
+              </li>
+              <li v-else class="text-gray-400">Finca</li>
+              <li class="text-gray-400">/</li>
+              <li class="text-gray-900 font-medium" aria-current="page">Lotes</li>
+            </ol>
+          </nav>
+
           <!-- Header -->
           <LotesHeader 
             :finca-nombre="finca?.nombre || ''"
@@ -57,6 +75,16 @@
               @lote-created="handleLoteCreated"
             />
           </Teleport>
+
+          <!-- Modal de detalle de lote -->
+          <Teleport to="body">
+            <LoteDetailModal
+              v-if="showDetailModal"
+              :show="showDetailModal"
+              :lote-id="selectedLoteId"
+              @close="closeDetailModal"
+            />
+          </Teleport>
         </div>
       </main>
     </div>
@@ -69,12 +97,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { useSidebarNavigation } from '@/composables/useSidebarNavigation'
+import { usePagination } from '@/composables/usePagination'
 import { getLotesByFinca, getFincaById } from '@/services/fincasApi'
 import Sidebar from '@/components/layout/Common/Sidebar.vue'
 import LotesHeader from '@/components/common/LotesViewComponents/LotesHeader.vue'
 import LotesFilters from '@/components/common/LotesViewComponents/LotesFilters.vue'
 import LoteList from '@/components/common/LotesViewComponents/LoteList.vue'
 import CreateLoteModal from '@/components/admin/AdminAnalisisComponents/CreateLoteModal.vue'
+import LoteDetailModal from '@/components/common/LotesViewComponents/LoteDetailModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,12 +127,21 @@ const lotes = ref([])
 const loading = ref(true)
 const error = ref(null)
 const showModal = ref(false)
+const showDetailModal = ref(false)
+const selectedLoteId = ref(null)
 
 // Filters
 const filters = reactive({
-  estado: ''
+  estado: '',
+  variedad: ''
 })
 const searchQuery = ref('')
+
+// Pagination
+const pagination = usePagination({
+  initialPage: 1,
+  initialItemsPerPage: 10
+})
 
 // Computed
 const fincaId = computed(() => {
@@ -146,10 +185,41 @@ const filteredLotes = computed(() => {
     })
   }
 
+  if (filters.variedad) {
+    filtered = filtered.filter(lote => {
+      const variedadNombre = typeof lote.variedad === 'object' 
+        ? lote.variedad?.nombre?.toLowerCase() || ''
+        : String(lote.variedad || '').toLowerCase()
+      return variedadNombre === filters.variedad.toLowerCase()
+    })
+  }
+
   return filtered
 })
 
-
+const stats = computed(() => {
+  const total = lotes.value.length
+  const activos = lotes.value.filter(lote => {
+    const estadoNombre = typeof lote.estado === 'object' 
+      ? lote.estado?.nombre?.toLowerCase() || ''
+      : String(lote.estado || '').toLowerCase()
+    return estadoNombre === 'activo'
+  }).length
+  const cosechados = lotes.value.filter(lote => {
+    const estadoNombre = typeof lote.estado === 'object' 
+      ? lote.estado?.nombre?.toLowerCase() || ''
+      : String(lote.estado || '').toLowerCase()
+    return estadoNombre === 'cosechado'
+  }).length
+  const analisis = lotes.value.filter(lote => (lote.total_analisis || 0) > 0).length
+  
+  return {
+    total,
+    activos,
+    cosechados,
+    analisis
+  }
+})
 
 // Methods
 const loadFinca = async () => {
@@ -203,6 +273,12 @@ const openCreateModal = () => {
   showModal.value = true
 }
 
+const createLote = () => {
+  if (fincaId.value) {
+    router.push(`/fincas/${fincaId.value}/lotes/new`)
+  }
+}
+
 const closeModal = () => {
   showModal.value = false
 }
@@ -215,7 +291,13 @@ const handleLoteCreated = async (newLote) => {
 
 const viewLote = (lote) => {
   const loteId = typeof lote === 'object' ? lote.id : lote
-  router.push(`/lotes/${loteId}`)
+  selectedLoteId.value = loteId
+  showDetailModal.value = true
+}
+
+const closeDetailModal = () => {
+  showDetailModal.value = false
+  selectedLoteId.value = null
 }
 
 const editLote = (lote) => {
@@ -235,8 +317,15 @@ const applyFilters = () => {
 const clearFilters = () => {
   searchQuery.value = ''
   filters.estado = ''
+  filters.variedad = ''
+  pagination.goToPage(1)
 }
 
+const changePage = (page) => {
+  if (page >= 1 && page <= pagination.totalPages.value) {
+    pagination.goToPage(page)
+  }
+}
 
 // Debounced search ya está manejado en LotesFilters
 

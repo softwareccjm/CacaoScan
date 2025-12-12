@@ -241,12 +241,12 @@ class ImageManagementService(BaseService):
                 )
             # Construir queryset (optimizado)
             queryset = CacaoImage.objects.filter(user=user).select_related(
-                'finca',
-                'finca__agricultor',
                 'lote',
                 'lote__finca',
-                'lote__finca__agricultor'
-            ).select_related('prediction').order_by('-created_at')
+                'lote__finca__agricultor',
+                'file_type',
+                'prediction'
+            ).order_by('-created_at')
             
             queryset = self._apply_filters_to_queryset(queryset, filters)
             

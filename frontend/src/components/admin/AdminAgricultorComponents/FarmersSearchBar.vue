@@ -18,7 +18,7 @@ defineProps({
   },
   placeholder: {
     type: String,
-    default: 'Buscar agricultor por nombre, email o finca...'
+    default: 'Buscar cacaocultor por nombre, email o finca...'
   }
 })
 

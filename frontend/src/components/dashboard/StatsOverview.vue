@@ -7,24 +7,6 @@
       :trend="stats.batchesChange ? { value: parseChange(stats.batchesChange), label: `${stats.batchesChange} este mes` } : null"
       color="success"
     />
-    
-    <BaseStatsCard
-      title="Calidad promedio"
-      :value="stats.avgQuality || 0"
-      format="percentage"
-      icon="fas fa-star"
-      :trend="stats.qualityChange ? { value: parseChange(stats.qualityChange), label: `${stats.qualityChange} este mes` } : null"
-      color="warning"
-    />
-    
-    <BaseStatsCard
-      title="Defectos"
-      :value="stats.defectRate || 0"
-      format="percentage"
-      icon="fas fa-exclamation-triangle"
-      :trend="stats.defectChange ? { value: parseChange(stats.defectChange), label: `${stats.defectChange} este mes` } : null"
-      color="danger"
-    />
   </section>
 </template>
 

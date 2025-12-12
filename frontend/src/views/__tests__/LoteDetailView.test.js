@@ -554,7 +554,7 @@ describe('LoteDetailView', () => {
     await analyzeButton.trigger('click')
     await wrapper.vm.$nextTick()
     
-    expect(mockRouter.push).toHaveBeenCalledWith('/analisis/new?lote=1')
+    expect(mockRouter.push).toHaveBeenCalledWith('/analisis?lote=1')
   }, 5000)
 
   it('should navigate to analisis page when view analisis button is clicked', async () => {

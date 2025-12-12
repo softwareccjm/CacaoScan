@@ -579,7 +579,7 @@ const handleSubmit = async () => {
       fecha_procesamiento: formData.fecha_procesamiento || null,
       fecha_plantacion: formData.fecha_plantacion || null,
       fecha_cosecha: formData.fecha_cosecha || null,
-      estado: formData.estado ? Number(formData.estado) : null,
+      estado: Number(formData.estado),
       descripcion: formData.descripcion.trim() || null,
       activo: formData.activo
     }

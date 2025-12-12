@@ -22,7 +22,9 @@ import configApi from '@/services/configApi'
 const mockAuthStore = {
   isAdmin: false,
   isAnalyst: false,
-  isAuthenticated: true
+  isAuthenticated: true,
+  accessToken: 'mock-access-token',
+  refreshToken: 'mock-refresh-token'
 }
 
 vi.mock('@/stores/auth', () => ({
@@ -39,6 +41,14 @@ describe('ConfigStore', () => {
     setActivePinia(createPinia())
     configStore = useConfigStore()
     vi.clearAllMocks()
+    // Reset mock auth store to default values
+    mockAuthStore.isAdmin = false
+    mockAuthStore.isAnalyst = false
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.accessToken = 'mock-access-token'
+    mockAuthStore.refreshToken = 'mock-refresh-token'
+    // Clear localStorage
+    localStorage.clear()
   })
 
   describe('Initial State', () => {

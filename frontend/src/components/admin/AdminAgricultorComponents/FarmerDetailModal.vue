@@ -1,7 +1,7 @@
 <template>
   <BaseModal
     :show="isOpen"
-    :title="farmer ? farmer.name : 'Detalles del Agricultor'"
+    :title="farmer ? farmer.name : 'Detalles del Cacaocultor'"
     :subtitle="farmer ? farmer.email : ''"
     max-width="4xl"
     overlay-class="bg-black/30 backdrop-blur-sm"
@@ -51,7 +51,7 @@
                   </div>
                   <div>
                     <h4 class="text-lg font-bold text-gray-900">Datos Personales</h4>
-                    <p class="text-sm text-gray-600">Información registrada del agricultor</p>
+                    <p class="text-sm text-gray-600">Información registrada del cacaocultor</p>
                   </div>
                 </div>
               </div>
@@ -171,7 +171,7 @@
                   </div>
                   <div>
                     <h4 class="text-lg font-bold text-gray-900">Fincas</h4>
-                    <p class="text-sm text-gray-600">Fincas asociadas al agricultor</p>
+                    <p class="text-sm text-gray-600">Fincas asociadas al cacaocultor</p>
                   </div>
                 </div>
               </div>
@@ -250,7 +250,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
               </svg>
               <h4 class="text-lg font-bold text-gray-900 mb-2">Sin fincas registradas</h4>
-              <p class="text-gray-600">Este agricultor no tiene fincas asociadas aún</p>
+              <p class="text-gray-600">Este cacaocultor no tiene fincas asociadas aún</p>
             </div>
 
             <!-- Información de Usuario -->
@@ -264,7 +264,7 @@
                   </div>
                   <div>
                     <h4 class="text-lg font-bold text-gray-900">Información de Usuario</h4>
-                    <p class="text-sm text-gray-600">Datos de la cuenta del agricultor</p>
+                    <p class="text-sm text-gray-600">Datos de la cuenta del cacaocultor</p>
                   </div>
                 </div>
               </div>
@@ -290,7 +290,7 @@
                         'bg-blue-100 text-blue-800': userDetails.role === 'analyst',
                         'bg-green-100 text-green-800': userDetails.role === 'farmer'
                       }">
-                        {{ userDetails.role === 'admin' ? 'Administrador' : userDetails.role === 'analyst' ? 'Analista' : 'Agricultor' }}
+                        {{ userDetails.role === 'admin' ? 'Administrador' : userDetails.role === 'analyst' ? 'Analista' : 'Cacaocultor' }}
                       </span>
                     </p>
                   </div>

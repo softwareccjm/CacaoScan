@@ -7,11 +7,11 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
         </svg>
       </div>
-      <h3 class="text-lg font-bold text-gray-900 mb-2">No se encontraron agricultores</h3>
+      <h3 class="text-lg font-bold text-gray-900 mb-2">No se encontraron cacaocultores</h3>
       <p class="text-gray-600 mb-6">
         {{ searchQuery || filters.region !== 'all' || filters.status !== 'all' 
           ? 'Intenta ajustar los filtros o la búsqueda' 
-          : 'Comienza agregando tu primer agricultor' }}
+          : 'Comienza agregando tu primer cacaocultor' }}
       </p>
       <button 
         v-if="!searchQuery && filters.region === 'all' && filters.status === 'all'"
@@ -21,7 +21,7 @@
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
         </svg>
-        Agregar Primer Agricultor
+        Agregar Primer Cacaocultor
       </button>
     </div>
 
@@ -32,7 +32,7 @@
       :data="filteredFarmers"
       :show-table-info="false"
     >
-      <!-- Celda personalizada para Agricultor -->
+      <!-- Celda personalizada para Cacaocultor -->
       <template #cell-farmer="{ row }">
         <div class="flex items-center">
           <div class="h-10 w-10 rounded-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center text-green-700 font-semibold text-sm border-2 border-green-100">

@@ -19,18 +19,19 @@ export function useNotifications() {
    * @returns {void}
    */
   const showSuccess = (message, duration = null) => {
-    store.createNotification({
-      tipo: 'success',
-      mensaje: message,
-      duracion: duration
-    })
-    if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
-      globalThis.showNotification({
-        type: 'success',
-        title: 'Éxito',
-        message: message,
-        duration: duration || 5000
-      })
+    // Only show local toast, don't create persistent notification
+    try {
+      if (typeof globalThis !== 'undefined' && globalThis.showNotification && typeof globalThis.showNotification === 'function') {
+        globalThis.showNotification({
+          type: 'success',
+          title: 'Éxito',
+          message: message,
+          duration: duration || 5000
+        })
+      }
+    } catch (error) {
+      // Silently fail in test environment or if showNotification is not available
+      console.debug('showNotification not available:', error)
     }
   }
 
@@ -41,18 +42,19 @@ export function useNotifications() {
    * @returns {void}
    */
   const showError = (message, duration = null) => {
-    store.createNotification({
-      tipo: 'error',
-      mensaje: message,
-      duracion: duration
-    })
-    if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
-      globalThis.showNotification({
-        type: 'error',
-        title: 'Error',
-        message: message,
-        duration: duration || 8000
-      })
+    // Only show local toast, don't create persistent notification
+    try {
+      if (typeof globalThis !== 'undefined' && globalThis.showNotification && typeof globalThis.showNotification === 'function') {
+        globalThis.showNotification({
+          type: 'error',
+          title: 'Error',
+          message: message,
+          duration: duration || 8000
+        })
+      }
+    } catch (error) {
+      // Silently fail in test environment or if showNotification is not available
+      console.debug('showNotification not available:', error)
     }
   }
 
@@ -63,18 +65,19 @@ export function useNotifications() {
    * @returns {void}
    */
   const showWarning = (message, duration = null) => {
-    store.createNotification({
-      tipo: 'warning',
-      mensaje: message,
-      duracion: duration
-    })
-    if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
-      globalThis.showNotification({
-        type: 'warning',
-        title: 'Advertencia',
-        message: message,
-        duration: duration || 6000
-      })
+    // Only show local toast, don't create persistent notification
+    try {
+      if (typeof globalThis !== 'undefined' && globalThis.showNotification && typeof globalThis.showNotification === 'function') {
+        globalThis.showNotification({
+          type: 'warning',
+          title: 'Advertencia',
+          message: message,
+          duration: duration || 6000
+        })
+      }
+    } catch (error) {
+      // Silently fail in test environment or if showNotification is not available
+      console.debug('showNotification not available:', error)
     }
   }
 
@@ -85,18 +88,19 @@ export function useNotifications() {
    * @returns {void}
    */
   const showInfo = (message, duration = null) => {
-    store.createNotification({
-      tipo: 'info',
-      mensaje: message,
-      duracion: duration
-    })
-    if (typeof globalThis !== 'undefined' && globalThis.showNotification) {
-      globalThis.showNotification({
-        type: 'info',
-        title: 'Información',
-        message: message,
-        duration: duration || 5000
-      })
+    // Only show local toast, don't create persistent notification
+    try {
+      if (typeof globalThis !== 'undefined' && globalThis.showNotification && typeof globalThis.showNotification === 'function') {
+        globalThis.showNotification({
+          type: 'info',
+          title: 'Información',
+          message: message,
+          duration: duration || 5000
+        })
+      }
+    } catch (error) {
+      // Silently fail in test environment or if showNotification is not available
+      console.debug('showNotification not available:', error)
     }
   }
 

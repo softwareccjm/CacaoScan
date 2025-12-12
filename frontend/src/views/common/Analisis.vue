@@ -37,6 +37,14 @@
             </div>
           </div>
 
+          <!-- Analisis Result Modal -->
+          <AnalisisResultModal
+            v-if="showAnalisisModal"
+            :show="showAnalisisModal"
+            :analysis-result="analysisResult"
+            @close="showAnalisisModal = false"
+          />
+
           <!-- Main Content Card -->
           <div class="bg-white shadow-lg border-2 border-gray-200 rounded-2xl overflow-hidden">
             <div class="p-8 space-y-8">
@@ -161,33 +169,42 @@
                           </div>
                           
                           <div v-else-if="prediction && !prediction.error" class="space-y-2">
+                            <!-- Los datos pueden estar en prediction directamente o en prediction.prediction -->
                             <div class="grid grid-cols-2 gap-2">
                               <div>
                                 <p class="text-xs text-gray-600">Alto</p>
-                                <p class="text-sm font-semibold text-green-900">{{ (prediction.alto_mm || 0).toFixed(2) }} mm</p>
-                                <p v-if="prediction.confidences && prediction.confidences.alto" class="text-xs text-gray-500">
-                                  Conf: {{ ((prediction.confidences.alto || 0) * 100).toFixed(0) }}%
+                                <p class="text-sm font-semibold text-green-900">
+                                  {{ ((prediction.prediction?.alto_mm || prediction.alto_mm || 0)).toFixed(2) }} mm
+                                </p>
+                                <p v-if="(prediction.prediction?.confidences?.alto || prediction.confidences?.alto)" class="text-xs text-gray-500">
+                                  Conf: {{ (((prediction.prediction?.confidences?.alto || prediction.confidences?.alto || 0)) * 100).toFixed(0) }}%
                                 </p>
                               </div>
                               <div>
                                 <p class="text-xs text-gray-600">Ancho</p>
-                                <p class="text-sm font-semibold text-green-900">{{ (prediction.ancho_mm || 0).toFixed(2) }} mm</p>
-                                <p v-if="prediction.confidences && prediction.confidences.ancho" class="text-xs text-gray-500">
-                                  Conf: {{ ((prediction.confidences.ancho || 0) * 100).toFixed(0) }}%
+                                <p class="text-sm font-semibold text-green-900">
+                                  {{ ((prediction.prediction?.ancho_mm || prediction.ancho_mm || 0)).toFixed(2) }} mm
+                                </p>
+                                <p v-if="(prediction.prediction?.confidences?.ancho || prediction.confidences?.ancho)" class="text-xs text-gray-500">
+                                  Conf: {{ (((prediction.prediction?.confidences?.ancho || prediction.confidences?.ancho || 0)) * 100).toFixed(0) }}%
                                 </p>
                               </div>
                               <div>
                                 <p class="text-xs text-gray-600">Grosor</p>
-                                <p class="text-sm font-semibold text-green-900">{{ (prediction.grosor_mm || 0).toFixed(2) }} mm</p>
-                                <p v-if="prediction.confidences && prediction.confidences.grosor" class="text-xs text-gray-500">
-                                  Conf: {{ ((prediction.confidences.grosor || 0) * 100).toFixed(0) }}%
+                                <p class="text-sm font-semibold text-green-900">
+                                  {{ ((prediction.prediction?.grosor_mm || prediction.grosor_mm || 0)).toFixed(2) }} mm
+                                </p>
+                                <p v-if="(prediction.prediction?.confidences?.grosor || prediction.confidences?.grosor)" class="text-xs text-gray-500">
+                                  Conf: {{ (((prediction.prediction?.confidences?.grosor || prediction.confidences?.grosor || 0)) * 100).toFixed(0) }}%
                                 </p>
                               </div>
                               <div>
                                 <p class="text-xs text-gray-600">Peso</p>
-                                <p class="text-sm font-semibold text-green-900">{{ (prediction.peso_g || 0).toFixed(2) }} g</p>
-                                <p v-if="prediction.confidences && prediction.confidences.peso" class="text-xs text-gray-500">
-                                  Conf: {{ ((prediction.confidences.peso || 0) * 100).toFixed(0) }}%
+                                <p class="text-sm font-semibold text-green-900">
+                                  {{ ((prediction.prediction?.peso_g || prediction.peso_g || 0)).toFixed(2) }} g
+                                </p>
+                                <p v-if="(prediction.prediction?.confidences?.peso || prediction.confidences?.peso)" class="text-xs text-gray-500">
+                                  Conf: {{ (((prediction.prediction?.confidences?.peso || prediction.confidences?.peso || 0)) * 100).toFixed(0) }}%
                                 </p>
                               </div>
                             </div>
@@ -198,15 +215,16 @@
 
                     <!-- Botones de acción -->
                     <div class="flex flex-col sm:flex-row gap-3 mt-6">
-                      <router-link 
-                        :to="{ name: 'LoteDetail', params: { id: analysisResult.lote_id } }"
+                      <button
+                        v-if="analysisResult && analysisResult.predictions && analysisResult.predictions.length > 0"
+                        @click="showAnalisisModal = true"
                         class="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 shadow-md"
                       >
                         Ver resultados detallados
                         <svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
-                      </router-link>
+                      </button>
                       
                       <button
                         @click="resetAndCreateNew"
@@ -418,6 +436,7 @@ import ProgressIndicator from '@/components/admin/AdminAnalisisComponents/Progre
 import BatchInfoForm from '@/components/admin/AdminAnalisisComponents/BatchInfoForm.vue'
 import ImageUploader from '@/components/admin/AdminAnalisisComponents/ImageUploader.vue'
 import CameraCapture from '@/components/admin/AdminAnalisisComponents/CameraCapture.vue'
+import AnalisisResultModal from '@/components/common/LotesViewComponents/AnalisisResultModal.vue'
 
 // 4. Stores
 import { useAuthStore } from '@/stores/auth'
@@ -471,6 +490,7 @@ const activeSection = ref('analysis')
 const imageUrls = ref({})
 const loadingLote = ref(false)
 const isUpdatingBatchData = ref(false)
+const showAnalisisModal = ref(false)
 
 // Tabs configuration
 const tabs = [
