@@ -109,12 +109,36 @@ case "${ROLE}" in
         ;;
     celery-worker)
         wait_for_database
-        log "✅ Iniciando Celery Worker"
+        # Verificar si Celery está habilitado
+        if [[ "${USE_CELERY_REDIS:-false}" != "true" ]]; then
+            log "⚠️  USE_CELERY_REDIS está deshabilitado. No se iniciará el worker de Celery."
+            log "ℹ️  Para habilitar Celery, configura USE_CELERY_REDIS=true y CELERY_BROKER_URL en Render Dashboard."
+            exit 0
+        fi
+        # Verificar que CELERY_BROKER_URL esté configurado
+        if [[ -z "${CELERY_BROKER_URL:-}" ]]; then
+            log "❌ ERROR: CELERY_BROKER_URL no está configurado."
+            log "ℹ️  Configura CELERY_BROKER_URL en Render Dashboard > Environment Variables."
+            exit 1
+        fi
+        log "✅ Iniciando Celery Worker (Broker: ${CELERY_BROKER_URL})"
         exec celery -A cacaoscan worker --loglevel=info --concurrency=2 --max-tasks-per-child=1
         ;;
     celery-beat)
         wait_for_database
-        log "✅ Iniciando Celery Beat (Scheduler)"
+        # Verificar si Celery está habilitado
+        if [[ "${USE_CELERY_REDIS:-false}" != "true" ]]; then
+            log "⚠️  USE_CELERY_REDIS está deshabilitado. No se iniciará Celery Beat."
+            log "ℹ️  Para habilitar Celery, configura USE_CELERY_REDIS=true y CELERY_BROKER_URL en Render Dashboard."
+            exit 0
+        fi
+        # Verificar que CELERY_BROKER_URL esté configurado
+        if [[ -z "${CELERY_BROKER_URL:-}" ]]; then
+            log "❌ ERROR: CELERY_BROKER_URL no está configurado."
+            log "ℹ️  Configura CELERY_BROKER_URL en Render Dashboard > Environment Variables."
+            exit 1
+        fi
+        log "✅ Iniciando Celery Beat (Scheduler) (Broker: ${CELERY_BROKER_URL})"
         exec celery -A cacaoscan beat --loglevel=info
         ;;
     *)
