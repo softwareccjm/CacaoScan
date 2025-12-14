@@ -306,16 +306,41 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
             }, status=status.HTTP_404_NOT_FOUND)
     
     def _get_original_image_path(self, image, image_id: int):
-        """Obtiene la ruta de la imagen original."""
+        """Obtiene la ruta de la imagen original o contenido desde S3."""
         if not image.image:
             return None, None, Response({
                 'error': 'Imagen original no disponible',
                 'status': 'error'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        file_path = image.image.path
-        file_name = image.file_name or f"image_{image_id}.jpg"
-        return file_path, file_name, None
+        import os
+        use_s3 = os.environ.get('USE_S3', 'False').lower() == 'true'
+        
+        if use_s3:
+            # Image is in S3, return URL for redirect or download content
+            try:
+                # Get file content from S3
+                with image.image.open('rb') as s3_file:
+                    file_content = s3_file.read()
+                file_name = image.file_name or f"image_{image_id}.jpg"
+                return file_content, file_name, None
+            except Exception as e:
+                logger.error(f"Error reading image from S3: {e}")
+                return None, None, Response({
+                    'error': 'Error al leer la imagen desde S3',
+                    'status': 'error'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # Image is local, return path
+            try:
+                file_path = image.image.path
+                file_name = image.file_name or f"image_{image_id}.jpg"
+                return file_path, file_name, None
+            except AttributeError:
+                return None, None, Response({
+                    'error': 'Error al obtener la ruta de la imagen',
+                    'status': 'error'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _get_processed_image_url(self, image):
         """Obtiene la URL de la imagen procesada."""
@@ -345,17 +370,31 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
             return 'image/bmp'
         return 'application/octet-stream'
     
-    def _create_file_response(self, file_path: str, file_name: str, content_type: str):
-        """Crea la respuesta de archivo."""
-        response = FileResponse(
-            open(file_path, 'rb'),
-            content_type=content_type,
-            as_attachment=True,
-            filename=escape_uri_path(file_name)
-        )
-        response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(file_name)}"'
-        response['Content-Length'] = os.path.getsize(file_path)
-        return response
+    def _create_file_response(self, file_path_or_content, file_name: str, content_type: str):
+        """
+        Crea la respuesta de archivo.
+        Puede recibir un path (str) o contenido (bytes) desde S3.
+        """
+        from django.http import HttpResponse
+        import io
+        
+        if isinstance(file_path_or_content, bytes):
+            # Content from S3
+            response = HttpResponse(file_path_or_content, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(file_name)}"'
+            response['Content-Length'] = len(file_path_or_content)
+            return response
+        else:
+            # Local file path
+            response = FileResponse(
+                open(file_path_or_content, 'rb'),
+                content_type=content_type,
+                as_attachment=True,
+                filename=escape_uri_path(file_name)
+            )
+            response['Content-Disposition'] = f'attachment; filename="{escape_uri_path(file_name)}"'
+            response['Content-Length'] = os.path.getsize(file_path_or_content)
+            return response
     
     def get(self, request, image_id):
         """
@@ -376,9 +415,21 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
             download_type = request.GET.get('type', 'original').lower()
             
             if download_type == 'original':
-                file_path, file_name, error_response = self._get_original_image_path(image, image_id)
+                file_path_or_content, file_name, error_response = self._get_original_image_path(image, image_id)
                 if error_response:
                     return error_response
+                
+                # Check if it's a local path or content from S3
+                if isinstance(file_path_or_content, str):
+                    # Local file path
+                    if not os.path.exists(file_path_or_content):
+                        return Response({
+                            'error': 'Archivo de imagen no encontrado en el servidor',
+                            'status': 'error'
+                        }, status=status.HTTP_404_NOT_FOUND)
+                
+                content_type = self._get_content_type(file_name)
+                return self._create_file_response(file_path_or_content, file_name, content_type)
             elif download_type == 'processed':
                 crop_url, error_response = self._get_processed_image_url(image)
                 if error_response:
@@ -389,19 +440,6 @@ class ImageDownloadView(APIView, ImagePermissionMixin):
                     'error': 'Tipo de descarga inválido. Use "original" o "processed"',
                     'status': 'error'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not os.path.exists(file_path):
-                return Response({
-                    'error': 'Archivo de imagen no encontrado en el servidor',
-                    'status': 'error'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            content_type = self._get_content_type(file_name)
-            response = self._create_file_response(file_path, file_name, content_type)
-            
-            logger.info(f"Imagen {image_id} ({download_type}) descargada por usuario {request.user.username}")
-            
-            return response
             
         except Exception as e:
             logger.error(f"Error descargando imagen {image_id}: {e}")

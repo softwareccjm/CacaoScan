@@ -132,13 +132,17 @@ class ImageStorageService(BaseService):
             # This validates that the image contains a cacao bean
             processed_png_path = None
             try:
-                generated_path = segment_and_crop_cacao_bean(str(cacao_image.image.path), method="yolo")
-                if generated_path:
-                    processed_png_path = Path(generated_path)
-                    self.log_info(f"Segmented PNG saved at: {processed_png_path.absolute()}")
-                else:
-                    # If segmentation returns None, it means no bean was detected
-                    raise SegmentationError("No se detectó un grano de cacao en la imagen")
+                from images_app.utils import get_local_image_path
+                
+                # Use helper to get local path (handles S3 downloads automatically)
+                with get_local_image_path(cacao_image.image) as image_path:
+                    generated_path = segment_and_crop_cacao_bean(str(image_path), method="yolo")
+                    if generated_path:
+                        processed_png_path = Path(generated_path)
+                        self.log_info(f"Segmented PNG saved at: {processed_png_path.absolute()}")
+                    else:
+                        # If segmentation returns None, it means no bean was detected
+                        raise SegmentationError("No se detectó un grano de cacao en la imagen")
             except SegmentationError as seg_error:
                 # SegmentationError means no cacao bean was detected
                 # Delete the saved image and propagate the error
