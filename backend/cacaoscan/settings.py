@@ -804,6 +804,38 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
+# CSRF Configuration
+# CSRF_TRUSTED_ORIGINS: Lista de orígenes confiables para CSRF
+# En desarrollo, permite localhost y 127.0.0.1
+csrf_trusted_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if csrf_trusted_origins_env:
+    CSRF_TRUSTED_ORIGINS = [
+        origin.strip()
+        for origin in csrf_trusted_origins_env.split(',')
+        if origin.strip()
+    ]
+else:
+    # Development defaults
+    if DEBUG:
+        CSRF_TRUSTED_ORIGINS = [
+            'http://localhost:8000',
+            'http://127.0.0.1:8000',
+            'http://localhost:5173',
+            'http://127.0.0.1:5173',
+        ]
+    else:
+        CSRF_TRUSTED_ORIGINS = []
+
+# CSRF Cookie settings
+CSRF_COOKIE_SECURE = False if DEBUG else True  # Solo HTTPS en producción
+CSRF_COOKIE_HTTPONLY = False  # Permitir acceso desde JavaScript si es necesario
+CSRF_COOKIE_SAMESITE = 'Lax'  # Lax permite envío en navegación top-level
+
+# Session Cookie settings
+SESSION_COOKIE_SECURE = False if DEBUG else True  # Solo HTTPS en producción
+SESSION_COOKIE_HTTPONLY = True  # Prevenir acceso desde JavaScript por seguridad
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 # Security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True

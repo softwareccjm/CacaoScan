@@ -52,6 +52,7 @@ def get_predictor() -> Tuple[Optional[Any], Optional[Dict[str, Any]]]:
 def load_image_for_prediction(image_file, cacao_image) -> Image.Image:
     """
     Loads image for prediction from memory or disk.
+    Handles both local storage and S3.
     
     Args:
         image_file: File object or path
@@ -69,7 +70,16 @@ def load_image_for_prediction(image_file, cacao_image) -> Image.Image:
     except (AttributeError, ValueError, IOError):
         pass
     
-    return Image.open(cacao_image.image.path)
+    # Try to load from image field (handles S3 automatically)
+    try:
+        with cacao_image.image.open('rb') as img_file:
+            return Image.open(io.BytesIO(img_file.read()))
+    except (AttributeError, ValueError, IOError):
+        # Fallback to path if available (local storage)
+        try:
+            return Image.open(cacao_image.image.path)
+        except (AttributeError, ValueError, IOError):
+            raise IOError(f"Cannot load image from cacao_image {cacao_image.id}")
 
 
 def get_tipo_dispositivo_from_code(codigo: str):
