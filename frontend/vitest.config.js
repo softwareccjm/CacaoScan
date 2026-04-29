@@ -11,9 +11,6 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
-    threads: true,
-    maxThreads: 2,
-    minThreads: 1,
     isolate: true,
     testTimeout: 60000,
     hookTimeout: 60000,
@@ -65,12 +62,10 @@ export default defineConfig({
         'src/services/api/index.js'
       ],
       thresholds: {
-        global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80
-        }
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80
       }
     }
   },
