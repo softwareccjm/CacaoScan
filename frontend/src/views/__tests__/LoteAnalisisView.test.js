@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import LoteAnalisisView from '../LoteAnalisisView.vue'
 
@@ -12,10 +12,30 @@ vi.mock('@/stores/auth', () => ({
 vi.mock('@/stores/notifications', () => ({
   useNotificationStore: () => ({
     showNotification: vi.fn()
+  }),
+  useNotificationsStore: () => ({
+    showNotification: vi.fn()
   })
 }))
 
-globalThis.fetch = vi.fn()
+vi.mock('@/services/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    delete: vi.fn()
+  }
+}))
+
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual('vue-router')
+  return {
+    ...actual,
+    useRoute: () => ({ params: { id: '1' }, query: {} }),
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() })
+  }
+})
+
+import api from '@/services/api'
 
 describe('LoteAnalisisView', () => {
   let wrapper
@@ -42,16 +62,17 @@ describe('LoteAnalisisView', () => {
   })
 
   it('should render error state when error occurs', async () => {
-    globalThis.fetch.mockRejectedValueOnce(new Error('Network error'))
-    
+    api.get.mockRejectedValue(new Error('Network error'))
+
     wrapper = mount(LoteAnalisisView, {
       global: {
         stubs: { 'router-link': true }
       }
     })
 
+    await flushPromises()
     await wrapper.vm.$nextTick()
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await flushPromises()
 
     expect(wrapper.text()).toContain('Error')
   })
@@ -66,15 +87,18 @@ describe('LoteAnalisisView', () => {
       finca: 1
     }
 
-    globalThis.fetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockLote
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ results: [] })
-      })
+    api.get.mockImplementation((url) => {
+      if (url.includes('/lotes/1/analisis/')) {
+        return Promise.resolve({ data: { results: [] } })
+      }
+      if (url.includes('/lotes/1/')) {
+        return Promise.resolve({ data: mockLote })
+      }
+      if (url.includes('/fincas/')) {
+        return Promise.resolve({ data: { id: 1, nombre: 'F' } })
+      }
+      return Promise.resolve({ data: {} })
+    })
 
     wrapper = mount(LoteAnalisisView, {
       global: {
@@ -82,8 +106,10 @@ describe('LoteAnalisisView', () => {
       }
     })
 
+    await flushPromises()
     await wrapper.vm.$nextTick()
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await flushPromises()
+    await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('Lote A')
   })

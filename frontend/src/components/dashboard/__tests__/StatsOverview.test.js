@@ -53,7 +53,7 @@ describe('StatsOverview', () => {
       expect(wrapper.find('.stats-overview').exists()).toBe(true)
     })
 
-    it('should render three stat cards', () => {
+    it('should render the total batches card', () => {
       wrapper = mount(StatsOverview, {
         props: {
           stats: defaultStats
@@ -61,7 +61,7 @@ describe('StatsOverview', () => {
       })
 
       const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      expect(cards.length).toBe(3)
+      expect(cards.length).toBe(1)
     })
   })
 
@@ -122,96 +122,6 @@ describe('StatsOverview', () => {
     })
   })
 
-  describe('Average Quality Card', () => {
-    it('should render average quality card with correct props', () => {
-      wrapper = mount(StatsOverview, {
-        props: {
-          stats: defaultStats
-        }
-      })
-
-      const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      const qualityCard = cards[1]
-      
-      expect(qualityCard.props('title')).toBe('Calidad promedio')
-      expect(qualityCard.props('value')).toBe(87)
-      expect(qualityCard.props('icon')).toBe('fas fa-star')
-      expect(qualityCard.props('format')).toBe('percentage')
-      expect(qualityCard.props('color')).toBe('warning')
-    })
-
-    it('should show zero when avgQuality is not provided', () => {
-      wrapper = mount(StatsOverview, {
-        props: {
-          stats: {}
-        }
-      })
-
-      const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      expect(cards[1].props('value')).toBe(0)
-    })
-
-    it('should render trend when qualityChange is provided', () => {
-      wrapper = mount(StatsOverview, {
-        props: {
-          stats: defaultStats
-        }
-      })
-
-      const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      const trend = cards[1].props('trend')
-      
-      expect(trend).toBeTruthy()
-      expect(trend.label).toContain('+2%')
-      expect(trend.value).toBe(2)
-    })
-  })
-
-  describe('Defect Rate Card', () => {
-    it('should render defect rate card with correct props', () => {
-      wrapper = mount(StatsOverview, {
-        props: {
-          stats: defaultStats
-        }
-      })
-
-      const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      const defectCard = cards[2]
-      
-      expect(defectCard.props('title')).toBe('Defectos')
-      expect(defectCard.props('value')).toBe(5.2)
-      expect(defectCard.props('icon')).toBe('fas fa-exclamation-triangle')
-      expect(defectCard.props('format')).toBe('percentage')
-      expect(defectCard.props('color')).toBe('danger')
-    })
-
-    it('should show zero when defectRate is not provided', () => {
-      wrapper = mount(StatsOverview, {
-        props: {
-          stats: {}
-        }
-      })
-
-      const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      expect(cards[2].props('value')).toBe(0)
-    })
-
-    it('should render trend when defectChange is provided', () => {
-      wrapper = mount(StatsOverview, {
-        props: {
-          stats: defaultStats
-        }
-      })
-
-      const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      const trend = cards[2].props('trend')
-      
-      expect(trend).toBeTruthy()
-      expect(trend.label).toContain('-1.2%')
-      expect(trend.value).toBe(-1.2)
-    })
-  })
-
   describe('Change Values', () => {
     it('should handle positive changes', () => {
       wrapper = mount(StatsOverview, {
@@ -251,15 +161,15 @@ describe('StatsOverview', () => {
       wrapper = mount(StatsOverview, {
         props: {
           stats: {
-            avgQuality: 85,
-            qualityChange: '+2.5%'
+            totalBatches: 10,
+            batchesChange: '+2.5%'
           }
         }
       })
 
       const cards = wrapper.findAllComponents({ name: 'BaseStatsCard' })
-      const trend = cards[1].props('trend')
-      
+      const trend = cards[0].props('trend')
+
       expect(trend.value).toBe(2.5)
     })
   })

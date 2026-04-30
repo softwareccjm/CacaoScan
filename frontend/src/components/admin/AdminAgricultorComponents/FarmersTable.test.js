@@ -100,7 +100,7 @@ describe('FarmersTable', () => {
     })
 
     const text = wrapper.text()
-    expect(text.includes('No se encontraron agricultores')).toBe(true)
+    expect(text.includes('No se encontraron cacaocultores')).toBe(true)
   })
 
   it('should show add farmer button when empty and no filters', () => {
@@ -119,7 +119,7 @@ describe('FarmersTable', () => {
 
     const button = wrapper.find('button')
     expect(button.exists()).toBe(true)
-    expect(button.text().includes('Agregar Primer Agricultor')).toBe(true)
+    expect(button.text().includes('Agregar Primer Cacaocultor')).toBe(true)
   })
 
   it('should not show add farmer button when filters are active', () => {

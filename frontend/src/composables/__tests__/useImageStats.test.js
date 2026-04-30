@@ -52,7 +52,20 @@ describe('useImageStats', () => {
       await imageStats.fetchStats()
 
       expect(axios.get).toHaveBeenCalledWith('/images/stats/')
-      expect(imageStats.stats.value).toEqual(mockStats)
+      expect(imageStats.stats.value).toEqual({
+        total_images: 100,
+        processed_images: 80,
+        unprocessed_images: 0,
+        processing_rate: 0.8,
+        processed_today: 0,
+        processed_this_week: 0,
+        processed_this_month: 0,
+        average_confidence: 0,
+        average_processing_time_ms: 0,
+        region_stats: [],
+        top_fincas: [],
+        average_dimensions: {}
+      })
       expect(imageStats.loading.value).toBe(false)
     })
 
@@ -67,11 +80,16 @@ describe('useImageStats', () => {
       expect(imageStats.stats.value).toEqual({
         total_images: 0,
         processed_images: 0,
+        unprocessed_images: 0,
         processing_rate: 0,
+        processed_today: 0,
+        processed_this_week: 0,
+        processed_this_month: 0,
         average_confidence: 0,
-        average_dimensions: {},
+        average_processing_time_ms: 0,
         region_stats: [],
-        top_fincas: []
+        top_fincas: [],
+        average_dimensions: {}
       })
       expect(imageStats.error.value).toBe(null)
     })

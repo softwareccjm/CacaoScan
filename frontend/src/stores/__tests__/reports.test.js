@@ -297,14 +297,9 @@ describe('Reports Store', () => {
       const mockResponse = {
         ok: true,
         blob: vi.fn().mockResolvedValue(new Blob(['pdf content'], { type: 'application/pdf' })),
-        headers: {
-          get: vi.fn((key) => {
-            if (key === 'content-disposition') {
-              return 'attachment; filename="report.pdf"'
-            }
-            return null
-          })
-        }
+        headers: new Headers({
+          'content-disposition': 'attachment; filename="report.pdf"'
+        })
       }
 
       vi.mocked(reportsService.downloadReport).mockResolvedValue(mockResponse)

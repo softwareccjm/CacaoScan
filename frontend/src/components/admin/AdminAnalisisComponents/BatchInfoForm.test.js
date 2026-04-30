@@ -72,7 +72,7 @@ describe('BatchInfoForm', () => {
     })
 
     const text = wrapper.text()
-    expect(text.includes('Agricultor') || text.includes('farmer')).toBe(true)
+    expect(text.includes('Cacaocultor') || text.includes('farmer')).toBe(true)
   })
 
   it('should display readonly farmer field for agricultor role', () => {

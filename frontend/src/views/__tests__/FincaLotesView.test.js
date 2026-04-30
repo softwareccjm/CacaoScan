@@ -464,14 +464,15 @@ describe('FincaLotesView', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/fincas/1/lotes/new')
   })
 
-  it('should navigate to view lote page', async () => {
+  it('should open detail modal when viewing a lote', async () => {
     wrapper = createWrapper()
 
     await wrapper.vm.$nextTick()
     wrapper.vm.viewLote(123)
     await wrapper.vm.$nextTick()
 
-    expect(mockRouter.push).toHaveBeenCalledWith('/lotes/123')
+    expect(wrapper.vm.selectedLoteId).toBe(123)
+    expect(wrapper.vm.showDetailModal).toBe(true)
   })
 
   it('should navigate to edit lote page', async () => {

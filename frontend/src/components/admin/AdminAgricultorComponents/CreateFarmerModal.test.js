@@ -497,7 +497,7 @@ describe('CreateFarmerModal', () => {
     const errorData = {}
     const message = wrapper.vm.extractErrorMessage(errorData)
 
-    expect(message).toBe('Error al crear el agricultor')
+    expect(message).toBe('Error al crear el cacaocultor')
   })
 
   it('should handle submit with validation failure', async () => {
@@ -687,7 +687,7 @@ describe('CreateFarmerModal', () => {
     await wrapper.vm.handleSubmit()
     await wrapper.vm.$nextTick()
 
-    expect(mockShowError).toHaveBeenCalledWith('Error al crear el agricultor')
+    expect(mockShowError).toHaveBeenCalledWith('Error al crear el cacaocultor')
   })
 
   it('should handle departamento change', async () => {

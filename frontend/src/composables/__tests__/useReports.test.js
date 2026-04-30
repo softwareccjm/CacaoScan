@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import {
   formatReportType,
   formatReportStatus,
@@ -15,6 +16,7 @@ import {
 } from '../useReports.js'
 import reportsService from '@/services/reportsService'
 import { useNotificationStore } from '@/stores/notifications'
+import { useReportsStore } from '@/stores/reports'
 
 // Mock dependencies
 vi.mock('@/services/reportsService', () => ({
@@ -41,7 +43,24 @@ vi.mock('@/services/reportsService', () => ({
 vi.mock('@/stores/notifications', () => ({
   useNotificationStore: vi.fn(() => ({
     addNotification: vi.fn()
+  })),
+  useNotificationsStore: vi.fn(() => ({
+    addNotification: vi.fn()
   }))
+}))
+
+const mockReportsStore = {
+  reports: [],
+  loading: false,
+  error: null,
+  fetchReports: vi.fn(),
+  createReport: vi.fn(),
+  deleteReport: vi.fn(),
+  downloadReport: vi.fn()
+}
+
+vi.mock('@/stores/reports', () => ({
+  useReportsStore: vi.fn(() => mockReportsStore)
 }))
 
 vi.mock('../useDateFormatting', () => ({
@@ -171,6 +190,7 @@ describe('useReports composable', () => {
   let mockAddNotification
 
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     mockAddNotification = vi.fn()
     notificationStore = {
@@ -428,7 +448,7 @@ describe('useReports composable', () => {
 
     it('should handle download errors', async () => {
       const downloadError = new Error('Download failed')
-      reportsService.downloadReportFile.mockRejectedValue(downloadError)
+      mockReportsStore.downloadReport.mockRejectedValueOnce(downloadError)
 
       const { downloadReport, loading, error } = useReports()
 

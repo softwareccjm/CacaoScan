@@ -103,7 +103,7 @@ describe('ReportsService', () => {
       const result = await reportsService.getReports()
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes/?page=1&page_size=20`,
+        `${mockApiBaseUrl}/api/v1/reportes/?page=1&page_size=20`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -190,7 +190,7 @@ describe('ReportsService', () => {
       const result = await reportsService.getReportDetails(reportId)
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes/1/`,
+        `${mockApiBaseUrl}/api/v1/reportes/1/`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -281,7 +281,7 @@ describe('ReportsService', () => {
       const result = await reportsService.createReport(reportData)
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes`,
+        `${mockApiBaseUrl}/api/v1/reportes/`,
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -346,11 +346,11 @@ describe('ReportsService', () => {
       const result = await reportsService.downloadReport(reportId)
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes/1/download/`,
+        `${mockApiBaseUrl}/api/v1/reportes/1/download/`,
         expect.objectContaining({
           headers: expect.objectContaining({
             'Authorization': 'Bearer test-token',
-            'Accept': 'application/octet-stream'
+            'Accept': '*/*'
           })
         })
       )
@@ -391,7 +391,7 @@ describe('ReportsService', () => {
       const result = await reportsService.deleteReport(reportId)
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes/1/delete/`,
+        `${mockApiBaseUrl}/api/v1/reportes/1/delete/`,
         expect.objectContaining({
           method: 'DELETE',
           headers: expect.objectContaining({
@@ -443,7 +443,7 @@ describe('ReportsService', () => {
 
       // fetchGet constructs the full URL using API_BASE_URL
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes/stats/`,
+        `${mockApiBaseUrl}/api/v1/reportes/stats/`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -488,7 +488,7 @@ describe('ReportsService', () => {
 
       // fetchPost constructs the full URL using API_BASE_URL
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes/cleanup/`,
+        `${mockApiBaseUrl}/api/v1/reportes/cleanup/`,
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -527,14 +527,14 @@ describe('ReportsService', () => {
 
       // fetchPost constructs the full URL using API_BASE_URL
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${mockApiBaseUrl}/api/reportes`,
+        `${mockApiBaseUrl}/api/v1/reportes/`,
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'Authorization': 'Bearer test-token'
           }),
-          body: expect.stringContaining('"tipo_reporte":"calidad"')
+          body: expect.stringContaining('"tipo_reporte":"CALIDAD"')
         })
       )
 
@@ -712,10 +712,10 @@ describe('ReportsService', () => {
       const types = reportsService.getReportTypes()
 
       expect(types).toHaveLength(4)
-      expect(types[0].value).toBe('calidad')
-      expect(types[1].value).toBe('finca')
-      expect(types[2].value).toBe('auditoria')
-      expect(types[3].value).toBe('personalizado')
+      expect(types[0].value).toBe('CALIDAD')
+      expect(types[1].value).toBe('FINCA')
+      expect(types[2].value).toBe('AUDITORIA')
+      expect(types[3].value).toBe('PERSONALIZADO')
     })
   })
 
@@ -724,10 +724,10 @@ describe('ReportsService', () => {
       const formats = reportsService.getReportFormats()
 
       expect(formats).toHaveLength(4)
-      expect(formats.map(f => f.value)).toContain('pdf')
-      expect(formats.map(f => f.value)).toContain('excel')
-      expect(formats.map(f => f.value)).toContain('csv')
-      expect(formats.map(f => f.value)).toContain('json')
+      expect(formats.map(f => f.value)).toContain('PDF')
+      expect(formats.map(f => f.value)).toContain('EXCEL')
+      expect(formats.map(f => f.value)).toContain('CSV')
+      expect(formats.map(f => f.value)).toContain('JSON')
     })
   })
 
@@ -735,10 +735,11 @@ describe('ReportsService', () => {
     it('should return available report states', () => {
       const states = reportsService.getReportStates()
 
-      expect(states).toHaveLength(3)
-      expect(states.map(s => s.value)).toContain('completado')
-      expect(states.map(s => s.value)).toContain('generando')
-      expect(states.map(s => s.value)).toContain('fallido')
+      expect(states).toHaveLength(4)
+      expect(states.map(s => s.value)).toContain('COMPLETADO')
+      expect(states.map(s => s.value)).toContain('GENERANDO')
+      expect(states.map(s => s.value)).toContain('PENDIENTE')
+      expect(states.map(s => s.value)).toContain('FALLIDO')
     })
   })
 })

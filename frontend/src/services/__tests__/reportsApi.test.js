@@ -267,7 +267,7 @@ describe('reportsApi', () => {
 
       expect(link.setAttribute).toHaveBeenCalled()
       const downloadCall = link.setAttribute.mock.calls.find(call => call[0] === 'download')
-      expect(downloadCall[1]).toContain('reporte_agricultores')
+      expect(downloadCall[1]).toContain('reporte_cacaocultores')
     })
   })
 })
