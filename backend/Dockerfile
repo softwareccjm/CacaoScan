@@ -150,3 +150,12 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
 # El entrypoint ejecutará este comando después de las migraciones
 CMD ["sh", "-c", "gunicorn cacaoscan.wsgi:application --bind 0.0.0.0:${PORT} --workers 2 --timeout 300 --graceful-timeout 60"]
 
+# ========================================
+# Aliases para CI: tags distintos comparten el mismo runtime.
+# El comando final lo sobrescribe docker-compose / k8s.
+# ========================================
+FROM runtime-base AS backend
+
+FROM runtime-base AS celery
+CMD ["celery", "-A", "cacaoscan", "worker", "--loglevel=info", "--concurrency=4", "--max-tasks-per-child=1"]
+
