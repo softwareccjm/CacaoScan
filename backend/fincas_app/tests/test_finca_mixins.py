@@ -91,28 +91,34 @@ class TestFincaErrorMixin:
 class TestFincaSerializerMixin:
     """Tests for FincaSerializerMixin class."""
     
+    def _fake_queryset(self, get_return=None, get_side_effect=None):
+        """Construye un queryset falso que soporta prefetch_related().get()."""
+        qs = Mock()
+        if get_side_effect is not None:
+            qs.get = Mock(side_effect=get_side_effect)
+        else:
+            qs.get = Mock(return_value=get_return)
+        qs.prefetch_related = Mock(return_value=qs)
+        return qs
+
     def test_get_finca_with_error_handling(self, request_factory, finca):
         """Test get_finca_with_error_handling method."""
         mixin = FincaSerializerMixin()
         mixin.request = request_factory.get('/')
-        mixin.get_queryset = Mock(return_value=type('QuerySet', (), {
-            'get': Mock(return_value=finca)
-        })())
-        
+        mixin.get_queryset = Mock(return_value=self._fake_queryset(get_return=finca))
+
         result_finca, error_response = mixin.get_finca_with_error_handling(finca.id)
         assert result_finca == finca
         assert error_response is None
-    
+
     def test_get_finca_with_error_handling_not_found(self, request_factory):
         """Test get_finca_with_error_handling with finca not found."""
         from fincas_app.models import Finca
         mixin = FincaSerializerMixin()
         mixin.request = request_factory.get('/')
-        mixin.get_queryset = Mock(return_value=type('QuerySet', (), {
-            'get': Mock(side_effect=Finca.DoesNotExist())
-        })())
+        mixin.get_queryset = Mock(return_value=self._fake_queryset(get_side_effect=Finca.DoesNotExist()))
         mixin.handle_finca_not_found = Mock(return_value=Mock(status_code=404))
-        
+
         result_finca, error_response = mixin.get_finca_with_error_handling(99999)
         assert result_finca is None
         assert error_response is not None
@@ -121,9 +127,7 @@ class TestFincaSerializerMixin:
         """Test get_finca_with_error_handling with exception."""
         mixin = FincaSerializerMixin()
         mixin.request = request_factory.get('/')
-        mixin.get_queryset = Mock(return_value=type('QuerySet', (), {
-            'get': Mock(side_effect=Exception("Error"))
-        })())
+        mixin.get_queryset = Mock(return_value=self._fake_queryset(get_side_effect=Exception("Error")))
         mixin.handle_finca_error = Mock(return_value=Mock(status_code=500))
         
         result_finca, error_response = mixin.get_finca_with_error_handling(1)

@@ -121,21 +121,21 @@ class TestFincaListCreateView:
         response = view(request)
         assert response.status_code == status.HTTP_200_OK
     
-    def test_post_create_finca(self, request_factory, user):
+    def test_post_create_finca(self, request_factory, user, municipio):
         """Test POST create finca."""
         view = FincaListCreateView.as_view()
+        # municipio es FK; departamento se deriva de municipio.departamento (3FN).
         data = {
             'nombre': 'New Finca',
             'ubicacion': 'New Location',
-            'municipio': 'New Municipio',
-            'departamento': 'New Departamento',
-            'hectareas': Decimal('15.0')
+            'municipio': municipio.id,
+            'hectareas': '15.0'
         }
         request = request_factory.post('/api/fincas/', data, format='json')
         force_authenticate(request, user=user)
-        
+
         response = view(request)
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.data
     
     def test_post_create_finca_invalid_data(self, request_factory, user):
         """Test POST create finca with invalid data."""
@@ -176,19 +176,18 @@ class TestFincaUpdateView:
     def test_put_update_finca(self, request_factory, user, finca):
         """Test PUT update finca."""
         view = FincaUpdateView.as_view()
-        # PUT requires all fields, so include all required fields
+        # PUT requires all fields. municipio es FK; departamento se deriva (3FN).
         data = {
             'nombre': 'Updated Finca',
             'ubicacion': finca.ubicacion,
-            'municipio': finca.municipio,
-            'departamento': finca.departamento,
+            'municipio': finca.municipio_id,
             'hectareas': float(finca.hectareas)
         }
         request = request_factory.put(f'/api/fincas/{finca.id}/', data, format='json')
         force_authenticate(request, user=user)
-        
+
         response = view(request, finca_id=finca.id)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_200_OK, response.data
     
     def test_patch_update_finca(self, request_factory, user, finca):
         """Test PATCH update finca."""
