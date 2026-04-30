@@ -37,12 +37,13 @@ class TestTemaViewSet:
     
     def test_retrieve_tema(self, api_client, tema):
         """Test retrieving a tema."""
-        response = api_client.get(f'/api/v1/temas/{tema.id}/')
-        
+        # TemaViewSet usa lookup_field='codigo'.
+        response = api_client.get(f'/api/v1/temas/{tema.codigo}/')
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data['codigo'] == 'TEST'
         assert 'parametros' in response.data
-    
+
     def test_tema_parametros_action(self, api_client, tema):
         """Test tema parametros custom action."""
         Parametro.objects.create(
@@ -51,12 +52,12 @@ class TestTemaViewSet:
             nombre='Param 1',
             activo=True
         )
-        
-        response = api_client.get(f'/api/v1/temas/{tema.id}/parametros/')
-        
+
+        response = api_client.get(f'/api/v1/temas/{tema.codigo}/parametros/')
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data) >= 1
-    
+
     def test_tema_parametros_filter_activos(self, api_client, tema):
         """Test tema parametros with activos filter."""
         Parametro.objects.create(
@@ -71,8 +72,8 @@ class TestTemaViewSet:
             nombre='Param 2',
             activo=False
         )
-        
-        response = api_client.get(f'/api/v1/temas/{tema.id}/parametros/?activos=true')
+
+        response = api_client.get(f'/api/v1/temas/{tema.codigo}/parametros/?activos=true')
         
         assert response.status_code == status.HTTP_200_OK
         assert all(p['activo'] for p in response.data)
