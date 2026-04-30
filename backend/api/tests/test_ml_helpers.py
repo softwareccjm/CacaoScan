@@ -92,7 +92,8 @@ class TestLoadImageForPrediction:
         """Test loading image from path."""
         cacao_image = Mock()
         cacao_image.image.path = '/path/to/image.jpg'
-        
+        cacao_image.image.open.side_effect = AttributeError
+
         with patch('PIL.Image.open') as mock_open:
             mock_image = Mock()
             mock_open.return_value = mock_image

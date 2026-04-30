@@ -10,8 +10,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_DEFAULT_TIMEOUT=100 \
-    PIP_CONNECT_TIMEOUT=60
+    PIP_DEFAULT_TIMEOUT=300 \
+    PIP_CONNECT_TIMEOUT=60 \
+    PIP_RETRIES=5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -31,8 +32,20 @@ WORKDIR /app
 COPY requirements.txt ./
 
 # Instalar dependencias (esta capa se cachea si requirements.txt no cambia)
+# torch/torchvision (~280 MB) se instalan primero con loop de reintento a nivel shell:
+# pip --retries no cubre IncompleteRead (error mid-stream), solo fallos de conexión inicial.
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && installed=0 \
+    && for i in 1 2 3 4 5; do \
+         if /opt/venv/bin/pip install --no-cache-dir \
+              torch==2.5.1 torchvision==0.20.1 \
+              --index-url https://download.pytorch.org/whl/cpu; \
+         then installed=1 && break; fi; \
+         echo "Intento $i/5 fallido"; \
+         [ "$i" -lt 5 ] && sleep 15; \
+       done \
+    && [ "$installed" = "1" ] \
     && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # ========================================
