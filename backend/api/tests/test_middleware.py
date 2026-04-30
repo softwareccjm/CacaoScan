@@ -173,7 +173,7 @@ def test_audit_middleware_create_description(get_response, user):
 
 @patch('api.middleware.ActivityLog')
 def test_audit_middleware_log_activity(mock_activity_log, request_factory, get_response, user):
-    """Test log_activity."""
+    """Middleware persiste actividad invocando ActivityLog.objects.create."""
     middleware = AuditMiddleware(get_response)
     request = request_factory.get('/api/fincas/')
     request.user = user
@@ -182,11 +182,10 @@ def test_audit_middleware_log_activity(mock_activity_log, request_factory, get_r
         'ip_address': '127.0.0.1',
         'user_agent': 'test-agent'
     }
-    
-    mock_activity_log.log_activity = Mock()
+
     middleware.log_activity(request)
-    
-    mock_activity_log.log_activity.assert_called_once()
+
+    mock_activity_log.objects.create.assert_called_once()
 
 
 def test_audit_middleware_call_unauthenticated(request_factory, get_response):
@@ -276,18 +275,17 @@ def test_token_cleanup_middleware_call(request_factory, get_response):
 
 @patch('api.middleware.ActivityLog')
 def test_log_custom_activity(mock_activity_log, user):
-    """Test log_custom_activity function."""
+    """log_custom_activity persiste invocando ActivityLog.objects.create."""
     from api.middleware import log_custom_activity
-    
-    mock_activity_log.log_activity = Mock()
+
     log_custom_activity(
         user=user,
         action='test_action',
         model='TestModel',
         description='Test description'
     )
-    
-    mock_activity_log.log_activity.assert_called_once()
+
+    mock_activity_log.objects.create.assert_called_once()
 
 
 @patch('api.middleware.LoginHistory')

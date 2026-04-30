@@ -75,16 +75,20 @@ class TestTrainingJobListView:
             assert response.status_code == status.HTTP_403_FORBIDDEN
     
     def test_get_list_model_unavailable(self, request_factory, admin_user):
-        """Test list when TrainingJob model is unavailable."""
+        """Cuando el modelo no esta disponible, la vista devuelve 200 con
+        resultados vacios para evitar romper el frontend (decision explicita
+        en training_views.py:74)."""
         view = TrainingJobListView()
         request = request_factory.get('/api/training/jobs/')
         request.user = admin_user
-        
+
         with patch.object(view, 'is_admin_user', return_value=True):
             with patch('api.views.ml.training_views.TrainingJob', None):
                 response = view.get(request)
-                
-                assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+                assert response.status_code == status.HTTP_200_OK
+                assert response.data['results'] == []
+                assert response.data['count'] == 0
     
     def test_get_list_with_filters(self, request_factory, admin_user):
         """Test list with query filters."""
@@ -108,19 +112,21 @@ class TestTrainingJobListView:
                     assert mock_qs.filter.called
     
     def test_get_list_error(self, request_factory, admin_user):
-        """Test error handling in list retrieval."""
+        """Cuando hay error de DB, la vista degrada a 200 con lista vacia
+        (mismo motivo que test_get_list_model_unavailable)."""
         view = TrainingJobListView()
         request = request_factory.get('/api/training/jobs/')
         request.user = admin_user
-        
+
         with patch.object(view, 'is_admin_user', return_value=True):
             with patch('api.views.ml.training_views.TrainingJob') as mock_job:
                 mock_query = Mock()
                 mock_query.select_related.side_effect = Exception("Database error")
                 mock_job.objects.all.return_value = mock_query
                 response = view.get(request)
-                
-                assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+                assert response.status_code == status.HTTP_200_OK
+                assert response.data['results'] == []
 
 
 @pytest.mark.django_db

@@ -122,12 +122,23 @@ class TestCleanOrphanedLotesCommand:
             agricultor=test_user
         )
         from datetime import date
+        # Lote requiere ahora variedad FK + peso_kg + fecha_recepcion tras 3FN.
+        # estado tambien es FK pero es opcional; lo omitimos.
+        from catalogos.models import Parametro, Tema
+        tema_var, _ = Tema.objects.get_or_create(
+            codigo='TEMA_VARIEDAD_CACAO',
+            defaults={'nombre': 'Variedades de Cacao'}
+        )
+        variedad, _ = Parametro.objects.get_or_create(
+            tema=tema_var, codigo='CRIOLLO',
+            defaults={'nombre': 'Criollo'}
+        )
         orphan_lote = Lote.objects.create(
             nombre='Orphan Lote',
             identificador='ORPHAN-001',
-            variedad='Criollo',
-            area_hectareas=5.0,
-            estado='activo',
+            variedad=variedad,
+            peso_kg=10.0,
+            fecha_recepcion=date(2024, 1, 1),
             fecha_plantacion=date(2024, 1, 1),
             finca=orphan_finca,
             descripcion='Test description'

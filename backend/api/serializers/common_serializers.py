@@ -32,7 +32,8 @@ class DatasetStatsSerializer(serializers.Serializer):
 class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for notifications with date formatting."""
     tiempo_transcurrido = serializers.ReadOnlyField()
-    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    # tipo es FK a Parametro tras 3FN; tipo_display expone el nombre legible.
+    tipo_display = serializers.CharField(source='tipo.nombre', read_only=True, default=None)
     
     class Meta:
         model = Notification
@@ -62,7 +63,8 @@ class NotificationSerializer(serializers.ModelSerializer):
 class NotificationListSerializer(serializers.ModelSerializer):
     """Optimized serializer for notification listings."""
     tiempo_transcurrido = serializers.ReadOnlyField()
-    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    # tipo es FK a Parametro tras 3FN; tipo_display expone el nombre legible.
+    tipo_display = serializers.CharField(source='tipo.nombre', read_only=True, default=None)
     
     class Meta:
         model = Notification

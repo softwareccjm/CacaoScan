@@ -56,13 +56,15 @@ class TestProfileService:
         mock_profile.preferred_language = 'es'
         mock_profile.email_notifications = True
         mock_profile.role = 'farmer'
-        
-        fixed_user.auth_profile = mock_profile
-        
+
+        # User.auth_profile es un descriptor OneToOne que rechaza Mock; cachear
+        # el valor en fields_cache evita ir al ORM y esquiva el descriptor.
+        fixed_user._state.fields_cache['auth_profile'] = mock_profile
+
         mock_models.return_value = {'UserProfile': Mock()}
-        
+
         result = service.get_user_profile(fixed_user)
-        
+
         assert result.success
         assert result.data['username'] == fixed_user.username
         assert result.data['email'] == fixed_user.email

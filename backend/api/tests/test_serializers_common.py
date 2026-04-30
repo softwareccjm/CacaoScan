@@ -62,20 +62,20 @@ class TestDatasetStatsSerializer:
 class TestNotificationSerializer:
     """Test cases for NotificationSerializer."""
     
-    def test_notification_serializer_valid_data(self):
+    def test_notification_serializer_valid_data(self, parametro_tipo_notificacion_info):
         """Test NotificationSerializer with valid data."""
         from notifications.models import Notification
         from django.contrib.auth.models import User
-        
+
         user = User.objects.create_user(
             username='test@example.com',
             email='test@example.com',
             password='testpass123'
         )
-        
+
         notification = Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test Notification',
             mensaje='This is a test notification message'
         )
@@ -119,20 +119,20 @@ class TestNotificationSerializer:
 class TestNotificationListSerializer:
     """Test cases for NotificationListSerializer."""
     
-    def test_notification_list_serializer(self):
+    def test_notification_list_serializer(self, parametro_tipo_notificacion_info):
         """Test NotificationListSerializer."""
         from notifications.models import Notification
         from django.contrib.auth.models import User
-        
+
         user = User.objects.create_user(
             username='test@example.com',
             email='test@example.com',
             password='testpass123'
         )
-        
+
         notification = Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test Notification',
             mensaje='This is a test notification message'
         )
@@ -151,49 +151,45 @@ class TestNotificationListSerializer:
 class TestNotificationCreateSerializer:
     """Test cases for NotificationCreateSerializer."""
     
-    def test_notification_create_serializer_valid(self):
+    def test_notification_create_serializer_valid(self, parametro_tipo_notificacion_info):
         """Test NotificationCreateSerializer with valid data."""
-        from notifications.models import Notification
         from django.contrib.auth.models import User
-        
+
         user = User.objects.create_user(
             username='test@example.com',
             email='test@example.com',
             password='testpass123'
         )
-        
+
+        # tipo es PrimaryKeyRelatedField a Parametro tras 3FN.
         serializer = NotificationCreateSerializer(data={
             'user': user.id,
-            'tipo': 'info',
+            'tipo': parametro_tipo_notificacion_info.id,
             'titulo': 'Test Notification',
             'mensaje': 'This is a test notification message',
             'datos_extra': {'key': 'value'}
         })
-        assert serializer.is_valid()
-    
+        assert serializer.is_valid(), serializer.errors
+
     def test_notification_create_serializer_invalid_tipo(self):
         """Test NotificationCreateSerializer with invalid tipo."""
         serializer = NotificationCreateSerializer(data={
-            'tipo': 'invalid_type',
+            'tipo': 999999,
             'titulo': 'Test Notification',
             'mensaje': 'This is a test notification message'
         })
         assert not serializer.is_valid()
         assert 'tipo' in serializer.errors
-    
-    def test_notification_create_serializer_valid_tipo(self):
-        """Test NotificationCreateSerializer with valid tipo."""
-        from notifications.models import Notification
-        
-        valid_types = [choice[0] for choice in Notification.TIPO_CHOICES]
-        if valid_types:
-            serializer = NotificationCreateSerializer(data={
-                'tipo': valid_types[0],
-                'titulo': 'Test Notification',
-                'mensaje': 'This is a test notification message'
-            })
-            # Type validation should pass
-            assert serializer.is_valid() or 'tipo' not in serializer.errors
+
+    def test_notification_create_serializer_valid_tipo(self, parametro_tipo_notificacion_info):
+        """Test NotificationCreateSerializer con tipo de catalogo valido."""
+        serializer = NotificationCreateSerializer(data={
+            'tipo': parametro_tipo_notificacion_info.id,
+            'titulo': 'Test Notification',
+            'mensaje': 'This is a test notification message'
+        })
+        # Type validation should pass
+        assert serializer.is_valid() or 'tipo' not in serializer.errors
 
 
 class TestNotificationStatsSerializer:

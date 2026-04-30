@@ -75,7 +75,7 @@ class Command(BaseCommand):
         
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT l.id, l.finca_id, l.identificador, l.variedad
+                SELECT l.id, l.finca_id, l.identificador, l.variedad_id
                 FROM fincas_app_lote l
                 LEFT JOIN api_finca f ON l.finca_id = f.id
                 WHERE f.id IS NULL;

@@ -41,7 +41,7 @@ class TestNotificationListCreateView:
         assert response.data['count'] == 0
         assert response.data['results'] == []
     
-    def test_get_notifications_with_filters(self, client, user):
+    def test_get_notifications_with_filters(self, client, user, parametro_tipo_notificacion_info):
         """Test listing notifications with filters."""
         from notifications.models import Notification
         
@@ -54,8 +54,9 @@ class TestNotificationListCreateView:
         )
         
         client.force_authenticate(user=user)
+        # tipo es FK; la vista filtra por id de Parametro tras 3FN.
         response = client.get('/api/v1/notifications/', {
-            'tipo': 'info',
+            'tipo': parametro_tipo_notificacion_info.id,
             'leida': 'false',
             'search': 'Test'
         })
@@ -101,7 +102,7 @@ class TestNotificationDetailView:
             password='testpass123'
         )
     
-    def test_get_notification_detail(self, client, user):
+    def test_get_notification_detail(self, client, user, parametro_tipo_notificacion_info):
         """Test getting notification detail."""
         from notifications.models import Notification
         
@@ -165,13 +166,13 @@ class TestNotificationMarkReadView:
             password='testpass123'
         )
     
-    def test_mark_notification_read(self, client, user):
+    def test_mark_notification_read(self, client, user, parametro_tipo_notificacion_info):
         """Test marking notification as read."""
         from notifications.models import Notification
         
         notification = Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test Notification',
             mensaje='Test message',
             leida=False
@@ -226,21 +227,21 @@ class TestNotificationMarkAllReadView:
             password='testpass123'
         )
     
-    def test_mark_all_read(self, client, user):
+    def test_mark_all_read(self, client, user, parametro_tipo_notificacion_info):
         """Test marking all notifications as read."""
         from notifications.models import Notification
         
         # Create some notifications
         Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test 1',
             mensaje='Test message 1',
             leida=False
         )
         Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test 2',
             mensaje='Test message 2',
             leida=False
@@ -290,21 +291,21 @@ class TestNotificationUnreadCountView:
             password='testpass123'
         )
     
-    def test_get_unread_count(self, client, user):
+    def test_get_unread_count(self, client, user, parametro_tipo_notificacion_info):
         """Test getting unread count."""
         from notifications.models import Notification
         
         # Create some notifications
         Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test 1',
             mensaje='Test message 1',
             leida=False
         )
         Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test 2',
             mensaje='Test message 2',
             leida=True
@@ -351,21 +352,21 @@ class TestNotificationStatsView:
             password='testpass123'
         )
     
-    def test_get_notification_stats(self, client, user):
+    def test_get_notification_stats(self, client, user, parametro_tipo_notificacion_info, parametro_tipo_notificacion_warning):
         """Test getting notification stats."""
         from notifications.models import Notification
         
         # Create some notifications
         Notification.objects.create(
             user=user,
-            tipo='info',
+            tipo=parametro_tipo_notificacion_info,
             titulo='Test 1',
             mensaje='Test message 1',
             leida=False
         )
         Notification.objects.create(
             user=user,
-            tipo='warning',
+            tipo=parametro_tipo_notificacion_warning,
             titulo='Test 2',
             mensaje='Test message 2',
             leida=True
