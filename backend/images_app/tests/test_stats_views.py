@@ -58,18 +58,18 @@ class TestImagesStatsView:
             # Mock count() method properly - it should return a value directly
             mock_qs.count = Mock(return_value=10)
             
-            # Mock filter() to return a new queryset that also has count()
-            # Each filter call should return a new queryset with count()
+            # Mock filter() to return a new queryset que tambien soporta count()
+            # y la cadena values().annotate().order_by() (con slicing).
             def create_filtered_mock(count_value):
                 filtered = Mock()
                 filtered.count = Mock(return_value=count_value)
-                # Chain filter calls
                 filtered.filter = Mock(return_value=filtered)
+                # region_stats / finca_stats: list(filtered.values(...).annotate(...).order_by(...))
+                # finca_stats ademas hace [:10] sobre el order_by, asi que el resultado
+                # debe ser una lista real (soporta __iter__ y __getitem__).
+                filtered.values.return_value.annotate.return_value.order_by.return_value = []
                 return filtered
-            
-            # Main queryset filter returns a filtered queryset
-            # The filter is called multiple times with different arguments
-            # We need to handle all filter calls properly
+
             filtered_mock = create_filtered_mock(8)
             mock_qs.filter = Mock(return_value=filtered_mock)
             
