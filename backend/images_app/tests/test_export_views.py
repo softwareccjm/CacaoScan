@@ -137,8 +137,10 @@ class TestImagesExportView:
         prediction.volume_cm3 = 3.14
         prediction.density_g_cm3 = 0.48
         prediction.processing_time_ms = 150
-        prediction.model_version = 'v1.0'
-        prediction.device_used = 'CPU'
+        # model_version y device_used son FK a Parametro (3FN); la vista
+        # accede a .codigo, asi que mockeamos objetos con ese atributo.
+        prediction.model_version = Mock(codigo='v1.0')
+        prediction.device_used = Mock(codigo='CPU')
         prediction.created_at = Mock()
         prediction.created_at.isoformat = Mock(return_value='2024-01-01')
         

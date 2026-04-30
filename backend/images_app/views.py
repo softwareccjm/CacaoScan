@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .models import CacaoImage
-from .serializers import CacaoImageSerializer
+from api.serializers import CacaoImageSerializer
 
 logger = logging.getLogger("cacaoscan.api")
 

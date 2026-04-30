@@ -22,7 +22,7 @@ spec.loader.exec_module(views_direct)
 CacaoImageUploadView = views_direct.CacaoImageUploadView
 CacaoImageListView = views_direct.CacaoImageListView
 from images_app.models import CacaoImage
-from images_app.serializers import CacaoImageSerializer
+from api.serializers import CacaoImageSerializer
 
 
 @pytest.mark.django_db
@@ -324,7 +324,6 @@ class TestCacaoImageListView:
                 user=user,
                 file_name=f'test{i}.jpg',
                 file_size=1000,
-                file_type='image/jpeg',
                 processed=False
             )
         
@@ -345,7 +344,6 @@ class TestCacaoImageListView:
                 user=user,
                 file_name=f'test{i}.jpg',
                 file_size=1000,
-                file_type='image/jpeg',
                 processed=False
             )
             images.append(img)
@@ -371,14 +369,12 @@ class TestCacaoImageListView:
             user=user,
             file_name='user1.jpg',
             file_size=1000,
-            file_type='image/jpeg',
             processed=False
         )
         CacaoImage.objects.create(
             user=other_user,
             file_name='user2.jpg',
             file_size=1000,
-            file_type='image/jpeg',
             processed=False
         )
         

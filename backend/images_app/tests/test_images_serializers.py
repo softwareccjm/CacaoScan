@@ -4,7 +4,7 @@ Tests for images_app serializers.
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from images_app.models import CacaoImage
-from images_app.serializers import CacaoImageSerializer
+from api.serializers import CacaoImageSerializer
 
 
 @pytest.mark.django_db
@@ -39,7 +39,6 @@ class TestCacaoImageSerializer:
             image=image_file,
             file_name='test_image.jpg',
             file_size=1000,
-            file_type='image/jpeg'
         )
         
         serializer = CacaoImageSerializer(image)
@@ -57,7 +56,6 @@ class TestCacaoImageSerializer:
             image=image_file,
             file_name='test_image.jpg',
             file_size=1000,
-            file_type='image/jpeg'
         )
         
         request = type('Request', (), {
@@ -77,7 +75,6 @@ class TestCacaoImageSerializer:
             image=image_file,
             file_name='test_image.jpg',
             file_size=1000,
-            file_type='image/jpeg'
         )
         
         serializer = CacaoImageSerializer(image)
@@ -87,15 +84,16 @@ class TestCacaoImageSerializer:
     
     def test_get_image_url_no_image(self, user):
         """Test getting image URL when image is None."""
-        image = CacaoImage.objects.create(
+        # CacaoImage.save() llama full_clean() y rechaza image vacio,
+        # asi que serializamos una instancia no-persistida.
+        image = CacaoImage(
             user=user,
             file_name='test_image.jpg',
             file_size=0,
-            file_type='image/jpeg'
         )
-        
+
         serializer = CacaoImageSerializer(image)
         data = serializer.data
-        
+
         assert data['image_url'] is None
 

@@ -106,9 +106,10 @@ class TestImageStorageService:
                 with patch('core.utils.invalidate_system_stats_cache'):
                     with patch('ml.segmentation.processor.segment_and_crop_cacao_bean', side_effect=Exception("Segmentation error")):
                         result = storage_service.save_uploaded_image_with_segmentation(mock_image_file, user)
-                        
-                        # Should still succeed but without segmentation
-                        assert result.success is True
+
+                        # La vista ahora limpia la imagen y retorna error cuando
+                        # falla la segmentacion (antes degradaba a exito).
+                        assert result.success is False
     
     def test_save_prediction_success(self, storage_service, user):
         """Test successful prediction save."""
