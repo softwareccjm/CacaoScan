@@ -4,9 +4,9 @@ x-common-env: &common-env
 x-backend-health: &backend-health
   test: ["CMD", "curl", "-fsS", "http://localhost:18001/health"]
   interval: 30s
-  timeout: 10s
-  retries: 5
-  start_period: 120s
+  timeout: 15s
+  retries: 10
+  start_period: 360s
 
 services:
   # Base de datos PostgreSQL
