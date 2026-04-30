@@ -72,6 +72,13 @@ __pycache__/
 *.so
 *.cache
 
+# Cobertura de tests
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
 # Archivos de IDE
 .vscode/
 .idea/
