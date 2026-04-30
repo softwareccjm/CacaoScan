@@ -95,69 +95,28 @@ class TestPersonaRegistroView:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'ya está registrado' in str(response.data)
     
-    @patch('api.services.email.email_service')
-    @patch('auth_app.models.PendingEmailVerification')
-    def test_registro_envia_otp(self, mock_pending, mock_email_service, client):
-        """Test registration sends OTP."""
+    def test_registro_crea_usuario_directo(self, client, tema_documento, tema_genero, municipio):
+        """El registro crea el usuario directamente y devuelve tokens JWT (sin flujo OTP)."""
         import uuid
         unique_email = f'test_{uuid.uuid4()}@example.com'
-        
-        mock_pending.objects.filter.return_value.first.return_value = None
-        mock_pending.generate_code.return_value = '123456'
-        mock_pending.objects.update_or_create.return_value = (Mock(), True)
-        
+
         response = client.post('/api/v1/personas/registrar/', {
             'email': unique_email,
+            'password': 'StrongPass123!',
             'primer_nombre': 'Test',
-            'primer_apellido': 'User'
+            'primer_apellido': 'User',
+            'tipo_documento': tema_documento.codigo,
+            'numero_documento': str(uuid.uuid4().int)[:10],
+            'genero': tema_genero.codigo,
+            'municipio': municipio.id,
+            'telefono': '1234567890',
         })
-        
-        assert response.status_code == status.HTTP_202_ACCEPTED
-        assert 'Código enviado' in str(response.data) or 'código' in str(response.data).lower()
-        mock_email_service.send_email.assert_called_once()
-    
-    @patch('personas.views.PersonaRegistroSerializer')
-    def test_registro_admin_crea_directamente(self, mock_serializer, client, admin_user, tema_documento, tema_genero, departamento, municipio):
-        """Test admin can create user directly."""
-        import uuid
-        unique_email = f'newuser_{uuid.uuid4()}@example.com'
-        
-        client.force_authenticate(user=admin_user)
-        
-        mock_serializer_instance = Mock()
-        mock_serializer_instance.is_valid.return_value = True
-        mock_persona = Mock()
-        mock_persona.id = 1
-        mock_persona.user = Mock()
-        mock_persona.user.id = 1
-        mock_serializer_instance.save.return_value = mock_persona
-        mock_serializer.return_value = mock_serializer_instance
-        
-        response = client.post('/api/v1/personas/registrar/', {
-            'email': unique_email,
-            'primer_nombre': 'Test',
-            'primer_apellido': 'User'
-        })
-        
-        assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
-        mock_serializer.assert_called_once()
-    
-    @patch('auth_app.models.PendingEmailVerification')
-    def test_registro_rate_limit(self, mock_pending, client):
-        """Test registration rate limiting."""
-        import uuid
-        from django.utils import timezone
-        unique_email = f'test_{uuid.uuid4()}@example.com'
-        
-        mock_existing = Mock()
-        mock_existing.last_sent = timezone.now()
-        mock_pending.objects.filter.return_value.first.return_value = mock_existing
-        
-        response = client.post('/api/v1/personas/registrar/', {
-            'email': unique_email
-        })
-        
-        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        assert response.data['success'] is True
+        assert 'access' in response.data
+        assert 'refresh' in response.data
+        assert response.data['user']['email'] == unique_email
 
 
 @pytest.mark.django_db
@@ -227,7 +186,6 @@ class TestPersonaListaView:
             primer_nombre='Test',
             primer_apellido='User',
             telefono='1234567890',
-            departamento=departamento,
             municipio=municipio
         )
     
@@ -307,7 +265,6 @@ class TestPersonaDetalleView:
             primer_nombre='Test',
             primer_apellido='User',
             telefono='1234567890',
-            departamento=departamento,
             municipio=municipio
         )
     
@@ -393,7 +350,6 @@ class TestPersonaPerfilView:
             primer_nombre='Test',
             primer_apellido='User',
             telefono='1234567890',
-            departamento=departamento,
             municipio=municipio
         )
     
@@ -405,10 +361,16 @@ class TestPersonaPerfilView:
         assert response.data['id'] == persona.id
     
     def test_perfil_usuario_sin_persona(self, client, regular_user):
-        """Test getting profile when persona doesn't exist."""
+        """Cuando no hay persona, la vista devuelve 200 con error+datos de user.
+
+        El view cambio a 200 intencionalmente (ver persona_views.py:218) para
+        que el frontend no entre en catch ante usuarios sin perfil.
+        """
         client.force_authenticate(user=regular_user)
         response = client.get('/api/v1/personas/perfil/')
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_200_OK
+        assert 'error' in response.data
+        assert 'user' in response.data
 
 
 
@@ -494,7 +456,6 @@ class TestPersonaPerfilViewCRUD:
             numero_documento='1234567890',
             primer_nombre='Test',
             primer_apellido='User',
-            departamento=departamento,
             municipio=municipio,
             telefono='1234567890'
         )
@@ -521,7 +482,6 @@ class TestPersonaPerfilViewCRUD:
             numero_documento='1234567890',
             primer_nombre='Test',
             primer_apellido='User',
-            departamento=departamento,
             municipio=municipio,
             telefono='1234567890'
         )

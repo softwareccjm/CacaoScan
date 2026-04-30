@@ -170,7 +170,6 @@ class TestPersonaSerializer:
             primer_apellido='Doe',
             genero=genero,
             telefono='1234567890',
-            departamento=dept,
             municipio=municipio
         )
         

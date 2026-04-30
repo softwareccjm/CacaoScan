@@ -131,8 +131,7 @@ class PersonaListaView(APIView):
         personas = Persona.objects.select_related(
             'tipo_documento__tema',
             'genero__tema',
-            'departamento',
-            'municipio'
+            'municipio__departamento',
         ).all()
         serializer = PersonaSerializer(personas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -148,8 +147,7 @@ class PersonaDetalleView(APIView):
             persona = Persona.objects.select_related(
                 'tipo_documento__tema',
                 'genero__tema',
-                'departamento',
-                'municipio'
+                'municipio__departamento',
             ).get(id=persona_id)
             serializer = PersonaSerializer(persona)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -297,8 +295,7 @@ class PersonaPerfilView(APIView):
             persona = Persona.objects.select_related(
                 'tipo_documento__tema',
                 'genero__tema',
-                'departamento',
-                'municipio',
+                'municipio__departamento',
                 'user'
             ).get(user=request.user)
             
@@ -350,8 +347,6 @@ class PersonaPerfilView(APIView):
             persona.tipo_documento = validated_data['tipo_documento_obj']
         if 'genero_obj' in validated_data:
             persona.genero = validated_data['genero_obj']
-        if 'departamento_obj' in validated_data:
-            persona.departamento = validated_data['departamento_obj']
         if 'municipio_obj' in validated_data:
             persona.municipio = validated_data['municipio_obj']
         
@@ -381,7 +376,7 @@ class AdminPersonaByUserView(APIView):
             return Response({'error': 'No autorizado'}, status=status.HTTP_403_FORBIDDEN)
 
         persona = Persona.objects.select_related(
-            'tipo_documento__tema', 'genero__tema', 'departamento', 'municipio', 'user'
+            'tipo_documento__tema', 'genero__tema', 'municipio__departamento', 'user'
         ).filter(user_id=user_id).first()
         if not persona:
             return Response({'error': 'Persona no encontrada'}, status=status.HTTP_404_NOT_FOUND)
