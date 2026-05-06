@@ -28,8 +28,9 @@ COPY public/ ./public/
 COPY src/ ./src/
 
 # Construir aplicación para producción
-# Usar variable de entorno para la URL de la API (se inyecta desde docker-compose)
-# El build ya toma la variable desde el entorno, no es necesario declararla aquí
+# El build arg se transforma en ENV para que Vite lo recoja en pnpm build
+ARG VITE_API_BASE_URL=http://localhost:18000/api/v1
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm build
 
 # ========================================
