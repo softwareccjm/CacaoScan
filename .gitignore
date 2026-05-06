@@ -152,4 +152,8 @@ backend/ml/ml.log
 # Claude Code local (logs, cache, artefactos de sesión)
 .claude/
 
+# Celery Beat runtime schedule
+backend/celerybeat-schedule
+backend/celerybeat-schedule.*
+
 
