@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Screenshots
+
+Cuando el usuario mencione una captura de pantalla (sin dar ruta), búscala en `C:\Users\jefer\OneDrive\Pictures\Screenshots` — toma la más reciente por defecto.
+
 ## Project Overview
 
 CacaoScan is a full-stack platform that measures dimensions and weight of cacao beans using computer vision and ML. It pairs a Django REST API (PyTorch + YOLOv8 + scikit-learn) with a Vue 3 SPA. The backend serves the API and admin; the frontend is the user-facing UI.
