@@ -16,7 +16,7 @@ COPY pnpm-lock.yaml ./
 # This avoids the security risk of executing arbitrary scripts during package installation.
 # Corepack is the official package manager manager from Node.js and doesn't execute user scripts.
 RUN corepack enable && \
-    corepack prepare pnpm@latest --activate && \
+    corepack prepare pnpm@10.15.0 --activate && \
     pnpm install --frozen-lockfile --ignore-scripts || pnpm install --ignore-scripts
 
 # Copiar únicamente los archivos necesarios para el build (evita copiar
