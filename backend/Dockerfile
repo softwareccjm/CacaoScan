@@ -60,22 +60,20 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
     APP_VERSION=${APP_VERSION}
 
+# Runtime libs mínimas:
+# - opencv-python-headless requiere libglib2.0-0; los libs X11/GL (libgl1, libsm6,
+#   libxext6, libxrender1) NO se necesitan porque usamos la build headless.
+# - matplotlib necesita libfontconfig1 para renderizar texto; freetype va bundle en su wheel.
+# - Pillow trae libjpeg/libpng/libtiff/libwebp/libgif en su wheel manylinux, así que no
+#   se instalan las versiones de sistema.
+# - libgomp1 lo requieren scikit-learn / numpy para OpenMP.
+# - libpq5 para psycopg2-binary; netcat-openbsd para el wait-for del entrypoint.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libfontconfig1 \
-    libfreetype6 \
-    libgif7 \
-    libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    libjpeg62-turbo \
-    libpng16-16 \
     libpq5 \
-    libsm6 \
-    libtiff6 \
-    libwebp7 \
-    libxext6 \
-    libxrender1 \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system appgroup \

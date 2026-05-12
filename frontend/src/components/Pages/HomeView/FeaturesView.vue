@@ -11,7 +11,7 @@
             <span class="text-sm font-medium text-green-700">Funcionalidades Principales</span>
           </div>
           <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Nuestras Soluciones</h2>
-          <p class="text-lg text-gray-600 max-w-2xl mx-auto">Tecnología avanzada para revolucionar la industria cacaotera</p>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">Herramientas en desarrollo para apoyar a la industria cacaotera</p>
         </div>
 
         <!-- Grid de características con animaciones -->
@@ -25,7 +25,7 @@
               </svg>
             </div>
             <h3 class="text-xl font-bold mb-3 text-gray-900 group-hover:text-green-600 transition-colors">Captura y procesamiento de imágenes</h3>
-            <p class="text-gray-600 leading-relaxed">Sistema avanzado de captura y procesamiento de imágenes de granos de cacao con alta precisión.</p>
+            <p class="text-gray-600 leading-relaxed">Flujo para capturar y procesar imágenes de granos de cacao desde el navegador, pensado para uso en campo y laboratorio.</p>
           </div>
 
           <!-- Feature 2: IA con badge de precisión -->
@@ -36,10 +36,10 @@
               </svg>
             </div>
             <div class="flex items-center gap-2 mb-3">
-              <h3 class="text-xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">Clasificación automática con IA</h3>
-              <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">95%</span>
+              <h3 class="text-xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">Clasificación asistida por IA</h3>
+              <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">BETA</span>
             </div>
-            <p class="text-gray-600 leading-relaxed">Modelos de inteligencia artificial entrenados para clasificar granos con precisión superior al 95%.</p>
+            <p class="text-gray-600 leading-relaxed">Modelos de inteligencia artificial en entrenamiento y ajuste continuo para apoyar la clasificación de granos.</p>
           </div>
 
           <!-- Feature 3: Reportes con ícono dinámico -->
@@ -50,7 +50,7 @@
               </svg>
             </div>
             <h3 class="text-xl font-bold mb-3 text-gray-900 group-hover:text-green-600 transition-colors">Generación de reportes</h3>
-            <p class="text-gray-600 leading-relaxed">Informes detallados y personalizables con análisis estadísticos completos de tus lotes de cacao.</p>
+            <p class="text-gray-600 leading-relaxed">Generación de informes a partir de los análisis registrados en tus lotes de cacao.</p>
           </div>
 
           <!-- Feature 4: Dashboard en tiempo real -->
@@ -70,7 +70,7 @@
                 LIVE
               </span>
             </div>
-            <p class="text-gray-600 leading-relaxed">Visualización en tiempo real de métricas y tendencias de calidad de tu producción de cacao.</p>
+            <p class="text-gray-600 leading-relaxed">Visualización de métricas y tendencias a partir de los análisis registrados en la plataforma.</p>
           </div>
         </div>
       </div>

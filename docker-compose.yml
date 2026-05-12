@@ -166,48 +166,6 @@ services:
       - public
     restart: unless-stopped
 
-  # Celery Beat (Scheduler)
-  celery_beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: runtime-base
-    container_name: cacaoscan_celery_beat
-    environment:
-      DB_HOST: db
-      DB_PORT: 15432
-      DB_NAME: ${DB_NAME:-cacaoscan_db}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      USE_REDIS: ${USE_REDIS:-True}
-      USE_CELERY_REDIS: ${USE_CELERY_REDIS:-True}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:${REDIS_PASSWORD:-default_redis_password}@redis:16379/0}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://:${REDIS_PASSWORD:-default_redis_password}@redis:16379/0}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-default_redis_password}
-      PYTHONDONTWRITEBYTECODE: 1
-      PYTHONUNBUFFERED: 1
-      PYTHONHASHSEED: random
-      PKG_RESOURCES_CACHE_DIR: /tmp/pkg_resources_cache
-    volumes:
-      - ./backend:/app
-      - /app/staticfiles
-      - /app/media
-      - ./backend/media/datasets:/app/media/datasets
-      - ./backend/media/cacao_images:/app/media/cacao_images
-    entrypoint: ["/docker-entrypoint.sh"]
-    command: ["celery", "-A", "cacaoscan", "beat", "--loglevel=info"]
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    networks:
-      - private
-      - public
-    restart: unless-stopped
-
   # Frontend Vue/Vite
   frontend:
     build:

@@ -18,16 +18,16 @@
           <!-- Texto principal con mejor formato -->
           <div class="space-y-6 text-base text-gray-600 leading-relaxed">
             <p class="text-lg leading-relaxed">
-              <strong class="text-gray-900 font-semibold">{{ configStore.brandName }}</strong> es una solución tecnológica desarrollada para revolucionar el proceso de clasificación y
-              análisis de granos de cacao mediante el uso de visión por computadora e inteligencia artificial.
+              <strong class="text-gray-900 font-semibold">{{ configStore.brandName }}</strong> es una plataforma en desarrollo que explora el uso de visión por computadora e
+              inteligencia artificial como apoyo al análisis de granos de cacao.
             </p>
             <p>
-              Nuestro sistema permite a los productores y procesadores de cacao evaluar la calidad de sus granos de
-              manera <span class="text-green-600 font-medium">objetiva, rápida y precisa</span>, eliminando la subjetividad del análisis visual tradicional.
+              Su objetivo es ofrecer a productores y procesadores de cacao una herramienta que complemente el análisis visual tradicional con criterios
+              <span class="text-green-600 font-medium">más consistentes y reproducibles</span>.
             </p>
             <p>
-              Desarrollado en el marco del programa de formación del <span class="text-green-600 font-medium">SENA</span>, este proyecto combina tecnologías de
-              vanguardia con un profundo entendimiento de las necesidades de la industria cacaotera colombiana.
+              El proyecto se desarrolla en el marco del programa de formación del <span class="text-green-600 font-medium">SENA</span>, orientado a las necesidades
+              de la industria cacaotera colombiana.
             </p>
           </div>
 
@@ -40,8 +40,8 @@
                 </svg>
               </div>
               <div>
-                <h4 class="font-semibold text-gray-900 mb-1">Certificado SENA</h4>
-                <p class="text-sm text-gray-600">Programa de formación 2923560</p>
+                <h4 class="font-semibold text-gray-900 mb-1">Proyecto formativo SENA</h4>
+                <p class="text-sm text-gray-600">Ficha de formación 2923560</p>
               </div>
             </div>
             <div class="flex items-start gap-3">
@@ -51,8 +51,8 @@
                 </svg>
               </div>
               <div>
-                <h4 class="font-semibold text-gray-900 mb-1">Análisis rápido</h4>
-                <p class="text-sm text-gray-600">Resultados en segundos</p>
+                <h4 class="font-semibold text-gray-900 mb-1">Procesamiento ágil</h4>
+                <p class="text-sm text-gray-600">Pensado para uso en campo y laboratorio</p>
               </div>
             </div>
           </div>
@@ -76,7 +76,7 @@
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
                 </svg>
-                Calidad Premium
+                Cacao colombiano
               </span>
             </div>
           </div>

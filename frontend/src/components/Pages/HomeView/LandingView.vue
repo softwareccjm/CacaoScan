@@ -35,15 +35,15 @@
               </h2>
             </div>
             <p class="text-base md:text-lg text-gray-700 leading-relaxed">
-              CacaoScan integra herramientas de inteligencia artificial para analizar las características físicas y visuales de los granos de cacao. Cada muestra es medida y procesada para determinar dimensiones, peso y calidad.
+              CacaoScan explora el uso de visión por computadora e inteligencia artificial para apoyar el análisis de características físicas y visuales de los granos de cacao, como dimensiones y peso.
             </p>
             <!-- Badge de estado -->
             <div class="mt-4 flex flex-wrap gap-2">
               <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                IA Activa
+                Proyecto en desarrollo
               </span>
               <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                Análisis Preciso
+                Modelos en validación
               </span>
             </div>
           </div>
@@ -67,7 +67,7 @@
               Evaluación de Fermentación
             </h2>
             <p class="text-base md:text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">
-              El sistema permite visualizar el interior de los granos para determinar el grado de fermentación y el estado del cacao.
+              Una de las líneas de trabajo del sistema busca apoyar la observación del interior de los granos como referencia para el estudio de la fermentación.
             </p>
           </div>
           <!-- Imagen con hover effect - Tamaño reducido para mejor proporción -->
