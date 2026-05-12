@@ -1,0 +1,32 @@
+# Caddyfile - reverse proxy + TLS automatico (Let's Encrypt)
+# Variables provistas por docker-compose.prod.yml: DOMAIN, LETSENCRYPT_EMAIL
+
+{
+    email {$LETSENCRYPT_EMAIL}
+}
+
+{$DOMAIN} {
+    encode zstd gzip
+
+    # WebSockets (Django Channels)
+    @ws path /ws/*
+    reverse_proxy @ws backend:8000
+
+    # Backend: API, admin, health, auth endpoints
+    @backend path /api/* /admin /admin/* /health /accounts/*
+    reverse_proxy @backend backend:8000
+
+    # Archivos estaticos servidos directo por Caddy (mas rapido que Django)
+    handle_path /static/* {
+        root * /srv/static
+        file_server
+    }
+
+    handle_path /media/* {
+        root * /srv/media
+        file_server
+    }
+
+    # Todo lo demas -> SPA frontend
+    reverse_proxy frontend:18081
+}
