@@ -50,7 +50,6 @@ seaborn==0.13.2
 # --- Reportes ---
 reportlab==4.0.4
 openpyxl==3.1.5
-XlsxWriter==3.1.9
 
 # --- YAML (configs ML) ---
 PyYAML==6.0.3
