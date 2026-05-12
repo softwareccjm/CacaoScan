@@ -70,7 +70,7 @@ describe('ConfigStore', () => {
     })
 
     it('should return sistemaLema from general config', () => {
-      expect(configStore.sistemaLema).toBe('La mejor plataforma para el control de calidad del cacao')
+      expect(configStore.sistemaLema).toBe('Análisis de cacao apoyado en visión por computadora e IA')
     })
 
     it('should return sistemaLogo from general config', () => {
@@ -81,7 +81,7 @@ describe('ConfigStore', () => {
       expect(configStore.getGeneralConfig).toEqual({
         nombre_sistema: 'CacaoScan',
         email_contacto: 'contacto@cacaoscan.com',
-        lema: 'La mejor plataforma para el control de calidad del cacao',
+        lema: 'Análisis de cacao apoyado en visión por computadora e IA',
         logo_url: null
       })
     })

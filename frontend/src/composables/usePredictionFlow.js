@@ -186,7 +186,7 @@ export function usePredictionFlow() {
       },
       smart: {
         title: 'YOLOv8 + Recorte Inteligente',
-        description: 'Detección con YOLOv8 y recorte inteligente para máxima precisión en dimensiones.',
+        description: 'Detección con YOLOv8 y recorte inteligente para ajustar la medición de dimensiones.',
         color: 'green',
         icon: 'sparkles'
       }

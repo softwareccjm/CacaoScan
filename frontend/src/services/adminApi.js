@@ -72,7 +72,7 @@ const TRAINING_PRESETS = {
   },
   PRODUCTION: {
     name: 'Entrenamiento de Producción',
-    description: 'Máxima calidad para modelos en producción',
+    description: 'Configuración orientada a modelos candidatos a producción',
     regression: {
       epochs: 100,
       learning_rate: 0.0005,

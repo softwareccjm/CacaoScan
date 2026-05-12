@@ -17,7 +17,7 @@ vi.mock('@/services/configApi', () => {
   const mockGetGeneralConfig = vi.fn().mockResolvedValue({
     nombre_sistema: 'CacaoScan',
     email_contacto: 'contacto@cacaoscan.com',
-    lema: 'La mejor plataforma para el control de calidad del cacao',
+    lema: 'Análisis de cacao apoyado en visión por computadora e IA',
     logo_url: null
   })
 
@@ -136,7 +136,7 @@ describe('AdminConfiguracion', () => {
     const mockSaveGeneralConfig = vi.spyOn(configApi, 'saveGeneralConfig').mockResolvedValue({
       nombre_sistema: 'New System Name',
       email_contacto: 'contacto@cacaoscan.com',
-      lema: 'La mejor plataforma para el control de calidad del cacao',
+      lema: 'Análisis de cacao apoyado en visión por computadora e IA',
       logo_url: null
     })
 

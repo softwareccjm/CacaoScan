@@ -78,7 +78,7 @@
                     <InputField 
                       v-model="generalConfig.lema"
                       label="Lema"
-                      placeholder="La mejor plataforma para el control de calidad del cacao"
+                      placeholder="Análisis de cacao apoyado en visión por computadora e IA"
                     />
                   </div>
                   

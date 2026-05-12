@@ -7,7 +7,7 @@ export const useConfigStore = defineStore('config', {
     general: {
       nombre_sistema: 'CacaoScan',
       email_contacto: 'contacto@cacaoscan.com',
-      lema: 'La mejor plataforma para el control de calidad del cacao',
+      lema: 'Análisis de cacao apoyado en visión por computadora e IA',
       logo_url: null
     },
     
@@ -131,7 +131,7 @@ export const useConfigStore = defineStore('config', {
         this.general = {
           nombre_sistema: general.nombre_sistema || 'CacaoScan',
           email_contacto: general.email_contacto || 'contacto@cacaoscan.com',
-          lema: general.lema || 'La mejor plataforma para el control de calidad del cacao',
+          lema: general.lema || 'Análisis de cacao apoyado en visión por computadora e IA',
           logo_url: general.logo_url
         }
       }
@@ -327,7 +327,7 @@ export const useConfigStore = defineStore('config', {
       this.general = {
         nombre_sistema: 'CacaoScan',
         email_contacto: 'contacto@cacaoscan.com',
-        lema: 'La mejor plataforma para el control de calidad del cacao',
+        lema: 'Análisis de cacao apoyado en visión por computadora e IA',
         logo_url: null
       }
       this.security = {
