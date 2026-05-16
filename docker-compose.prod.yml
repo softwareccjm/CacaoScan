@@ -1,0 +1,187 @@
+# ==============================================================
+# CacaoScan - Compose para PRODUCCION en DigitalOcean Droplet
+# ==============================================================
+# Uso (en el droplet, dentro del repo):
+#   cp .env.production.example .env
+#   # editar .env con valores reales
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Diferencias con docker-compose.yml (dev):
+#  - Sin bind mount del codigo (la imagen se construye con el codigo embebido)
+#  - Sin --reload en gunicorn
+#  - Sin puertos publicados en backend/frontend/db/redis (solo Caddy expone 80/443)
+#  - Caddy como reverse proxy con TLS automatico (Let's Encrypt)
+#  - restart: unless-stopped en todos los servicios
+# ==============================================================
+
+x-backend-env: &backend-env
+  APP_ENV: production
+  DEBUG: "False"
+  DJANGO_SETTINGS_MODULE: cacaoscan.settings
+  SECRET_KEY: ${SECRET_KEY}
+  ALLOWED_HOSTS: ${DOMAIN}
+  CORS_ALLOWED_ORIGINS: https://${DOMAIN}
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_NAME: ${POSTGRES_DB}
+  DB_USER: ${POSTGRES_USER}
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  USE_REDIS: "True"
+  USE_CELERY_REDIS: "True"
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/0
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cacaoscan_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    container_name: cacaoscan_redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [internal]
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime-base
+    container_name: cacaoscan_backend
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      SERVICE_ROLE: web
+      SEED_INITIAL_DATA: ${SEED_INITIAL_DATA:-false}
+    volumes:
+      - backend_media:/app/media
+      - backend_static:/app/staticfiles
+    entrypoint: ["/docker-entrypoint.sh"]
+    command:
+      - gunicorn
+      - cacaoscan.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - "2"
+      - --timeout
+      - "120"
+      - --graceful-timeout
+      - "60"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks: [internal]
+
+  celery_worker:
+    build:
+      context: ./backend
+      target: runtime-base
+    container_name: cacaoscan_celery_worker
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    volumes:
+      - backend_media:/app/media
+    entrypoint: ["/docker-entrypoint.sh"]
+    command:
+      - celery
+      - -A
+      - cacaoscan
+      - worker
+      - --loglevel=info
+      - --concurrency=2
+      - --max-tasks-per-child=50
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks: [internal]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: https://${DOMAIN}/api/v1
+    container_name: cacaoscan_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: cacaoscan_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - backend_static:/srv/static:ro
+      - backend_media:/srv/media:ro
+    depends_on:
+      - backend
+      - frontend
+    networks: [internal]
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_media:
+  backend_static:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:
+    driver: bridge
